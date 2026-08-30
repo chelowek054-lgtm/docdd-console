@@ -31,6 +31,8 @@ flowchart LR
 
 ## Фаза 2. Чтение и экраны
 
+- Каркас: Nuxt 4 и Nuxt UI как дизайн-система
+  ([adr/0005-nuxt-ui.md](adr/0005-nuxt-ui.md)).
 - Nitro: `paths.ts` с проверкой корня, чтение проекта, сборка индекса, кэш в
   `.docdd/index.json`.
 - Маршруты чтения из [03-server-api.md](03-server-api.md).
