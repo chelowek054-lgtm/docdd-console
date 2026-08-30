@@ -1,0 +1,23 @@
+contract: docdd.workspace/1
+project:
+  id: fishforecast
+  name: FishForecast
+  description: Офлайн-первый помощник рыболова
+paths:
+  requirements: requirements
+  design: design
+  decisions: decisions
+  contracts: contracts
+  tasks: tasks
+  phases: phases
+  tests: tests
+  diagrams: diagrams
+sources:
+  code: [app/src]
+roles:
+  - id: architect
+    name: Архитектор
+policy:
+  require_approved_docs_before_dev: true
+  require_verification_before_done: true
+  stale_in_progress_days: 14
