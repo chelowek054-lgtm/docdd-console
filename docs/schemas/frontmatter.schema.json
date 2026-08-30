@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fishforecast/docdd/frontmatter.schema.json",
+  "title": "Front matter записи процесса",
+  "description": "Схема YAML-заголовка markdown-файла в docs/development. Поколение контракта — docdd.workspace/1.",
+
+  "type": "object",
+  "required": ["id", "type", "title", "status", "created", "updated"],
+  "unevaluatedProperties": true,
+
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[RDACTPV]-[0-9]{4}$",
+      "description": "Префикс типа, дефис, четыре цифры. Номера не переиспользуются."
+    },
+    "type": {
+      "enum": ["requirement", "design", "decision", "contract", "task", "phase", "verification"]
+    },
+    "title": { "type": "string", "minLength": 1 },
+    "status": { "type": "string" },
+    "owner": { "type": "string" },
+    "created": { "type": "string", "format": "date" },
+    "updated": { "type": "string", "format": "date" },
+    "phase": { "type": "string", "pattern": "^P-[0-9]{4}$" },
+    "tags": { "type": "array", "items": { "type": "string" } },
+    "links": {
+      "type": "object",
+      "description": "Связи задаются в одну сторону; обратные строит приложение.",
+      "additionalProperties": false,
+      "properties": {
+        "implements": { "$ref": "#/$defs/idList" },
+        "refines": { "$ref": "#/$defs/idList" },
+        "decided_by": { "$ref": "#/$defs/idList" },
+        "supersedes": { "$ref": "#/$defs/idList" },
+        "depends_on": { "$ref": "#/$defs/idList" },
+        "verified_by": { "$ref": "#/$defs/idList" },
+        "verifies": { "$ref": "#/$defs/idList" },
+        "documents": { "$ref": "#/$defs/idList" },
+        "covers": { "$ref": "#/$defs/idList" }
+      }
+    }
+  },
+
+  "allOf": [
+    {
+      "if": { "properties": { "type": { "const": "requirement" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "id": { "pattern": "^R-[0-9]{4}$" },
+          "status": { "enum": ["draft", "review", "approved", "superseded", "dropped"] }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "design" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "id": { "pattern": "^D-[0-9]{4}$" },
+          "status": { "enum": ["draft", "review", "approved", "superseded", "dropped"] }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "decision" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "id": { "pattern": "^A-[0-9]{4}$" },
+          "status": { "enum": ["draft", "review", "approved", "superseded", "rejected"] }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "contract" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "id": { "pattern": "^C-[0-9]{4}$" },
+          "status": { "enum": ["draft", "review", "approved", "superseded", "dropped"] },
+          "spec": {
+            "type": "string",
+            "description": "Путь к машиночитаемой спецификации: openapi.yaml, asyncapi.yaml, json-schema."
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "task" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "id": { "pattern": "^T-[0-9]{4}$" },
+          "status": {
+            "enum": ["backlog", "ready", "in_progress", "in_review", "done", "dropped"]
+          }
+        },
+        "required": ["links"]
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "phase" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "id": { "pattern": "^P-[0-9]{4}$" },
+          "status": { "enum": ["planned", "active", "done"] }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "verification" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "id": { "pattern": "^V-[0-9]{4}$" },
+          "status": { "enum": ["draft", "review", "approved", "superseded", "dropped"] },
+          "kind": { "enum": ["unit", "integration", "manual", "metric", "review"] },
+          "runner": {
+            "type": "string",
+            "description": "Чем запускается: gradle, npm, pytest. Для ручной проверки пусто."
+          },
+          "command": { "type": "string" }
+        },
+        "required": ["kind"]
+      }
+    }
+  ],
+
+  "$defs": {
+    "idList": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[RDACTPV]-[0-9]{4}$" },
+      "uniqueItems": true
+    }
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fishforecast/docdd/project.schema.json",
+  "title": "Манифест проекта docs/development/project.yaml",
+
+  "type": "object",
+  "required": ["contract", "project", "paths"],
+  "additionalProperties": false,
+
+  "properties": {
+    "contract": {
+      "const": "docdd.workspace/1",
+      "description": "Поколение контракта. Незнакомое отвергается целиком."
+    },
+    "project": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "name": { "type": "string" },
+        "description": { "type": "string" }
+      }
+    },
+    "paths": {
+      "type": "object",
+      "description": "Пути относительно docs/development. Отсутствующий ключ — такого раздела в проекте нет.",
+      "additionalProperties": false,
+      "properties": {
+        "requirements": { "type": "string" },
+        "design": { "type": "string" },
+        "decisions": { "type": "string" },
+        "contracts": { "type": "string" },
+        "tasks": { "type": "string" },
+        "phases": { "type": "string" },
+        "tests": { "type": "string" },
+        "diagrams": { "type": "string" }
+      }
+    },
+    "sources": {
+      "type": "object",
+      "description": "Где лежит код и старая документация: по ним проверяются ссылки и работает импорт.",
+      "additionalProperties": false,
+      "properties": {
+        "code": { "type": "array", "items": { "type": "string" } },
+        "docs": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "roles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" }
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "require_approved_docs_before_dev": {
+          "type": "boolean",
+          "default": true,
+          "description": "Задача не уходит в разработку, пока её документы не подтверждены."
+        },
+        "require_verification_before_done": {
+          "type": "boolean",
+          "default": true,
+          "description": "Задача не закрывается, пока её проверки не прошли."
+        },
+        "stale_in_progress_days": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Через сколько дней задача в работе считается зависшей."
+        }
+      }
+    }
+  }
+}

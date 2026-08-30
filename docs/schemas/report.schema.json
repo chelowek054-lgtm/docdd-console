@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docdd/report.schema.json",
+  "title": "Отчёт прогона проверок",
+  "description": "Кладётся в tests/reports/<дата>-<runner>.json. Производные данные: удаление не ломает формат.",
+
+  "type": "object",
+  "required": ["contract", "runner", "started_at", "verifications"],
+  "additionalProperties": true,
+
+  "properties": {
+    "contract": { "const": "docdd.workspace/1" },
+    "runner": { "type": "string" },
+    "started_at": { "type": "string", "format": "date-time" },
+    "total": { "type": "integer", "minimum": 0 },
+    "failed": { "type": "integer", "minimum": 0 },
+    "verifications": {
+      "type": "object",
+      "description": "Идентификатор проверки → результат последнего прогона.",
+      "propertyNames": { "pattern": "^V-[0-9]{4}$" },
+      "additionalProperties": { "enum": ["passed", "failed", "skipped"] }
+    }
+  }
+}
