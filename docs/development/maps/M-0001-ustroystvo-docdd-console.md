@@ -35,6 +35,7 @@ updated: 2026-08-31
       "modules": [
         {"id":"app/app.vue","title":"app","layer":"каркас"},
         {"id":"app/components/DocumentText.vue","title":"DocumentText","layer":"компоненты"},
+        {"id":"app/components/FixWork.vue","title":"FixWork","layer":"компоненты"},
         {"id":"app/components/IssueList.vue","title":"IssueList","layer":"компоненты"},
         {"id":"app/components/MermaidDiagram.vue","title":"MermaidDiagram","layer":"компоненты"},
         {"id":"app/components/ModelLog.vue","title":"ModelLog","layer":"компоненты"},
@@ -66,6 +67,9 @@ updated: 2026-08-31
         {"id":"cli/report.ts","title":"report","layer":"командная строка"},
         {"id":"server/api/projects/[id].delete.ts","title":"[id].delete","layer":"маршруты"},
         {"id":"server/api/projects/[id]/file.get.ts","title":"file.get","layer":"маршруты"},
+        {"id":"server/api/projects/[id]/fix/index.post.ts","title":"index.post","layer":"маршруты"},
+        {"id":"server/api/projects/[id]/fix/work/index.get.ts","title":"index.get","layer":"маршруты"},
+        {"id":"server/api/projects/[id]/fix/work/index.post.ts","title":"index.post","layer":"маршруты"},
         {"id":"server/api/projects/[id]/import/index.get.ts","title":"index.get","layer":"маршруты"},
         {"id":"server/api/projects/[id]/import/index.post.ts","title":"index.post","layer":"маршруты"},
         {"id":"server/api/projects/[id]/index/index.get.ts","title":"index.get","layer":"маршруты"},
@@ -100,6 +104,7 @@ updated: 2026-08-31
         {"id":"server/lib/workspace.ts","title":"workspace","layer":"ядро"},
         {"id":"server/lib/write.ts","title":"write","layer":"ядро"},
         {"id":"server/utils/abort.ts","title":"abort","layer":"серверные утилиты"},
+        {"id":"server/utils/fix-service.ts","title":"fix-service","layer":"серверные утилиты"},
         {"id":"server/utils/git.ts","title":"git","layer":"серверные утилиты"},
         {"id":"server/utils/http.ts","title":"http","layer":"серверные утилиты"},
         {"id":"server/utils/index-service.ts","title":"index-service","layer":"серверные утилиты"},
@@ -111,6 +116,8 @@ updated: 2026-08-31
         {"id":"server/utils/work-service.ts","title":"work-service","layer":"серверные утилиты"}
       ],
       "imports": [
+        {"from":"app/components/FixWork.vue","to":"app/composables/useProjectIndex.ts","evidence":{"path":"app/components/FixWork.vue","line":2,"fragment":"import type { ApiFailure } from '~/composables/useProjectInd"}},
+        {"from":"app/components/FixWork.vue","to":"server/utils/fix-service.ts","evidence":{"path":"app/components/FixWork.vue","line":3,"fragment":"import type { FixState } from '~~/server/utils/fix-service';"}},
         {"from":"app/components/IssueList.vue","to":"server/lib/types.ts","evidence":{"path":"app/components/IssueList.vue","line":2,"fragment":"import type { IssueDto } from '~~/server/lib/types';"}},
         {"from":"app/components/ModelLog.vue","to":"app/composables/useModelRequest.ts","evidence":{"path":"app/components/ModelLog.vue","line":2,"fragment":"import type { LogLine } from '~/composables/useModelRequest'"}},
         {"from":"app/components/ModelProgress.vue","to":"app/composables/useModelRequest.ts","evidence":{"path":"app/components/ModelProgress.vue","line":2,"fragment":"import type { ModelOutcome } from '~/composables/useModelReq"}},
@@ -145,6 +152,23 @@ updated: 2026-08-31
         {"from":"server/api/projects/[id]/file.get.ts","to":"server/lib/paths.ts","evidence":{"path":"server/api/projects/[id]/file.get.ts","line":5,"fragment":"import { OutsideRootError, resolveInside } from '../../../li"}},
         {"from":"server/api/projects/[id]/file.get.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/projects/[id]/file.get.ts","line":6,"fragment":"import { fail } from '../../../utils/http';"}},
         {"from":"server/api/projects/[id]/file.get.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/[id]/file.get.ts","line":7,"fragment":"import { findProject } from '../../../utils/projects';"}},
+        {"from":"server/api/projects/[id]/fix/index.post.ts","to":"server/lib/paths.ts","evidence":{"path":"server/api/projects/[id]/fix/index.post.ts","line":4,"fragment":"import { normalizeRoot } from '../../../../lib/paths';"}},
+        {"from":"server/api/projects/[id]/fix/index.post.ts","to":"server/utils/abort.ts","evidence":{"path":"server/api/projects/[id]/fix/index.post.ts","line":5,"fragment":"import { abortSignalOf } from '../../../../utils/abort';"}},
+        {"from":"server/api/projects/[id]/fix/index.post.ts","to":"server/utils/fix-service.ts","evidence":{"path":"server/api/projects/[id]/fix/index.post.ts","line":6,"fragment":"import { borderOf, startFix } from '../../../../utils/fix-se"}},
+        {"from":"server/api/projects/[id]/fix/index.post.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/projects/[id]/fix/index.post.ts","line":7,"fragment":"import { fail } from '../../../../utils/http';"}},
+        {"from":"server/api/projects/[id]/fix/index.post.ts","to":"server/utils/index-service.ts","evidence":{"path":"server/api/projects/[id]/fix/index.post.ts","line":8,"fragment":"import { loadIndex } from '../../../../utils/index-service';"}},
+        {"from":"server/api/projects/[id]/fix/index.post.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/[id]/fix/index.post.ts","line":9,"fragment":"import { findProject } from '../../../../utils/projects';"}},
+        {"from":"server/api/projects/[id]/fix/index.post.ts","to":"server/utils/sse.ts","evidence":{"path":"server/api/projects/[id]/fix/index.post.ts","line":10,"fragment":"import { eventStream } from '../../../../utils/sse';"}},
+        {"from":"server/api/projects/[id]/fix/work/index.get.ts","to":"server/lib/paths.ts","evidence":{"path":"server/api/projects/[id]/fix/work/index.get.ts","line":3,"fragment":"import { normalizeRoot } from '../../../../../lib/paths';"}},
+        {"from":"server/api/projects/[id]/fix/work/index.get.ts","to":"server/utils/fix-service.ts","evidence":{"path":"server/api/projects/[id]/fix/work/index.get.ts","line":4,"fragment":"import { borderOf, fixState } from '../../../../../utils/fix"}},
+        {"from":"server/api/projects/[id]/fix/work/index.get.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/projects/[id]/fix/work/index.get.ts","line":5,"fragment":"import { fail } from '../../../../../utils/http';"}},
+        {"from":"server/api/projects/[id]/fix/work/index.get.ts","to":"server/utils/index-service.ts","evidence":{"path":"server/api/projects/[id]/fix/work/index.get.ts","line":6,"fragment":"import { loadIndex } from '../../../../../utils/index-servic"}},
+        {"from":"server/api/projects/[id]/fix/work/index.get.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/[id]/fix/work/index.get.ts","line":7,"fragment":"import { findProject } from '../../../../../utils/projects';"}},
+        {"from":"server/api/projects/[id]/fix/work/index.post.ts","to":"server/lib/paths.ts","evidence":{"path":"server/api/projects/[id]/fix/work/index.post.ts","line":3,"fragment":"import { normalizeRoot } from '../../../../../lib/paths';"}},
+        {"from":"server/api/projects/[id]/fix/work/index.post.ts","to":"server/utils/fix-service.ts","evidence":{"path":"server/api/projects/[id]/fix/work/index.post.ts","line":4,"fragment":"import { acceptFix, borderOf, rejectFix } from '../../../../"}},
+        {"from":"server/api/projects/[id]/fix/work/index.post.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/projects/[id]/fix/work/index.post.ts","line":5,"fragment":"import { fail } from '../../../../../utils/http';"}},
+        {"from":"server/api/projects/[id]/fix/work/index.post.ts","to":"server/utils/index-service.ts","evidence":{"path":"server/api/projects/[id]/fix/work/index.post.ts","line":6,"fragment":"import { loadIndex } from '../../../../../utils/index-servic"}},
+        {"from":"server/api/projects/[id]/fix/work/index.post.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/[id]/fix/work/index.post.ts","line":7,"fragment":"import { findProject } from '../../../../../utils/projects';"}},
         {"from":"server/api/projects/[id]/import/index.get.ts","to":"server/lib/import.ts","evidence":{"path":"server/api/projects/[id]/import/index.get.ts","line":6,"fragment":"import { surveyFile, type SurveyRow } from '../../../../lib/"}},
         {"from":"server/api/projects/[id]/import/index.get.ts","to":"server/lib/paths.ts","evidence":{"path":"server/api/projects/[id]/import/index.get.ts","line":7,"fragment":"import { OutsideRootError, normalizeRoot, toProjectPath } fr"}},
         {"from":"server/api/projects/[id]/import/index.get.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/api/projects/[id]/import/index.get.ts","line":8,"fragment":"import { WorkspaceError, readManifest } from '../../../../li"}},
@@ -264,6 +288,13 @@ updated: 2026-08-31
         {"from":"server/lib/workspace.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/workspace.ts","line":10,"fragment":"import type { ProjectManifest, Report, SectionKey } from './"}},
         {"from":"server/lib/write.ts","to":"server/lib/parse.ts","evidence":{"path":"server/lib/write.ts","line":3,"fragment":"import { coerceDates } from './parse';"}},
         {"from":"server/lib/write.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/write.ts","line":4,"fragment":"import type { Eol, LinkKind } from './types';"}},
+        {"from":"server/utils/fix-service.ts","to":"server/lib/actions.ts","evidence":{"path":"server/utils/fix-service.ts","line":4,"fragment":"import { applyJournalNote } from '../lib/actions';"}},
+        {"from":"server/utils/fix-service.ts","to":"server/lib/branch.ts","evidence":{"path":"server/utils/fix-service.ts","line":5,"fragment":"import { FIX_BRANCH, FIX_ID, fixCommitMessage, worktreePath "}},
+        {"from":"server/utils/fix-service.ts","to":"server/lib/paths.ts","evidence":{"path":"server/utils/fix-service.ts","line":6,"fragment":"import { normalizeRoot } from '../lib/paths';"}},
+        {"from":"server/utils/fix-service.ts","to":"server/lib/stream-events.ts","evidence":{"path":"server/utils/fix-service.ts","line":7,"fragment":"import type { ModelEvent } from '../lib/stream-events';"}},
+        {"from":"server/utils/fix-service.ts","to":"server/lib/types.ts","evidence":{"path":"server/utils/fix-service.ts","line":8,"fragment":"import { DEVELOPMENT_DIR, type ProjectIndex } from '../lib/t"}},
+        {"from":"server/utils/fix-service.ts","to":"server/utils/git.ts","evidence":{"path":"server/utils/fix-service.ts","line":18,"fragment":"} from './git';"}},
+        {"from":"server/utils/fix-service.ts","to":"server/utils/record-write.ts","evidence":{"path":"server/utils/fix-service.ts","line":20,"fragment":"import { today } from './record-write';"}},
         {"from":"server/utils/git.ts","to":"server/lib/branch.ts","evidence":{"path":"server/utils/git.ts","line":5,"fragment":"import { WORKTREE_DIR } from '../lib/branch';"}},
         {"from":"server/utils/git.ts","to":"server/lib/paths.ts","evidence":{"path":"server/utils/git.ts","line":6,"fragment":"import { normalizeRoot } from '../lib/paths';"}},
         {"from":"server/utils/index-service.ts","to":"server/lib/cache.ts","evidence":{"path":"server/utils/index-service.ts","line":1,"fragment":"import { readCache, writeCache } from '../lib/cache';"}},
@@ -326,6 +357,9 @@ updated: 2026-08-31
         {"from":"server/lib/cache.ts","to":"project-files","direction":"read","evidence":{"path":"server/lib/cache.ts","line":1,"fragment":"import { mkdirSync, readFileSync, rmSync, writeFileSync } fr"}},
         {"from":"server/lib/cache.ts","to":"project-files","direction":"write","evidence":{"path":"server/lib/cache.ts","line":37,"fragment":"mkdirSync(dirname(path), { recursive: true });"}},
         {"from":"server/lib/workspace.ts","to":"project-files","direction":"read","evidence":{"path":"server/lib/workspace.ts","line":1,"fragment":"import { existsSync, readFileSync, readdirSync, statSync } f"}},
+        {"from":"server/utils/fix-service.ts","to":"git-repo","direction":"both","evidence":{"path":"server/utils/fix-service.ts","line":136,"fragment":"  const created = await ensureWorktree(normalized, FIX_BRANC"}},
+        {"from":"server/utils/fix-service.ts","to":"project-files","direction":"read","evidence":{"path":"server/utils/fix-service.ts","line":255,"fragment":"    const original = readFileSync(absolute, 'utf8');"}},
+        {"from":"server/utils/fix-service.ts","to":"project-files","direction":"write","evidence":{"path":"server/utils/fix-service.ts","line":259,"fragment":"    writeFileSync(absolute, outcome.text, 'utf8');"}},
         {"from":"server/utils/git.ts","to":"git-repo","direction":"both","evidence":{"path":"server/utils/git.ts","line":26,"fragment":"    execFile("}},
         {"from":"server/utils/projects.ts","to":"projects-list","direction":"both","evidence":{"path":"server/utils/projects.ts","line":12,"fragment":"return useStorage('data');"}},
         {"from":"server/utils/record-write.ts","to":"project-files","direction":"read","evidence":{"path":"server/utils/record-write.ts","line":1,"fragment":"import { readFileSync, writeFileSync } from 'node:fs';"}},
@@ -365,10 +399,12 @@ updated: 2026-08-31
         {"from":"/projects/:id/tasks","to":"/projects/:id/records/:id","trigger":"ссылка","evidence":{"path":"app/pages/projects/[id]/tasks.vue","line":81,"fragment":":to=\"`/projects/${projectId}/records/${id}`\""}}
       ],
       "calls": [
-        {"from":"/","to":"POST /api/projects/init","evidence":{"path":"app/pages/index.vue","line":31,"fragment":"const response = await $fetch<ProjectEntry | { error: ApiFai"}},
-        {"from":"/","to":"POST /api/projects","evidence":{"path":"app/pages/index.vue","line":55,"fragment":"const response = await $fetch<ProjectEntry | { error: ApiFai"}},
         {"from":"/","to":"DELETE /api/projects/:id","evidence":{"path":"app/pages/index.vue","line":79,"fragment":"await $fetch(`/api/projects/${id}`, { method: 'DELETE', igno"}},
+        {"from":"/","to":"POST /api/projects","evidence":{"path":"app/pages/index.vue","line":55,"fragment":"const response = await $fetch<ProjectEntry | { error: ApiFai"}},
+        {"from":"/","to":"POST /api/projects/init","evidence":{"path":"app/pages/index.vue","line":31,"fragment":"const response = await $fetch<ProjectEntry | { error: ApiFai"}},
         {"from":"/projects/:id/import","to":"POST /api/projects/:id/import","evidence":{"path":"app/pages/projects/[id]/import.vue","line":63,"fragment":"const response = await $fetch(`/api/projects/${projectId.val"}},
+        {"from":"/projects/:id/issues","to":"POST /api/projects/:id/fix","evidence":{"path":"app/components/FixWork.vue","line":45,"fragment":"  const result = await stream<{ state: FixState }>(`/api/pro"}},
+        {"from":"/projects/:id/issues","to":"POST /api/projects/:id/fix/work","evidence":{"path":"app/components/FixWork.vue","line":59,"fragment":"      `/api/projects/${props.projectId}/fix/work`,"}},
         {"from":"/projects/:id/records/:recordId","to":"GET /api/projects/:id/records/:recordId/work","evidence":{"path":"app/components/TaskWork.vue","line":19,"fragment":"  () => `/api/projects/${props.projectId}/records/${props.re"}},
         {"from":"/projects/:id/records/:recordId","to":"POST /api/projects/:id/records/:recordId/work","evidence":{"path":"app/components/TaskWork.vue","line":43,"fragment":"  const url = `/api/projects/${props.projectId}/records/${pr"}}
       ]
@@ -383,3 +419,4 @@ updated: 2026-08-31
 - 2026-08-31 · дописаны модули ожидания ответа модели · architect
 - 2026-08-31 · дописаны модули ленты работы модели · architect
 - 2026-08-31 · дописана память о разговорах с моделью · architect
+- 2026-09-01 · дописаны модули починки нарушений · architect

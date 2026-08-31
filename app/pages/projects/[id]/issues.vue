@@ -2,7 +2,7 @@
 const route = useRoute();
 const projectId = computed(() => String(route.params['id'] ?? ''));
 
-const { index, failure, errors, warnings } = useProjectIndex(projectId);
+const { index, failure, errors, warnings, refresh } = useProjectIndex(projectId);
 
 const only = ref<'all' | 'error' | 'warning'>('all');
 const code = ref('');
@@ -56,7 +56,19 @@ const shown = computed(() => all.value
         :severity="only === 'all' ? undefined : only"
         label="Исправить"
         :hint="`${shown.length} нарушений на экране`"
-      />
+      >
+        <!-- Починка начинается с подтверждения плана (adr/0010). -->
+        <template #answer="{ answer }">
+          <FixWork
+            :project-id="projectId"
+            :plan="answer"
+            :codes="code ? [code] : []"
+            :severity="only === 'all' ? '' : only"
+            :roles="index?.project.roles ?? []"
+            @changed="refresh"
+          />
+        </template>
+      </PromptPanel>
 
       <IssueList
         :project-id="projectId"

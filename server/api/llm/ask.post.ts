@@ -33,6 +33,9 @@ export default defineEventHandler(async (event) => {
   const result = await ask(prompt, {
     ...(project ? { cwd: project.root } : {}),
     signal,
+    // Этот запрос спрашивает, а не чинит: до подтверждения человеком в
+    // проекте не должно измениться ничего (adr/0010).
+    readOnly: true,
     onEvent: (modelEvent) => stream.send(modelEvent.kind, modelEvent)
   });
 

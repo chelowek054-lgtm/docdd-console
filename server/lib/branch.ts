@@ -38,3 +38,18 @@ export function commitMessage(id: string, title: string, round: number): string 
   const suffix = round > 1 ? ` (заход ${round})` : '';
   return `${id}: ${title}${suffix}`;
 }
+
+/**
+ * Починка нарушений идёт своей веткой и своим деревом
+ * (docs/adr/0010-model-fixes-violations.md). Записи-задачи у неё нет, поэтому
+ * имя постоянное: починка одна за раз, и вторую заводить незачем.
+ */
+export const FIX_ID = 'fix';
+
+export const FIX_BRANCH = `${BRANCH_PREFIX}/fix-violations`;
+
+/** Сообщение коммита починки: по нему в `git log` видно, что и по скольким записям. */
+export function fixCommitMessage(codes: readonly string[], records: number): string {
+  const what = codes.length ? codes.join(', ') : 'нарушения';
+  return `Починка: ${what} (записей: ${records})`;
+}

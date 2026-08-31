@@ -39,7 +39,7 @@ export default defineEventHandler(async (event) => {
         // Ошибки первыми: запрос читается сверху, и чинить надо тоже сверху.
         .sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'error' ? -1 : 1));
 
-      return { prompt: fixPrompt(await template('fix-violations.md'), issues), count: issues.length };
+      return { prompt: fixPrompt(await template('fix-plan.md'), issues), count: issues.length };
     }
 
     if (kind === 'maps') {

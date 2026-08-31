@@ -15,7 +15,7 @@ import { ask, availability, childEnvironment, spawnClaude, unfence, type Runner 
  */
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const fixTemplate = readFileSync(join(root, 'docs', 'prompts', 'fix-violations.md'), 'utf8');
+const fixTemplate = readFileSync(join(root, 'docs', 'prompts', 'fix-plan.md'), 'utf8');
 const mapsTemplate = readFileSync(join(root, 'docs', 'prompts', 'update-maps.md'), 'utf8');
 
 const issue = (over: Partial<IssueDto> = {}): IssueDto => ({
@@ -489,5 +489,32 @@ describe('продолжение разговора', () => {
     expect(result.answer).toBe('ответ заново');
     expect(asked[1]).not.toContain('--resume');
     expect(shown.join(' ')).toContain('начинаю заново');
+  });
+});
+
+describe('запрос, который ничего не меняет', () => {
+  it('спрашивая, модель не получает права править файлы', async () => {
+    const asked: string[][] = [];
+    const run: Runner = (_command, args) => {
+      asked.push([...args]);
+      return Promise.resolve({ stdout: 'ответ', stderr: '', code: 0 });
+    };
+
+    await ask('вопрос', { run, readOnly: true });
+    // Неподтверждённое изменение не должно случиться вовсе (adr/0010).
+    expect(asked[0]).toContain('--permission-mode');
+    expect(asked[0]).toContain('plan');
+    expect(asked[0]).toContain('Edit');
+  });
+
+  it('починка по подтверждённому плану идёт с правами: ей чинить', async () => {
+    const asked: string[][] = [];
+    const run: Runner = (_command, args) => {
+      asked.push([...args]);
+      return Promise.resolve({ stdout: 'ответ', stderr: '', code: 0 });
+    };
+
+    await ask('вопрос', { run });
+    expect(asked[0]).not.toContain('--permission-mode');
   });
 });

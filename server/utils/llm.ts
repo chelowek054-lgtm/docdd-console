@@ -164,6 +164,11 @@ export interface AskOptions {
    * базы не проходятся заново ради одной правки (docs/09-execution.md).
    */
   resume?: string;
+  /**
+   * Запрос без права править файлы. Ставится там, где ответ — предложение,
+   * а не работа: неподтверждённое изменение не должно случиться вовсе.
+   */
+  readOnly?: boolean;
 }
 
 export interface RunOptions {
@@ -222,6 +227,14 @@ const ARGUMENT_LIMIT = 24_000;
 /** Так Claude Code говорит, что продолжать нечего. */
 const LOST_SESSION = /no conversation found|session .*not found|invalid session/i;
 
+/**
+ * Запрос, который ничего не меняет: модель читает и отвечает, но не правит
+ * файлы. Планы, разбор нарушений и построение карт — все они спрашивают, а не
+ * чинят, и до подтверждения человеком не должны трогать проект
+ * (docs/adr/0010-model-fixes-violations.md).
+ */
+const READ_ONLY_ARGS = ['--permission-mode', 'plan', '--disallowed-tools', 'Edit', 'Write', 'NotebookEdit'];
+
 const STREAM_ARGS = ['--output-format', 'stream-json', '--verbose', '--include-partial-messages'];
 
 /**
@@ -263,6 +276,7 @@ export async function ask(prompt: string, options: AskOptions = {}): Promise<Llm
     // Лента событий нужна, только когда её кто-то показывает.
     if (options.onEvent) args.push(...STREAM_ARGS);
     if (options.resume) args.push('--resume', options.resume);
+    if (options.readOnly) args.push(...READ_ONLY_ARGS);
 
     const parser = createStreamParser();
     let streamed = '';
