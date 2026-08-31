@@ -196,6 +196,22 @@ const ARGUMENT_LIMIT = 24_000;
  * которая не передала бы стандартный ввод; длинный (карта большого проекта) —
  * на стандартный ввод, потому что в аргумент он не помещается.
  */
+/**
+ * Claude Code сообщает об отказе в доступе по-разному: иногда кодом возврата и
+ * ошибкой, а иногда печатает строку отказа в обычный вывод и выходит с нулём.
+ * Во втором случае отказ приезжал в приложение как ответ модели — поэтому
+ * смотрим на сам текст, а не только на код возврата.
+ */
+const REFUSAL = /Failed to authenticate|API Error: 40[13]|Request not allowed|Invalid API key|OAuth token has expired/i;
+
+/**
+ * Отказ — это короткая строка вместо ответа. Длину проверяем, чтобы не принять
+ * за отказ разбор задачи, в которой сама по себе речь о 403.
+ */
+export function looksLikeRefusal(text: string): boolean {
+  return text.length <= 400 && REFUSAL.test(text);
+}
+
 export async function ask(prompt: string, options: AskOptions = {}): Promise<LlmResult> {
   const found = availability();
   if (!found.available && !options.run) {
@@ -225,7 +241,7 @@ export async function ask(prompt: string, options: AskOptions = {}): Promise<Llm
 
     if (result.code !== 0 && answer === '') {
       const said = `${result.stderr} ${result.stdout}`;
-      if (/403|Failed to authenticate|not allowed|unauthorized/i.test(said)) {
+      if (looksLikeRefusal(said) || /403|unauthorized/i.test(said)) {
         // Отказ в доступе — не поломка приложения, и путать их нельзя: чинится
         // это в самом Claude Code, а не здесь.
         return {
@@ -248,6 +264,19 @@ export async function ask(prompt: string, options: AskOptions = {}): Promise<Llm
     }
     if (answer === '') {
       return { ok: false, failure: { code: 'empty', message: 'Модель вернула пустой ответ' } };
+    }
+
+    // Отказ приехал обычным выводом с нулевым кодом: показать его как ответ
+    // модели значило бы соврать о том, что работа сделана.
+    if (looksLikeRefusal(answer)) {
+      return {
+        ok: false,
+        failure: {
+          code: 'unauthorized',
+          message: 'Claude Code отказал в доступе. Приложение тут ни при чём: проверьте командой `claude -p "привет"` в обычном терминале. Не отвечает и там — обновите его (`winget upgrade Anthropic.ClaudeCode`) и войдите заново.',
+          detail: answer.slice(0, 500)
+        }
+      };
     }
 
     return { ok: true, answer, ms: Date.now() - started };

@@ -95,6 +95,26 @@ describe('ask', () => {
     expect(result.failure.detail).toContain('403');
   });
 
+  it('отказ, напечатанный в обычный вывод с нулевым кодом, не выдаётся за ответ модели', async () => {
+    // Так Claude Code и отвечает на самом деле: строка отказа в stdout, код 0.
+    const run: Runner = () => Promise.resolve({
+      stdout: 'Failed to authenticate. API Error: 403 Request not allowed',
+      stderr: '',
+      code: 0
+    });
+
+    const result = await ask('вопрос', { run });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.failure.code).toBe('unauthorized');
+  });
+
+  it('длинный ответ про 403 остаётся ответом: это разбор задачи, а не отказ', async () => {
+    const text = 'Разбираем ошибку 403 Request not allowed: она означает отказ в доступе. ' + 'Проверьте вход и повторите. '.repeat(20);
+    const result = await ask('вопрос', { run: answering(text, 0) });
+    expect(result.ok).toBe(true);
+  });
+
   it('ответ, пришедший вместе с ненулевым кодом, не выбрасывается', async () => {
     // Программа могла поругаться в stderr и всё-таки ответить.
     const result = await ask('вопрос', { run: answering('всё же ответ', 1) });
