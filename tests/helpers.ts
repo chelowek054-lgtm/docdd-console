@@ -70,6 +70,7 @@ export interface ContextOptions {
   now?: string;
   codeRoots?: string[];
   codeFiles?: string[];
+  documents?: string[];
 }
 
 export function context(records: WorkRecord[], options: ContextOptions = {}): RuleContext {
@@ -82,7 +83,10 @@ export function context(records: WorkRecord[], options: ContextOptions = {}): Ru
     code: {
       roots: options.codeRoots ?? [],
       files: new Set(options.codeFiles ?? [])
-    }
+    },
+    // По умолчанию существующими считаются файлы самих записей: так тест
+    // проверяет правило, а не список файлов.
+    documents: new Set(options.documents ?? records.map((record) => record.source.path))
   };
 }
 

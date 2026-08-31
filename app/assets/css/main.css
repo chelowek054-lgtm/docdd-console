@@ -1,0 +1,10 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+/*
+ * Оформление берётся из Nuxt UI токенами, а не переопределением её стилей
+ * снаружи (ADR-0005). Здесь — только выбор палитры.
+ */
+@theme static {
+  --color-primary-500: var(--color-sky-500);
+}

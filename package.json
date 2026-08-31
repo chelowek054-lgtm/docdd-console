@@ -4,22 +4,26 @@
   "type": "module",
   "description": "Инструмент контроля разработки по правилу «документ ведёт код»",
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && nuxt typecheck",
     "test": "vitest run",
     "lint": "eslint ."
   },
   "dependencies": {
+    "@nuxt/ui": "^4.11.0",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "gray-matter": "^4.0.3",
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^4.1.0",
+    "nuxt": "^4.4.5"
   },
   "devDependencies": {
+    "@iconify-json/lucide": "^1.2.127",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.10.2",
     "eslint": "^9.17.0",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.18.1",
-    "vitest": "^2.1.8"
+    "vitest": "^4.1.11",
+    "vue-tsc": "^3.3.11"
   }
 }

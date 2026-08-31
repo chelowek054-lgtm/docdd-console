@@ -1,4 +1,6 @@
-import Ajv2020 from 'ajv/dist/2020';
+// Расширение обязательно: без него сборка Nitro для Node не находит модуль,
+// хотя сборщик и tsc его разрешают. Проверено запуском, а не догадкой.
+import Ajv2020 from 'ajv/dist/2020.js';
 import type { ErrorObject, ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
 

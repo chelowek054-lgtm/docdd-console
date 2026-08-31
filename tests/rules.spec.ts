@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   checkCodeLinks,
   checkCycles,
+  checkDocLinks,
   checkDuplicates,
   checkLinks,
   checkRecordIdentity,
@@ -18,6 +19,9 @@ import {
   verificationNeverRun
 } from '../server/lib/rules';
 import { codes, context, rec } from './helpers';
+
+/** Тело записи собирается строками: экранированный перенос в тесте не читается. */
+const EOL = String.fromCharCode(10);
 
 /**
  * У каждого кода из docs/05-validation.md две проверки: на срабатывание и на
@@ -237,6 +241,49 @@ describe('code_link_missing', () => {
     const outside = '# Разбор\n\n[скрипт](../../../tools/build.sh)\n';
     const ctx = context([rec('D-0003', 'design', 'approved', { body: outside })], options);
     expect(checkCodeLinks(ctx)).toEqual([]);
+  });
+});
+
+describe('doc_link_missing', () => {
+  const body = ['# Разбор', '', 'Смотри [устройство клиента](../design/D-0001-arch.md).', ''].join(EOL);
+
+  it('срабатывает, когда документа по ссылке нет', () => {
+    const record = rec('T-0007', 'task', 'backlog', { body });
+    const found = checkDocLinks(context([record]));
+    expect(codes(found)).toEqual(['doc_link_missing']);
+    expect(found[0]?.message).toContain('docs/development/design/D-0001-arch.md');
+  });
+
+  it('молчит, когда документ на месте', () => {
+    const record = rec('T-0007', 'task', 'backlog', { body });
+    const ctx = context([record], {
+      documents: [record.source.path, 'docs/development/design/D-0001-arch.md']
+    });
+    expect(checkDocLinks(ctx)).toEqual([]);
+  });
+
+  it('молчит на якоре к существующему документу: заголовки правят чаще, чем файлы', () => {
+    const withAnchor = rec('T-0007', 'task', 'backlog', {
+      body: '[раздел](../design/D-0001-arch.md#статусы)'
+    });
+    const ctx = context([withAnchor], {
+      documents: [withAnchor.source.path, 'docs/development/design/D-0001-arch.md']
+    });
+    expect(checkDocLinks(ctx)).toEqual([]);
+  });
+
+  it('молчит на ссылке за пределы docs/development и на внешний адрес', () => {
+    const outside = rec('T-0007', 'task', 'backlog', {
+      body: '[README](../../../README.md) и [сайт](https://example.org/a.md)'
+    });
+    expect(checkDocLinks(context([outside]))).toEqual([]);
+  });
+
+  it('молчит на ссылке на код: об этом говорит code_link_missing', () => {
+    const toCode = rec('T-0007', 'task', 'backlog', {
+      body: '[модуль](../../../app/src/bite.ts)'
+    });
+    expect(checkDocLinks(context([toCode]))).toEqual([]);
   });
 });
 

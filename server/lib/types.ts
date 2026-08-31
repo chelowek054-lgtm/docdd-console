@@ -4,6 +4,9 @@
  * и им нужно одно место, а не копия в каждом модуле.
  */
 
+/** Папка формата внутри проекта. Задана контрактом и не настраивается. */
+export const DEVELOPMENT_DIR = 'docs/development';
+
 export type RecordType =
   | 'requirement'
   | 'design'
@@ -73,6 +76,7 @@ export type ViolationCode =
   | 'link_wrong_type'
   | 'superseded_without_successor'
   | 'code_link_missing'
+  | 'doc_link_missing'
   // процесс
   | 'task_not_ready_docs'
   | 'task_no_requirement'
@@ -97,6 +101,7 @@ export const VIOLATION_LEVELS: Readonly<Record<ViolationCode, Severity>> = {
   link_wrong_type: 'error',
   superseded_without_successor: 'error',
   code_link_missing: 'warning',
+  doc_link_missing: 'warning',
   task_not_ready_docs: 'error',
   task_no_requirement: 'error',
   task_done_unverified: 'error',
@@ -181,4 +186,80 @@ export function violation(
   message: string
 ): Violation {
   return { code, level: VIOLATION_LEVELS[code], id, path, message };
+}
+
+/**
+ * Формы ответов внутреннего API (docs/03-server-api.md). Браузер видит только
+ * их: о путях и файлах он не знает.
+ */
+
+export interface VerificationOutcome {
+  state: VerificationResult;
+  /** Время начала прогона, из которого взят результат. */
+  at: string;
+  runner: string;
+}
+
+export interface IndexRecord {
+  id: string;
+  type: string;
+  title: string;
+  status: string;
+  owner: string | null;
+  created: string | null;
+  updated: string | null;
+  phase: string | null;
+  tags: string[];
+  path: string;
+  section: SectionKey | null;
+  links: Partial<Record<LinkKind, string[]>>;
+  /** Обратные связи: в файлах их нет, их строит приложение. */
+  backlinks: Partial<Record<LinkKind, string[]>>;
+  /** Незнакомые поля front matter: приложение их не понимает, но обязано вернуть. */
+  extra: Record<string, unknown>;
+}
+
+export interface IssueDto {
+  severity: Severity;
+  code: ViolationCode;
+  recordId: string | null;
+  path: string;
+  message: string;
+}
+
+export interface ProjectIndex {
+  project: { id: string; name: string; contract: string };
+  builtAt: string;
+  /** Отпечаток файлов, по которому кэш понимает, что устарел. */
+  fingerprint: string;
+  records: IndexRecord[];
+  verificationResults: Record<string, VerificationOutcome>;
+  issues: IssueDto[];
+}
+
+/** Запись проекта в списке приложения — единственные собственные данные. */
+export interface ProjectEntry {
+  id: string;
+  name: string;
+  root: string;
+  lastOpenedAt: string;
+}
+
+export interface DiagramBlock {
+  /** `inline` — блок ```mermaid в тексте, `file` — вставленный .mmd. */
+  kind: 'inline' | 'file';
+  source: string;
+  path?: string;
+  caption?: string;
+  error?: string;
+}
+
+export interface RecordDetail {
+  record: IndexRecord;
+  /** Тело документа в исходном markdown: приложение его не переписывает. */
+  body: string;
+  eol: Eol;
+  diagrams: DiagramBlock[];
+  issues: IssueDto[];
+  verifications: Record<string, VerificationOutcome>;
 }

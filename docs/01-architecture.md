@@ -39,6 +39,10 @@ server/
   api/                    маршруты Nitro
   lib/
     parse.ts              front matter и тело файла
+    workspace.ts          чтение проекта: манифест, записи, отчёты, файлы кода
+    indexer.ts            сборка индекса в форме ответа API
+    cache.ts              кэш индекса в .docdd/index.json
+    diagrams.ts           разбор диаграмм: блоки mermaid и файлы .mmd
     schema.ts             проверка по JSON Schema
     graph.ts              построение графа и обратных связей
     rules.ts              правила процесса
@@ -47,6 +51,7 @@ server/
     analyze.ts            сборка прохода: разбор → схема → связи → правила
     write.ts              запись front matter и журнала
     paths.ts              безопасные пути внутри корня проекта
+  utils/                  список проектов, вид ошибки, загрузка индекса
 docs/                     эта документация
 tests/                    тесты ядра
 ```

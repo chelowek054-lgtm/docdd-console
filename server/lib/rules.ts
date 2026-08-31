@@ -2,6 +2,7 @@ import { findDependencyCycles, incomingEdges, outgoing, type Graph } from './gra
 import { firstHeading } from './parse';
 import {
   DEFAULT_POLICY,
+  DEVELOPMENT_DIR,
   RECORD_TYPES,
   violation,
   type LinkKind,
@@ -27,6 +28,8 @@ export interface RuleContext {
     /** Существующие файлы кода: обход каталога — не дело чистой функции. */
     files: ReadonlySet<string>;
   };
+  /** Существующие файлы внутри `docs/development`: тем же способом и по той же причине. */
+  documents: ReadonlySet<string>;
 }
 
 const PREFIX_BY_TYPE: Readonly<Record<RecordType, string>> = {
@@ -162,6 +165,7 @@ export function checkAll(ctx: RuleContext): Violation[] {
     ...checkCycles(ctx),
     ...checkSuperseded(ctx),
     ...checkCodeLinks(ctx),
+    ...checkDocLinks(ctx),
     ...taskNotReadyDocs(ctx),
     ...taskNoRequirement(ctx),
     ...taskDoneUnverified(ctx),
@@ -272,7 +276,7 @@ export function checkSuperseded(ctx: RuleContext): Violation[] {
 export function checkCodeLinks(ctx: RuleContext): Violation[] {
   const found: Violation[] = [];
   for (const record of ctx.records) {
-    for (const link of codeLinkCandidates(record.body)) {
+    for (const link of markdownLinkTargets(record.body)) {
       const target = resolvePath(dirname(record.source.path), link);
       if (target === null) continue;
       if (!ctx.code.roots.some((root) => isInside(root, target))) continue;
@@ -282,6 +286,30 @@ export function checkCodeLinks(ctx: RuleContext): Violation[] {
         record.id || null,
         record.source.path,
         'Ссылка на файл кода `' + target + '` ведёт в пустоту: код переехал или переименован. Поправьте путь, пока документ и код не разошлись окончательно.'
+      ));
+    }
+  }
+  return found;
+}
+
+/**
+ * Ссылка одного документа на другой (docs/02-workspace-contract.md, раздел
+ * «Ссылки на документы»). Предупреждение, а не ошибка: связи задаются
+ * идентификаторами, а ссылка в тексте — удобство для читателя.
+ */
+export function checkDocLinks(ctx: RuleContext): Violation[] {
+  const found: Violation[] = [];
+  for (const record of ctx.records) {
+    for (const link of markdownLinkTargets(record.body)) {
+      if (!link.toLowerCase().endsWith('.md')) continue;
+      const target = resolvePath(dirname(record.source.path), link);
+      if (target === null || !isInside(DEVELOPMENT_DIR, target)) continue;
+      if (ctx.documents.has(target)) continue;
+      found.push(violation(
+        'doc_link_missing',
+        record.id || null,
+        record.source.path,
+        'Ссылка на документ `' + target + '` ведёт в пустоту: файл переименован или удалён. Поправьте путь — читатель пойдёт по ней раньше, чем по связям.'
       ));
     }
   }
@@ -529,7 +557,7 @@ function daysBetween(isoDate: string, now: Date): number | null {
  * (docs/02-workspace-contract.md, раздел «Ссылки на код»). Внешние адреса и
  * якоря внутри документа кодом не являются.
  */
-export function codeLinkCandidates(body: string): string[] {
+export function markdownLinkTargets(body: string): string[] {
   const links: string[] = [];
   const pattern = /!?\[[^\]]*\]\(\s*<?([^)>\s]+)>?\s*(?:"[^"]*")?\)/g;
   let match: RegExpExecArray | null;

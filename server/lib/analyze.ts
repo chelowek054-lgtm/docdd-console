@@ -24,6 +24,8 @@ export interface AnalyzeInput {
   reports?: readonly Report[];
   /** Существующие файлы кода относительно корня проекта. */
   codeFiles?: Iterable<string>;
+  /** Файлы внутри `docs/development`, не попавшие в разбор: картинки, `.mmd`, README. */
+  documentFiles?: Iterable<string>;
   now?: Date;
 }
 
@@ -66,7 +68,13 @@ export function analyze(input: AnalyzeInput): AnalyzeResult {
     code: {
       roots: input.manifest?.sources?.code ?? [],
       files: new Set(input.codeFiles ?? [])
-    }
+    },
+    // Существующие документы известны из того же списка файлов, что пришёл на
+    // разбор: отдельно обходить папку незачем.
+    documents: new Set([
+      ...input.files.map((file) => file.source.path),
+      ...(input.documentFiles ?? [])
+    ])
   };
   violations.push(...checkAll(ctx));
 
