@@ -12,7 +12,7 @@ import { env, platform } from 'node:process';
  * сам — он возвращается вызывающему, а решает человек.
  */
 
-export type LlmFailureCode = 'unavailable' | 'timeout' | 'failed' | 'empty';
+export type LlmFailureCode = 'unavailable' | 'unauthorized' | 'timeout' | 'failed' | 'empty';
 
 export interface LlmFailure {
   code: LlmFailureCode;
@@ -224,6 +224,19 @@ export async function ask(prompt: string, options: AskOptions = {}): Promise<Llm
     const answer = result.stdout.trim();
 
     if (result.code !== 0 && answer === '') {
+      const said = `${result.stderr} ${result.stdout}`;
+      if (/403|Failed to authenticate|not allowed|unauthorized/i.test(said)) {
+        // Отказ в доступе — не поломка приложения, и путать их нельзя: чинится
+        // это в самом Claude Code, а не здесь.
+        return {
+          ok: false,
+          failure: {
+            code: 'unauthorized',
+            message: 'Claude Code отказал в доступе. Приложение тут ни при чём: проверьте командой `claude -p "привет"` в обычном терминале. Не отвечает и там — обновите его (`winget upgrade Anthropic.ClaudeCode`) и войдите заново.',
+            detail: result.stderr.trim().slice(0, 500) || undefined
+          }
+        };
+      }
       return {
         ok: false,
         failure: {

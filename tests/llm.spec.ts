@@ -79,6 +79,22 @@ describe('ask', () => {
     expect(result.failure.code).toBe('failed');
   });
 
+  it('отказ в доступе называется своим именем и советует, где чинить', async () => {
+    const run: Runner = () => Promise.resolve({
+      stdout: '',
+      stderr: 'Failed to authenticate. API Error: 403 Request not allowed',
+      code: 1
+    });
+
+    const result = await ask('вопрос', { run });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    // Отказ Claude Code — не поломка приложения, и путать их нельзя.
+    expect(result.failure.code).toBe('unauthorized');
+    expect(result.failure.message).toContain('claude -p');
+    expect(result.failure.detail).toContain('403');
+  });
+
   it('ответ, пришедший вместе с ненулевым кодом, не выбрасывается', async () => {
     // Программа могла поругаться в stderr и всё-таки ответить.
     const result = await ask('вопрос', { run: answering('всё же ответ', 1) });

@@ -26,7 +26,8 @@ export default defineEventHandler(async (event) => {
   const project = projectId ? await findProject(projectId) : null;
   const result = await ask(prompt, project ? { cwd: project.root } : {});
   if (!result.ok) {
-    const status = result.failure.code === 'unavailable' ? 503 : 502;
+    // Нет программы и отказ в доступе — разные беды, и чинятся по-разному.
+    const status = result.failure.code === 'unavailable' || result.failure.code === 'unauthorized' ? 503 : 502;
     return fail(event, status, `llm_${result.failure.code}`, result.failure.message, result.failure.detail);
   }
   return { answer: result.answer, ms: result.ms };
