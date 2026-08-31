@@ -1,14 +1,16 @@
 import { findDependencyCycles, incomingEdges, outgoing, type Graph } from './graph';
+import { checkEvidence, evidenceClaims, parseMapRecord, type MapChange } from './maps';
 import { firstHeading } from './parse';
 import {
   DEFAULT_POLICY,
   DEVELOPMENT_DIR,
+  PREFIX_BY_TYPE,
   RECORD_TYPES,
+  SECTION_BY_TYPE,
   violation,
   type LinkKind,
   type Policy,
   type RecordType,
-  type SectionKey,
   type VerificationResult,
   type Violation,
   type WorkRecord
@@ -30,27 +32,12 @@ export interface RuleContext {
   };
   /** Существующие файлы внутри `docs/development`: тем же способом и по той же причине. */
   documents: ReadonlySet<string>;
+  /**
+   * Содержимое файла проекта для сверки свидетельств карт. `null` — файла нет.
+   * Файловая система остаётся снаружи: правила по-прежнему чистые функции.
+   */
+  readSource?: (path: string) => string | null;
 }
-
-const PREFIX_BY_TYPE: Readonly<Record<RecordType, string>> = {
-  requirement: 'R',
-  design: 'D',
-  decision: 'A',
-  contract: 'C',
-  task: 'T',
-  phase: 'P',
-  verification: 'V'
-};
-
-const SECTION_BY_TYPE: Readonly<Record<RecordType, SectionKey>> = {
-  requirement: 'requirements',
-  design: 'design',
-  decision: 'decisions',
-  contract: 'contracts',
-  task: 'tasks',
-  phase: 'phases',
-  verification: 'tests'
-};
 
 /** Таблица связей из docs/02-workspace-contract.md, строка в строку. */
 const LINK_RULES: Readonly<Record<LinkKind, { from: readonly RecordType[]; to: readonly RecordType[] | 'same' }>> = {
@@ -62,7 +49,8 @@ const LINK_RULES: Readonly<Record<LinkKind, { from: readonly RecordType[]; to: r
   verified_by: { from: ['requirement', 'task'], to: ['verification'] },
   verifies: { from: ['verification'], to: ['requirement', 'task'] },
   documents: { from: ['task'], to: ['design', 'contract'] },
-  covers: { from: ['phase'], to: ['task'] }
+  covers: { from: ['phase'], to: ['task'] },
+  affects: { from: ['task'], to: ['map'] }
 };
 
 const LINK_TITLES: Readonly<Record<LinkKind, string>> = {
@@ -74,7 +62,8 @@ const LINK_TITLES: Readonly<Record<LinkKind, string>> = {
   verified_by: 'проверяется',
   verifies: 'проверяет',
   documents: 'правит документ',
-  covers: 'входит в состав'
+  covers: 'входит в состав',
+  affects: 'меняет карту'
 };
 
 const DOC_TRANSITIONS: Readonly<Record<string, readonly string[]>> = {
@@ -125,7 +114,7 @@ export function checkRecordIdentity(record: WorkRecord): Violation[] {
     ));
   }
 
-  if (isRecordType(type) && /^[RDACTPV]-\d{4}$/.test(record.id)) {
+  if (isRecordType(type) && /^[RDACTPVM]-\d{4}$/.test(record.id)) {
     const expectedPrefix = PREFIX_BY_TYPE[type];
     if (!record.id.startsWith(expectedPrefix + '-')) {
       found.push(violation(
@@ -166,6 +155,9 @@ export function checkAll(ctx: RuleContext): Violation[] {
     ...checkSuperseded(ctx),
     ...checkCodeLinks(ctx),
     ...checkDocLinks(ctx),
+    ...checkMaps(ctx),
+    ...taskMapsUnapproved(ctx),
+    ...changeMissing(ctx),
     ...taskNotReadyDocs(ctx),
     ...taskNoRequirement(ctx),
     ...taskDoneUnverified(ctx),
@@ -312,6 +304,137 @@ export function checkDocLinks(ctx: RuleContext): Violation[] {
         'Ссылка на документ `' + target + '` ведёт в пустоту: файл переименован или удалён. Поправьте путь — читатель пойдёт по ней раньше, чем по связям.'
       ));
     }
+  }
+  return found;
+}
+
+/**
+ * Разбор карт и сверка свидетельств (docs/07-maps.md). Пока карта описывает
+ * намерение — сверять нечего: код ещё не написан. Сверка начинается, когда
+ * задачи, которые карту меняют, закрыты.
+ */
+export function checkMaps(ctx: RuleContext): Violation[] {
+  const found: Violation[] = [];
+
+  for (const record of ctx.records) {
+    if (record.type !== 'map' || !record.id) continue;
+
+    const parsed = parseMapRecord(record.body);
+    for (const problem of parsed.problems) {
+      found.push(violation(
+        'map_invalid',
+        record.id,
+        record.source.path,
+        problem.message + ' Карта, которую нельзя разобрать, ничего не описывает.'
+      ));
+    }
+
+    if (record.status !== 'approved' || !ctx.readSource) continue;
+    // Незакрытая задача означает, что кода ещё нет: это план, а не расхождение.
+    if (!settled(ctx, record.id)) continue;
+
+    found.push(...verifyEvidence(ctx, record.id, record.source.path, parsed.change));
+  }
+
+  return found;
+}
+
+function verifyEvidence(ctx: RuleContext, id: string, path: string, change: MapChange): Violation[] {
+  const found: Violation[] = [];
+  const read = ctx.readSource;
+  if (!read) return found;
+
+  for (const claim of evidenceClaims(change)) {
+    const verdict = checkEvidence(claim.evidence, read(claim.evidence.path), claim.side);
+    const where = `\`${claim.evidence.path}\`:${claim.evidence.line}`;
+
+    if (verdict === 'missing') {
+      found.push(violation(
+        'map_evidence_missing',
+        id,
+        path,
+        `Карта утверждает «${claim.label}», а файла ${where} нет. Утверждение без свидетельства — мнение, а не карта.`
+      ));
+      continue;
+    }
+    if (verdict === 'stale') {
+      found.push(violation(
+        'map_evidence_stale',
+        id,
+        path,
+        `Карта утверждает «${claim.label}» со ссылкой на ${where}, но такой строки там нет: код уехал из-под карты.`
+      ));
+      continue;
+    }
+    if (verdict === 'still_present') {
+      found.push(violation(
+        'map_drift',
+        id,
+        path,
+        `Карта объявила «${claim.label}» убранным, а в ${where} это на месте. Задача закрыта, значит код и карта разошлись.`
+      ));
+    }
+  }
+
+  return found;
+}
+
+/** Все задачи, меняющие карту, закрыты или отменены — значит код уже написан. */
+function settled(ctx: RuleContext, mapId: string): boolean {
+  const tasks = incomingEdges(ctx.graph, mapId, 'affects')
+    .map((edge) => ctx.graph.byId.get(edge.from))
+    .filter((task): task is WorkRecord => task !== undefined);
+  return tasks.every((task) => task.status === 'done' || task.status === 'dropped');
+}
+
+/**
+ * Задача с `change: feature` не уходит в работу без подтверждённой карты:
+ * карты ведут код так же, как документы (docs/07-maps.md).
+ */
+export function taskMapsUnapproved(ctx: RuleContext): Violation[] {
+  const found: Violation[] = [];
+  for (const task of tasks(ctx)) {
+    if (!TASK_READY_AND_BEYOND.includes(task.status)) continue;
+    if (task.data['change'] !== 'feature') continue;
+
+    const ids = task.links.affects ?? [];
+    if (ids.length === 0) {
+      found.push(violation(
+        'task_maps_unapproved',
+        task.id,
+        task.source.path,
+        `Задача ${task.id} объявлена как \`feature\`, но не меняет ни одной карты. Либо свяжите её с картой изменения, либо назовите изменение честнее: \`fix\`, \`rename\` или \`format\`.`
+      ));
+      continue;
+    }
+
+    for (const id of ids) {
+      const map = ctx.graph.byId.get(id);
+      if (!map) continue; // о ссылке в никуда уже сказал link_broken
+      if (map.status === 'approved') continue;
+      found.push(violation(
+        'task_maps_unapproved',
+        task.id,
+        task.source.path,
+        `Задача ${task.id} в статусе \`${task.status}\`, а карта ${id} — \`${map.status}\`. Устройство меняется до кода, а не после: подтвердите карту.`
+      ));
+    }
+  }
+  return found;
+}
+
+/** Не сказано, что за изменение, — значит непонятно, нужна ли карта. */
+export function changeMissing(ctx: RuleContext): Violation[] {
+  const found: Violation[] = [];
+  for (const task of tasks(ctx)) {
+    if (!TASK_READY_AND_BEYOND.includes(task.status)) continue;
+    if (typeof task.data['change'] === 'string' && task.data['change'] !== '') continue;
+    found.push(violation(
+      'change_missing',
+      task.id,
+      task.source.path,
+      `У задачи ${task.id} не указано \`change\`. Без него непонятно, нужна ли карта изменения, и правило про \`feature\` молча не применяется.`
+    ));
   }
   return found;
 }
@@ -522,6 +645,9 @@ function transitionsFor(type: string): Readonly<Record<string, readonly string[]
     case 'design':
     case 'contract':
     case 'verification':
+    // Карта подтверждается тем же порядком, что документ: без этого её нельзя
+    // утвердить, а без утверждения не начинается работа (docs/07-maps.md).
+    case 'map':
       return DOC_TRANSITIONS;
     case 'decision':
       return DECISION_TRANSITIONS;

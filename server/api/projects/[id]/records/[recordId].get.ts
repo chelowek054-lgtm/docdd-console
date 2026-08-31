@@ -5,11 +5,12 @@ import { defineEventHandler, getRouterParam } from 'h3';
 
 import { analyze } from '../../../../lib/analyze';
 import { extractDiagrams } from '../../../../lib/diagrams';
+import { checkEvidence, evidenceClaims, parseMapRecord } from '../../../../lib/maps';
 import { parseRecord } from '../../../../lib/parse';
 import { OutsideRootError, resolveInside } from '../../../../lib/paths';
 import { availableActions } from '../../../../lib/transitions';
-import type { RecordAction, RecordDetail } from '../../../../lib/types';
-import { WorkspaceError, readWorkspace } from '../../../../lib/workspace';
+import type { MapView, RecordAction, RecordDetail } from '../../../../lib/types';
+import { WorkspaceError, readWorkspace, sourceReader } from '../../../../lib/workspace';
 import { fail } from '../../../../utils/http';
 import { loadIndex } from '../../../../utils/index-service';
 import { findProject } from '../../../../utils/projects';
@@ -44,7 +45,10 @@ export default defineEventHandler(async (event) => {
       diagrams: extractDiagrams(parsed.record.body, (relativePath) => readMmd(project.root, record.path, relativePath)),
       actions: actionsFor(project.root, recordId),
       issues: index.issues.filter((issue) => issue.recordId === recordId || issue.path === record.path),
-      verifications: verificationsOf(index, record.links.verified_by ?? [])
+      verifications: verificationsOf(index, record.links.verified_by ?? []),
+      ...(record.type === 'map'
+        ? { map: mapViewOf(project.root, parsed.record.body, record.status, settled(index, record.id)) }
+        : {})
     };
     return detail;
   } catch (error) {
@@ -57,6 +61,36 @@ export default defineEventHandler(async (event) => {
     return fail(event, 500, 'read_failed', 'Не удалось прочитать запись', String(error));
   }
 });
+
+/**
+ * Три структуры карты и результат сверки каждого утверждения. Пока сверять рано
+ * — так и написано: `pending` честнее, чем зелёная галочка (docs/07-maps.md).
+ */
+function mapViewOf(root: string, body: string, status: string, ready: boolean): MapView {
+  const parsed = parseMapRecord(body);
+  const read = sourceReader(root);
+  const verify = status === 'approved' && ready;
+
+  return {
+    problems: parsed.problems,
+    structures: parsed.present,
+    claims: evidenceClaims(parsed.change).map((claim) => ({
+      structure: claim.structure,
+      side: claim.side,
+      label: claim.label,
+      path: claim.evidence.path,
+      line: claim.evidence.line,
+      verdict: verify ? checkEvidence(claim.evidence, read(claim.evidence.path), claim.side) : 'pending'
+    }))
+  };
+}
+
+/** Сверять можно, когда задачи, меняющие карту, закрыты: код уже написан. */
+function settled(index: { records: { id: string; status: string; links: { affects?: string[] } }[] }, mapId: string): boolean {
+  return index.records
+    .filter((item) => (item.links.affects ?? []).includes(mapId))
+    .every((item) => item.status === 'done' || item.status === 'dropped');
+}
 
 /**
  * Действия считаются на живом состоянии проекта, а не на кэше: между сборкой

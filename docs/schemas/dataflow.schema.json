@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docdd/dataflow.schema.json",
+  "title": "Изменение карты потоков данных",
+  "description": "Блок ```docdd-dataflow в записи типа map. Откуда данные приходят, где лежат, куда уходят.",
+
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "added": { "$ref": "#/$defs/part" },
+    "removed": { "$ref": "#/$defs/part" }
+  },
+
+  "$defs": {
+    "part": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sources": { "type": "array", "items": { "$ref": "#/$defs/source" } },
+        "flows": { "type": "array", "items": { "$ref": "#/$defs/flow" } }
+      }
+    },
+    "source": {
+      "type": "object",
+      "required": ["id", "kind"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "kind": {
+          "enum": ["file", "http", "db", "queue", "env", "memory"],
+          "description": "Чем источник является. Незнакомое сюда не пишется: неопознанное остаётся неопознанным."
+        },
+        "where": { "type": "string", "description": "Путь, адрес или имя переменной окружения." },
+        "title": { "type": "string" }
+      }
+    },
+    "flow": {
+      "type": "object",
+      "required": ["from", "to", "direction", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "from": { "type": "string", "minLength": 1, "description": "Модуль или экран." },
+        "to": { "type": "string", "minLength": 1, "description": "Идентификатор источника." },
+        "direction": { "enum": ["read", "write", "both"] },
+        "evidence": { "$ref": "https://docdd/evidence.schema.json" }
+      }
+    }
+  }
+}

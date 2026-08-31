@@ -71,6 +71,8 @@ export interface ContextOptions {
   codeRoots?: string[];
   codeFiles?: string[];
   documents?: string[];
+  /** Содержимое файлов проекта для сверки свидетельств карт. */
+  sources?: Record<string, string>;
 }
 
 export function context(records: WorkRecord[], options: ContextOptions = {}): RuleContext {
@@ -86,7 +88,8 @@ export function context(records: WorkRecord[], options: ContextOptions = {}): Ru
     },
     // По умолчанию существующими считаются файлы самих записей: так тест
     // проверяет правило, а не список файлов.
-    documents: new Set(options.documents ?? records.map((record) => record.source.path))
+    documents: new Set(options.documents ?? records.map((record) => record.source.path)),
+    readSource: (path: string) => options.sources?.[path] ?? null
   };
 }
 

@@ -1,6 +1,7 @@
 ---
 id: T-0005
 type: task
+change: fix
 title: Вторая половина цикла
 status: backlog
 created: 2026-07-20

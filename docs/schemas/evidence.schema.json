@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docdd/evidence.schema.json",
+  "title": "Свидетельство",
+  "description": "Откуда сделан вывод: путь, строка и фрагмент текста. Утверждение без свидетельства картой не считается — это мнение.",
+
+  "type": "object",
+  "required": ["path", "line", "fragment"],
+  "additionalProperties": false,
+  "properties": {
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Путь от корня проекта, через прямой слеш."
+    },
+    "line": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Номер строки, считая с единицы. Сверка допускает сдвиг на пару строк."
+    },
+    "fragment": {
+      "type": "string",
+      "minLength": 3,
+      "description": "Кусок строки, по которому видно, что вывод именно из неё."
+    }
+  }
+}

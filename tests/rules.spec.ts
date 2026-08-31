@@ -55,6 +55,16 @@ describe('id_mismatch', () => {
     expect(codes(checkRecordIdentity(record))).toContain('id_mismatch');
   });
 
+  it('видит карту в чужом разделе: префикс `M` тоже проверяется', () => {
+    const record = rec('M-0001', 'map', 'draft', { section: 'design' });
+    expect(codes(checkRecordIdentity(record))).toContain('id_mismatch');
+  });
+
+  it('молчит на карте в своём разделе', () => {
+    const record = rec('M-0001', 'map', 'draft', { section: 'maps' });
+    expect(codes(checkRecordIdentity(record))).not.toContain('id_mismatch');
+  });
+
   it('молчит на записи в своём разделе', () => {
     expect(codes(checkRecordIdentity(rec('T-0007', 'task', 'backlog')))).not.toContain('id_mismatch');
   });

@@ -3,6 +3,7 @@ id: T-0008
 type: task
 title: Заголовок в front matter
 status: backlog
+change: format
 created: 2026-07-20
 updated: 2026-07-20
 links:

@@ -29,6 +29,15 @@ const result = analyze({
   manifest,
   reports,
   codeFiles,
+  // Сверка свидетельств карт читает файлы проекта — файловая система есть у
+  // теста, ядро по-прежнему получает строки.
+  readSource: (path) => {
+    try {
+      return readFileSync(join(root, path), 'utf8');
+    } catch {
+      return null;
+    }
+  },
   now: new Date('2026-08-30T12:00:00Z')
 });
 
@@ -38,6 +47,7 @@ const actual = result.violations
   .sort();
 
 const expected = [
+  'change_missing T-0012',
   'code_link_missing D-0003',
   'doc_changed_after_task T-0007',
   'id_duplicate T-0010',
@@ -46,12 +56,17 @@ const expected = [
   'link_broken T-0003',
   'link_cycle T-0004',
   'link_wrong_type T-0011',
+  'map_drift M-0006',
+  'map_evidence_missing M-0003',
+  'map_evidence_stale M-0005',
+  'map_invalid M-0002',
   'parse_failed docs/development/design/D-9998-broken.md',
   'requirement_unimplemented R-0002',
   'requirement_unverified R-0002',
   'schema_invalid D-0009',
   'superseded_without_successor R-0003',
   'task_done_unverified T-0006',
+  'task_maps_unapproved T-0011',
   'task_no_requirement T-0012',
   'task_not_ready_docs T-0002',
   'task_stale T-0002',
@@ -74,7 +89,7 @@ describe('набор файлов-примеров', () => {
     // transition_forbidden отвечает на запрос действия, а не на состояние
     // набора записей, поэтому в этом списке его нет — он проверен в rules.spec.
     const covered = new Set(result.violations.map((item) => item.code));
-    expect(covered.size).toBe(19);
+    expect(covered.size).toBe(25);
     expect(covered.has('transition_forbidden')).toBe(false);
   });
 

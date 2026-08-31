@@ -10,7 +10,7 @@ import type {
   WorkRecord
 } from './types';
 import { LINK_KINDS } from './types';
-import { readWorkspace, type Workspace } from './workspace';
+import { readWorkspace, sourceReader, type Workspace } from './workspace';
 
 /** Поля, которые понимает контракт; всё остальное уходит в `extra` нетронутым. */
 const KNOWN_FIELDS = new Set(['id', 'type', 'title', 'status', 'owner', 'created', 'updated', 'phase', 'tags', 'links']);
@@ -26,6 +26,8 @@ export function buildIndex(root: string, now = new Date()): { index: ProjectInde
     manifest: workspace.manifest,
     reports: workspace.reports,
     codeFiles: workspace.codeFiles,
+    // Сверка свидетельств карт читает файлы проекта — по одному и по требованию.
+    readSource: sourceReader(root),
     now
   });
 

@@ -11,11 +11,11 @@
   "properties": {
     "id": {
       "type": "string",
-      "pattern": "^[RDACTPV]-[0-9]{4}$",
+      "pattern": "^[RDACTPVM]-[0-9]{4}$",
       "description": "Префикс типа, дефис, четыре цифры. Номера не переиспользуются."
     },
     "type": {
-      "enum": ["requirement", "design", "decision", "contract", "task", "phase", "verification"]
+      "enum": ["requirement", "design", "decision", "contract", "task", "phase", "verification", "map"]
     },
     "title": { "type": "string", "minLength": 1 },
     "status": { "type": "string" },
@@ -37,7 +37,8 @@
         "verified_by": { "$ref": "#/$defs/idList" },
         "verifies": { "$ref": "#/$defs/idList" },
         "documents": { "$ref": "#/$defs/idList" },
-        "covers": { "$ref": "#/$defs/idList" }
+        "covers": { "$ref": "#/$defs/idList" },
+        "affects": { "$ref": "#/$defs/idList" }
       }
     }
   },
@@ -90,9 +91,22 @@
           "id": { "pattern": "^T-[0-9]{4}$" },
           "status": {
             "enum": ["backlog", "ready", "in_progress", "in_review", "done", "dropped"]
+          },
+          "change": {
+            "enum": ["feature", "fix", "rename", "format"],
+            "description": "Что за изменение. `feature` требует подтверждённой карты; остальное — исключение с подписью."
           }
         },
         "required": ["links"]
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "map" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "id": { "pattern": "^M-[0-9]{4}$" },
+          "status": { "enum": ["draft", "review", "approved", "superseded", "dropped"] }
+        }
       }
     },
     {
@@ -125,7 +139,7 @@
   "$defs": {
     "idList": {
       "type": "array",
-      "items": { "type": "string", "pattern": "^[RDACTPV]-[0-9]{4}$" },
+      "items": { "type": "string", "pattern": "^[RDACTPVM]-[0-9]{4}$" },
       "uniqueItems": true
     }
   }

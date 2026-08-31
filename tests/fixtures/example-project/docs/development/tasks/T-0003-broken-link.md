@@ -1,6 +1,7 @@
 ---
 id: T-0003
 type: task
+change: fix
 title: Задача со ссылкой в никуда
 status: ready
 created: 2026-07-20

@@ -14,7 +14,8 @@ export type RecordType =
   | 'contract'
   | 'task'
   | 'phase'
-  | 'verification';
+  | 'verification'
+  | 'map';
 
 export const RECORD_TYPES: readonly RecordType[] = [
   'requirement',
@@ -23,7 +24,8 @@ export const RECORD_TYPES: readonly RecordType[] = [
   'contract',
   'task',
   'phase',
-  'verification'
+  'verification',
+  'map'
 ];
 
 /** Ключ раздела из `paths` манифеста. Имена папок в код не зашиваются. */
@@ -35,7 +37,8 @@ export type SectionKey =
   | 'tasks'
   | 'phases'
   | 'tests'
-  | 'diagrams';
+  | 'diagrams'
+  | 'maps';
 
 export type LinkKind =
   | 'implements'
@@ -46,7 +49,8 @@ export type LinkKind =
   | 'verified_by'
   | 'verifies'
   | 'documents'
-  | 'covers';
+  | 'covers'
+  | 'affects';
 
 export const LINK_KINDS: readonly LinkKind[] = [
   'implements',
@@ -57,7 +61,8 @@ export const LINK_KINDS: readonly LinkKind[] = [
   'verified_by',
   'verifies',
   'documents',
-  'covers'
+  'covers',
+  'affects'
 ];
 
 export type Severity = 'error' | 'warning';
@@ -77,6 +82,13 @@ export type ViolationCode =
   | 'superseded_without_successor'
   | 'code_link_missing'
   | 'doc_link_missing'
+  // карты
+  | 'map_invalid'
+  | 'map_evidence_missing'
+  | 'map_evidence_stale'
+  | 'map_drift'
+  | 'task_maps_unapproved'
+  | 'change_missing'
   // процесс
   | 'task_not_ready_docs'
   | 'task_no_requirement'
@@ -87,6 +99,35 @@ export type ViolationCode =
   | 'doc_changed_after_task'
   | 'task_stale'
   | 'verification_never_run';
+
+/** Префикс идентификатора по типу записи. Контракт, а не соглашение. */
+export const PREFIX_BY_TYPE: Readonly<Record<RecordType, string>> = {
+  requirement: 'R',
+  design: 'D',
+  decision: 'A',
+  contract: 'C',
+  task: 'T',
+  phase: 'P',
+  verification: 'V',
+  map: 'M'
+};
+
+/** Раздел, в котором живёт тип. Имя папки берётся из манифеста, ключ — отсюда. */
+export const SECTION_BY_TYPE: Readonly<Record<RecordType, SectionKey>> = {
+  requirement: 'requirements',
+  design: 'design',
+  decision: 'decisions',
+  contract: 'contracts',
+  task: 'tasks',
+  phase: 'phases',
+  verification: 'tests',
+  map: 'maps'
+};
+
+/** Что за изменение вносит задача (docs/02-workspace-contract.md). */
+export type ChangeKind = 'feature' | 'fix' | 'rename' | 'format';
+
+export const CHANGE_KINDS: readonly ChangeKind[] = ['feature', 'fix', 'rename', 'format'];
 
 /** Уровень задан контрактом, а не вызывающим кодом: см. таблицы 05-validation.md. */
 export const VIOLATION_LEVELS: Readonly<Record<ViolationCode, Severity>> = {
@@ -102,6 +143,12 @@ export const VIOLATION_LEVELS: Readonly<Record<ViolationCode, Severity>> = {
   superseded_without_successor: 'error',
   code_link_missing: 'warning',
   doc_link_missing: 'warning',
+  map_invalid: 'error',
+  map_evidence_missing: 'error',
+  map_evidence_stale: 'error',
+  map_drift: 'error',
+  task_maps_unapproved: 'error',
+  change_missing: 'warning',
   task_not_ready_docs: 'error',
   task_no_requirement: 'error',
   task_done_unverified: 'error',
@@ -262,6 +309,23 @@ export interface RecordAction {
   blockers: { code: string; message: string }[];
 }
 
+export interface MapClaimView {
+  structure: string;
+  side: 'added' | 'removed';
+  label: string;
+  path: string;
+  line: number;
+  /** `ok`, `missing`, `stale`, `still_present` или `pending` — сверять ещё рано. */
+  verdict: string;
+}
+
+export interface MapView {
+  problems: { structure: string; message: string }[];
+  claims: MapClaimView[];
+  /** Тексты mermaid не строим на сервере: экран рисует то, что уже сложил. */
+  structures: string[];
+}
+
 export interface RecordDetail {
   record: IndexRecord;
   /** Тело документа в исходном markdown: приложение его не переписывает. */
@@ -269,6 +333,8 @@ export interface RecordDetail {
   eol: Eol;
   diagrams: DiagramBlock[];
   actions: RecordAction[];
+  /** Только у записей типа `map`. */
+  map?: MapView;
   issues: IssueDto[];
   verifications: Record<string, VerificationOutcome>;
 }

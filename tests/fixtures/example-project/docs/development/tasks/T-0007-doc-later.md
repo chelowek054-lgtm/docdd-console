@@ -1,6 +1,7 @@
 ---
 id: T-0007
 type: task
+change: feature
 title: Документ изменён после закрытия
 status: done
 created: 2026-07-20
@@ -8,6 +9,7 @@ updated: 2026-08-10
 links:
   implements: [R-0001]
   documents: [D-0001]
+  affects: [M-0003]
 ---
 
 # Документ изменён после закрытия

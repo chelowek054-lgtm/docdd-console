@@ -12,6 +12,7 @@ paths:
   phases: phases
   tests: tests
   diagrams: diagrams
+  maps: maps
 sources:
   code: [app/src]
 roles:

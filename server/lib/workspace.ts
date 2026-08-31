@@ -5,7 +5,7 @@ import { load } from 'js-yaml';
 
 import type { SourceFile } from './analyze';
 import { coerceDates } from './parse';
-import { normalizeRoot, toProjectPath } from './paths';
+import { normalizeRoot, resolveInside, toProjectPath } from './paths';
 import { validateProject, validateReport } from './schema';
 import type { ProjectManifest, Report, SectionKey } from './types';
 
@@ -78,6 +78,21 @@ export function readManifest(root: string): ProjectManifest {
   }
 
   return raw as ProjectManifest;
+}
+
+/**
+ * Чтение файла проекта для сверки свидетельств карт. Граница корня та же, что
+ * у всего остального; файла нет — `null`, и это не исключение, а ответ.
+ */
+export function sourceReader(root: string): (path: string) => string | null {
+  const normalized = normalizeRoot(root);
+  return (path: string) => {
+    try {
+      return readFileSync(resolveInside(normalized, path), 'utf8');
+    } catch {
+      return null;
+    }
+  };
 }
 
 export function readWorkspace(root: string): Workspace {

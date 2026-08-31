@@ -26,6 +26,8 @@ export interface AnalyzeInput {
   codeFiles?: Iterable<string>;
   /** Файлы внутри `docs/development`, не попавшие в разбор: картинки, `.mmd`, README. */
   documentFiles?: Iterable<string>;
+  /** Чтение файла проекта для сверки свидетельств карт; `null` — файла нет. */
+  readSource?: (path: string) => string | null;
   now?: Date;
 }
 
@@ -76,7 +78,8 @@ export function analyze(input: AnalyzeInput): AnalyzeResult {
     documents: new Set([
       ...input.files.map((file) => file.source.path),
       ...(input.documentFiles ?? [])
-    ])
+    ]),
+    ...(input.readSource ? { readSource: input.readSource } : {})
   };
   violations.push(...checkAll(ctx));
 

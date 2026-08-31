@@ -44,6 +44,13 @@ describe('availableActions', () => {
     expect(availableActions(phase, context([phase]))).toEqual([]);
   });
 
+  it('карту можно подтвердить: без этого работа по ней не начнётся', () => {
+    const map = rec('M-0001', 'map', 'review', { section: 'maps' });
+    const actions = availableActions(map, context([map]));
+    expect(actions.map((action) => action.status)).toContain('approved');
+    expect(actions.find((action) => action.status === 'approved')?.allowed).toBe(true);
+  });
+
   it('у решения вместо отмены — отклонение', () => {
     const decision = rec('A-0001', 'decision', 'review');
     const statuses = availableActions(decision, context([decision])).map((action) => action.status);

@@ -1,6 +1,7 @@
 ---
 id: T-0002
 type: task
+change: fix
 title: Вынести веса модели клёва
 status: in_progress
 created: 2026-07-20

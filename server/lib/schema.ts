@@ -4,9 +4,13 @@ import Ajv2020 from 'ajv/dist/2020.js';
 import type { ErrorObject, ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
 
+import codemapSchema from '../../docs/schemas/codemap.schema.json';
+import dataflowSchema from '../../docs/schemas/dataflow.schema.json';
+import evidenceSchema from '../../docs/schemas/evidence.schema.json';
 import frontmatterSchema from '../../docs/schemas/frontmatter.schema.json';
 import projectSchema from '../../docs/schemas/project.schema.json';
 import reportSchema from '../../docs/schemas/report.schema.json';
+import userflowSchema from '../../docs/schemas/userflow.schema.json';
 
 /** Схемы берутся прямо из docs/schemas: копия разошлась бы с контрактом в первую же неделю. */
 
@@ -28,9 +32,15 @@ const applyFormats: typeof addFormats = ((addFormats as any).default ?? addForma
 const ajv = new AjvCtor({ allErrors: true, strict: false });
 applyFormats(ajv);
 
+// Свидетельство общее для трёх карт, поэтому регистрируется по своему $id.
+ajv.addSchema(evidenceSchema);
+
 const validateFrontmatterSchema = ajv.compile(frontmatterSchema);
 const validateProjectSchema = ajv.compile(projectSchema);
 const validateReportSchema = ajv.compile(reportSchema);
+const validateCodemapSchema = ajv.compile(codemapSchema);
+const validateDataflowSchema = ajv.compile(dataflowSchema);
+const validateUserflowSchema = ajv.compile(userflowSchema);
 
 export function validateFrontMatter(data: unknown): SchemaIssue[] {
   return run(validateFrontmatterSchema, data);
@@ -54,6 +64,18 @@ export function validateProject(data: unknown): SchemaIssue[] {
 
 export function validateReport(data: unknown): SchemaIssue[] {
   return run(validateReportSchema, data);
+}
+
+export function validateCodemap(data: unknown): SchemaIssue[] {
+  return run(validateCodemapSchema, data);
+}
+
+export function validateDataflow(data: unknown): SchemaIssue[] {
+  return run(validateDataflowSchema, data);
+}
+
+export function validateUserflow(data: unknown): SchemaIssue[] {
+  return run(validateUserflowSchema, data);
 }
 
 function run(validate: ValidateFunction, data: unknown): SchemaIssue[] {

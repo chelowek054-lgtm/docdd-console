@@ -1,6 +1,7 @@
 ---
 id: T-0004
 type: task
+change: fix
 title: Первая половина цикла
 status: backlog
 created: 2026-07-20

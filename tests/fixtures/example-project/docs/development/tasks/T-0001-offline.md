@@ -1,6 +1,7 @@
 ---
 id: T-0001
 type: task
+change: feature
 title: Сделать работу без сети
 status: done
 created: 2026-07-05
@@ -9,6 +10,7 @@ links:
   implements: [R-0001]
   documents: [D-0001]
   verified_by: [V-0001]
+  affects: [M-0001]
 ---
 
 # Сделать работу без сети

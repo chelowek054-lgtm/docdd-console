@@ -33,7 +33,8 @@
         "tasks": { "type": "string" },
         "phases": { "type": "string" },
         "tests": { "type": "string" },
-        "diagrams": { "type": "string" }
+        "diagrams": { "type": "string" },
+        "maps": { "type": "string" }
       }
     },
     "sources": {
@@ -42,7 +43,12 @@
       "additionalProperties": false,
       "properties": {
         "code": { "type": "array", "items": { "type": "string" } },
-        "docs": { "type": "array", "items": { "type": "string" } }
+        "docs": { "type": "array", "items": { "type": "string" } },
+        "client": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Где живёт клиентская часть: по ней строится карта пользовательских путей."
+        }
       }
     },
     "roles": {

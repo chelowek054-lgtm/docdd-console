@@ -1,29 +1,11 @@
-import { RECORD_TYPES, type LinkKind, type RecordType, type SectionKey } from './types';
+import { PREFIX_BY_TYPE, RECORD_TYPES, SECTION_BY_TYPE, type LinkKind, type RecordType, type SectionKey } from './types';
+
+export { PREFIX_BY_TYPE, SECTION_BY_TYPE };
 
 /**
  * Заведение записей и формата: шаблоны, слаги, выдача номеров. Чистые функции
  * над строками — папки создаёт маршрут.
  */
-
-export const PREFIX_BY_TYPE: Readonly<Record<RecordType, string>> = {
-  requirement: 'R',
-  design: 'D',
-  decision: 'A',
-  contract: 'C',
-  task: 'T',
-  phase: 'P',
-  verification: 'V'
-};
-
-export const SECTION_BY_TYPE: Readonly<Record<RecordType, SectionKey>> = {
-  requirement: 'requirements',
-  design: 'design',
-  decision: 'decisions',
-  contract: 'contracts',
-  task: 'tasks',
-  phase: 'phases',
-  verification: 'tests'
-};
 
 /** Папки разделов по умолчанию: те же имена, что в примере контракта. */
 export const DEFAULT_PATHS: Readonly<Record<SectionKey, string>> = {
@@ -34,7 +16,8 @@ export const DEFAULT_PATHS: Readonly<Record<SectionKey, string>> = {
   tasks: 'tasks',
   phases: 'phases',
   tests: 'tests',
-  diagrams: 'diagrams'
+  diagrams: 'diagrams',
+  maps: 'maps'
 };
 
 const CYRILLIC: Readonly<Record<string, string>> = {
@@ -172,6 +155,8 @@ export function manifestYaml(input: ManifestInput, eol = '\n'): string {
     '  code: []',
     '  # Где лежит старая документация: с неё начинается импорт.',
     '  docs: []',
+    '  # Где живёт клиентская часть: по ней строится карта пользовательских путей.',
+    '  client: []',
     'roles:',
     '  - id: architect',
     '    name: Архитектор',

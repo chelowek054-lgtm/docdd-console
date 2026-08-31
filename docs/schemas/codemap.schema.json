@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docdd/codemap.schema.json",
+  "title": "Изменение карты кодовой базы",
+  "description": "Блок ```docdd-codemap в записи типа map. Описывает изменение, а не состояние: общая карта складывается приложением из подтверждённых изменений.",
+
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "added": { "$ref": "#/$defs/part" },
+    "removed": { "$ref": "#/$defs/part" }
+  },
+
+  "$defs": {
+    "part": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "modules": { "type": "array", "items": { "$ref": "#/$defs/module" } },
+        "imports": { "type": "array", "items": { "$ref": "#/$defs/import" } }
+      }
+    },
+    "module": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "description": "Путь от корня проекта." },
+        "title": { "type": "string" },
+        "layer": { "type": "string", "description": "Слой на усмотрение проекта: ядро, интерфейс, маршруты." }
+      }
+    },
+    "import": {
+      "type": "object",
+      "required": ["from", "to", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "from": { "type": "string", "minLength": 1 },
+        "to": { "type": "string", "minLength": 1 },
+        "evidence": { "$ref": "https://docdd/evidence.schema.json" }
+      }
+    }
+  }
+}

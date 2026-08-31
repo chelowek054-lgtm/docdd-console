@@ -60,6 +60,14 @@ const bodyWithoutJournal = computed(() => {
 
 const extraFields = computed(() => Object.entries(detail.value?.record.extra ?? {}));
 
+const VERDICTS: Record<string, { label: string; color: BadgeColor }> = {
+  ok: { label: 'сошлось', color: 'success' },
+  pending: { label: 'сверять рано', color: 'neutral' },
+  missing: { label: 'файла нет', color: 'error' },
+  stale: { label: 'строки нет', color: 'error' },
+  still_present: { label: 'на месте', color: 'error' }
+};
+
 /** Блоки из текста рисует сам текст; отдельной карточкой — только файлы `.mmd`. */
 const fileDiagrams = computed(() => (detail.value?.diagrams ?? []).filter((diagram) => diagram.kind === 'file'));
 
@@ -98,6 +106,49 @@ function entries(
         :roles="index?.project.roles ?? []"
         @changed="reload"
       />
+
+      <UCard v-if="detail.map">
+        <template #header>
+          <div class="flex flex-wrap items-center gap-3">
+            <h2 class="font-medium">Что меняется в устройстве</h2>
+            <p class="text-sm text-muted">
+              {{ detail.map.structures.length ? detail.map.structures.join(', ') : 'структуры не описаны' }}
+            </p>
+          </div>
+        </template>
+
+        <UAlert
+          v-for="(problem, at) in detail.map.problems"
+          :key="at"
+          class="mb-3"
+          color="error"
+          variant="subtle"
+          icon="i-lucide-triangle-alert"
+          title="Карта не разбирается"
+          :description="problem.message"
+        />
+
+        <p v-if="detail.map.claims.length === 0" class="text-sm text-muted">
+          Утверждений со свидетельствами нет. Карта без свидетельств — мнение:
+          сверять в ней нечего.
+        </p>
+
+        <ul v-else class="divide-y divide-default">
+          <li v-for="(claim, at) in detail.map.claims" :key="at" class="flex flex-wrap items-center gap-3 py-2">
+            <UBadge :color="claim.side === 'added' ? 'primary' : 'neutral'" variant="subtle" size="sm">
+              {{ claim.side === 'added' ? 'добавлено' : 'убрано' }}
+            </UBadge>
+            <span class="font-mono text-xs">{{ claim.label }}</span>
+            <span class="text-xs text-muted">{{ claim.path }}:{{ claim.line }}</span>
+            <UBadge
+              class="ml-auto"
+              :color="VERDICTS[claim.verdict]?.color ?? 'neutral'"
+              variant="subtle"
+              size="sm"
+            >{{ VERDICTS[claim.verdict]?.label ?? claim.verdict }}</UBadge>
+          </li>
+        </ul>
+      </UCard>
 
       <div v-if="detail.issues.length" class="space-y-2">
         <h2 class="font-medium">Что не так с этой записью</h2>

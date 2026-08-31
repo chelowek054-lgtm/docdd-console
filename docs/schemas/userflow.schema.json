@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docdd/userflow.schema.json",
+  "title": "Изменение карты пользовательских путей",
+  "description": "Блок ```docdd-userflow в записи типа map. Какие экраны есть, как между ними ходят и что каждый дёргает.",
+
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "added": { "$ref": "#/$defs/part" },
+    "removed": { "$ref": "#/$defs/part" }
+  },
+
+  "$defs": {
+    "part": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "screens": { "type": "array", "items": { "$ref": "#/$defs/screen" } },
+        "transitions": { "type": "array", "items": { "$ref": "#/$defs/transition" } },
+        "calls": { "type": "array", "items": { "$ref": "#/$defs/call" } }
+      }
+    },
+    "screen": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "description": "Маршрут экрана." },
+        "title": { "type": "string" },
+        "file": { "type": "string", "description": "Файл, из которого экран собран." }
+      }
+    },
+    "transition": {
+      "type": "object",
+      "required": ["from", "to", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "from": { "type": "string", "minLength": 1 },
+        "to": { "type": "string", "minLength": 1 },
+        "trigger": { "type": "string", "description": "Чем вызывается: ссылка, кнопка, переход после действия." },
+        "evidence": { "$ref": "https://docdd/evidence.schema.json" }
+      }
+    },
+    "call": {
+      "type": "object",
+      "required": ["from", "to", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "from": { "type": "string", "minLength": 1, "description": "Экран." },
+        "to": { "type": "string", "minLength": 1, "description": "Маршрут API: `GET /api/projects`." },
+        "evidence": { "$ref": "https://docdd/evidence.schema.json" }
+      }
+    }
+  }
+}
