@@ -33,6 +33,8 @@ export interface AnalyzeResult {
   records: WorkRecord[];
   graph: Graph;
   violations: Violation[];
+  /** Тот же контекст, что видели правила: по нему проверяются и переходы. */
+  context: RuleContext;
 }
 
 /**
@@ -78,7 +80,7 @@ export function analyze(input: AnalyzeInput): AnalyzeResult {
   };
   violations.push(...checkAll(ctx));
 
-  return { records, graph, violations: sortViolations(violations) };
+  return { records, graph, context: ctx, violations: sortViolations(violations) };
 }
 
 /**

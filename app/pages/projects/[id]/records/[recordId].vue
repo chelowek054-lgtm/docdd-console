@@ -5,8 +5,13 @@ const route = useRoute();
 const projectId = computed(() => String(route.params['id'] ?? ''));
 const recordId = computed(() => String(route.params['recordId'] ?? ''));
 
-const { detail, failure } = useRecord(projectId, recordId);
-const { byId } = useProjectIndex(projectId);
+const { detail, failure, refresh } = useRecord(projectId, recordId);
+const { byId, index, refresh: refreshIndex } = useProjectIndex(projectId);
+
+/** После действия перечитываем и запись, и индекс: статус меняет обе картины. */
+async function reload() {
+  await Promise.all([refresh(), refreshIndex()]);
+}
 
 const LINK_LABELS: Record<LinkKind, string> = {
   implements: 'выполняет требование',
@@ -77,13 +82,19 @@ function entries(
         <StatusBadge :status="detail.record.status" />
       </div>
 
-      <!-- Действий пока нет: смена статуса приходит в фазе 3. Врать неактивной
-           кнопкой раньше времени незачем. -->
       <p class="text-sm text-muted">
         Файл <span class="font-mono">{{ detail.record.path }}</span>
         <template v-if="detail.record.updated"> · изменён {{ detail.record.updated }}</template>
         <template v-if="detail.record.owner"> · {{ detail.record.owner }}</template>
       </p>
+
+      <RecordActions
+        :project-id="projectId"
+        :record-id="recordId"
+        :actions="detail.actions"
+        :roles="index?.project.roles ?? []"
+        @changed="reload"
+      />
 
       <div v-if="detail.issues.length" class="space-y-2">
         <h2 class="font-medium">Что не так с этой записью</h2>

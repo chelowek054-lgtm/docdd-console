@@ -49,7 +49,9 @@ export function buildIndex(root: string, now = new Date()): { index: ProjectInde
       project: {
         id: workspace.manifest.project.id,
         name: workspace.manifest.project.name,
-        contract: workspace.manifest.contract
+        contract: workspace.manifest.contract,
+        // Роль — подпись в журнале, а не доступ: экрану нужен их список.
+        roles: workspace.manifest.roles ?? []
       },
       builtAt: now.toISOString(),
       fingerprint: workspace.fingerprint,

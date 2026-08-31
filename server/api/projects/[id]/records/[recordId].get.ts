@@ -3,11 +3,13 @@ import { dirname, join, sep } from 'node:path';
 
 import { defineEventHandler, getRouterParam } from 'h3';
 
+import { analyze } from '../../../../lib/analyze';
 import { extractDiagrams } from '../../../../lib/diagrams';
 import { parseRecord } from '../../../../lib/parse';
 import { OutsideRootError, resolveInside } from '../../../../lib/paths';
-import type { RecordDetail } from '../../../../lib/types';
-import { WorkspaceError } from '../../../../lib/workspace';
+import { availableActions } from '../../../../lib/transitions';
+import type { RecordAction, RecordDetail } from '../../../../lib/types';
+import { WorkspaceError, readWorkspace } from '../../../../lib/workspace';
 import { fail } from '../../../../utils/http';
 import { loadIndex } from '../../../../utils/index-service';
 import { findProject } from '../../../../utils/projects';
@@ -40,6 +42,7 @@ export default defineEventHandler(async (event) => {
       body: parsed.record.body,
       eol: parsed.record.eol,
       diagrams: extractDiagrams(parsed.record.body, (relativePath) => readMmd(project.root, record.path, relativePath)),
+      actions: actionsFor(project.root, recordId),
       issues: index.issues.filter((issue) => issue.recordId === recordId || issue.path === record.path),
       verifications: verificationsOf(index, record.links.verified_by ?? [])
     };
@@ -54,6 +57,22 @@ export default defineEventHandler(async (event) => {
     return fail(event, 500, 'read_failed', 'Не удалось прочитать запись', String(error));
   }
 });
+
+/**
+ * Действия считаются на живом состоянии проекта, а не на кэше: между сборкой
+ * индекса и открытием экрана документ мог получить подтверждение.
+ */
+function actionsFor(root: string, recordId: string): RecordAction[] {
+  const workspace = readWorkspace(root);
+  const result = analyze({
+    files: workspace.files,
+    manifest: workspace.manifest,
+    reports: workspace.reports,
+    codeFiles: workspace.codeFiles
+  });
+  const record = result.records.find((item) => item.id === recordId);
+  return record ? availableActions(record, result.context) : [];
+}
 
 /** Диаграмма из отдельного файла: путь считается от файла записи и не выходит за корень. */
 function readMmd(root: string, recordPath: string, relativePath: string): string | null {

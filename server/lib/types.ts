@@ -228,7 +228,7 @@ export interface IssueDto {
 }
 
 export interface ProjectIndex {
-  project: { id: string; name: string; contract: string };
+  project: { id: string; name: string; contract: string; roles: { id: string; name: string }[] };
   builtAt: string;
   /** Отпечаток файлов, по которому кэш понимает, что устарел. */
   fingerprint: string;
@@ -254,12 +254,21 @@ export interface DiagramBlock {
   error?: string;
 }
 
+export interface RecordAction {
+  status: string;
+  /** Подпись кнопки: слова для человека, а не имя статуса из контракта. */
+  label: string;
+  allowed: boolean;
+  blockers: { code: string; message: string }[];
+}
+
 export interface RecordDetail {
   record: IndexRecord;
   /** Тело документа в исходном markdown: приложение его не переписывает. */
   body: string;
   eol: Eol;
   diagrams: DiagramBlock[];
+  actions: RecordAction[];
   issues: IssueDto[];
   verifications: Record<string, VerificationOutcome>;
 }

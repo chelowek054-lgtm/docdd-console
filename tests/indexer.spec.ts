@@ -43,7 +43,9 @@ describe('buildIndex', () => {
     expect(index.project).toEqual({
       id: 'fishforecast',
       name: 'FishForecast',
-      contract: 'docdd.workspace/1'
+      contract: 'docdd.workspace/1',
+      // Роли нужны экрану записи, чтобы подставить подпись в журнал.
+      roles: [{ id: 'architect', name: 'Архитектор' }]
     });
     expect(index.builtAt).toBe('2026-08-30T12:00:00.000Z');
     expect(index.fingerprint).not.toBe('');

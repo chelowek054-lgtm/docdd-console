@@ -9,6 +9,8 @@ export interface ApiFailure {
   code: string;
   message: string;
   detail?: string;
+  /** Перечень того, что мешает: приходит с отказом на переход. */
+  blockers?: { code: string; message: string }[];
 }
 
 /** Ошибка приходит телом ответа, а не исключением: её надо показать текстом. */
