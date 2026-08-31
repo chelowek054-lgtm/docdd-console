@@ -631,7 +631,9 @@ export function checkTransition(record: WorkRecord, to: string, ctx: RuleContext
   const probe: WorkRecord = { ...record, status: to };
   const scoped: RuleContext = { ...ctx, records: [probe] };
   if (to === 'ready') {
-    return [...taskNotReadyDocs(scoped), ...taskNoRequirement(scoped)];
+    // Карта тоже держит переход, а не только попадает в список нарушений:
+    // «задача не уйдёт в ready, пока карта не подтверждена» (docs/07-maps.md).
+    return [...taskNotReadyDocs(scoped), ...taskNoRequirement(scoped), ...taskMapsUnapproved(scoped)];
   }
   if (to === 'done') {
     return taskDoneUnverified(scoped);

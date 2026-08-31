@@ -51,6 +51,30 @@ describe('availableActions', () => {
     expect(actions.find((action) => action.status === 'approved')?.allowed).toBe(true);
   });
 
+  it('карта держит переход в ready, а не только попадает в список нарушений', () => {
+    const requirement = rec('R-0001', 'requirement', 'approved');
+    const map = rec('M-0001', 'map', 'draft', { section: 'maps' });
+    const task = rec('T-0001', 'task', 'backlog', {
+      links: { implements: ['R-0001'], affects: ['M-0001'] },
+      extra: { change: 'feature' }
+    });
+    const ready = availableActions(task, context([requirement, map, task]))
+      .find((action) => action.status === 'ready');
+    expect(ready?.allowed).toBe(false);
+    expect(ready?.blockers.map((blocker) => blocker.code)).toContain('task_maps_unapproved');
+  });
+
+  it('feature без единой карты в работу тоже не уходит', () => {
+    const requirement = rec('R-0001', 'requirement', 'approved');
+    const task = rec('T-0001', 'task', 'backlog', {
+      links: { implements: ['R-0001'] },
+      extra: { change: 'feature' }
+    });
+    const ready = availableActions(task, context([requirement, task]))
+      .find((action) => action.status === 'ready');
+    expect(ready?.allowed).toBe(false);
+  });
+
   it('у решения вместо отмены — отклонение', () => {
     const decision = rec('A-0001', 'decision', 'review');
     const statuses = availableActions(decision, context([decision])).map((action) => action.status);

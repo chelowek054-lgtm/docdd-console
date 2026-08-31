@@ -77,6 +77,8 @@ export interface TemplateInput {
   links?: Partial<Record<LinkKind, string[]>>;
   /** Вид проверки: схема требует его у записей типа `verification`. */
   kind?: string;
+  /** Что за изменение: `feature` потребует карты ещё до `ready`. */
+  change?: string;
 }
 
 /** Начальный статус: всё заводится черновиком, задача — очередью. */
@@ -99,6 +101,7 @@ export function recordTemplate(input: TemplateInput, eol = '\n'): string {
     `status: ${initialStatus(input.type)}`
   ];
   if (input.owner) lines.push(`owner: ${input.owner}`);
+  if (input.type === 'task' && input.change) lines.push(`change: ${input.change}`);
   lines.push(`created: ${input.today}`, `updated: ${input.today}`);
   if (input.type === 'verification') lines.push(`kind: ${input.kind ?? 'manual'}`);
 

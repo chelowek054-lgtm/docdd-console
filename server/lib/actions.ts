@@ -37,7 +37,7 @@ const JOURNAL_ACTIONS: Record<string, string> = {
 export const STATUS_FIELDS = ['status', 'updated'] as const;
 
 /** Правка полей: тело документа не трогается вовсе, журнал не пишется. */
-export const PATCH_FIELDS = ['owner', 'phase', 'tags', 'links', 'updated'] as const;
+export const PATCH_FIELDS = ['owner', 'phase', 'tags', 'links', 'change', 'updated'] as const;
 
 export interface WriteOutcome {
   text: string;
@@ -76,6 +76,8 @@ export function applyStatusChange(
 
 export interface PatchFields {
   owner?: string | null;
+  /** Что за изменение: от него зависит, нужна ли задаче карта. */
+  change?: string | null;
   phase?: string | null;
   tags?: string[];
   links?: Partial<Record<LinkKind, string[]>>;
@@ -93,6 +95,7 @@ export function applyFieldPatch(
 
   const changes: FrontMatterChanges = { updated: today };
   if (fields.owner !== undefined) changes.owner = fields.owner;
+  if (fields.change !== undefined) changes.change = fields.change;
   if (fields.phase !== undefined) changes.phase = fields.phase;
   if (fields.tags !== undefined) changes.tags = fields.tags;
   if (fields.links !== undefined) changes.links = fields.links;

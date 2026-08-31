@@ -22,6 +22,7 @@ export interface RecordFile {
 
 export interface FrontMatterChanges {
   status?: string;
+  change?: string | null;
   updated?: string;
   owner?: string | null;
   phase?: string | null;
@@ -60,6 +61,7 @@ export function applyFrontMatter(file: RecordFile, changes: FrontMatterChanges):
   let lines = file.frontMatter.split(/\r?\n/);
 
   if (changes.status !== undefined) lines = setScalar(lines, 'status', changes.status);
+  if (changes.change !== undefined) lines = setScalar(lines, 'change', changes.change);
   if (changes.updated !== undefined) lines = setScalar(lines, 'updated', changes.updated);
   if (changes.owner !== undefined) lines = setScalar(lines, 'owner', changes.owner);
   if (changes.phase !== undefined) lines = setScalar(lines, 'phase', changes.phase);

@@ -74,6 +74,16 @@ describe('recordTemplate', () => {
     expect(text).toContain('links: {}');
   });
 
+  it('пишет `change` у задачи, когда он назван', () => {
+    const text = recordTemplate({ id: 'T-0001', type: 'task', title: 'Задача', today: '2026-08-31', change: 'feature' });
+    expect(text).toContain('change: feature');
+  });
+
+  it('не пишет `change` там, где его нет в схеме', () => {
+    const text = recordTemplate({ id: 'D-0001', type: 'design', title: 'Документ', today: '2026-08-31', change: 'feature' });
+    expect(text).not.toContain('change:');
+  });
+
   it('заводит запись с журналом', () => {
     const text = recordTemplate({ id: 'R-0001', type: 'requirement', title: 'Требование', today: '2026-08-31' });
     expect(text).toContain('## Журнал');

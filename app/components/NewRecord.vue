@@ -9,6 +9,20 @@ const open = ref(false);
 const title = ref('');
 const owner = ref('');
 const implementsIds = ref<string[]>([]);
+const change = ref('fix');
+
+/**
+ * Что за изменение: от этого зависит, потребует ли задача карты
+ * (docs/07-maps.md). Спрашиваем при заведении — иначе поле придётся дописывать
+ * руками в файле, а правило, которое нельзя выполнить через приложение,
+ * выполняют мимо него.
+ */
+const CHANGES = [
+  { label: 'Починка дефекта', value: 'fix' },
+  { label: 'Новое поведение — потребует карты', value: 'feature' },
+  { label: 'Переименование внутреннего', value: 'rename' },
+  { label: 'Форматирование и опечатки', value: 'format' }
+];
 const busy = ref(false);
 const failure = ref<ApiFailure | null>(null);
 
@@ -28,6 +42,7 @@ async function create() {
         type: props.type,
         title: title.value.trim(),
         owner: owner.value.trim() || undefined,
+        change: props.type === 'task' ? change.value : undefined,
         links: implementsIds.value.length ? { implements: implementsIds.value } : undefined
       },
       ignoreResponseError: true
@@ -58,6 +73,7 @@ async function create() {
       <div class="space-y-3">
         <UInput v-model="title" placeholder="Заголовок записи" @keyup.enter="create" />
         <UInput v-model="owner" placeholder="Исполнитель — необязательно" />
+        <USelect v-if="props.type === 'task'" v-model="change" :items="CHANGES" />
         <USelectMenu
           v-if="props.type === 'task' && requirements.length"
           v-model="implementsIds"

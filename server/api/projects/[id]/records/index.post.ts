@@ -26,7 +26,9 @@ export default defineEventHandler(async (event) => {
     return fail(event, 404, 'project_not_found', `Проект \`${id}\` не найден в списке`);
   }
 
-  const body = await readBody<{ type?: unknown; title?: unknown; owner?: unknown; links?: unknown; kind?: unknown }>(event);
+  const body = await readBody<{
+    type?: unknown; title?: unknown; owner?: unknown; links?: unknown; kind?: unknown; change?: unknown;
+  }>(event);
   const type = typeof body?.type === 'string' ? body.type : '';
   const title = typeof body?.title === 'string' ? body.title.trim() : '';
 
@@ -58,6 +60,7 @@ export default defineEventHandler(async (event) => {
       today: today(),
       ...(typeof body?.owner === 'string' && body.owner ? { owner: body.owner } : {}),
       ...(typeof body?.kind === 'string' && body.kind ? { kind: body.kind } : {}),
+      ...(typeof body?.change === 'string' && body.change ? { change: body.change } : {}),
       links: asLinks(body?.links)
     });
 

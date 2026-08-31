@@ -202,6 +202,13 @@ describe('applyFieldPatch', () => {
     expect(outcome.text).toContain('- 2026-08-01 · готова к работе · architect');
   });
 
+  it('меняет `change`: правило про карту должно выполняться через приложение', () => {
+    const outcome = applyFieldPatch(source, { change: 'feature' }, '2026-08-30');
+    expect(outcome.problems).toEqual([]);
+    expect(outcome.text).toContain('change: feature');
+    expect(outcome.text).toContain('Текст задачи, который принадлежит человеку.');
+  });
+
   it('меняет связи, не трогая тело', () => {
     const outcome = applyFieldPatch(source, { links: { implements: ['R-0009'] } }, '2026-08-30');
     expect(outcome.problems).toEqual([]);
