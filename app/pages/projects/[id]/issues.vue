@@ -41,8 +41,10 @@ const shown = computed(() => all.value
         <USelect
           v-model="code"
           class="w-64"
-          :items="[{ label: 'Любой код', value: '' }, ...codes.map((item) => ({ label: item, value: item }))]"
+          placeholder="Любой код"
+          :items="codes.map((item) => ({ label: item, value: item }))"
         />
+        <UButton v-if="code" variant="ghost" color="neutral" @click="code = ''">Сбросить код</UButton>
       </div>
 
       <IssueList

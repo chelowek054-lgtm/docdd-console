@@ -2,7 +2,7 @@
 const route = useRoute();
 const projectId = computed(() => String(route.params['id'] ?? ''));
 
-const { index, failure, records } = useProjectIndex(projectId);
+const { index, failure, records, refresh } = useProjectIndex(projectId);
 
 const tasks = computed(() => records.value.filter((record) => record.type === 'task'));
 
@@ -45,13 +45,16 @@ function reset() {
       <div class="flex flex-wrap items-center gap-3">
         <h1 class="text-xl font-semibold">Задачи</h1>
         <p class="text-sm text-muted">{{ shown.length }} из {{ tasks.length }}</p>
+        <NewRecord class="ml-auto" :project-id="projectId" type="task" :records="records" @created="refresh" />
       </div>
 
       <div class="flex flex-wrap gap-2">
-        <USelect v-model="status" :items="[{ label: 'Любой статус', value: '' }, ...statuses.map((s) => ({ label: statusLabel(s), value: s }))]" class="w-48" />
-        <USelect v-model="phase" :items="[{ label: 'Любая фаза', value: '' }, ...phases.map((p) => ({ label: p, value: p }))]" class="w-40" />
-        <USelect v-model="owner" :items="[{ label: 'Любой исполнитель', value: '' }, ...owners.map((o) => ({ label: o, value: o }))]" class="w-48" />
-        <USelect v-model="tag" :items="[{ label: 'Любой тег', value: '' }, ...tags.map((t) => ({ label: t, value: t }))]" class="w-40" />
+        <!-- Пустое значение в списке библиотека запрещает: «ничего не выбрано»
+             показывается подсказкой, а снимается кнопкой «Сбросить». -->
+        <USelect v-model="status" placeholder="Любой статус" :items="statuses.map((s) => ({ label: statusLabel(s), value: s }))" class="w-48" />
+        <USelect v-model="phase" placeholder="Любая фаза" :items="phases.map((p) => ({ label: p, value: p }))" class="w-40" />
+        <USelect v-model="owner" placeholder="Любой исполнитель" :items="owners.map((o) => ({ label: o, value: o }))" class="w-48" />
+        <USelect v-model="tag" placeholder="Любой тег" :items="tags.map((t) => ({ label: t, value: t }))" class="w-40" />
         <UButton variant="ghost" color="neutral" @click="reset">Сбросить</UButton>
       </div>
 

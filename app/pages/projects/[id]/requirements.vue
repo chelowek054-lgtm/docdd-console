@@ -4,7 +4,7 @@ import type { IndexRecord } from '~~/server/lib/types';
 const route = useRoute();
 const projectId = computed(() => String(route.params['id'] ?? ''));
 
-const { index, failure, records } = useProjectIndex(projectId);
+const { index, failure, records, refresh } = useProjectIndex(projectId);
 
 const requirements = computed(() => records.value.filter((record) => record.type === 'requirement'));
 const results = computed(() => index.value?.verificationResults ?? {});
@@ -44,6 +44,7 @@ function outcome(requirement: IndexRecord): { label: string; color: BadgeColor }
       <div class="flex flex-wrap items-center gap-3">
         <h1 class="text-xl font-semibold">Требования</h1>
         <p class="text-sm text-muted">{{ requirements.length }}</p>
+        <NewRecord class="ml-auto" :project-id="projectId" type="requirement" :records="records" @created="refresh" />
       </div>
 
       <div v-if="requirements.length === 0" class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted">

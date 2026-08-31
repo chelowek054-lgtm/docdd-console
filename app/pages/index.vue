@@ -9,6 +9,44 @@ const root = ref('');
 const adding = ref(false);
 const failure = ref<ApiFailure | null>(null);
 
+/** Формат заводится только там, где его нет: предложение появляется после отказа. */
+const offerInit = ref(false);
+const newId = ref('');
+const newName = ref('');
+const initFailure = ref<ApiFailure | null>(null);
+const initializing = ref(false);
+
+function suggestFromPath(path: string) {
+  // Путь приходит и с прямыми, и с обратными слешами: пользователь копирует его
+  // из проводника как есть.
+  const name = path.replace(/[\\/]+$/, '').split(/[\\/]/).pop() ?? '';
+  newName.value = name;
+  newId.value = name.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '') || 'project';
+}
+
+async function init() {
+  initializing.value = true;
+  initFailure.value = null;
+  try {
+    const response = await $fetch<ProjectEntry | { error: ApiFailure }>('/api/projects/init', {
+      method: 'POST',
+      body: { root: root.value.trim(), id: newId.value.trim(), name: newName.value.trim() },
+      ignoreResponseError: true
+    });
+    const problem = failureOf(response);
+    if (problem) {
+      initFailure.value = problem;
+      return;
+    }
+    offerInit.value = false;
+    failure.value = null;
+    root.value = '';
+    await refresh();
+  } finally {
+    initializing.value = false;
+  }
+}
+
 async function add() {
   if (!root.value.trim()) return;
   adding.value = true;
@@ -24,8 +62,12 @@ async function add() {
     const problem = failureOf(response);
     if (problem) {
       failure.value = problem;
+      // Манифеста нет — предлагаем завести формат, а не просто отказываем.
+      offerInit.value = problem.code === 'project_not_found';
+      if (offerInit.value) suggestFromPath(root.value.trim());
       return;
     }
+    offerInit.value = false;
     root.value = '';
     await refresh();
   } finally {
@@ -70,9 +112,31 @@ function shortDate(iso: string): string {
         icon="i-lucide-triangle-alert"
         :title="failure.message"
         :description="failure.code === 'project_not_found'
-          ? 'Нужен файл docs/development/project.yaml. Завести формат в пустом проекте приложение пока не умеет — это фаза 5.'
+          ? 'В папке нет docs/development/project.yaml. Формат можно завести прямо сейчас — ниже.'
           : failure.detail"
       />
+
+      <div v-if="offerInit" class="mt-4 space-y-3 rounded-lg border border-default p-4">
+        <p class="text-sm">Завести формат в <span class="font-mono">{{ root }}</span>?</p>
+        <div class="flex flex-col gap-3 sm:flex-row">
+          <UInput v-model="newName" placeholder="Имя проекта" class="flex-1" />
+          <UInput v-model="newId" placeholder="идентификатор-латиницей" class="flex-1" />
+          <UButton :loading="initializing" :disabled="!newId.trim() || !newName.trim()" @click="init">
+            Завести формат
+          </UButton>
+        </div>
+        <p class="text-xs text-muted">
+          Будут созданы <code>docs/development/project.yaml</code>, папки разделов и
+          первая запись — требование-заготовка. Существующие файлы не тронутся.
+        </p>
+        <UAlert
+          v-if="initFailure"
+          color="error"
+          variant="subtle"
+          :title="initFailure.message"
+          :description="initFailure.detail"
+        />
+      </div>
     </UCard>
 
     <div v-if="projects.length === 0" class="rounded-lg border border-dashed border-default p-8 text-center">
