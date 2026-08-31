@@ -156,6 +156,26 @@ export interface RunOptions {
   timeoutMs: number;
   maxBytes: number;
   cwd?: string;
+  /** Окружение потомка: без переменных чужой сессии Claude Code. */
+  env?: NodeJS.ProcessEnv;
+}
+
+/**
+ * Переменные, которыми Claude Code метит своих потомков. Унаследовав их,
+ * запущенная программа пытается взять доступ у сессии-родителя — и получает
+ * `403 Request not allowed`, если та уже закончилась или принадлежит другому.
+ * Убираем: пусть авторизуется своей записью, как и задумано ADR-0008.
+ */
+const SESSION_VARIABLES = /^CLAUDECODE$|^CLAUDE_CODE_|^CLAUDE_PID$|^CLAUDE_EFFORT$|^CLAUDE_AGENT_SDK|^CLAUDE_PREVIEW/i;
+
+export function childEnvironment(source: NodeJS.ProcessEnv = env): NodeJS.ProcessEnv {
+  const clean: NodeJS.ProcessEnv = {};
+  for (const [name, value] of Object.entries(source)) {
+    // ANTHROPIC_* не трогаем: их пользователь ставит сам и осознанно.
+    if (SESSION_VARIABLES.test(name)) continue;
+    clean[name] = value;
+  }
+  return clean;
 }
 
 export type Runner = (
@@ -194,7 +214,12 @@ export async function ask(prompt: string, options: AskOptions = {}): Promise<Llm
       found.command,
       inArgument ? ['-p', prompt] : ['-p'],
       inArgument ? '' : prompt,
-      { timeoutMs, maxBytes, ...(options.cwd ? { cwd: options.cwd } : {}) }
+      {
+        timeoutMs,
+        maxBytes,
+        env: childEnvironment(),
+        ...(options.cwd ? { cwd: options.cwd } : {})
+      }
     );
     const answer = result.stdout.trim();
 
@@ -233,12 +258,13 @@ function needsShell(command: string): boolean {
   return /\.(cmd|bat)$/i.test(command);
 }
 
-const spawnClaude: Runner = (command, args, input, { timeoutMs, maxBytes, cwd }) =>
+const spawnClaude: Runner = (command, args, input, { timeoutMs, maxBytes, cwd, env: childEnv }) =>
   new Promise((resolve, reject) => {
     const child = spawn(command, [...args], {
       stdio: ['pipe', 'pipe', 'pipe'],
       shell: needsShell(command),
       windowsHide: true,
+      ...(childEnv ? { env: childEnv } : {}),
       ...(cwd ? { cwd } : {})
     });
 

@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import { fixPrompt, mapsPrompt, ISSUES_MARKER, STATE_MARKER } from '../server/lib/prompt';
 import type { IssueDto } from '../server/lib/types';
-import { ask, availability, unfence, type Runner } from '../server/utils/llm';
+import { ask, availability, childEnvironment, unfence, type Runner } from '../server/utils/llm';
 
 /**
  * Модуль доступа к модели и сборка запросов. Настоящий вызов здесь не делается
@@ -105,6 +105,19 @@ describe('ask', () => {
     expect(seen).toBe('D:/work/fishForecast');
   });
 
+  it('переменные чужой сессии в потомка не уходят', async () => {
+    let seen: NodeJS.ProcessEnv | undefined;
+    const run: Runner = (_command, _args, _input, options) => {
+      seen = options.env;
+      return Promise.resolve({ stdout: 'готово', stderr: '', code: 0 });
+    };
+
+    await ask('вопрос', { run });
+    // Иначе программа попробует взять доступ у сессии-родителя и получит 403.
+    expect(Object.keys(seen ?? {}).some((name) => /^CLAUDE_CODE_/.test(name))).toBe(false);
+    expect(seen?.['CLAUDECODE']).toBeUndefined();
+  });
+
   it('сорванный запуск объясняется, а не роняет сервер', async () => {
     const run: Runner = () => Promise.reject(new Error('ENOENT'));
     const result = await ask('вопрос', { run });
@@ -189,6 +202,27 @@ describe('availability', () => {
     const found = inEnvironment({ PATH: empty, APPDATA: empty, LOCALAPPDATA: empty, USERPROFILE: empty }, availability);
     expect(found.available).toBe(false);
     expect(found.reason).toContain('DOCDD_CLAUDE_PATH');
+  });
+});
+
+describe('childEnvironment', () => {
+  it('убирает метки сессии и оставляет всё остальное', () => {
+    const clean = childEnvironment({
+      PATH: '/usr/bin',
+      HOME: '/home/user',
+      ANTHROPIC_API_KEY: 'ключ пользователя',
+      CLAUDECODE: '1',
+      CLAUDE_CODE_SESSION_ID: 'abc',
+      CLAUDE_PID: '123'
+    });
+
+    expect(clean['PATH']).toBe('/usr/bin');
+    expect(clean['HOME']).toBe('/home/user');
+    // Свой ключ пользователь ставит осознанно — его не трогаем.
+    expect(clean['ANTHROPIC_API_KEY']).toBe('ключ пользователя');
+    expect(clean['CLAUDECODE']).toBeUndefined();
+    expect(clean['CLAUDE_CODE_SESSION_ID']).toBeUndefined();
+    expect(clean['CLAUDE_PID']).toBeUndefined();
   });
 });
 
