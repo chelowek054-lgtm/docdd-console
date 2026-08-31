@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import { fixPrompt, mapsPrompt, ISSUES_MARKER, STATE_MARKER } from '../server/lib/prompt';
 import type { IssueDto } from '../server/lib/types';
-import { ask, availability, childEnvironment, unfence, type Runner } from '../server/utils/llm';
+import { ask, availability, childEnvironment, spawnClaude, unfence, type Runner } from '../server/utils/llm';
 
 /**
  * Модуль доступа к модели и сборка запросов. Настоящий вызов здесь не делается
@@ -353,5 +353,36 @@ describe('mapsPrompt', () => {
 
   it('требование свидетельств из запроса не пропадает', () => {
     expect(mapsPrompt(mapsTemplate, state)).toContain('Свидетельство обязательно');
+  });
+});
+
+describe('отмена', () => {
+  it('снимает запущенную программу, а не только прекращает ожидание', async () => {
+    const controller = new AbortController();
+    // Программа, которая сама бы не кончилась ещё десять секунд.
+    const running = spawnClaude('node', ['-e', 'setTimeout(() => {}, 10000)'], '', {
+      timeoutMs: 10_000,
+      maxBytes: 1024,
+      signal: controller.signal
+    });
+
+    const started = Date.now();
+    controller.abort();
+    await expect(running).rejects.toThrow(/aborted/);
+    // Ждали бы — прошло бы десять секунд.
+    // Снятие идёт по дереву процессов: под оболочкой Windows программа —
+    // внук, и `kill` по одному только потомку оставил бы её работать.
+    expect(Date.now() - started).toBeLessThan(3000);
+  }, 20_000);
+
+  it('отменённый запрос называется отменённым, а не ошибкой', async () => {
+    const controller = new AbortController();
+    const run: Runner = () => Promise.reject(new Error('aborted by user'));
+
+    controller.abort();
+    const result = await ask('вопрос', { run, signal: controller.signal });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.failure.code).toBe('cancelled');
   });
 });

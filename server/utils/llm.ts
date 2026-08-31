@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { env, platform } from 'node:process';
@@ -12,7 +12,7 @@ import { env, platform } from 'node:process';
  * сам — он возвращается вызывающему, а решает человек.
  */
 
-export type LlmFailureCode = 'unavailable' | 'unauthorized' | 'timeout' | 'failed' | 'empty';
+export type LlmFailureCode = 'unavailable' | 'unauthorized' | 'timeout' | 'failed' | 'empty' | 'cancelled';
 
 export interface LlmFailure {
   code: LlmFailureCode;
@@ -150,6 +150,8 @@ export interface AskOptions {
    * а проверять надо разбор ответа и отказы.
    */
   run?: Runner;
+  /** Отмена человеком: обрыв запроса браузером доходит сюда. */
+  signal?: AbortSignal;
 }
 
 export interface RunOptions {
@@ -158,6 +160,8 @@ export interface RunOptions {
   cwd?: string;
   /** Окружение потомка: без переменных чужой сессии Claude Code. */
   env?: NodeJS.ProcessEnv;
+  /** Отмена человеком: по сигналу запущенная программа снимается. */
+  signal?: AbortSignal;
 }
 
 /**
@@ -185,7 +189,16 @@ export type Runner = (
   options: RunOptions
 ) => Promise<{ stdout: string; stderr: string; code: number | null }>;
 
-const DEFAULT_TIMEOUT = 180_000;
+/**
+ * Сроки ожидания. Экран называет их человеку («отменим на 15-й минуте»), поэтому
+ * они живут здесь одним местом: разойдись они — экран обещал бы не то.
+ */
+export const ASK_TIMEOUT = 180_000;
+
+/** Выполнение задачи — работа на много минут, а не один ответ. */
+export const WORK_TIMEOUT = 900_000;
+
+const DEFAULT_TIMEOUT = ASK_TIMEOUT;
 const DEFAULT_MAX_BYTES = 4 * 1024 * 1024;
 
 /** Дальше этого запрос в аргумент не влезет: у командной строки Windows свой предел. */
@@ -234,7 +247,8 @@ export async function ask(prompt: string, options: AskOptions = {}): Promise<Llm
         timeoutMs,
         maxBytes,
         env: childEnvironment(),
-        ...(options.cwd ? { cwd: options.cwd } : {})
+        ...(options.cwd ? { cwd: options.cwd } : {}),
+        ...(options.signal ? { signal: options.signal } : {})
       }
     );
     const answer = result.stdout.trim();
@@ -282,6 +296,11 @@ export async function ask(prompt: string, options: AskOptions = {}): Promise<Llm
     return { ok: true, answer, ms: Date.now() - started };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    // Отмена — не поломка: человек передумал ждать, и говорить об ошибке здесь
+    // значило бы пугать на ровном месте.
+    if (options.signal?.aborted || /aborted|отмен/i.test(message)) {
+      return { ok: false, failure: { code: 'cancelled', message: 'Запрос отменён' } };
+    }
     if (/timed? ?out|ETIMEDOUT/i.test(message)) {
       return {
         ok: false,
@@ -300,7 +319,24 @@ function needsShell(command: string): boolean {
   return /\.(cmd|bat)$/i.test(command);
 }
 
-const spawnClaude: Runner = (command, args, input, { timeoutMs, maxBytes, cwd, env: childEnv }) =>
+/**
+ * Снять процесс со всем, что он породил. На Windows Claude Code запускается
+ * через `claude.cmd`, то есть под оболочкой: `kill` снимает её, а сама
+ * программа остаётся работать. Обещание «отменили» тогда было бы враньём —
+ * поэтому дерево целиком (docs/04-ui.md, раздел «Запрос к модели»).
+ */
+function killTree(child: ChildProcess): void {
+  if (platform === 'win32' && child.pid) {
+    execFile('taskkill', ['/pid', String(child.pid), '/t', '/f'], { windowsHide: true }, () => {
+      // Не получилось — процесс уже кончился сам; отдельно сообщать не о чем.
+    });
+    return;
+  }
+  child.kill();
+}
+
+/** Экспортируется ради теста на отмену: он проверяет, что программа снята. */
+export const spawnClaude: Runner = (command, args, input, { timeoutMs, maxBytes, cwd, env: childEnv, signal }) =>
   new Promise((resolve, reject) => {
     const child = spawn(command, [...args], {
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -316,9 +352,25 @@ const spawnClaude: Runner = (command, args, input, { timeoutMs, maxBytes, cwd, e
 
     const timer = setTimeout(() => {
       stopped = true;
-      child.kill();
+      killTree(child);
       reject(new Error(`timed out after ${timeoutMs} ms`));
     }, timeoutMs);
+
+    // Отмена обязана снимать программу, а не только прекращать ожидание:
+    // иначе человек считает, что остановил, а модель продолжает работать.
+    const cancel = () => {
+      stopped = true;
+      clearTimeout(timer);
+      killTree(child);
+      reject(new Error('aborted by user'));
+    };
+    if (signal) {
+      if (signal.aborted) {
+        cancel();
+        return;
+      }
+      signal.addEventListener('abort', cancel, { once: true });
+    }
 
     child.stdout.setEncoding('utf8');
     child.stdout.on('data', (chunk: string) => {
@@ -334,6 +386,7 @@ const spawnClaude: Runner = (command, args, input, { timeoutMs, maxBytes, cwd, e
     });
     child.on('close', (code) => {
       clearTimeout(timer);
+      signal?.removeEventListener('abort', cancel);
       if (!stopped) resolve({ stdout, stderr, code });
     });
 

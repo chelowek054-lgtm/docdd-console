@@ -22,12 +22,18 @@ const open = ref(false);
 const prompt = ref('');
 const count = ref(0);
 const building = ref(false);
-const asking = ref(false);
 const answer = ref('');
 const copied = ref(false);
 const failure = ref<ApiFailure | null>(null);
 
-const { data: llm } = useFetch<{ available: boolean; reason: string | null }>('/api/llm', { key: 'llm' });
+const { data: llm } = useFetch<{
+  available: boolean;
+  reason: string | null;
+  timeouts: { ask: number; work: number };
+}>('/api/llm', { key: 'llm' });
+
+// Ожидание с counterом и отменой — одно на все места, откуда зовут модель.
+const { running: asking, elapsed, outcome, run: runAsk, cancel: cancelAsk } = useModelRequest();
 
 async function build() {
   open.value = true;
@@ -63,26 +69,22 @@ async function copy() {
 }
 
 async function send() {
-  asking.value = true;
   failure.value = null;
   answer.value = '';
-  try {
-    const response = await $fetch<{ answer: string } | { error: ApiFailure }>('/api/llm/ask', {
+  const result = await runAsk((signal) =>
+    $fetch<{ answer: string } | { error: ApiFailure }>('/api/llm/ask', {
       method: 'POST',
       // Проект называем идентификатором: путь к нему сервер знает сам.
       body: { prompt: prompt.value, projectId: props.projectId },
-      ignoreResponseError: true
-    });
-    const problem = failureOf(response);
-    if (problem) {
-      failure.value = problem;
-      return;
-    }
-    answer.value = (response as { answer: string }).answer;
-    emit('answered', answer.value);
-  } finally {
-    asking.value = false;
-  }
+      ignoreResponseError: true,
+      // Отмена доходит до сервера: он снимет запущенную программу.
+      signal
+    })
+  );
+  if (!result) return;
+
+  answer.value = result.answer;
+  emit('answered', answer.value);
 }
 </script>
 
@@ -125,15 +127,25 @@ async function send() {
             {{ copied ? 'Скопировано' : 'Скопировать запрос' }}
           </UButton>
 
-          <UButton size="sm" :disabled="!llm?.available" :loading="asking" @click="send">
+          <UButton v-if="!asking" size="sm" :disabled="!llm?.available" @click="send">
             Спросить модель
           </UButton>
 
           <!-- Неактивная кнопка обязана назвать причину (docs/04-ui.md). -->
-          <p v-if="!llm?.available" class="min-w-0 flex-1 text-sm text-muted">
+          <p v-if="!llm?.available && !asking" class="min-w-0 flex-1 text-sm text-muted">
             {{ llm?.reason }}
           </p>
         </div>
+
+        <!-- Ожидание без счётчика неотличимо от зависшего (docs/04-ui.md). -->
+        <ModelProgress
+          class="mb-3"
+          :running="asking"
+          :elapsed="elapsed"
+          :limit-ms="llm?.timeouts.ask ?? 180000"
+          :outcome="outcome"
+          @cancel="cancelAsk"
+        />
 
         <pre class="max-h-64 overflow-auto rounded bg-elevated p-3 text-xs whitespace-pre-wrap">{{ prompt }}</pre>
       </template>

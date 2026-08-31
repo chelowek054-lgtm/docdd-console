@@ -1,5 +1,6 @@
 import { defineEventHandler, readBody } from 'h3';
 
+import { abortSignalOf } from '../../utils/abort';
 import { ask } from '../../utils/llm';
 import { fail } from '../../utils/http';
 import { findProject } from '../../utils/projects';
@@ -24,9 +25,12 @@ export default defineEventHandler(async (event) => {
   // Модель работает в корне проекта, а не в папке сервера: иначе она разберёт
   // не тот код. Путь берётся из списка проектов, а не из запроса браузера.
   const project = projectId ? await findProject(projectId) : null;
-  const result = await ask(prompt, project ? { cwd: project.root } : {});
+  const signal = abortSignalOf(event);
+  const result = await ask(prompt, project ? { cwd: project.root, signal } : { signal });
   if (!result.ok) {
     // Нет программы и отказ в доступе — разные беды, и чинятся по-разному.
+    // Отмена — не беда: человек передумал ждать, и 502 тут ни при чём.
+    if (result.failure.code === 'cancelled') return fail(event, 499, 'llm_cancelled', result.failure.message);
     const status = result.failure.code === 'unavailable' || result.failure.code === 'unauthorized' ? 503 : 502;
     return fail(event, status, `llm_${result.failure.code}`, result.failure.message, result.failure.detail);
   }

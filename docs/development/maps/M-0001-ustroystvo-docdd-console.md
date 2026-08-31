@@ -37,12 +37,14 @@ updated: 2026-08-31
         {"id":"app/components/DocumentText.vue","title":"DocumentText","layer":"компоненты"},
         {"id":"app/components/IssueList.vue","title":"IssueList","layer":"компоненты"},
         {"id":"app/components/MermaidDiagram.vue","title":"MermaidDiagram","layer":"компоненты"},
+        {"id":"app/components/ModelProgress.vue","title":"ModelProgress","layer":"компоненты"},
         {"id":"app/components/NewRecord.vue","title":"NewRecord","layer":"компоненты"},
         {"id":"app/components/ProjectFailure.vue","title":"ProjectFailure","layer":"компоненты"},
         {"id":"app/components/RecordActions.vue","title":"RecordActions","layer":"компоненты"},
         {"id":"app/components/RecordLink.vue","title":"RecordLink","layer":"компоненты"},
         {"id":"app/components/StatusBadge.vue","title":"StatusBadge","layer":"компоненты"},
         {"id":"app/components/TaskWork.vue","title":"TaskWork","layer":"компоненты"},
+        {"id":"app/composables/useModelRequest.ts","title":"useModelRequest","layer":"клиентские утилиты"},
         {"id":"app/composables/useProjectIndex.ts","title":"useProjectIndex","layer":"клиентские утилиты"},
         {"id":"app/layouts/default.vue","title":"default","layer":"разметка"},
         {"id":"app/pages/index.vue","title":"index","layer":"экраны"},
@@ -54,6 +56,7 @@ updated: 2026-08-31
         {"id":"app/pages/projects/[id]/records/[recordId].vue","title":"[recordId]","layer":"экраны"},
         {"id":"app/pages/projects/[id]/requirements.vue","title":"requirements","layer":"экраны"},
         {"id":"app/pages/projects/[id]/tasks.vue","title":"tasks","layer":"экраны"},
+        {"id":"app/utils/duration.ts","title":"duration","layer":"клиентские утилиты"},
         {"id":"app/utils/graph-layout.ts","title":"graph-layout","layer":"клиентские утилиты"},
         {"id":"app/utils/labels.ts","title":"labels","layer":"клиентские утилиты"},
         {"id":"app/utils/map-mermaid.ts","title":"map-mermaid","layer":"клиентские утилиты"},
@@ -93,6 +96,7 @@ updated: 2026-08-31
         {"id":"server/lib/types.ts","title":"types","layer":"ядро"},
         {"id":"server/lib/workspace.ts","title":"workspace","layer":"ядро"},
         {"id":"server/lib/write.ts","title":"write","layer":"ядро"},
+        {"id":"server/utils/abort.ts","title":"abort","layer":"серверные утилиты"},
         {"id":"server/utils/git.ts","title":"git","layer":"серверные утилиты"},
         {"id":"server/utils/http.ts","title":"http","layer":"серверные утилиты"},
         {"id":"server/utils/index-service.ts","title":"index-service","layer":"серверные утилиты"},
@@ -103,6 +107,7 @@ updated: 2026-08-31
       ],
       "imports": [
         {"from":"app/components/IssueList.vue","to":"server/lib/types.ts","evidence":{"path":"app/components/IssueList.vue","line":2,"fragment":"import type { IssueDto } from '~~/server/lib/types';"}},
+        {"from":"app/components/ModelProgress.vue","to":"app/composables/useModelRequest.ts","evidence":{"path":"app/components/ModelProgress.vue","line":2,"fragment":"import type { ModelOutcome } from '~/composables/useModelReq"}},
         {"from":"app/components/NewRecord.vue","to":"app/composables/useProjectIndex.ts","evidence":{"path":"app/components/NewRecord.vue","line":2,"fragment":"import type { ApiFailure } from '~/composables/useProjectInd"}},
         {"from":"app/components/NewRecord.vue","to":"server/lib/types.ts","evidence":{"path":"app/components/NewRecord.vue","line":3,"fragment":"import type { IndexRecord } from '~~/server/lib/types';"}},
         {"from":"app/components/ProjectFailure.vue","to":"app/composables/useProjectIndex.ts","evidence":{"path":"app/components/ProjectFailure.vue","line":2,"fragment":"import type { ApiFailure } from '~/composables/useProjectInd"}},
@@ -111,6 +116,7 @@ updated: 2026-08-31
         {"from":"app/components/RecordLink.vue","to":"server/lib/types.ts","evidence":{"path":"app/components/RecordLink.vue","line":2,"fragment":"import type { IndexRecord } from '~~/server/lib/types';"}},
         {"from":"app/components/TaskWork.vue","to":"app/composables/useProjectIndex.ts","evidence":{"path":"app/components/TaskWork.vue","line":2,"fragment":"import type { ApiFailure } from '~/composables/useProjectInd"}},
         {"from":"app/components/TaskWork.vue","to":"server/utils/work-service.ts","evidence":{"path":"app/components/TaskWork.vue","line":3,"fragment":"import type { WorkState } from '~~/server/utils/work-service"}},
+        {"from":"app/composables/useModelRequest.ts","to":"app/composables/useProjectIndex.ts","evidence":{"path":"app/composables/useModelRequest.ts","line":1,"fragment":"import type { ApiFailure } from '~/composables/useProjectInd"}},
         {"from":"app/composables/useProjectIndex.ts","to":"server/lib/types.ts","evidence":{"path":"app/composables/useProjectIndex.ts","line":1,"fragment":"import type { IndexRecord, ProjectEntry, ProjectIndex, Recor"}},
         {"from":"app/pages/index.vue","to":"app/composables/useProjectIndex.ts","evidence":{"path":"app/pages/index.vue","line":2,"fragment":"import type { ApiFailure } from '~/composables/useProjectInd"}},
         {"from":"app/pages/index.vue","to":"server/lib/types.ts","evidence":{"path":"app/pages/index.vue","line":3,"fragment":"import type { ProjectEntry } from '~~/server/lib/types';"}},
@@ -314,7 +320,7 @@ updated: 2026-08-31
         {"from":"server/utils/record-write.ts","to":"project-files","direction":"read","evidence":{"path":"server/utils/record-write.ts","line":1,"fragment":"import { readFileSync, writeFileSync } from 'node:fs';"}},
         {"from":"server/utils/record-write.ts","to":"project-files","direction":"write","evidence":{"path":"server/utils/record-write.ts","line":80,"fragment":"writeFileSync(context.absolute, outcome.text, 'utf8');"}},
         {"from":"server/utils/work-service.ts","to":"git-repo","direction":"both","evidence":{"path":"server/utils/work-service.ts","line":98,"fragment":"  const created = await ensureWorktree(normalized, branch, r"}},
-        {"from":"server/utils/work-service.ts","to":"project-files","direction":"write","evidence":{"path":"server/utils/work-service.ts","line":252,"fragment":"  const saved = saveRecord(context, outcome, root);"}}
+        {"from":"server/utils/work-service.ts","to":"project-files","direction":"write","evidence":{"path":"server/utils/work-service.ts","line":256,"fragment":"  const saved = saveRecord(context, outcome, root);"}}
       ]
     }
 }
@@ -352,7 +358,7 @@ updated: 2026-08-31
         {"from":"/","to":"DELETE /api/projects/:id","evidence":{"path":"app/pages/index.vue","line":79,"fragment":"await $fetch(`/api/projects/${id}`, { method: 'DELETE', igno"}},
         {"from":"/projects/:id/import","to":"POST /api/projects/:id/import","evidence":{"path":"app/pages/projects/[id]/import.vue","line":63,"fragment":"const response = await $fetch(`/api/projects/${projectId.val"}},
         {"from":"/projects/:id/records/:recordId","to":"GET /api/projects/:id/records/:recordId/work","evidence":{"path":"app/components/TaskWork.vue","line":19,"fragment":"  () => `/api/projects/${props.projectId}/records/${props.re"}},
-        {"from":"/projects/:id/records/:recordId","to":"POST /api/projects/:id/records/:recordId/work","evidence":{"path":"app/components/TaskWork.vue","line":41,"fragment":"    const response = await $fetch(`/api/projects/${props.pro"}}
+        {"from":"/projects/:id/records/:recordId","to":"POST /api/projects/:id/records/:recordId/work","evidence":{"path":"app/components/TaskWork.vue","line":49,"fragment":"      `/api/projects/${props.projectId}/records/${props.reco"}}
       ]
     }
 }
@@ -362,3 +368,4 @@ updated: 2026-08-31
 
 - 2026-08-31 · заведена · приложение
 - 2026-08-31 · дописаны модули выполнения задачи через клиент · architect
+- 2026-08-31 · дописаны модули ожидания ответа модели · architect

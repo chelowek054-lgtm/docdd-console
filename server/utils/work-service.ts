@@ -19,7 +19,7 @@ import {
   worktreeRoot,
   type WorkChanges
 } from './git';
-import { ask } from './llm';
+import { ask, WORK_TIMEOUT } from './llm';
 import { buildProjectMap } from './map-service';
 import { openRecord, saveRecord, today } from './record-write';
 
@@ -81,7 +81,7 @@ export async function handover(
   root: string,
   index: ProjectIndex,
   record: IndexRecord,
-  options: { actor: string; rework: string; template: string }
+  options: { actor: string; rework: string; template: string; signal?: AbortSignal }
 ): Promise<WorkOutcome> {
   const normalized = normalizeRoot(root);
 
@@ -108,7 +108,11 @@ export async function handover(
   );
 
   // Модель работает в дереве задачи, а не в вашем каталоге.
-  const answer = await ask(prompt, { cwd: worktreeRoot(normalized, record.id), timeoutMs: 900_000 });
+  const answer = await ask(prompt, {
+    cwd: worktreeRoot(normalized, record.id),
+    timeoutMs: WORK_TIMEOUT,
+    ...(options.signal ? { signal: options.signal } : {})
+  });
   if (!answer.ok) {
     return { ok: false, code: `llm_${answer.failure.code}`, message: answer.failure.message, ...(answer.failure.detail ? { detail: answer.failure.detail } : {}) };
   }

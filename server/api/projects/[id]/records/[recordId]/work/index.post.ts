@@ -3,6 +3,7 @@ import { useStorage } from 'nitropack/runtime';
 
 import { normalizeRoot } from '../../../../../../lib/paths';
 import { WorkspaceError } from '../../../../../../lib/workspace';
+import { abortSignalOf } from '../../../../../../utils/abort';
 import { fail } from '../../../../../../utils/http';
 import { loadIndex } from '../../../../../../utils/index-service';
 import { findProject } from '../../../../../../utils/projects';
@@ -48,7 +49,8 @@ export default defineEventHandler(async (event) => {
       const outcome = await handover(root, index, record, {
         actor,
         rework: action === 'rework' ? comment : '',
-        template: await template('task.md')
+        template: await template('task.md'),
+        signal: abortSignalOf(event)
       });
       return outcome.ok ? outcome : fail(event, statusFor(outcome.code), outcome.code, outcome.message, outcome.detail);
     }
@@ -73,6 +75,8 @@ export default defineEventHandler(async (event) => {
 
 /** Отказ модели и отказ git — разные беды, и коды ответа у них разные. */
 function statusFor(code: string): number {
+  // Отмена — не беда: человек передумал ждать.
+  if (code === 'llm_cancelled') return 499;
   if (code.startsWith('llm_')) return code === 'llm_unavailable' || code === 'llm_unauthorized' ? 503 : 502;
   if (code === 'not_a_repository' || code === 'detached_head') return 422;
   return 409;

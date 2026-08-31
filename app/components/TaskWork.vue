@@ -31,31 +31,58 @@ const failure = ref<ApiFailure | null>(null);
 /** Ворота те же, что у перехода в работу: неподтверждённое не отдаётся. */
 const canHandOver = computed(() => props.status === 'ready' || props.status === 'in_progress');
 
-const { data: llm } = useFetch<{ available: boolean; reason: string | null }>('/api/llm', { key: 'llm' });
+const { data: llm } = useFetch<{
+  available: boolean;
+  reason: string | null;
+  timeouts: { ask: number; work: number };
+}>('/api/llm', { key: 'llm' });
+
+// Отдать модели — работа на много минут: ожидание со счётчиком и отменой.
+const { running: working, elapsed, outcome, run: runWork, cancel: cancelWork } = useModelRequest();
 
 async function act(action: 'handover' | 'rework' | 'accept' | 'reject') {
-  busy.value = action;
   failure.value = null;
   if (action !== 'rework') answer.value = '';
-  try {
-    const response = await $fetch(`/api/projects/${props.projectId}/records/${props.recordId}/work`, {
-      method: 'POST',
-      body: { action, actor: actor.value, comment: comment.value },
-      ignoreResponseError: true
-    });
-    const problem = failureOf(response);
-    if (problem) {
-      failure.value = problem;
-      return;
+
+  const call = (signal?: AbortSignal) =>
+    $fetch<{ answer?: string } | { error: ApiFailure }>(
+      `/api/projects/${props.projectId}/records/${props.recordId}/work`,
+      {
+        method: 'POST',
+        body: { action, actor: actor.value, comment: comment.value },
+        ignoreResponseError: true,
+        // Отмена доходит до сервера: он снимет запущенную программу.
+        ...(signal ? { signal } : {})
+      }
+    );
+
+  // Модель зовут только `handover` и `rework` — остальное отвечает сразу, и
+  // счётчик ожидания там был бы шумом.
+  const waits = action === 'handover' || action === 'rework';
+  let result: { answer?: string } | null = null;
+
+  if (waits) {
+    result = await runWork(call);
+  } else {
+    busy.value = action;
+    try {
+      const response = await call();
+      const problem = failureOf(response);
+      if (problem) {
+        failure.value = problem;
+        return;
+      }
+      result = response as { answer?: string };
+    } finally {
+      busy.value = '';
     }
-    const result = response as { answer?: string };
-    if (result.answer) answer.value = result.answer;
-    if (action === 'rework') comment.value = '';
-    await refresh();
-    emit('changed');
-  } finally {
-    busy.value = '';
   }
+
+  if (!result) return;
+  if (result.answer) answer.value = result.answer;
+  if (action === 'rework') comment.value = '';
+  await refresh();
+  emit('changed');
 }
 </script>
 
@@ -80,8 +107,8 @@ async function act(action: 'handover' | 'rework' | 'accept' | 'reject') {
 
     <div class="flex flex-wrap items-center gap-3">
       <UButton
+        v-if="!working"
         :disabled="!canHandOver || !llm?.available"
-        :loading="busy === 'handover'"
         icon="i-lucide-play"
         @click="act('handover')"
       >
@@ -89,14 +116,24 @@ async function act(action: 'handover' | 'rework' | 'accept' | 'reject') {
       </UButton>
 
       <!-- Недоступное действие обязано назвать причину (docs/04-ui.md). -->
-      <p v-if="!canHandOver" class="min-w-0 flex-1 text-sm text-muted">
+      <p v-if="!canHandOver && !working" class="min-w-0 flex-1 text-sm text-muted">
         Задача в статусе <code>{{ props.status }}</code>. Отдавать модели можно только
         готовую к работе: подтверждение человеком идёт раньше кода.
       </p>
-      <p v-else-if="!llm?.available" class="min-w-0 flex-1 text-sm text-muted">
+      <p v-else-if="!llm?.available && !working" class="min-w-0 flex-1 text-sm text-muted">
         {{ llm?.reason }}
       </p>
     </div>
+
+    <!-- Ожидание без счётчика неотличимо от зависшего (docs/04-ui.md). -->
+    <ModelProgress
+      class="mt-3"
+      :running="working"
+      :elapsed="elapsed"
+      :limit-ms="llm?.timeouts.work ?? 900000"
+      :outcome="outcome"
+      @cancel="cancelWork"
+    />
 
     <UAlert
       v-if="failure"
