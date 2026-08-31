@@ -11,9 +11,27 @@ import type {
 } from './types';
 import { LINK_KINDS } from './types';
 import { readWorkspace, sourceReader, type Workspace } from './workspace';
+import { recordOfBranch } from './branch';
+import { hasChangesSync, workBranchesSync } from '../utils/git';
 
 /** Поля, которые понимает контракт; всё остальное уходит в `extra` нетронутым. */
 const KNOWN_FIELDS = new Set(['id', 'type', 'title', 'status', 'owner', 'created', 'updated', 'phase', 'tags', 'links']);
+
+/**
+ * Ветки и неразобранные изменения задач. Отказ git не помеха: без этих данных
+ * два предупреждения просто не выставляются, а индекс собирается как раньше.
+ */
+function workState(root: string): { unreviewed: Set<string>; orphanBranches: Set<string> } {
+  const orphanBranches = new Set<string>();
+  const unreviewed = new Set<string>();
+  for (const branch of workBranchesSync(root)) {
+    const id = recordOfBranch(branch);
+    if (!id) continue;
+    orphanBranches.add(id);
+    if (hasChangesSync(root, id)) unreviewed.add(id);
+  }
+  return { unreviewed, orphanBranches };
+}
 
 /**
  * Индекс — результат прохода: записи, связи, нарушения, время сборки.
@@ -28,6 +46,9 @@ export function buildIndex(root: string, now = new Date()): { index: ProjectInde
     codeFiles: workspace.codeFiles,
     // Сверка свидетельств карт читает файлы проекта — по одному и по требованию.
     readSource: sourceReader(root),
+    // Состояние работы: ветки и деревья задач. Git смотрим здесь, чтобы правила
+    // остались чистыми функциями над данными.
+    work: workState(root),
     now
   });
 

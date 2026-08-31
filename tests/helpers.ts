@@ -73,6 +73,9 @@ export interface ContextOptions {
   documents?: string[];
   /** Содержимое файлов проекта для сверки свидетельств карт. */
   sources?: Record<string, string>;
+  /** Задачи с неразобранным диффом и задачи, у которых осталась ветка. */
+  unreviewed?: string[];
+  orphanBranches?: string[];
 }
 
 export function context(records: WorkRecord[], options: ContextOptions = {}): RuleContext {
@@ -89,7 +92,11 @@ export function context(records: WorkRecord[], options: ContextOptions = {}): Ru
     // По умолчанию существующими считаются файлы самих записей: так тест
     // проверяет правило, а не список файлов.
     documents: new Set(options.documents ?? records.map((record) => record.source.path)),
-    readSource: (path: string) => options.sources?.[path] ?? null
+    readSource: (path: string) => options.sources?.[path] ?? null,
+    work: {
+      unreviewed: new Set(options.unreviewed ?? []),
+      orphanBranches: new Set(options.orphanBranches ?? [])
+    }
   };
 }
 

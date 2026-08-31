@@ -13,6 +13,7 @@ const LF = String.fromCharCode(10);
 
 export const ISSUES_MARKER = '<!-- НАРУШЕНИЯ -->';
 export const STATE_MARKER = '<!-- СОСТОЯНИЕ -->';
+export const TASK_MARKER = '<!-- ЗАДАЧА -->';
 
 /** Шапка шаблона — объяснение для человека, модели она не нужна. */
 function withoutFrontNote(template: string): string {
@@ -74,6 +75,68 @@ export function mapsPrompt(template: string, state: MapsState): string {
   }
 
   return body.replace(STATE_MARKER, lines.join(LF));
+}
+
+export interface TaskContext {
+  id: string;
+  title: string;
+  /** Тело задачи без раздела «Журнал»: он про движение, а не про суть. */
+  body: string;
+  requirements: { id: string; title: string; body: string }[];
+  documents: { id: string; title: string; body: string }[];
+  /** Карта изменения: что задача меняет в устройстве. */
+  map: string;
+  /** Сжатая карта проекта: где что лежит, без обхода всех файлов. */
+  modules: { id: string; title?: string; layer?: string }[];
+  /** Что человек сказал по прошлому заходу. Пусто — заход первый. */
+  rework: string;
+  round: number;
+}
+
+/**
+ * Запрос на выполнение задачи. Подтверждённое кладётся целиком, устройство —
+ * сжатой картой: три тысячи знаков вместо трёхсот тысяч исходников
+ * (docs/09-execution.md).
+ */
+export function taskPrompt(template: string, task: TaskContext): string {
+  const body = withoutFrontNote(template);
+  const lines: string[] = [];
+
+  lines.push(`## Задача ${task.id}: ${task.title}`, '', task.body.trim(), '');
+
+  for (const requirement of task.requirements) {
+    lines.push(`## Требование ${requirement.id}: ${requirement.title}`, '', requirement.body.trim(), '');
+  }
+  for (const document of task.documents) {
+    lines.push(`## Документ ${document.id}: ${document.title}`, '', document.body.trim(), '');
+  }
+  if (task.map.trim()) {
+    lines.push('## Что меняется в устройстве', '', task.map.trim(), '');
+  }
+
+  if (task.modules.length > 0) {
+    lines.push('## Где что лежит', '');
+    lines.push('Подтверждённая карта проекта — по ней видно устройство, читать все файлы не нужно:', '');
+    for (const module of task.modules) {
+      const title = module.title ? ` — ${module.title}` : '';
+      const layer = module.layer ? ` [${module.layer}]` : '';
+      lines.push(`- \`${module.id}\`${title}${layer}`);
+    }
+    lines.push('');
+  }
+
+  if (task.rework.trim()) {
+    lines.push(
+      `## Заход ${task.round}: что не так с прошлым`,
+      '',
+      task.rework.trim(),
+      '',
+      'Правь то, что уже написано в этой ветке, а не начинай заново.',
+      ''
+    );
+  }
+
+  return body.replace(TASK_MARKER, lines.join(LF));
 }
 
 function listOf(values: readonly string[]): string {

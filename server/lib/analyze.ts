@@ -28,6 +28,8 @@ export interface AnalyzeInput {
   documentFiles?: Iterable<string>;
   /** Чтение файла проекта для сверки свидетельств карт; `null` — файла нет. */
   readSource?: (path: string) => string | null;
+  /** Состояние работы над задачами: git смотрит вызывающая сторона. */
+  work?: { unreviewed: ReadonlySet<string>; orphanBranches: ReadonlySet<string> };
   now?: Date;
 }
 
@@ -79,7 +81,8 @@ export function analyze(input: AnalyzeInput): AnalyzeResult {
       ...input.files.map((file) => file.source.path),
       ...(input.documentFiles ?? [])
     ]),
-    ...(input.readSource ? { readSource: input.readSource } : {})
+    ...(input.readSource ? { readSource: input.readSource } : {}),
+    ...(input.work ? { work: input.work } : {})
   };
   violations.push(...checkAll(ctx));
 

@@ -33,6 +33,14 @@ export interface RuleContext {
   /** Существующие файлы внутри `docs/development`: тем же способом и по той же причине. */
   documents: ReadonlySet<string>;
   /**
+   * Состояние работы над задачами: какие отданы модели и не разобраны, какие
+   * ветки остались. Считает вызывающая сторона — git в чистых правилах не место.
+   */
+  work?: {
+    unreviewed: ReadonlySet<string>;
+    orphanBranches: ReadonlySet<string>;
+  };
+  /**
    * Содержимое файла проекта для сверки свидетельств карт. `null` — файла нет.
    * Файловая система остаётся снаружи: правила по-прежнему чистые функции.
    */
@@ -158,6 +166,8 @@ export function checkAll(ctx: RuleContext): Violation[] {
     ...checkMaps(ctx),
     ...taskMapsUnapproved(ctx),
     ...changeMissing(ctx),
+    ...workUnreviewed(ctx),
+    ...workBranchOrphan(ctx),
     ...taskNotReadyDocs(ctx),
     ...taskNoRequirement(ctx),
     ...taskDoneUnverified(ctx),
@@ -434,6 +444,43 @@ export function changeMissing(ctx: RuleContext): Violation[] {
       task.id,
       task.source.path,
       `У задачи ${task.id} не указано \`change\`. Без него непонятно, нужна ли карта изменения, и правило про \`feature\` молча не применяется.`
+    ));
+  }
+  return found;
+}
+
+/** Задача отдана модели, а дифф не разобран: работа висит, и это легко забыть. */
+export function workUnreviewed(ctx: RuleContext): Violation[] {
+  const unreviewed = ctx.work?.unreviewed;
+  if (!unreviewed) return [];
+
+  const found: Violation[] = [];
+  for (const task of tasks(ctx)) {
+    if (!unreviewed.has(task.id)) continue;
+    found.push(violation(
+      'work_unreviewed',
+      task.id,
+      task.source.path,
+      'Задача ' + task.id + ' отдана модели, и в её ветке есть неразобранные изменения. Примите дифф, отправьте на доработку или отклоните — пока он висит, работа не сделана и не отменена.'
+    ));
+  }
+  return found;
+}
+
+/** Ветка закрытой задачи: работа кончилась, а след остался. */
+export function workBranchOrphan(ctx: RuleContext): Violation[] {
+  const orphans = ctx.work?.orphanBranches;
+  if (!orphans) return [];
+
+  const found: Violation[] = [];
+  for (const task of tasks(ctx)) {
+    if (task.status !== 'done' && task.status !== 'dropped') continue;
+    if (!orphans.has(task.id)) continue;
+    found.push(violation(
+      'work_branch_orphan',
+      task.id,
+      task.source.path,
+      'Задача ' + task.id + ' в статусе `' + task.status + '`, а её рабочая ветка осталась. Приложение чужих веток не удаляет — уберите, когда убедитесь, что всё слито.'
     ));
   }
   return found;

@@ -16,7 +16,9 @@ import {
   taskNoRequirement,
   taskNotReadyDocs,
   taskStale,
-  verificationNeverRun
+  verificationNeverRun,
+  workBranchOrphan,
+  workUnreviewed
 } from '../server/lib/rules';
 import { codes, context, rec } from './helpers';
 
@@ -557,5 +559,29 @@ describe('transition_forbidden', () => {
     const allowed = checkTransition(task, 'done', context([verification, task], { verifications: { 'V-0004': 'passed' } }));
     expect(codes(blocked)).toEqual(['task_done_unverified']);
     expect(allowed).toEqual([]);
+  });
+});
+
+describe('work_unreviewed', () => {
+  it('срабатывает, когда дифф задачи висит неразобранным', () => {
+    const task = rec('T-0001', 'task', 'in_progress');
+    expect(codes(workUnreviewed(context([task], { unreviewed: ['T-0001'] })))).toEqual(['work_unreviewed']);
+  });
+
+  it('молчит, пока задаче нечего показывать', () => {
+    const task = rec('T-0001', 'task', 'in_progress');
+    expect(workUnreviewed(context([task]))).toEqual([]);
+  });
+});
+
+describe('work_branch_orphan', () => {
+  it('срабатывает на ветке закрытой задачи', () => {
+    const task = rec('T-0001', 'task', 'done');
+    expect(codes(workBranchOrphan(context([task], { orphanBranches: ['T-0001'] })))).toEqual(['work_branch_orphan']);
+  });
+
+  it('молчит, пока задача в работе: ветка ей и нужна', () => {
+    const task = rec('T-0001', 'task', 'in_progress');
+    expect(workBranchOrphan(context([task], { orphanBranches: ['T-0001'] }))).toEqual([]);
   });
 });

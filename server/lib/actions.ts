@@ -74,6 +74,30 @@ export function applyStatusChange(
   };
 }
 
+/**
+ * Строка в журнал без смены статуса: заход к модели, принятый дифф, отказ.
+ * Движение работы должно оставлять след, даже когда статус не меняется
+ * (docs/09-execution.md).
+ */
+export function applyJournalNote(
+  original: string,
+  options: { action: string; actor: string; today: string }
+): WriteOutcome {
+  const file = splitRecord(original);
+  if (!file) {
+    return { text: original, problems: ['Файл не является записью с front matter.'] };
+  }
+
+  const line = journalLine(options.today, options.action, options.actor);
+  const text = joinRecord(appendJournal(applyFrontMatter(file, { updated: options.today }), line));
+
+  return {
+    text,
+    journal: line,
+    problems: verifyWrite(original, text, { allowedFields: ['updated'], addedJournalLine: line })
+  };
+}
+
 export interface PatchFields {
   owner?: string | null;
   /** Что за изменение: от него зависит, нужна ли задаче карта. */

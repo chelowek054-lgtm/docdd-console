@@ -69,6 +69,13 @@ flowchart LR
 | `task_maps_unapproved` | error | Задача с `change: feature` в `ready` и дальше, а её карта не подтверждена |
 | `change_missing` | warning | У задачи в `ready` и дальше не указано `change` |
 
+### Выполнение
+
+| Код | Уровень | Когда |
+|---|---|---|
+| `work_unreviewed` | warning | Задача отдана модели, а дифф не разобран |
+| `work_branch_orphan` | warning | Задача закрыта или отменена, а её ветка осталась |
+
 ### Процесс
 
 | Код | Уровень | Когда |

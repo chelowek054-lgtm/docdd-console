@@ -150,6 +150,15 @@ function entries(
         </ul>
       </UCard>
 
+      <TaskWork
+        v-if="detail.record.type === 'task'"
+        :project-id="projectId"
+        :record-id="recordId"
+        :status="detail.record.status"
+        :roles="index?.project.roles ?? []"
+        @changed="reload"
+      />
+
       <div v-if="detail.issues.length" class="space-y-2">
         <h2 class="font-medium">Что не так с этой записью</h2>
         <IssueList :project-id="projectId" :issues="detail.issues" />
