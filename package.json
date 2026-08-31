@@ -8,6 +8,7 @@
     "build": "nuxt build",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
+    "check": "tsx cli/check.ts",
     "typecheck": "tsc --noEmit && nuxt typecheck",
     "test": "vitest run",
     "lint": "eslint ."
@@ -28,6 +29,7 @@
     "@types/markdown-it": "^14.2.0",
     "@types/node": "^22.10.2",
     "eslint": "^9.17.0",
+    "tsx": "^4.23.13",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.18.1",
     "vitest": "^4.1.11",

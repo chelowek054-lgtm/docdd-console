@@ -17,5 +17,5 @@
     "types": ["node"],
     "noEmit": true
   },
-  "include": ["server", "tests", "docs/schemas"]
+  "include": ["server", "cli", "tests", "docs/schemas"]
 }
