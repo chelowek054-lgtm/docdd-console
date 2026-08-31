@@ -94,6 +94,17 @@ describe('ask', () => {
     expect(result.failure.message).toContain('секунд');
   });
 
+  it('работает в названной папке: карта строится по коду проекта, а не сервера', async () => {
+    let seen: string | undefined;
+    const run: Runner = (_command, _args, _input, options) => {
+      seen = options.cwd;
+      return Promise.resolve({ stdout: 'готово', stderr: '', code: 0 });
+    };
+
+    await ask('вопрос', { run, cwd: 'D:/work/fishForecast' });
+    expect(seen).toBe('D:/work/fishForecast');
+  });
+
   it('сорванный запуск объясняется, а не роняет сервер', async () => {
     const run: Runner = () => Promise.reject(new Error('ENOENT'));
     const result = await ask('вопрос', { run });
@@ -138,35 +149,46 @@ describe('запуск программы', () => {
 });
 
 describe('availability', () => {
+  /**
+   * Окружение подменяется целиком: иначе на машине, где Claude Code
+   * действительно установлен, проверка «не найден» никогда не сработает.
+   */
+  const VARS = ['DOCDD_CLAUDE_PATH', 'PATH', 'Path', 'APPDATA', 'LOCALAPPDATA', 'USERPROFILE', 'HOME'];
+
+  function inEnvironment<T>(values: Record<string, string>, action: () => T): T {
+    const saved = new Map(VARS.map((name) => [name, process.env[name]]));
+    try {
+      for (const name of VARS) delete process.env[name];
+      for (const [name, value] of Object.entries(values)) process.env[name] = value;
+      return action();
+    } finally {
+      for (const [name, value] of saved) {
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+    }
+  }
+
+  const empty = fileURLToPath(new URL('./fixtures/example-project/', import.meta.url));
+
   it('находит Claude Code в PATH: иначе кнопка гаснет у тех, у кого всё в порядке', () => {
     const dir = fileURLToPath(new URL('./fixtures/fake-bin/', import.meta.url));
-    const saved = process.env['PATH'];
-    const savedExplicit = process.env['DOCDD_CLAUDE_PATH'];
-    try {
-      delete process.env['DOCDD_CLAUDE_PATH'];
-      process.env['PATH'] = dir;
-      const found = availability();
-      expect(found.available).toBe(true);
-      expect(found.command).toContain('claude');
-    } finally {
-      if (saved !== undefined) process.env['PATH'] = saved;
-      if (savedExplicit !== undefined) process.env['DOCDD_CLAUDE_PATH'] = savedExplicit;
-    }
+    const found = inEnvironment({ PATH: dir, APPDATA: empty, LOCALAPPDATA: empty, USERPROFILE: empty }, availability);
+    expect(found.available).toBe(true);
+    expect(found.command).toContain('claude');
+  });
+
+  it('находит установку через winget, даже когда PATH устарел', () => {
+    const local = fileURLToPath(new URL('./fixtures/fake-winget/', import.meta.url));
+    const found = inEnvironment({ PATH: empty, APPDATA: empty, LOCALAPPDATA: local, USERPROFILE: empty }, availability);
+    expect(found.available).toBe(true);
+    expect(found.command).toContain('Anthropic.ClaudeCode');
   });
 
   it('не найден — это состояние с объяснением, а не пустой отказ', () => {
-    const saved = process.env['PATH'];
-    const savedExplicit = process.env['DOCDD_CLAUDE_PATH'];
-    try {
-      delete process.env['DOCDD_CLAUDE_PATH'];
-      process.env['PATH'] = fileURLToPath(new URL('./fixtures/', import.meta.url));
-      const found = availability();
-      expect(found.available).toBe(false);
-      expect(found.reason).toContain('DOCDD_CLAUDE_PATH');
-    } finally {
-      if (saved !== undefined) process.env['PATH'] = saved;
-      if (savedExplicit !== undefined) process.env['DOCDD_CLAUDE_PATH'] = savedExplicit;
-    }
+    const found = inEnvironment({ PATH: empty, APPDATA: empty, LOCALAPPDATA: empty, USERPROFILE: empty }, availability);
+    expect(found.available).toBe(false);
+    expect(found.reason).toContain('DOCDD_CLAUDE_PATH');
   });
 });
 

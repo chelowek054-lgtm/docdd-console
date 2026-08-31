@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { env, platform } from 'node:process';
 
@@ -39,8 +39,51 @@ function candidates(): string[] {
     join(home, '.claude', 'local', 'claude'),
     join(home, '.local', 'bin', 'claude'),
     '/usr/local/bin/claude',
-    '/opt/homebrew/bin/claude'
+    '/opt/homebrew/bin/claude',
+    ...wingetInstalls(local),
+    ...versionedInstalls(appData)
   ].filter((path) => path !== '');
+}
+
+/**
+ * Установка через winget кладёт программу в папку пакета с суффиксом источника.
+ * Её каталог попадает в PATH пользователя, но у долго живущего сервера
+ * окружение может быть старше установки — тогда искать надо самим.
+ */
+function wingetInstalls(local: string): string[] {
+  const packages = join(local, 'Microsoft', 'WinGet', 'Packages');
+  return entries(packages)
+    .filter((name) => name.startsWith('Anthropic.ClaudeCode'))
+    .map((name) => join(packages, name, 'claude.exe'));
+}
+
+/** Установка десктопного приложения: версия в имени папки, берём свежую. */
+function versionedInstalls(appData: string): string[] {
+  const versions = join(appData, 'Claude', 'claude-code');
+  return entries(versions)
+    .sort((a, b) => compareVersions(b, a))
+    .map((name) => join(versions, name, platform === 'win32' ? 'claude.exe' : 'claude'));
+}
+
+function entries(directory: string): string[] {
+  try {
+    return readdirSync(directory, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name);
+  } catch {
+    return [];
+  }
+}
+
+/** `2.1.247` новее `2.1.246`: сравниваем числами, а не строками. */
+function compareVersions(a: string, b: string): number {
+  const left = a.split('.').map(Number);
+  const right = b.split('.').map(Number);
+  for (let at = 0; at < Math.max(left.length, right.length); at += 1) {
+    const difference = (left[at] ?? 0) - (right[at] ?? 0);
+    if (difference !== 0) return difference;
+  }
+  return 0;
 }
 
 export interface Availability {
@@ -98,18 +141,28 @@ export interface AskOptions {
   /** Предел размера ответа: карта большого проекта и так велика. */
   maxBytes?: number;
   /**
+   * Папка, в которой работает модель. Для карты это корень проекта: иначе она
+   * разберёт не тот код и опишет чужое устройство.
+   */
+  cwd?: string;
+  /**
    * Чем запускать. Подменяется в тестах: настоящий вызов стоит денег и времени,
    * а проверять надо разбор ответа и отказы.
    */
   run?: Runner;
 }
 
+export interface RunOptions {
+  timeoutMs: number;
+  maxBytes: number;
+  cwd?: string;
+}
+
 export type Runner = (
   command: string,
   args: readonly string[],
   input: string,
-  timeoutMs: number,
-  maxBytes: number
+  options: RunOptions
 ) => Promise<{ stdout: string; stderr: string; code: number | null }>;
 
 const DEFAULT_TIMEOUT = 180_000;
@@ -141,8 +194,7 @@ export async function ask(prompt: string, options: AskOptions = {}): Promise<Llm
       found.command,
       inArgument ? ['-p', prompt] : ['-p'],
       inArgument ? '' : prompt,
-      timeoutMs,
-      maxBytes
+      { timeoutMs, maxBytes, ...(options.cwd ? { cwd: options.cwd } : {}) }
     );
     const answer = result.stdout.trim();
 
@@ -181,12 +233,13 @@ function needsShell(command: string): boolean {
   return /\.(cmd|bat)$/i.test(command);
 }
 
-const spawnClaude: Runner = (command, args, input, timeoutMs, maxBytes) =>
+const spawnClaude: Runner = (command, args, input, { timeoutMs, maxBytes, cwd }) =>
   new Promise((resolve, reject) => {
     const child = spawn(command, [...args], {
       stdio: ['pipe', 'pipe', 'pipe'],
       shell: needsShell(command),
-      windowsHide: true
+      windowsHide: true,
+      ...(cwd ? { cwd } : {})
     });
 
     let stdout = '';

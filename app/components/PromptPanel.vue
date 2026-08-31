@@ -69,7 +69,8 @@ async function send() {
   try {
     const response = await $fetch<{ answer: string } | { error: ApiFailure }>('/api/llm/ask', {
       method: 'POST',
-      body: { prompt: prompt.value },
+      // Проект называем идентификатором: путь к нему сервер знает сам.
+      body: { prompt: prompt.value, projectId: props.projectId },
       ignoreResponseError: true
     });
     const problem = failureOf(response);
