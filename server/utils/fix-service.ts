@@ -145,6 +145,9 @@ export async function startFix(
 
   const answer = await ask(fixPrompt(options.template, options.plan, options.files), {
     cwd: worktreeRoot(normalized, FIX_ID),
+    // План подтверждён — значит модели тут писать. Спросить разрешение
+    // посреди работы не у кого: запрос идёт без консоли.
+    access: 'edits',
     ...(options.signal ? { signal: options.signal } : {}),
     ...(options.onEvent ? { onEvent: options.onEvent } : {})
   });

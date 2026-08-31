@@ -35,7 +35,7 @@ export default defineEventHandler(async (event) => {
     signal,
     // Этот запрос спрашивает, а не чинит: до подтверждения человеком в
     // проекте не должно измениться ничего (adr/0010).
-    readOnly: true,
+    access: 'read',
     onEvent: (modelEvent) => stream.send(modelEvent.kind, modelEvent)
   });
 

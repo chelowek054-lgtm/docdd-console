@@ -500,21 +500,28 @@ describe('запрос, который ничего не меняет', () => {
       return Promise.resolve({ stdout: 'ответ', stderr: '', code: 0 });
     };
 
-    await ask('вопрос', { run, readOnly: true });
-    // Неподтверждённое изменение не должно случиться вовсе (adr/0010).
-    expect(asked[0]).toContain('--permission-mode');
-    expect(asked[0]).toContain('plan');
+    await ask('вопрос', { run, access: 'read' });
+    // Запрет, а не разрешение: он старше и настроек, и намерений модели.
+    expect(asked[0]).toContain('--disallowed-tools');
     expect(asked[0]).toContain('Edit');
+    expect(asked[0]).toContain('Bash');
   });
 
-  it('починка по подтверждённому плану идёт с правами: ей чинить', async () => {
+  it('починка правит файлы без вопросов, но команды ей не позволены', async () => {
     const asked: string[][] = [];
     const run: Runner = (_command, args) => {
       asked.push([...args]);
       return Promise.resolve({ stdout: 'ответ', stderr: '', code: 0 });
     };
 
-    await ask('вопрос', { run });
-    expect(asked[0]).not.toContain('--permission-mode');
+    // Спросить разрешение посреди работы не у кого: запрос идёт без консоли.
+    await ask('вопрос', { run, access: 'edits' });
+    expect(asked[0]).toContain('Edit');
+    // Чинить записи — значит их писать, а не запускать команды.
+    expect((asked[0] ?? []).join(' ')).toContain('--disallowed-tools Bash');
+
+    // Работа над задачей — это ещё и тесты со сборкой.
+    await ask('вопрос', { run, access: 'full' });
+    expect(asked[1]).toContain('bypassPermissions');
   });
 });

@@ -121,6 +121,9 @@ export async function handover(
   const resume = sessionOf(normalized, record.id);
   const answer = await ask(prompt, {
     cwd: worktreeRoot(normalized, record.id),
+    // Работа над задачей — это правки, тесты и сборка, и всё это в своём
+    // рабочем дереве. Результат человек читает диффом.
+    access: 'full',
     ...(resume ? { resume } : {}),
     ...(options.signal ? { signal: options.signal } : {}),
     ...(options.onEvent ? { onEvent: options.onEvent } : {})

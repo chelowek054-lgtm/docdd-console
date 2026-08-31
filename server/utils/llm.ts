@@ -165,10 +165,10 @@ export interface AskOptions {
    */
   resume?: string;
   /**
-   * Запрос без права править файлы. Ставится там, где ответ — предложение,
-   * а не работа: неподтверждённое изменение не должно случиться вовсе.
+   * Что модели позволено. Не задано — как запускает человек у себя: права
+   * спрашиваются, а спросить некого, поэтому задавать это стоит всегда.
    */
-  readOnly?: boolean;
+  access?: Access;
 }
 
 export interface RunOptions {
@@ -228,12 +228,33 @@ const ARGUMENT_LIMIT = 24_000;
 const LOST_SESSION = /no conversation found|session .*not found|invalid session/i;
 
 /**
- * Запрос, который ничего не меняет: модель читает и отвечает, но не правит
- * файлы. Планы, разбор нарушений и построение карт — все они спрашивают, а не
- * чинят, и до подтверждения человеком не должны трогать проект
- * (docs/adr/0010-model-fixes-violations.md).
+ * Что модели позволено в этом запросе. Спросить у человека посреди работы
+ * нельзя — запросы идут без консоли, — поэтому право выдаётся заранее и ровно
+ * по делу (docs/adr/0010-model-fixes-violations.md).
+ *
+ * `read` — спрашиваем: планы, разбор нарушений, построение карт. До
+ *   подтверждения человеком в проекте не должно измениться ничего, и это не
+ *   обещание модели, а отсутствие права.
+ * `edits` — починка по подтверждённому плану: правки файлов без вопросов,
+ *   команды по-прежнему нельзя. Чинить записи — значит их писать.
+ * `full` — работа над задачей: там нужны и тесты, и сборка. Идёт в отдельном
+ *   рабочем дереве, и её результат человек читает диффом.
  */
-const READ_ONLY_ARGS = ['--permission-mode', 'plan', '--disallowed-tools', 'Edit', 'Write', 'NotebookEdit'];
+export type Access = 'read' | 'edits' | 'full';
+
+const READING = ['Read', 'Glob', 'Grep'];
+const WRITING = ['Edit', 'Write', 'NotebookEdit'];
+
+/**
+ * Право задаётся списком того, что можно, а не списком запретов. Проверено
+ * опытом: запрет на `Edit` в режиме `plan` файл не спасает — модель находит
+ * другой путь и правит его всё равно. Белый список держит.
+ */
+const ACCESS_ARGS: Readonly<Record<Access, readonly string[]>> = {
+  read: ['--allowed-tools', ...READING, '--disallowed-tools', ...WRITING, 'Bash'],
+  edits: ['--allowed-tools', ...READING, 'Edit', 'Write', '--disallowed-tools', 'Bash'],
+  full: ['--permission-mode', 'bypassPermissions']
+};
 
 const STREAM_ARGS = ['--output-format', 'stream-json', '--verbose', '--include-partial-messages'];
 
@@ -276,7 +297,7 @@ export async function ask(prompt: string, options: AskOptions = {}): Promise<Llm
     // Лента событий нужна, только когда её кто-то показывает.
     if (options.onEvent) args.push(...STREAM_ARGS);
     if (options.resume) args.push('--resume', options.resume);
-    if (options.readOnly) args.push(...READ_ONLY_ARGS);
+    if (options.access) args.push(...ACCESS_ARGS[options.access]);
 
     const parser = createStreamParser();
     let streamed = '';
