@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url';
+
 export default defineNuxtConfig({
   compatibilityDate: '2026-08-30',
   modules: ['@nuxt/ui'],
@@ -8,6 +10,12 @@ export default defineNuxtConfig({
   devServer: { host: '127.0.0.1' },
 
   nitro: {
+    // Шаблоны запросов лежат в docs/prompts и попадают в сборку оттуда же:
+    // второй копии в server/assets не заводим, спорить о запросе нужно в дифф.
+    serverAssets: [{
+      baseName: 'prompts',
+      dir: fileURLToPath(new URL('./docs/prompts', import.meta.url))
+    }],
     storage: {
       // Список проектов — единственные собственные данные приложения.
       data: { driver: 'fs', base: './.data' }

@@ -7,10 +7,42 @@ const projectId = computed(() => String(route.params['id'] ?? ''));
 
 type MapResponse = ProjectMap & { unverified: number };
 
-const { data } = useFetch<MapResponse | { error: ApiFailure }>(
+const { data, refresh, status } = useFetch<MapResponse | { error: ApiFailure }>(
   () => `/api/projects/${projectId.value}/map`,
   { key: () => `map:${projectId.value}` }
 );
+
+const saving = ref(false);
+const draftId = ref('');
+const draftFailure = ref<ApiFailure | null>(null);
+
+/** Ответ модели сохраняется черновиком: подтверждает человек, а не приложение. */
+async function saveDraft(answer: string) {
+  saving.value = true;
+  draftFailure.value = null;
+  draftId.value = '';
+  try {
+    const response = await $fetch(`/api/projects/${projectId.value}/map/draft`, {
+      method: 'POST',
+      body: { answer },
+      ignoreResponseError: true
+    });
+    const problem = failureOf(response);
+    if (problem) {
+      draftFailure.value = problem;
+      return;
+    }
+    draftId.value = (response as { record?: { id: string } }).record?.id ?? '';
+    await refresh();
+  } finally {
+    saving.value = false;
+  }
+}
+
+function onAnswer() {
+  draftId.value = '';
+  draftFailure.value = null;
+}
 
 const failure = computed(() => failureOf(data.value));
 const map = computed(() => (failure.value ? null : (data.value as MapResponse | null)));
@@ -69,7 +101,46 @@ async function copySource() {
         <UBadge v-if="map && map.unverified > 0" color="error" variant="subtle" class="ml-auto">
           {{ map.unverified }} утверждений не прошли сверку
         </UBadge>
+        <UButton
+          :class="map && map.unverified > 0 ? '' : 'ml-auto'"
+          size="sm"
+          variant="outline"
+          color="neutral"
+          icon="i-lucide-refresh-cw"
+          :loading="status === 'pending'"
+          @click="refresh()"
+        >
+          Перечитать
+        </UButton>
       </div>
+
+      <PromptPanel
+        :project-id="projectId"
+        kind="maps"
+        label="Обновить карты"
+        hint="Ответ сохраняется черновиком и требует подтверждения"
+        @answered="onAnswer"
+      >
+        <template #answer="{ answer }">
+          <div class="mb-3 flex flex-wrap items-center gap-3">
+            <UButton size="sm" :loading="saving" @click="saveDraft(answer)">
+              Сохранить черновиком
+            </UButton>
+            <NuxtLink
+              v-if="draftId"
+              :to="`/projects/${projectId}/records/${draftId}`"
+              class="text-sm hover:underline"
+            >Черновик {{ draftId }} создан — открыть</NuxtLink>
+            <UAlert
+              v-if="draftFailure"
+              color="error"
+              variant="subtle"
+              :title="draftFailure.message"
+              :description="(draftFailure.blockers ?? []).map((blocker) => blocker.message).join(' ')"
+            />
+          </div>
+        </template>
+      </PromptPanel>
 
       <p class="text-sm text-muted">
         Картина складывается из подтверждённых карт изменений. Черновики сюда не

@@ -47,6 +47,17 @@ const shown = computed(() => all.value
         <UButton v-if="code" variant="ghost" color="neutral" @click="code = ''">Сбросить код</UButton>
       </div>
 
+      <!-- Запрос собирается по тому, что сейчас на экране: фильтр работает как
+           выбор — отфильтровали по коду, спросили ровно про него. -->
+      <PromptPanel
+        :project-id="projectId"
+        kind="fix"
+        :codes="code ? [code] : undefined"
+        :severity="only === 'all' ? undefined : only"
+        label="Исправить"
+        :hint="`${shown.length} нарушений на экране`"
+      />
+
       <IssueList
         :project-id="projectId"
         :issues="shown"
