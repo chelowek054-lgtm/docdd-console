@@ -39,17 +39,30 @@ describe('ask', () => {
     expect(result.ms).toBeGreaterThanOrEqual(0);
   });
 
-  it('передаёт текст на стандартный ввод, а не аргументом', async () => {
+  it('короткий запрос уходит аргументом: так его получит и оболочка', async () => {
     let seen: { args: readonly string[]; input: string } | null = null;
     const run: Runner = (_command, args, input) => {
       seen = { args, input };
       return Promise.resolve({ stdout: 'готово', stderr: '', code: 0 });
     };
 
-    await ask('длинный запрос', { run });
-    // Аргументы фиксированы: от пользователя туда не попадает ничего.
+    await ask('короткий запрос', { run });
+    expect(seen!.args).toEqual(['-p', 'короткий запрос']);
+    expect(seen!.input).toBe('');
+  });
+
+  it('длинный уходит на стандартный ввод: в аргумент он не влезет', async () => {
+    let seen: { args: readonly string[]; input: string } | null = null;
+    const run: Runner = (_command, args, input) => {
+      seen = { args, input };
+      return Promise.resolve({ stdout: 'готово', stderr: '', code: 0 });
+    };
+
+    const long = 'а'.repeat(30_000);
+    await ask(long, { run });
+    // Аргументы фиксированы: текста запроса среди них нет.
     expect(seen!.args).toEqual(['-p']);
-    expect(seen!.input).toBe('длинный запрос');
+    expect(seen!.input).toBe(long);
   });
 
   it('пустой ответ отличает от ответа', async () => {
@@ -88,6 +101,40 @@ describe('ask', () => {
     if (result.ok) return;
     expect(result.failure.code).toBe('failed');
   });
+});
+
+/**
+ * Настоящий запуск — на подставной программе, которая ведёт себя как
+ * `claude -p`: без текста ругается тем же сообщением. Именно здесь и была
+ * поломка: текст не доходил до программы, и она отвечала «Input must be
+ * provided».
+ */
+describe('запуск программы', () => {
+  const stub = fileURLToPath(new URL('./fixtures/fake-bin/claude.cmd', import.meta.url));
+
+  function withStub<T>(action: () => Promise<T>): Promise<T> {
+    const saved = process.env['DOCDD_CLAUDE_PATH'];
+    process.env['DOCDD_CLAUDE_PATH'] = stub;
+    return action().finally(() => {
+      if (saved === undefined) delete process.env['DOCDD_CLAUDE_PATH'];
+      else process.env['DOCDD_CLAUDE_PATH'] = saved;
+    });
+  }
+
+  it.skipIf(process.platform !== 'win32')('текст доходит до программы, а не теряется по дороге', async () => {
+    const result = await withStub(() => ask('короткий запрос'));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.answer).toContain('короткий запрос');
+  }, 30_000);
+
+  it.skipIf(process.platform !== 'win32')('длинный запрос доходит целиком', async () => {
+    const long = 'д'.repeat(30_000);
+    const result = await withStub(() => ask(long));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.answer.length).toBeGreaterThan(29_000);
+  }, 30_000);
 });
 
 describe('availability', () => {

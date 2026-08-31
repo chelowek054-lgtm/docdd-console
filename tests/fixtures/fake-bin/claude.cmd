@@ -1,2 +1,2 @@
 @echo off
-rem Пустышка для проверки поиска в PATH: запускать её никто не будет.
+node "%~dp0echo-claude.cjs" %*

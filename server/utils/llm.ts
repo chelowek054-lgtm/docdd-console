@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { env, platform } from 'node:process';
@@ -115,9 +115,13 @@ export type Runner = (
 const DEFAULT_TIMEOUT = 180_000;
 const DEFAULT_MAX_BYTES = 4 * 1024 * 1024;
 
+/** Дальше этого запрос в аргумент не влезет: у командной строки Windows свой предел. */
+const ARGUMENT_LIMIT = 24_000;
+
 /**
- * Один запрос. Текст уходит на стандартный ввод, а не в аргументы: у аргументов
- * есть предел длины, а запрос с картой проекта его перешагнёт.
+ * Один запрос. Короткий уходит аргументом — так его получает даже оболочка,
+ * которая не передала бы стандартный ввод; длинный (карта большого проекта) —
+ * на стандартный ввод, потому что в аргумент он не помещается.
  */
 export async function ask(prompt: string, options: AskOptions = {}): Promise<LlmResult> {
   const found = availability();
@@ -132,7 +136,14 @@ export async function ask(prompt: string, options: AskOptions = {}): Promise<Llm
 
   try {
     // Аргументы фиксированы: от пользователя приходит только текст запроса.
-    const result = await run(found.command, ['-p'], prompt, timeoutMs, maxBytes);
+    const inArgument = prompt.length <= ARGUMENT_LIMIT && !needsShell(found.command);
+    const result = await run(
+      found.command,
+      inArgument ? ['-p', prompt] : ['-p'],
+      inArgument ? '' : prompt,
+      timeoutMs,
+      maxBytes
+    );
     const answer = result.stdout.trim();
 
     if (result.code !== 0 && answer === '') {
@@ -165,21 +176,50 @@ export async function ask(prompt: string, options: AskOptions = {}): Promise<Llm
   }
 }
 
+/** Node отказывается запускать `.cmd` и `.bat` напрямую — только через оболочку. */
+function needsShell(command: string): boolean {
+  return /\.(cmd|bat)$/i.test(command);
+}
+
 const spawnClaude: Runner = (command, args, input, timeoutMs, maxBytes) =>
   new Promise((resolve, reject) => {
-    const child = execFile(
-      command,
-      [...args],
-      { timeout: timeoutMs, maxBuffer: maxBytes, encoding: 'utf8', windowsHide: true },
-      (error, stdout, stderr) => {
-        if (error && !stdout) {
-          reject(error);
-          return;
-        }
-        resolve({ stdout: stdout ?? '', stderr: stderr ?? '', code: error ? (error.code ?? 1) as number : 0 });
-      }
-    );
-    child.stdin?.end(input);
+    const child = spawn(command, [...args], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      shell: needsShell(command),
+      windowsHide: true
+    });
+
+    let stdout = '';
+    let stderr = '';
+    let stopped = false;
+
+    const timer = setTimeout(() => {
+      stopped = true;
+      child.kill();
+      reject(new Error(`timed out after ${timeoutMs} ms`));
+    }, timeoutMs);
+
+    child.stdout.setEncoding('utf8');
+    child.stdout.on('data', (chunk: string) => {
+      // Предел размера: ответ на карту большого проекта и так велик.
+      if (stdout.length < maxBytes) stdout += chunk;
+    });
+    child.stderr.setEncoding('utf8');
+    child.stderr.on('data', (chunk: string) => { stderr += chunk; });
+
+    child.on('error', (error) => {
+      clearTimeout(timer);
+      if (!stopped) reject(error);
+    });
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      if (!stopped) resolve({ stdout, stderr, code });
+    });
+
+    // Ввод закрываем всегда: с открытым и пустым стандартным вводом Claude Code
+    // будет ждать текста, которого не будет.
+    child.stdin.on('error', () => { /* закрылся раньше нас — ответ уже пишется */ });
+    child.stdin.end(input);
   });
 
 /**
