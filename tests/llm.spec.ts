@@ -435,3 +435,59 @@ describe('лента работы модели', () => {
     expect(result.answer).toBe('ответ не по формату');
   });
 });
+
+describe('продолжение разговора', () => {
+  const LF2 = String.fromCharCode(10);
+  const init = (id: string) => JSON.stringify({ type: 'system', subtype: 'init', session_id: id }) + LF2;
+
+  it('номер сессии возвращается, но в ленту на экран не идёт', async () => {
+    const shown: string[] = [];
+    const run: Runner = (_command, _args, _input, options) => {
+      options.onData?.(init('sess-7'));
+      return Promise.resolve({ stdout: init('sess-7') + 'ответ', stderr: '', code: 0 });
+    };
+
+    const result = await ask('вопрос', { run, onEvent: (event) => shown.push(event.kind) });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.sessionId).toBe('sess-7');
+    // Номер сессии человеку показывать незачем.
+    expect(shown).not.toContain('session');
+  });
+
+  it('заданная сессия продолжается, а не начинается заново', async () => {
+    const asked: string[][] = [];
+    const run: Runner = (_command, args) => {
+      asked.push([...args]);
+      return Promise.resolve({ stdout: 'ответ', stderr: '', code: 0 });
+    };
+
+    await ask('вопрос', { run, resume: 'sess-7' });
+    expect(asked[0]).toContain('--resume');
+    expect(asked[0]).toContain('sess-7');
+  });
+
+  it('потерянная сессия не теряет запрос: заход идёт заново и об этом говорится', async () => {
+    const asked: string[][] = [];
+    const shown: string[] = [];
+    const run: Runner = (_command, args) => {
+      asked.push([...args]);
+      // Первый заход — с продолжением, и оно не нашлось.
+      return asked.length === 1
+        ? Promise.resolve({ stdout: '', stderr: 'No conversation found with session ID: sess-7', code: 1 })
+        : Promise.resolve({ stdout: 'ответ заново', stderr: '', code: 0 });
+    };
+
+    const result = await ask('вопрос', {
+      run,
+      resume: 'sess-7',
+      onEvent: (event) => { if (event.kind === 'action') shown.push(event.text); }
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.answer).toBe('ответ заново');
+    expect(asked[1]).not.toContain('--resume');
+    expect(shown.join(' ')).toContain('начинаю заново');
+  });
+});

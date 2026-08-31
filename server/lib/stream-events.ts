@@ -11,7 +11,9 @@ export type ModelEvent =
   | { kind: 'text'; text: string }
   | { kind: 'action'; text: string }
   | { kind: 'result'; text: string; failed: boolean }
-  | { kind: 'answer'; text: string };
+  | { kind: 'answer'; text: string }
+  /** Номер сессии модели: не для показа, а чтобы продолжить работу. */
+  | { kind: 'session'; text: string };
 
 const NEW_LINE = String.fromCharCode(10);
 const CARRIAGE_RETURN = String.fromCharCode(13);
@@ -46,8 +48,44 @@ function say(tool: string, input: Record<string, unknown>): string {
   return what ? `${tool}: ${what}` : tool;
 }
 
+/**
+ * Чем кончилось обращение. Первая строка ответа средства ничего не говорит
+ * («1 package com.example»), а счёт говорит: столько прочитано, столько найдено
+ * (docs/04-ui.md, раздел «Что модель делает прямо сейчас»).
+ */
+export function outcomeOf(tool: string, text: string, failed: boolean): string {
+  const trimmed = text.trim();
+  if (failed) return firstLine(trimmed) || 'не вышло';
+  if (trimmed === '') return 'готово';
+
+  // Средства сами говорят, что ничего не нашли, — считать тут нечего.
+  if (/^(no files found|no matches found|no content)/i.test(trimmed)) return 'ничего не найдено';
+
+  const count = trimmed.split(NEW_LINE).filter((line) => line.trim() !== '').length;
+
+  if (tool === 'Read' || tool === 'NotebookRead') return `прочитано ${plural(count, 'строка', 'строки', 'строк')}`;
+  if (tool === 'Glob') return `найдено ${plural(count, 'файл', 'файла', 'файлов')}`;
+  if (tool === 'Grep') return `найдено ${plural(count, 'совпадение', 'совпадения', 'совпадений')}`;
+  if (tool === 'Edit' || tool === 'Write' || tool === 'NotebookEdit') return 'записано';
+
+  // Команде счёт строк ничего не объясняет — там важно, что она сказала.
+  return firstLine(trimmed) || 'готово';
+}
+
+/** Русский счёт: «1 строка», «2 строки», «5 строк». */
+function plural(count: number, one: string, few: string, many: string): string {
+  const tens = count % 100;
+  const ones = count % 10;
+  if (tens >= 11 && tens <= 14) return `${count} ${many}`;
+  if (ones === 1) return `${count} ${one}`;
+  if (ones >= 2 && ones <= 4) return `${count} ${few}`;
+  return `${count} ${many}`;
+}
+
 interface Block {
   type?: string;
+  id?: string;
+  tool_use_id?: string;
   text?: string;
   name?: string;
   input?: Record<string, unknown>;
@@ -69,7 +107,13 @@ function textOf(content: unknown): string {
  * Разбор одной строки ленты. Возвращает пустой список, если строка не о том:
  * незнакомое событие — не ошибка, а просто не наше дело.
  */
-export function parseLine(line: string, state: { sawDelta: boolean }): ModelEvent[] {
+export interface ParseState {
+  sawDelta: boolean;
+  /** Каким средством было обращение: ответ приходит отдельно и лишь с его номером. */
+  tools: Map<string, string>;
+}
+
+export function parseLine(line: string, state: ParseState): ModelEvent[] {
   const trimmed = line.trim();
   if (trimmed === '' || !trimmed.startsWith('{')) return [];
 
@@ -99,6 +143,7 @@ export function parseLine(line: string, state: { sawDelta: boolean }): ModelEven
     const events: ModelEvent[] = [];
     for (const block of message?.content ?? []) {
       if (block.type === 'tool_use' && block.name) {
+        if (block.id) state.tools.set(block.id, block.name);
         events.push({ kind: 'action', text: say(block.name, block.input ?? {}) });
       }
       // Целый текст берём только тогда, когда кусками он не пришёл: иначе
@@ -115,10 +160,17 @@ export function parseLine(line: string, state: { sawDelta: boolean }): ModelEven
     const events: ModelEvent[] = [];
     for (const block of message?.content ?? []) {
       if (block.type !== 'tool_result') continue;
-      const said = firstLine(textOf(block.content));
-      events.push({ kind: 'result', text: said || 'готово', failed: block.is_error === true });
+      const tool = state.tools.get(block.tool_use_id ?? '') ?? '';
+      const failed = block.is_error === true;
+      events.push({ kind: 'result', text: outcomeOf(tool, textOf(block.content), failed), failed });
     }
     return events;
+  }
+
+  // Номер сессии: по нему следующий заход продолжает этот разговор.
+  if (type === 'system' && record['subtype'] === 'init') {
+    const id = record['session_id'];
+    if (typeof id === 'string' && id !== '') return [{ kind: 'session', text: id }];
   }
 
   if (type === 'result') {
@@ -137,7 +189,7 @@ export function parseLine(line: string, state: { sawDelta: boolean }): ModelEven
  */
 export function createStreamParser() {
   let tail = '';
-  const state = { sawDelta: false };
+  const state: ParseState = { sawDelta: false, tools: new Map() };
 
   return {
     push(chunk: string): ModelEvent[] {

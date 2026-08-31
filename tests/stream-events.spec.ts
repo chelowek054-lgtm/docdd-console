@@ -126,3 +126,67 @@ describe('складывание ленты для экрана', () => {
     expect(lines).toEqual([]);
   });
 });
+
+describe('чем кончилось обращение', () => {
+  const result = (tool: string, content: string, failed = false) => {
+    const use = JSON.stringify({
+      type: 'assistant',
+      message: { content: [{ type: 'tool_use', id: 'u1', name: tool, input: {} }] }
+    });
+    const back = JSON.stringify({
+      type: 'user',
+      message: { content: [{ type: 'tool_result', tool_use_id: 'u1', content, is_error: failed }] }
+    });
+    return events([use, back]).filter((event) => event.kind === 'result');
+  };
+
+  it('от чтения — сколько строк, а не первая строка файла', () => {
+    // «1 package com.example» не говорит ничего: это было главной бедой ленты.
+    const lines = ['     1  package com.example', '     2  import x', '     3  class A'].join(LF);
+    expect(result('Read', lines)).toEqual([{ kind: 'result', text: 'прочитано 3 строки', failed: false }]);
+  });
+
+  it('от поиска файлов — сколько нашлось', () => {
+    expect(result('Glob', ['a.kt', 'b.kt'].join(LF))).toEqual([
+      { kind: 'result', text: 'найдено 2 файла', failed: false }
+    ]);
+  });
+
+  it('пустой поиск назван пустым', () => {
+    expect(result('Glob', 'No files found')).toEqual([
+      { kind: 'result', text: 'ничего не найдено', failed: false }
+    ]);
+  });
+
+  it('от команды — что она сказала: счёт строк ей ничего не объясняет', () => {
+    expect(result('Bash', `333 проверки прошли${LF}подробности`)).toEqual([
+      { kind: 'result', text: '333 проверки прошли', failed: false }
+    ]);
+  });
+
+  it('правка названа правкой', () => {
+    expect(result('Edit', 'The file has been updated.')).toEqual([
+      { kind: 'result', text: 'записано', failed: false }
+    ]);
+  });
+
+  it('неудача говорит, что случилось, а не считает строки', () => {
+    expect(result('Read', 'файла нет', true)).toEqual([
+      { kind: 'result', text: 'файла нет', failed: true }
+    ]);
+  });
+
+  it('счёт по-русски: 1 строка, 2 строки, 11 строк', () => {
+    expect(result('Read', 'одна')[0]?.text).toBe('прочитано 1 строка');
+    expect(result('Read', Array(11).fill('строка').join(LF))[0]?.text).toBe('прочитано 11 строк');
+    expect(result('Read', Array(22).fill('строка').join(LF))[0]?.text).toBe('прочитано 22 строки');
+  });
+});
+
+describe('номер сессии', () => {
+  it('берётся из начала ленты и не показывается человеку', () => {
+    const init = JSON.stringify({ type: 'system', subtype: 'init', session_id: 'abc-123', tools: [] });
+    // Событие есть — его заберёт `ask`, а лента на экране его не покажет.
+    expect(events([init])).toEqual([{ kind: 'session', text: 'abc-123' }]);
+  });
+});

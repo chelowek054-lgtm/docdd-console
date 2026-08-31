@@ -19,10 +19,11 @@ import {
   worktreeRoot,
   type WorkChanges
 } from './git';
-import { ask, WORK_TIMEOUT } from './llm';
+import { ask } from './llm';
 import type { ModelEvent } from '../lib/stream-events';
 import { buildProjectMap } from './map-service';
 import { openRecord, saveRecord, today } from './record-write';
+import { forgetSession, rememberSession, sessionOf } from './sessions';
 
 /**
  * Выполнение задачи через клиент (docs/09-execution.md). Приложение заводит
@@ -115,16 +116,20 @@ export async function handover(
     taskContext(normalized, index, record, before, options.rework, roundsIn(before) + 1)
   );
 
-  // Модель работает в дереве задачи, а не в вашем каталоге.
+  // Модель работает в дереве задачи, а не в вашем каталоге. Повторный заход
+  // продолжает прошлый разговор: разбор кодовой базы не идёт заново.
+  const resume = sessionOf(normalized, record.id);
   const answer = await ask(prompt, {
     cwd: worktreeRoot(normalized, record.id),
-    timeoutMs: WORK_TIMEOUT,
+    ...(resume ? { resume } : {}),
     ...(options.signal ? { signal: options.signal } : {}),
     ...(options.onEvent ? { onEvent: options.onEvent } : {})
   });
   if (!answer.ok) {
     return { ok: false, code: `llm_${answer.failure.code}`, message: answer.failure.message, ...(answer.failure.detail ? { detail: answer.failure.detail } : {}) };
   }
+
+  if (answer.sessionId) rememberSession(normalized, record.id, answer.sessionId);
 
   const note = await journal(normalized, record.id, 'отдана модели', options.actor);
   return { ok: true, state: await workState(normalized, record, readBody(normalized, record)), answer: answer.answer, ...(note ? { note } : {}) };
@@ -178,12 +183,19 @@ export async function accept(root: string, record: IndexRecord, actor: string): 
     };
   }
 
+  // Работа кончилась — продолжать нечего: следующая задача начнётся своим
+  // разговором, а не подхватит чужой.
+  forgetSession(normalized, record.id);
+
   const note = await journal(normalized, record.id, 'дифф принят, слито', actor);
   return { ok: true, state: await workState(normalized, record, readBody(normalized, record)), ...(note ? { note } : {}) };
 }
 
 export async function reject(root: string, record: IndexRecord, actor: string): Promise<WorkOutcome> {
   const normalized = normalizeRoot(root);
+  // Отклонили — значит заход не годится целиком, включая его разговор.
+  forgetSession(normalized, record.id);
+
   const note = await journal(normalized, record.id, 'дифф отклонён', actor);
   return { ok: true, state: await workState(normalized, record, readBody(normalized, record)), ...(note ? { note } : {}) };
 }

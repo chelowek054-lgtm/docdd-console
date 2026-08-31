@@ -106,6 +106,7 @@ updated: 2026-08-31
         {"id":"server/utils/map-service.ts","title":"map-service","layer":"серверные утилиты"},
         {"id":"server/utils/projects.ts","title":"projects","layer":"серверные утилиты"},
         {"id":"server/utils/record-write.ts","title":"record-write","layer":"серверные утилиты"},
+        {"id":"server/utils/sessions.ts","title":"sessions","layer":"серверные утилиты"},
         {"id":"server/utils/sse.ts","title":"sse","layer":"серверные утилиты"},
         {"id":"server/utils/work-service.ts","title":"work-service","layer":"серверные утилиты"}
       ],
@@ -283,6 +284,7 @@ updated: 2026-08-31
         {"from":"server/utils/record-write.ts","to":"server/lib/types.ts","evidence":{"path":"server/utils/record-write.ts","line":9,"fragment":"import type { IndexRecord, Violation, WorkRecord } from '../"}},
         {"from":"server/utils/record-write.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/utils/record-write.ts","line":10,"fragment":"import { readWorkspace, type Workspace } from '../lib/worksp"}},
         {"from":"server/utils/record-write.ts","to":"server/utils/index-service.ts","evidence":{"path":"server/utils/record-write.ts","line":12,"fragment":"import { loadIndex } from './index-service';"}},
+        {"from":"server/utils/sessions.ts","to":"server/lib/paths.ts","evidence":{"path":"server/utils/sessions.ts","line":4,"fragment":"import { normalizeRoot } from '../lib/paths';"}},
         {"from":"server/utils/work-service.ts","to":"server/lib/actions.ts","evidence":{"path":"server/utils/work-service.ts","line":3,"fragment":"import { applyJournalNote } from '../lib/actions';"}},
         {"from":"server/utils/work-service.ts","to":"server/lib/branch.ts","evidence":{"path":"server/utils/work-service.ts","line":4,"fragment":"import { branchName, commitMessage, worktreePath } from '../"}},
         {"from":"server/utils/work-service.ts","to":"server/lib/maps.ts","evidence":{"path":"server/utils/work-service.ts","line":5,"fragment":"import { parseMapRecord } from '../lib/maps';"}},
@@ -291,7 +293,8 @@ updated: 2026-08-31
         {"from":"server/utils/work-service.ts","to":"server/lib/types.ts","evidence":{"path":"server/utils/work-service.ts","line":8,"fragment":"import type { IndexRecord, ProjectIndex } from '../lib/types"}},
         {"from":"server/utils/work-service.ts","to":"server/utils/git.ts","evidence":{"path":"server/utils/work-service.ts","line":21,"fragment":"} from './git';"}},
         {"from":"server/utils/work-service.ts","to":"server/utils/map-service.ts","evidence":{"path":"server/utils/work-service.ts","line":23,"fragment":"import { buildProjectMap } from './map-service';"}},
-        {"from":"server/utils/work-service.ts","to":"server/utils/record-write.ts","evidence":{"path":"server/utils/work-service.ts","line":24,"fragment":"import { openRecord, saveRecord, today } from './record-writ"}}
+        {"from":"server/utils/work-service.ts","to":"server/utils/record-write.ts","evidence":{"path":"server/utils/work-service.ts","line":24,"fragment":"import { openRecord, saveRecord, today } from './record-writ"}},
+        {"from":"server/utils/work-service.ts","to":"server/utils/sessions.ts","evidence":{"path":"server/utils/work-service.ts","line":26,"fragment":"import { forgetSession, rememberSession, sessionOf } from '."}}
       ]
     }
 }
@@ -303,10 +306,11 @@ updated: 2026-08-31
 {
     "added": {
       "sources": [
-        {"id":"project-files","kind":"file","where":"docs/development выбранного проекта","title":"Файлы проекта"},
+        {"id":"git-repo","kind":"file","where":"ветки и рабочие деревья проекта","title":"Репозиторий проекта"},
         {"id":"index-cache","kind":"file","where":".docdd/index.json","title":"Кэш индекса"},
+        {"id":"project-files","kind":"file","where":"docs/development выбранного проекта","title":"Файлы проекта"},
         {"id":"projects-list","kind":"file","where":".data/projects.json","title":"Список проектов"},
-        {"id":"git-repo","kind":"file","where":"ветки и рабочие деревья проекта","title":"Репозиторий проекта"}
+        {"id":"session-memory","kind":"file","where":".docdd/sessions.json","title":"Память о разговорах"}
       ],
       "flows": [
         {"from":"server/api/projects/[id]/file.get.ts","to":"project-files","direction":"read","evidence":{"path":"server/api/projects/[id]/file.get.ts","line":1,"fragment":"import { readFileSync, statSync } from 'node:fs';"}},
@@ -326,8 +330,9 @@ updated: 2026-08-31
         {"from":"server/utils/projects.ts","to":"projects-list","direction":"both","evidence":{"path":"server/utils/projects.ts","line":12,"fragment":"return useStorage('data');"}},
         {"from":"server/utils/record-write.ts","to":"project-files","direction":"read","evidence":{"path":"server/utils/record-write.ts","line":1,"fragment":"import { readFileSync, writeFileSync } from 'node:fs';"}},
         {"from":"server/utils/record-write.ts","to":"project-files","direction":"write","evidence":{"path":"server/utils/record-write.ts","line":80,"fragment":"writeFileSync(context.absolute, outcome.text, 'utf8');"}},
-        {"from":"server/utils/work-service.ts","to":"git-repo","direction":"both","evidence":{"path":"server/utils/work-service.ts","line":106,"fragment":"  const created = await ensureWorktree(normalized, branch, r"}},
-        {"from":"server/utils/work-service.ts","to":"project-files","direction":"write","evidence":{"path":"server/utils/work-service.ts","line":265,"fragment":"  const saved = saveRecord(context, outcome, root);"}}
+        {"from":"server/utils/sessions.ts","to":"session-memory","direction":"both","evidence":{"path":"server/utils/sessions.ts","line":15,"fragment":"const FILE = '.docdd/sessions.json';"}},
+        {"from":"server/utils/work-service.ts","to":"git-repo","direction":"both","evidence":{"path":"server/utils/work-service.ts","line":107,"fragment":"  const created = await ensureWorktree(normalized, branch, r"}},
+        {"from":"server/utils/work-service.ts","to":"project-files","direction":"write","evidence":{"path":"server/utils/work-service.ts","line":277,"fragment":"  const saved = saveRecord(context, outcome, root);"}}
       ]
     }
 }
@@ -365,7 +370,7 @@ updated: 2026-08-31
         {"from":"/","to":"DELETE /api/projects/:id","evidence":{"path":"app/pages/index.vue","line":79,"fragment":"await $fetch(`/api/projects/${id}`, { method: 'DELETE', igno"}},
         {"from":"/projects/:id/import","to":"POST /api/projects/:id/import","evidence":{"path":"app/pages/projects/[id]/import.vue","line":63,"fragment":"const response = await $fetch(`/api/projects/${projectId.val"}},
         {"from":"/projects/:id/records/:recordId","to":"GET /api/projects/:id/records/:recordId/work","evidence":{"path":"app/components/TaskWork.vue","line":19,"fragment":"  () => `/api/projects/${props.projectId}/records/${props.re"}},
-        {"from":"/projects/:id/records/:recordId","to":"POST /api/projects/:id/records/:recordId/work","evidence":{"path":"app/components/TaskWork.vue","line":47,"fragment":"  const url = `/api/projects/${props.projectId}/records/${pr"}}
+        {"from":"/projects/:id/records/:recordId","to":"POST /api/projects/:id/records/:recordId/work","evidence":{"path":"app/components/TaskWork.vue","line":43,"fragment":"  const url = `/api/projects/${props.projectId}/records/${pr"}}
       ]
     }
 }
@@ -377,3 +382,4 @@ updated: 2026-08-31
 - 2026-08-31 · дописаны модули выполнения задачи через клиент · architect
 - 2026-08-31 · дописаны модули ожидания ответа модели · architect
 - 2026-08-31 · дописаны модули ленты работы модели · architect
+- 2026-08-31 · дописана память о разговорах с моделью · architect

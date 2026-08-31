@@ -23,7 +23,7 @@ export interface LlmFailure {
 }
 
 export type LlmResult =
-  | { ok: true; answer: string; ms: number }
+  | { ok: true; answer: string; ms: number; sessionId?: string }
   | { ok: false; failure: LlmFailure };
 
 /** Где искать Claude Code, если его нет в PATH. */
@@ -159,10 +159,16 @@ export interface AskOptions {
    * событий; не задан — как раньше, одним ответом.
    */
   onEvent?: (event: ModelEvent) => void;
+  /**
+   * Продолжить прошлый разговор вместо нового: сто шагов разбора кодовой
+   * базы не проходятся заново ради одной правки (docs/09-execution.md).
+   */
+  resume?: string;
 }
 
 export interface RunOptions {
-  timeoutMs: number;
+  /** Срок ожидания; `0` или нет поля — без срока: останавливает человек. */
+  timeoutMs?: number;
   maxBytes: number;
   cwd?: string;
   /** Окружение потомка: без переменных чужой сессии Claude Code. */
@@ -199,15 +205,11 @@ export type Runner = (
 ) => Promise<{ stdout: string; stderr: string; code: number | null }>;
 
 /**
- * Сроки ожидания. Экран называет их человеку («отменим на 15-й минуте»), поэтому
- * они живут здесь одним местом: разойдись они — экран обещал бы не то.
+ * Срока у запроса нет: большая задача идёт десятками минут, и таймер, снявший
+ * её на полпути, отнимает сделанное, а не защищает (docs/04-ui.md, раздел
+ * «Запрос к модели»). Останавливает человек кнопкой.
  */
-export const ASK_TIMEOUT = 180_000;
-
-/** Выполнение задачи — работа на много минут, а не один ответ. */
-export const WORK_TIMEOUT = 900_000;
-
-const DEFAULT_TIMEOUT = ASK_TIMEOUT;
+const NO_TIMEOUT = 0;
 const DEFAULT_MAX_BYTES = 4 * 1024 * 1024;
 
 /** Дальше этого запрос в аргумент не влезет: у командной строки Windows свой предел. */
@@ -217,6 +219,9 @@ const ARGUMENT_LIMIT = 24_000;
  * Запуск лентой: события приходят строками JSON по мере работы.
  * `--verbose` обязателен — без него Claude Code лентой не отвечает.
  */
+/** Так Claude Code говорит, что продолжать нечего. */
+const LOST_SESSION = /no conversation found|session .*not found|invalid session/i;
+
 const STREAM_ARGS = ['--output-format', 'stream-json', '--verbose', '--include-partial-messages'];
 
 /**
@@ -246,7 +251,7 @@ export async function ask(prompt: string, options: AskOptions = {}): Promise<Llm
     return { ok: false, failure: { code: 'unavailable', message: found.reason ?? 'Claude Code не найден' } };
   }
 
-  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT;
+  const timeoutMs = options.timeoutMs ?? NO_TIMEOUT;
   const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES;
   const run = options.run ?? spawnClaude;
   const started = Date.now();
@@ -257,14 +262,22 @@ export async function ask(prompt: string, options: AskOptions = {}): Promise<Llm
     const args = inArgument ? ['-p', prompt] : ['-p'];
     // Лента событий нужна, только когда её кто-то показывает.
     if (options.onEvent) args.push(...STREAM_ARGS);
+    if (options.resume) args.push('--resume', options.resume);
 
     const parser = createStreamParser();
     let streamed = '';
     let said = '';
 
+    let sessionId = '';
+
     const collect = (event: ModelEvent) => {
       if (event.kind === 'text') streamed += event.text;
       if (event.kind === 'answer') said = event.text;
+      // Номер сессии — не для показа: он нужен следующему заходу.
+      if (event.kind === 'session') {
+        sessionId = event.text;
+        return;
+      }
       options.onEvent?.(event);
     };
 
@@ -294,6 +307,14 @@ export async function ask(prompt: string, options: AskOptions = {}): Promise<Llm
 
     if (result.code !== 0 && answer === '') {
       const said = `${result.stderr} ${result.stdout}`;
+
+      // Продолжать нечего: сессия не нашлась. Это не беда — начинаем заново,
+      // сказав об этом, а не молча теряем запрос.
+      if (options.resume && LOST_SESSION.test(said)) {
+        options.onEvent?.({ kind: 'action', text: 'прошлый разговор не найден — начинаю заново' });
+        const { resume: _lost, ...fresh } = options;
+        return ask(prompt, fresh);
+      }
       if (looksLikeRefusal(said) || /403|unauthorized/i.test(said)) {
         // Отказ в доступе — не поломка приложения, и путать их нельзя: чинится
         // это в самом Claude Code, а не здесь.
@@ -332,7 +353,7 @@ export async function ask(prompt: string, options: AskOptions = {}): Promise<Llm
       };
     }
 
-    return { ok: true, answer, ms: Date.now() - started };
+    return { ok: true, answer, ms: Date.now() - started, ...(sessionId ? { sessionId } : {}) };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     // Отмена — не поломка: человек передумал ждать, и говорить об ошибке здесь
@@ -394,11 +415,14 @@ export const spawnClaude: Runner = (
     let stderr = '';
     let stopped = false;
 
-    const timer = setTimeout(() => {
-      stopped = true;
-      killTree(child);
-      reject(new Error(`timed out after ${timeoutMs} ms`));
-    }, timeoutMs);
+    // Срок ставится, только если его назначили: без него ждём, пока работает.
+    const timer = timeoutMs
+      ? setTimeout(() => {
+          stopped = true;
+          killTree(child);
+          reject(new Error(`timed out after ${timeoutMs} ms`));
+        }, timeoutMs)
+      : undefined;
 
     // Отмена обязана снимать программу, а не только прекращать ожидание:
     // иначе человек считает, что остановил, а модель продолжает работать.

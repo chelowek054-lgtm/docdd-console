@@ -31,11 +31,7 @@ const failure = ref<ApiFailure | null>(null);
 /** Ворота те же, что у перехода в работу: неподтверждённое не отдаётся. */
 const canHandOver = computed(() => props.status === 'ready' || props.status === 'in_progress');
 
-const { data: llm } = useFetch<{
-  available: boolean;
-  reason: string | null;
-  timeouts: { ask: number; work: number };
-}>('/api/llm', { key: 'llm' });
+const { data: llm } = useFetch<{ available: boolean; reason: string | null }>('/api/llm', { key: 'llm' });
 
 // Отдать модели — работа на много минут: ожидание со счётчиком и отменой.
 const { running: working, elapsed, outcome, log, stream, cancel: cancelWork } = useModelRequest();
@@ -125,7 +121,6 @@ async function act(action: 'handover' | 'rework' | 'accept' | 'reject') {
       class="mt-3"
       :running="working"
       :elapsed="elapsed"
-      :limit-ms="llm?.timeouts.work ?? 900000"
       :outcome="outcome"
       @cancel="cancelWork"
     />

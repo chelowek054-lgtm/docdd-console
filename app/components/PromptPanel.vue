@@ -26,11 +26,7 @@ const answer = ref('');
 const copied = ref(false);
 const failure = ref<ApiFailure | null>(null);
 
-const { data: llm } = useFetch<{
-  available: boolean;
-  reason: string | null;
-  timeouts: { ask: number; work: number };
-}>('/api/llm', { key: 'llm' });
+const { data: llm } = useFetch<{ available: boolean; reason: string | null }>('/api/llm', { key: 'llm' });
 
 // Ожидание с counterом и отменой — одно на все места, откуда зовут модель.
 const { running: asking, elapsed, outcome, log, stream, cancel: cancelAsk } = useModelRequest();
@@ -137,7 +133,6 @@ async function send() {
           class="mb-3"
           :running="asking"
           :elapsed="elapsed"
-          :limit-ms="llm?.timeouts.ask ?? 180000"
           :outcome="outcome"
           @cancel="cancelAsk"
         />

@@ -9,6 +9,7 @@ import { branchName } from '../server/lib/branch';
 import { buildIndex } from '../server/lib/indexer';
 import { changesIn, currentBranch, ensureWorktree, isClean, worktreeRoot } from '../server/utils/git';
 import { accept, workState } from '../server/utils/work-service';
+import { forgetSession, rememberSession, sessionOf } from '../server/utils/sessions';
 
 /**
  * Выполнение задачи на настоящем репозитории: ветка, дифф, слияние перемоткой.
@@ -148,4 +149,25 @@ describe('работа над задачей', () => {
     if (outcome.ok) return;
     expect(outcome.code).toBe('process_records_touched');
   }, 120_000);
+});
+
+describe('память о разговоре', () => {
+  it('запомненная сессия достаётся по задаче, а забытая — нет', () => {
+    rememberSession(root, 'T-0001', 'sess-7');
+    expect(sessionOf(root, 'T-0001')).toBe('sess-7');
+
+    forgetSession(root, 'T-0001');
+    expect(sessionOf(root, 'T-0001')).toBeUndefined();
+  });
+
+  it('память расходная: без файла заход просто начинается заново', () => {
+    rememberSession(root, 'T-0002', 'sess-8');
+    rmSync(join(root, '.docdd', 'sessions.json'), { force: true });
+    expect(sessionOf(root, 'T-0002')).toBeUndefined();
+  });
+
+  it('испорченная память не роняет запрос', () => {
+    writeFileSync(join(root, '.docdd', 'sessions.json'), 'не json', 'utf8');
+    expect(sessionOf(root, 'T-0001')).toBeUndefined();
+  });
 });
