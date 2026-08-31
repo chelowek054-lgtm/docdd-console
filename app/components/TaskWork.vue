@@ -38,23 +38,14 @@ const { data: llm } = useFetch<{
 }>('/api/llm', { key: 'llm' });
 
 // Отдать модели — работа на много минут: ожидание со счётчиком и отменой.
-const { running: working, elapsed, outcome, run: runWork, cancel: cancelWork } = useModelRequest();
+const { running: working, elapsed, outcome, log, stream, cancel: cancelWork } = useModelRequest();
 
 async function act(action: 'handover' | 'rework' | 'accept' | 'reject') {
   failure.value = null;
   if (action !== 'rework') answer.value = '';
 
-  const call = (signal?: AbortSignal) =>
-    $fetch<{ answer?: string } | { error: ApiFailure }>(
-      `/api/projects/${props.projectId}/records/${props.recordId}/work`,
-      {
-        method: 'POST',
-        body: { action, actor: actor.value, comment: comment.value },
-        ignoreResponseError: true,
-        // Отмена доходит до сервера: он снимет запущенную программу.
-        ...(signal ? { signal } : {})
-      }
-    );
+  const url = `/api/projects/${props.projectId}/records/${props.recordId}/work`;
+  const body = { action, actor: actor.value, comment: comment.value };
 
   // Модель зовут только `handover` и `rework` — остальное отвечает сразу, и
   // счётчик ожидания там был бы шумом.
@@ -62,11 +53,15 @@ async function act(action: 'handover' | 'rework' | 'accept' | 'reject') {
   let result: { answer?: string } | null = null;
 
   if (waits) {
-    result = await runWork(call);
+    result = await stream<{ answer?: string }>(url, body);
   } else {
     busy.value = action;
     try {
-      const response = await call();
+      const response = await $fetch<{ answer?: string } | { error: ApiFailure }>(url, {
+        method: 'POST',
+        body,
+        ignoreResponseError: true
+      });
       const problem = failureOf(response);
       if (problem) {
         failure.value = problem;
@@ -134,6 +129,8 @@ async function act(action: 'handover' | 'rework' | 'accept' | 'reject') {
       :outcome="outcome"
       @cancel="cancelWork"
     />
+
+    <ModelLog class="mt-3" :lines="log" :running="working" />
 
     <UAlert
       v-if="failure"

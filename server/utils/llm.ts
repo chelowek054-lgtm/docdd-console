@@ -3,6 +3,8 @@ import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { env, platform } from 'node:process';
 
+import { createStreamParser, type ModelEvent } from '../lib/stream-events';
+
 /**
  * Доступ к модели через Claude Code на машине пользователя
  * (docs/adr/0008-llm-through-claude-code.md).
@@ -152,6 +154,11 @@ export interface AskOptions {
   run?: Runner;
   /** Отмена человеком: обрыв запроса браузером доходит сюда. */
   signal?: AbortSignal;
+  /**
+   * Куда отдавать ход работы. Задан — Claude Code запускается лентой
+   * событий; не задан — как раньше, одним ответом.
+   */
+  onEvent?: (event: ModelEvent) => void;
 }
 
 export interface RunOptions {
@@ -162,6 +169,8 @@ export interface RunOptions {
   env?: NodeJS.ProcessEnv;
   /** Отмена человеком: по сигналу запущенная программа снимается. */
   signal?: AbortSignal;
+  /** Вывод по мере поступления: лента работы модели идёт на экран сразу. */
+  onData?: (chunk: string) => void;
 }
 
 /**
@@ -205,6 +214,12 @@ const DEFAULT_MAX_BYTES = 4 * 1024 * 1024;
 const ARGUMENT_LIMIT = 24_000;
 
 /**
+ * Запуск лентой: события приходят строками JSON по мере работы.
+ * `--verbose` обязателен — без него Claude Code лентой не отвечает.
+ */
+const STREAM_ARGS = ['--output-format', 'stream-json', '--verbose', '--include-partial-messages'];
+
+/**
  * Один запрос. Короткий уходит аргументом — так его получает даже оболочка,
  * которая не передала бы стандартный ввод; длинный (карта большого проекта) —
  * на стандартный ввод, потому что в аргумент он не помещается.
@@ -239,19 +254,43 @@ export async function ask(prompt: string, options: AskOptions = {}): Promise<Llm
   try {
     // Аргументы фиксированы: от пользователя приходит только текст запроса.
     const inArgument = prompt.length <= ARGUMENT_LIMIT && !needsShell(found.command);
+    const args = inArgument ? ['-p', prompt] : ['-p'];
+    // Лента событий нужна, только когда её кто-то показывает.
+    if (options.onEvent) args.push(...STREAM_ARGS);
+
+    const parser = createStreamParser();
+    let streamed = '';
+    let said = '';
+
+    const collect = (event: ModelEvent) => {
+      if (event.kind === 'text') streamed += event.text;
+      if (event.kind === 'answer') said = event.text;
+      options.onEvent?.(event);
+    };
+
+    const onData = options.onEvent
+      ? (chunk: string) => { for (const event of parser.push(chunk)) collect(event); }
+      : undefined;
+
     const result = await run(
       found.command,
-      inArgument ? ['-p', prompt] : ['-p'],
+      args,
       inArgument ? '' : prompt,
       {
         timeoutMs,
         maxBytes,
         env: childEnvironment(),
         ...(options.cwd ? { cwd: options.cwd } : {}),
-        ...(options.signal ? { signal: options.signal } : {})
+        ...(options.signal ? { signal: options.signal } : {}),
+        ...(onData ? { onData } : {})
       }
     );
-    const answer = result.stdout.trim();
+
+    if (options.onEvent) for (const event of parser.finish()) collect(event);
+
+    // Ответ берём из ленты; не разобралась — из обычного вывода, как раньше.
+    // Незнакомый формат ленты не должен оставлять человека без ответа.
+    const answer = (said || streamed || result.stdout).trim();
 
     if (result.code !== 0 && answer === '') {
       const said = `${result.stderr} ${result.stdout}`;
@@ -336,7 +375,12 @@ function killTree(child: ChildProcess): void {
 }
 
 /** Экспортируется ради теста на отмену: он проверяет, что программа снята. */
-export const spawnClaude: Runner = (command, args, input, { timeoutMs, maxBytes, cwd, env: childEnv, signal }) =>
+export const spawnClaude: Runner = (
+  command,
+  args,
+  input,
+  { timeoutMs, maxBytes, cwd, env: childEnv, signal, onData }
+) =>
   new Promise((resolve, reject) => {
     const child = spawn(command, [...args], {
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -376,6 +420,8 @@ export const spawnClaude: Runner = (command, args, input, { timeoutMs, maxBytes,
     child.stdout.on('data', (chunk: string) => {
       // Предел размера: ответ на карту большого проекта и так велик.
       if (stdout.length < maxBytes) stdout += chunk;
+      // Наружу отдаём сразу: лента идёт на экран, а не копится до конца.
+      onData?.(chunk);
     });
     child.stderr.setEncoding('utf8');
     child.stderr.on('data', (chunk: string) => { stderr += chunk; });

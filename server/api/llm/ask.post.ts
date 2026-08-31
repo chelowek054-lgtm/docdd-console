@@ -2,12 +2,14 @@ import { defineEventHandler, readBody } from 'h3';
 
 import { abortSignalOf } from '../../utils/abort';
 import { ask } from '../../utils/llm';
+import { eventStream } from '../../utils/sse';
 import { fail } from '../../utils/http';
 import { findProject } from '../../utils/projects';
 
 /**
- * Один запрос к модели через Claude Code. Приложение ничего не применяет:
- * ответ возвращается экрану, решает человек
+ * Один запрос к модели через Claude Code. Ответ идёт лентой событий: видно, что
+ * модель делает, пока она это делает (docs/04-ui.md). Приложение по-прежнему
+ * ничего не применяет — решает человек
  * (docs/adr/0008-llm-through-claude-code.md).
  */
 export default defineEventHandler(async (event) => {
@@ -24,15 +26,24 @@ export default defineEventHandler(async (event) => {
 
   // Модель работает в корне проекта, а не в папке сервера: иначе она разберёт
   // не тот код. Путь берётся из списка проектов, а не из запроса браузера.
-  const project = projectId ? await findProject(projectId) : null;
+  const project = await findProject(projectId);
+  const stream = eventStream(event);
   const signal = abortSignalOf(event);
-  const result = await ask(prompt, project ? { cwd: project.root, signal } : { signal });
+
+  const result = await ask(prompt, {
+    ...(project ? { cwd: project.root } : {}),
+    signal,
+    onEvent: (modelEvent) => stream.send(modelEvent.kind, modelEvent)
+  });
+
   if (!result.ok) {
-    // Нет программы и отказ в доступе — разные беды, и чинятся по-разному.
-    // Отмена — не беда: человек передумал ждать, и 502 тут ни при чём.
-    if (result.failure.code === 'cancelled') return fail(event, 499, 'llm_cancelled', result.failure.message);
-    const status = result.failure.code === 'unavailable' || result.failure.code === 'unauthorized' ? 503 : 502;
-    return fail(event, status, `llm_${result.failure.code}`, result.failure.message, result.failure.detail);
+    // Заголовки ушли вместе с первым событием — код ответа менять поздно, и
+    // причина едет тем же путём, что и всё остальное.
+    stream.send('error', { error: { ...result.failure, code: `llm_${result.failure.code}` } });
+    stream.close();
+    return;
   }
-  return { answer: result.answer, ms: result.ms };
+
+  stream.send('done', { answer: result.answer, ms: result.ms });
+  stream.close();
 });

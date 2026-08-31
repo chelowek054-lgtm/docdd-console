@@ -33,7 +33,7 @@ const { data: llm } = useFetch<{
 }>('/api/llm', { key: 'llm' });
 
 // Ожидание с counterом и отменой — одно на все места, откуда зовут модель.
-const { running: asking, elapsed, outcome, run: runAsk, cancel: cancelAsk } = useModelRequest();
+const { running: asking, elapsed, outcome, log, stream, cancel: cancelAsk } = useModelRequest();
 
 async function build() {
   open.value = true;
@@ -71,16 +71,11 @@ async function copy() {
 async function send() {
   failure.value = null;
   answer.value = '';
-  const result = await runAsk((signal) =>
-    $fetch<{ answer: string } | { error: ApiFailure }>('/api/llm/ask', {
-      method: 'POST',
-      // Проект называем идентификатором: путь к нему сервер знает сам.
-      body: { prompt: prompt.value, projectId: props.projectId },
-      ignoreResponseError: true,
-      // Отмена доходит до сервера: он снимет запущенную программу.
-      signal
-    })
-  );
+  // Проект называем идентификатором: путь к нему сервер знает сам.
+  const result = await stream<{ answer: string }>('/api/llm/ask', {
+    prompt: prompt.value,
+    projectId: props.projectId
+  });
   if (!result) return;
 
   answer.value = result.answer;
@@ -146,6 +141,8 @@ async function send() {
           :outcome="outcome"
           @cancel="cancelAsk"
         />
+
+        <ModelLog class="mb-3" :lines="log" :running="asking" />
 
         <pre class="max-h-64 overflow-auto rounded bg-elevated p-3 text-xs whitespace-pre-wrap">{{ prompt }}</pre>
       </template>

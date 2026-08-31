@@ -20,6 +20,7 @@ import {
   type WorkChanges
 } from './git';
 import { ask, WORK_TIMEOUT } from './llm';
+import type { ModelEvent } from '../lib/stream-events';
 import { buildProjectMap } from './map-service';
 import { openRecord, saveRecord, today } from './record-write';
 
@@ -81,7 +82,14 @@ export async function handover(
   root: string,
   index: ProjectIndex,
   record: IndexRecord,
-  options: { actor: string; rework: string; template: string; signal?: AbortSignal }
+  options: {
+    actor: string;
+    rework: string;
+    template: string;
+    signal?: AbortSignal;
+    /** Ход работы модели: уходит на экран лентой. */
+    onEvent?: (event: ModelEvent) => void;
+  }
 ): Promise<WorkOutcome> {
   const normalized = normalizeRoot(root);
 
@@ -111,7 +119,8 @@ export async function handover(
   const answer = await ask(prompt, {
     cwd: worktreeRoot(normalized, record.id),
     timeoutMs: WORK_TIMEOUT,
-    ...(options.signal ? { signal: options.signal } : {})
+    ...(options.signal ? { signal: options.signal } : {}),
+    ...(options.onEvent ? { onEvent: options.onEvent } : {})
   });
   if (!answer.ok) {
     return { ok: false, code: `llm_${answer.failure.code}`, message: answer.failure.message, ...(answer.failure.detail ? { detail: answer.failure.detail } : {}) };

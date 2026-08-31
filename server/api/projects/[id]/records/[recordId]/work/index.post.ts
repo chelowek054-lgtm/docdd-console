@@ -5,6 +5,7 @@ import { normalizeRoot } from '../../../../../../lib/paths';
 import { WorkspaceError } from '../../../../../../lib/workspace';
 import { abortSignalOf } from '../../../../../../utils/abort';
 import { fail } from '../../../../../../utils/http';
+import { eventStream } from '../../../../../../utils/sse';
 import { loadIndex } from '../../../../../../utils/index-service';
 import { findProject } from '../../../../../../utils/projects';
 import { accept, handover, reject } from '../../../../../../utils/work-service';
@@ -46,13 +47,21 @@ export default defineEventHandler(async (event) => {
         );
       }
 
+      // Работа идёт минутами: экран показывает её ход лентой событий
+      // (docs/04-ui.md, раздел «Запрос к модели»).
+      const stream = eventStream(event);
       const outcome = await handover(root, index, record, {
         actor,
         rework: action === 'rework' ? comment : '',
         template: await template('task.md'),
-        signal: abortSignalOf(event)
+        signal: abortSignalOf(event),
+        onEvent: (modelEvent) => stream.send(modelEvent.kind, modelEvent)
       });
-      return outcome.ok ? outcome : fail(event, statusFor(outcome.code), outcome.code, outcome.message, outcome.detail);
+
+      // Заголовки ушли с первым событием — причина едет тем же путём.
+      stream.send(outcome.ok ? 'done' : 'error', outcome.ok ? outcome : { error: outcome });
+      stream.close();
+      return;
     }
 
     if (action === 'accept') {

@@ -386,3 +386,52 @@ describe('отмена', () => {
     expect(result.failure.code).toBe('cancelled');
   });
 });
+
+describe('лента работы модели', () => {
+  const LINES = [
+    JSON.stringify({ type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Смот' } } }),
+    JSON.stringify({ type: 'assistant', message: { content: [{ type: 'tool_use', name: 'Read', input: { file_path: 'a.ts' } }] } }),
+    JSON.stringify({ type: 'result', subtype: 'success', result: 'Готовый ответ.' })
+  ].join(String.fromCharCode(10)) + String.fromCharCode(10);
+
+  it('события уходят по ходу работы, а не в конце', async () => {
+    const seen: string[] = [];
+    const run: Runner = (_command, _args, _input, options) => {
+      // Программа пишет вывод кусками — так же, как настоящая.
+      options.onData?.(LINES.slice(0, 60));
+      options.onData?.(LINES.slice(60));
+      return Promise.resolve({ stdout: LINES, stderr: '', code: 0 });
+    };
+
+    const result = await ask('вопрос', { run, onEvent: (event) => seen.push(event.kind) });
+    expect(seen).toEqual(['text', 'action', 'answer']);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // Ответ — тот, что назвала сама модель, а не склейка ленты.
+    expect(result.answer).toBe('Готовый ответ.');
+  });
+
+  it('лента просится только тогда, когда её показывают', async () => {
+    const asked: string[][] = [];
+    const run: Runner = (_command, args) => {
+      asked.push([...args]);
+      return Promise.resolve({ stdout: 'обычный ответ', stderr: '', code: 0 });
+    };
+
+    await ask('вопрос', { run });
+    expect(asked[0]).not.toContain('--output-format');
+
+    await ask('вопрос', { run, onEvent: () => {} });
+    expect(asked[1]).toContain('stream-json');
+  });
+
+  it('не разобравшаяся лента не оставляет без ответа', async () => {
+    // Формат задан не нами и может измениться — ответ всё равно должен дойти.
+    const run: Runner = () => Promise.resolve({ stdout: 'ответ не по формату', stderr: '', code: 0 });
+
+    const result = await ask('вопрос', { run, onEvent: () => {} });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.answer).toBe('ответ не по формату');
+  });
+});
