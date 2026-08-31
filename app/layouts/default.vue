@@ -38,16 +38,26 @@ const links = computed(() => {
           </UButton>
         </nav>
 
-        <UButton
-          v-if="projectId"
-          to="/"
-          variant="ghost"
-          color="neutral"
-          size="sm"
-          class="ml-auto"
-        >
-          Все проекты
-        </UButton>
+        <div class="ml-auto flex items-center gap-1">
+          <!-- Доступно всегда: инструкция нужна раньше, чем выбран проект. -->
+          <UButton
+            to="/usage"
+            :variant="route.path === '/usage' ? 'soft' : 'ghost'"
+            color="neutral"
+            size="sm"
+          >
+            Как пользоваться
+          </UButton>
+          <UButton
+            v-if="projectId"
+            to="/"
+            variant="ghost"
+            color="neutral"
+            size="sm"
+          >
+            Все проекты
+          </UButton>
+        </div>
       </div>
     </header>
 
