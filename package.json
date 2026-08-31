@@ -4,6 +4,10 @@
   "type": "module",
   "description": "Инструмент контроля разработки по правилу «документ ведёт код»",
   "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
     "typecheck": "tsc --noEmit && nuxt typecheck",
     "test": "vitest run",
     "lint": "eslint ."
