@@ -1,0 +1,326 @@
+---
+id: M-0001
+type: map
+title: Устройство DocDD Console
+status: review
+created: 2026-08-31
+updated: 2026-08-31
+---
+
+# Устройство DocDD Console
+
+Первая карта проекта: не изменение, а исходное состояние, от которого дальше
+считаются изменения. Составлена разбором каждого файла из `sources.code` —
+61 файл, — а свидетельства взяты из настоящих строк и проверяются приложением.
+
+## Чего в этой карте нет
+
+Внешние пакеты (`nuxt`, `vue`, `ajv`, `gray-matter`) модулями не считаются:
+карта отвечает на вопрос об устройстве проекта, а не о его зависимостях.
+
+Обращения к API из `app/composables/useProjectIndex.ts` и общих компонентов
+не приписаны экрану: композиция используется многими экранами сразу, и назвать
+один из них значило бы догадаться. Это `GET /api/projects`,
+`GET /api/projects/:id/index` и `GET /api/projects/:id/records/:recordId` —
+они есть, но у них нет одного хозяина.
+
+Переходы, живущие в `app/components/RecordLink.vue` и `IssueList.vue`, не
+приписаны экрану по той же причине.
+
+## Кодовая база
+
+```docdd-codemap
+{
+    "added": {
+      "modules": [
+        {"id":"server/api/projects/[id].delete.ts","title":"[id].delete","layer":"маршруты"},
+        {"id":"server/api/projects/[id]/file.get.ts","title":"file.get","layer":"маршруты"},
+        {"id":"server/api/projects/[id]/import/index.get.ts","title":"index.get","layer":"маршруты"},
+        {"id":"server/api/projects/[id]/import/index.post.ts","title":"index.post","layer":"маршруты"},
+        {"id":"server/api/projects/[id]/index/index.get.ts","title":"index.get","layer":"маршруты"},
+        {"id":"server/api/projects/[id]/map/index.get.ts","title":"index.get","layer":"маршруты"},
+        {"id":"server/api/projects/[id]/records/[recordId].get.ts","title":"[recordId].get","layer":"маршруты"},
+        {"id":"server/api/projects/[id]/records/[recordId].patch.ts","title":"[recordId].patch","layer":"маршруты"},
+        {"id":"server/api/projects/[id]/records/[recordId]/status.post.ts","title":"status.post","layer":"маршруты"},
+        {"id":"server/api/projects/[id]/records/index.post.ts","title":"index.post","layer":"маршруты"},
+        {"id":"server/api/projects/index.get.ts","title":"index.get","layer":"маршруты"},
+        {"id":"server/api/projects/index.post.ts","title":"index.post","layer":"маршруты"},
+        {"id":"server/api/projects/init.post.ts","title":"init.post","layer":"маршруты"},
+        {"id":"server/lib/actions.ts","title":"actions","layer":"ядро"},
+        {"id":"server/lib/analyze.ts","title":"analyze","layer":"ядро"},
+        {"id":"server/lib/cache.ts","title":"cache","layer":"ядро"},
+        {"id":"server/lib/diagrams.ts","title":"diagrams","layer":"ядро"},
+        {"id":"server/lib/graph.ts","title":"graph","layer":"ядро"},
+        {"id":"server/lib/import.ts","title":"import","layer":"ядро"},
+        {"id":"server/lib/indexer.ts","title":"indexer","layer":"ядро"},
+        {"id":"server/lib/maps.ts","title":"maps","layer":"ядро"},
+        {"id":"server/lib/parse.ts","title":"parse","layer":"ядро"},
+        {"id":"server/lib/paths.ts","title":"paths","layer":"ядро"},
+        {"id":"server/lib/reports.ts","title":"reports","layer":"ядро"},
+        {"id":"server/lib/rules.ts","title":"rules","layer":"ядро"},
+        {"id":"server/lib/scaffold.ts","title":"scaffold","layer":"ядро"},
+        {"id":"server/lib/schema.ts","title":"schema","layer":"ядро"},
+        {"id":"server/lib/transitions.ts","title":"transitions","layer":"ядро"},
+        {"id":"server/lib/types.ts","title":"types","layer":"ядро"},
+        {"id":"server/lib/workspace.ts","title":"workspace","layer":"ядро"},
+        {"id":"server/lib/write.ts","title":"write","layer":"ядро"},
+        {"id":"server/utils/http.ts","title":"http","layer":"серверные утилиты"},
+        {"id":"server/utils/index-service.ts","title":"index-service","layer":"серверные утилиты"},
+        {"id":"server/utils/map-service.ts","title":"map-service","layer":"серверные утилиты"},
+        {"id":"server/utils/projects.ts","title":"projects","layer":"серверные утилиты"},
+        {"id":"server/utils/record-write.ts","title":"record-write","layer":"серверные утилиты"},
+        {"id":"cli/check.ts","title":"check","layer":"командная строка"},
+        {"id":"cli/report.ts","title":"report","layer":"командная строка"},
+        {"id":"app/app.vue","title":"app","layer":"каркас"},
+        {"id":"app/components/DocumentText.vue","title":"DocumentText","layer":"компоненты"},
+        {"id":"app/components/IssueList.vue","title":"IssueList","layer":"компоненты"},
+        {"id":"app/components/MermaidDiagram.vue","title":"MermaidDiagram","layer":"компоненты"},
+        {"id":"app/components/NewRecord.vue","title":"NewRecord","layer":"компоненты"},
+        {"id":"app/components/ProjectFailure.vue","title":"ProjectFailure","layer":"компоненты"},
+        {"id":"app/components/RecordActions.vue","title":"RecordActions","layer":"компоненты"},
+        {"id":"app/components/RecordLink.vue","title":"RecordLink","layer":"компоненты"},
+        {"id":"app/components/StatusBadge.vue","title":"StatusBadge","layer":"компоненты"},
+        {"id":"app/composables/useProjectIndex.ts","title":"useProjectIndex","layer":"клиентские утилиты"},
+        {"id":"app/layouts/default.vue","title":"default","layer":"разметка"},
+        {"id":"app/pages/index.vue","title":"index","layer":"экраны"},
+        {"id":"app/pages/projects/[id]/graph.vue","title":"graph","layer":"экраны"},
+        {"id":"app/pages/projects/[id]/import.vue","title":"import","layer":"экраны"},
+        {"id":"app/pages/projects/[id]/index.vue","title":"index","layer":"экраны"},
+        {"id":"app/pages/projects/[id]/issues.vue","title":"issues","layer":"экраны"},
+        {"id":"app/pages/projects/[id]/maps.vue","title":"maps","layer":"экраны"},
+        {"id":"app/pages/projects/[id]/records/[recordId].vue","title":"[recordId]","layer":"экраны"},
+        {"id":"app/pages/projects/[id]/requirements.vue","title":"requirements","layer":"экраны"},
+        {"id":"app/pages/projects/[id]/tasks.vue","title":"tasks","layer":"экраны"},
+        {"id":"app/utils/graph-layout.ts","title":"graph-layout","layer":"клиентские утилиты"},
+        {"id":"app/utils/labels.ts","title":"labels","layer":"клиентские утилиты"},
+        {"id":"app/utils/map-mermaid.ts","title":"map-mermaid","layer":"клиентские утилиты"}
+      ],
+      "imports": [
+        {"from":"server/api/projects/[id].delete.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/projects/[id].delete.ts","line":3,"fragment":"import { fail } from '../../utils/http';"}},
+        {"from":"server/api/projects/[id].delete.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/[id].delete.ts","line":4,"fragment":"import { removeProject } from '../../utils/projects';"}},
+        {"from":"server/api/projects/[id]/file.get.ts","to":"server/lib/paths.ts","evidence":{"path":"server/api/projects/[id]/file.get.ts","line":5,"fragment":"import { OutsideRootError, resolveInside } from '../../../li"}},
+        {"from":"server/api/projects/[id]/file.get.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/projects/[id]/file.get.ts","line":6,"fragment":"import { fail } from '../../../utils/http';"}},
+        {"from":"server/api/projects/[id]/file.get.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/[id]/file.get.ts","line":7,"fragment":"import { findProject } from '../../../utils/projects';"}},
+        {"from":"server/api/projects/[id]/import/index.get.ts","to":"server/lib/import.ts","evidence":{"path":"server/api/projects/[id]/import/index.get.ts","line":6,"fragment":"import { surveyFile, type SurveyRow } from '../../../../lib/"}},
+        {"from":"server/api/projects/[id]/import/index.get.ts","to":"server/lib/paths.ts","evidence":{"path":"server/api/projects/[id]/import/index.get.ts","line":7,"fragment":"import { OutsideRootError, normalizeRoot, toProjectPath } fr"}},
+        {"from":"server/api/projects/[id]/import/index.get.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/api/projects/[id]/import/index.get.ts","line":8,"fragment":"import { WorkspaceError, readManifest } from '../../../../li"}},
+        {"from":"server/api/projects/[id]/import/index.get.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/projects/[id]/import/index.get.ts","line":9,"fragment":"import { fail } from '../../../../utils/http';"}},
+        {"from":"server/api/projects/[id]/import/index.get.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/[id]/import/index.get.ts","line":10,"fragment":"import { findProject } from '../../../../utils/projects';"}},
+        {"from":"server/api/projects/[id]/import/index.post.ts","to":"server/lib/analyze.ts","evidence":{"path":"server/api/projects/[id]/import/index.post.ts","line":6,"fragment":"import { analyze } from '../../../../lib/analyze';"}},
+        {"from":"server/api/projects/[id]/import/index.post.ts","to":"server/lib/cache.ts","evidence":{"path":"server/api/projects/[id]/import/index.post.ts","line":7,"fragment":"import { dropCache } from '../../../../lib/cache';"}},
+        {"from":"server/api/projects/[id]/import/index.post.ts","to":"server/lib/import.ts","evidence":{"path":"server/api/projects/[id]/import/index.post.ts","line":8,"fragment":"import { checkRow, targetPath, withFrontMatter, type PlanRow"}},
+        {"from":"server/api/projects/[id]/import/index.post.ts","to":"server/lib/paths.ts","evidence":{"path":"server/api/projects/[id]/import/index.post.ts","line":9,"fragment":"import { OutsideRootError, normalizeRoot, resolveInside } fr"}},
+        {"from":"server/api/projects/[id]/import/index.post.ts","to":"server/lib/scaffold.ts","evidence":{"path":"server/api/projects/[id]/import/index.post.ts","line":10,"fragment":"import { isRecordType, nextId } from '../../../../lib/scaffo"}},
+        {"from":"server/api/projects/[id]/import/index.post.ts","to":"server/lib/types.ts","evidence":{"path":"server/api/projects/[id]/import/index.post.ts","line":11,"fragment":"import type { RecordType } from '../../../../lib/types';"}},
+        {"from":"server/api/projects/[id]/import/index.post.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/api/projects/[id]/import/index.post.ts","line":12,"fragment":"import { DEVELOPMENT_DIR, WorkspaceError, readWorkspace } fr"}},
+        {"from":"server/api/projects/[id]/import/index.post.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/projects/[id]/import/index.post.ts","line":13,"fragment":"import { fail } from '../../../../utils/http';"}},
+        {"from":"server/api/projects/[id]/import/index.post.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/[id]/import/index.post.ts","line":14,"fragment":"import { findProject } from '../../../../utils/projects';"}},
+        {"from":"server/api/projects/[id]/import/index.post.ts","to":"server/utils/record-write.ts","evidence":{"path":"server/api/projects/[id]/import/index.post.ts","line":15,"fragment":"import { today } from '../../../../utils/record-write';"}},
+        {"from":"server/api/projects/[id]/index/index.get.ts","to":"server/lib/paths.ts","evidence":{"path":"server/api/projects/[id]/index/index.get.ts","line":3,"fragment":"import { OutsideRootError } from '../../../../lib/paths';"}},
+        {"from":"server/api/projects/[id]/index/index.get.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/api/projects/[id]/index/index.get.ts","line":4,"fragment":"import { WorkspaceError } from '../../../../lib/workspace';"}},
+        {"from":"server/api/projects/[id]/index/index.get.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/projects/[id]/index/index.get.ts","line":5,"fragment":"import { fail } from '../../../../utils/http';"}},
+        {"from":"server/api/projects/[id]/index/index.get.ts","to":"server/utils/index-service.ts","evidence":{"path":"server/api/projects/[id]/index/index.get.ts","line":6,"fragment":"import { loadIndex } from '../../../../utils/index-service';"}},
+        {"from":"server/api/projects/[id]/index/index.get.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/[id]/index/index.get.ts","line":7,"fragment":"import { findProject, touchProject } from '../../../../utils"}},
+        {"from":"server/api/projects/[id]/map/index.get.ts","to":"server/lib/paths.ts","evidence":{"path":"server/api/projects/[id]/map/index.get.ts","line":3,"fragment":"import { OutsideRootError } from '../../../../lib/paths';"}},
+        {"from":"server/api/projects/[id]/map/index.get.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/api/projects/[id]/map/index.get.ts","line":4,"fragment":"import { WorkspaceError } from '../../../../lib/workspace';"}},
+        {"from":"server/api/projects/[id]/map/index.get.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/projects/[id]/map/index.get.ts","line":5,"fragment":"import { fail } from '../../../../utils/http';"}},
+        {"from":"server/api/projects/[id]/map/index.get.ts","to":"server/utils/map-service.ts","evidence":{"path":"server/api/projects/[id]/map/index.get.ts","line":6,"fragment":"import { buildProjectMap } from '../../../../utils/map-servi"}},
+        {"from":"server/api/projects/[id]/map/index.get.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/[id]/map/index.get.ts","line":7,"fragment":"import { findProject } from '../../../../utils/projects';"}},
+        {"from":"server/api/projects/[id]/records/[recordId].get.ts","to":"server/lib/analyze.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId].get.ts","line":6,"fragment":"import { analyze } from '../../../../lib/analyze';"}},
+        {"from":"server/api/projects/[id]/records/[recordId].get.ts","to":"server/lib/diagrams.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId].get.ts","line":7,"fragment":"import { extractDiagrams } from '../../../../lib/diagrams';"}},
+        {"from":"server/api/projects/[id]/records/[recordId].get.ts","to":"server/lib/maps.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId].get.ts","line":8,"fragment":"import { checkEvidence, evidenceClaims, parseMapRecord } fro"}},
+        {"from":"server/api/projects/[id]/records/[recordId].get.ts","to":"server/lib/parse.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId].get.ts","line":9,"fragment":"import { parseRecord } from '../../../../lib/parse';"}},
+        {"from":"server/api/projects/[id]/records/[recordId].get.ts","to":"server/lib/paths.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId].get.ts","line":10,"fragment":"import { OutsideRootError, resolveInside } from '../../../.."}},
+        {"from":"server/api/projects/[id]/records/[recordId].get.ts","to":"server/lib/transitions.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId].get.ts","line":11,"fragment":"import { availableActions } from '../../../../lib/transition"}},
+        {"from":"server/api/projects/[id]/records/[recordId].get.ts","to":"server/lib/types.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId].get.ts","line":12,"fragment":"import type { MapView, RecordAction, RecordDetail } from '.."}},
+        {"from":"server/api/projects/[id]/records/[recordId].get.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId].get.ts","line":13,"fragment":"import { WorkspaceError, readWorkspace, sourceReader } from "}},
+        {"from":"server/api/projects/[id]/records/[recordId].get.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId].get.ts","line":14,"fragment":"import { fail } from '../../../../utils/http';"}},
+        {"from":"server/api/projects/[id]/records/[recordId].get.ts","to":"server/utils/index-service.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId].get.ts","line":15,"fragment":"import { loadIndex } from '../../../../utils/index-service';"}},
+        {"from":"server/api/projects/[id]/records/[recordId].get.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId].get.ts","line":16,"fragment":"import { findProject } from '../../../../utils/projects';"}},
+        {"from":"server/api/projects/[id]/records/[recordId].patch.ts","to":"server/lib/actions.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId].patch.ts","line":3,"fragment":"import { applyFieldPatch, type PatchFields } from '../../../"}},
+        {"from":"server/api/projects/[id]/records/[recordId].patch.ts","to":"server/lib/paths.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId].patch.ts","line":4,"fragment":"import { OutsideRootError } from '../../../../lib/paths';"}},
+        {"from":"server/api/projects/[id]/records/[recordId].patch.ts","to":"server/lib/types.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId].patch.ts","line":5,"fragment":"import { LINK_KINDS, type LinkKind } from '../../../../lib/t"}},
+        {"from":"server/api/projects/[id]/records/[recordId].patch.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId].patch.ts","line":6,"fragment":"import { WorkspaceError } from '../../../../lib/workspace';"}},
+        {"from":"server/api/projects/[id]/records/[recordId].patch.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId].patch.ts","line":7,"fragment":"import { fail, failWith } from '../../../../utils/http';"}},
+        {"from":"server/api/projects/[id]/records/[recordId].patch.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId].patch.ts","line":8,"fragment":"import { findProject } from '../../../../utils/projects';"}},
+        {"from":"server/api/projects/[id]/records/[recordId].patch.ts","to":"server/utils/record-write.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId].patch.ts","line":9,"fragment":"import { openRecord, saveRecord, today } from '../../../../u"}},
+        {"from":"server/api/projects/[id]/records/[recordId]/status.post.ts","to":"server/lib/actions.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/status.post.ts","line":3,"fragment":"import { applyStatusChange } from '../../../../../lib/action"}},
+        {"from":"server/api/projects/[id]/records/[recordId]/status.post.ts","to":"server/lib/paths.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/status.post.ts","line":4,"fragment":"import { OutsideRootError } from '../../../../../lib/paths';"}},
+        {"from":"server/api/projects/[id]/records/[recordId]/status.post.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/status.post.ts","line":5,"fragment":"import { WorkspaceError } from '../../../../../lib/workspace"}},
+        {"from":"server/api/projects/[id]/records/[recordId]/status.post.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/status.post.ts","line":6,"fragment":"import { fail, failWith } from '../../../../../utils/http';"}},
+        {"from":"server/api/projects/[id]/records/[recordId]/status.post.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/status.post.ts","line":7,"fragment":"import { findProject } from '../../../../../utils/projects';"}},
+        {"from":"server/api/projects/[id]/records/[recordId]/status.post.ts","to":"server/utils/record-write.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/status.post.ts","line":8,"fragment":"import { openRecord, saveRecord, today, transitionBlockers }"}},
+        {"from":"server/api/projects/[id]/records/index.post.ts","to":"server/lib/analyze.ts","evidence":{"path":"server/api/projects/[id]/records/index.post.ts","line":6,"fragment":"import { analyze } from '../../../../lib/analyze';"}},
+        {"from":"server/api/projects/[id]/records/index.post.ts","to":"server/lib/cache.ts","evidence":{"path":"server/api/projects/[id]/records/index.post.ts","line":7,"fragment":"import { dropCache } from '../../../../lib/cache';"}},
+        {"from":"server/api/projects/[id]/records/index.post.ts","to":"server/lib/import.ts","evidence":{"path":"server/api/projects/[id]/records/index.post.ts","line":8,"fragment":"import { targetPath } from '../../../../lib/import';"}},
+        {"from":"server/api/projects/[id]/records/index.post.ts","to":"server/lib/paths.ts","evidence":{"path":"server/api/projects/[id]/records/index.post.ts","line":9,"fragment":"import { OutsideRootError, normalizeRoot, resolveInside } fr"}},
+        {"from":"server/api/projects/[id]/records/index.post.ts","to":"server/lib/scaffold.ts","evidence":{"path":"server/api/projects/[id]/records/index.post.ts","line":10,"fragment":"import { isRecordType, nextId, recordTemplate } from '../../"}},
+        {"from":"server/api/projects/[id]/records/index.post.ts","to":"server/lib/types.ts","evidence":{"path":"server/api/projects/[id]/records/index.post.ts","line":11,"fragment":"import { LINK_KINDS, type LinkKind, type RecordType } from '"}},
+        {"from":"server/api/projects/[id]/records/index.post.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/api/projects/[id]/records/index.post.ts","line":12,"fragment":"import { DEVELOPMENT_DIR, WorkspaceError, readWorkspace } fr"}},
+        {"from":"server/api/projects/[id]/records/index.post.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/projects/[id]/records/index.post.ts","line":13,"fragment":"import { fail } from '../../../../utils/http';"}},
+        {"from":"server/api/projects/[id]/records/index.post.ts","to":"server/utils/index-service.ts","evidence":{"path":"server/api/projects/[id]/records/index.post.ts","line":14,"fragment":"import { loadIndex } from '../../../../utils/index-service';"}},
+        {"from":"server/api/projects/[id]/records/index.post.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/[id]/records/index.post.ts","line":15,"fragment":"import { findProject } from '../../../../utils/projects';"}},
+        {"from":"server/api/projects/[id]/records/index.post.ts","to":"server/utils/record-write.ts","evidence":{"path":"server/api/projects/[id]/records/index.post.ts","line":16,"fragment":"import { today } from '../../../../utils/record-write';"}},
+        {"from":"server/api/projects/index.get.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/index.get.ts","line":3,"fragment":"import { listProjects } from '../../utils/projects';"}},
+        {"from":"server/api/projects/index.post.ts","to":"server/lib/paths.ts","evidence":{"path":"server/api/projects/index.post.ts","line":3,"fragment":"import { normalizeRoot } from '../../lib/paths';"}},
+        {"from":"server/api/projects/index.post.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/api/projects/index.post.ts","line":4,"fragment":"import { WorkspaceError, readManifest } from '../../lib/work"}},
+        {"from":"server/api/projects/index.post.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/projects/index.post.ts","line":5,"fragment":"import { fail } from '../../utils/http';"}},
+        {"from":"server/api/projects/index.post.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/index.post.ts","line":6,"fragment":"import { findProject, saveProject } from '../../utils/projec"}},
+        {"from":"server/api/projects/init.post.ts","to":"server/lib/paths.ts","evidence":{"path":"server/api/projects/init.post.ts","line":6,"fragment":"import { normalizeRoot } from '../../lib/paths';"}},
+        {"from":"server/api/projects/init.post.ts","to":"server/lib/scaffold.ts","evidence":{"path":"server/api/projects/init.post.ts","line":7,"fragment":"import { DEFAULT_PATHS, fileNameFor, manifestYaml, recordTem"}},
+        {"from":"server/api/projects/init.post.ts","to":"server/lib/types.ts","evidence":{"path":"server/api/projects/init.post.ts","line":8,"fragment":"import type { SectionKey } from '../../lib/types';"}},
+        {"from":"server/api/projects/init.post.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/api/projects/init.post.ts","line":9,"fragment":"import { developmentDir, hasWorkspace, MANIFEST_FILE } from "}},
+        {"from":"server/api/projects/init.post.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/projects/init.post.ts","line":10,"fragment":"import { fail } from '../../utils/http';"}},
+        {"from":"server/api/projects/init.post.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/init.post.ts","line":11,"fragment":"import { findProject, saveProject } from '../../utils/projec"}},
+        {"from":"server/api/projects/init.post.ts","to":"server/utils/record-write.ts","evidence":{"path":"server/api/projects/init.post.ts","line":12,"fragment":"import { today } from '../../utils/record-write';"}},
+        {"from":"server/lib/actions.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/actions.ts","line":1,"fragment":"import type { LinkKind } from './types';"}},
+        {"from":"server/lib/analyze.ts","to":"server/lib/graph.ts","evidence":{"path":"server/lib/analyze.ts","line":1,"fragment":"import { buildGraph, type Graph } from './graph';"}},
+        {"from":"server/lib/analyze.ts","to":"server/lib/parse.ts","evidence":{"path":"server/lib/analyze.ts","line":2,"fragment":"import { parseRecord } from './parse';"}},
+        {"from":"server/lib/analyze.ts","to":"server/lib/reports.ts","evidence":{"path":"server/lib/analyze.ts","line":3,"fragment":"import { latestVerificationResults } from './reports';"}},
+        {"from":"server/lib/analyze.ts","to":"server/lib/rules.ts","evidence":{"path":"server/lib/analyze.ts","line":4,"fragment":"import { checkAll, checkRecordIdentity, type RuleContext } f"}},
+        {"from":"server/lib/analyze.ts","to":"server/lib/schema.ts","evidence":{"path":"server/lib/analyze.ts","line":5,"fragment":"import { validateFrontMatter, type SchemaIssue } from './sch"}},
+        {"from":"server/lib/cache.ts","to":"server/lib/paths.ts","evidence":{"path":"server/lib/cache.ts","line":4,"fragment":"import { normalizeRoot } from './paths';"}},
+        {"from":"server/lib/cache.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/cache.ts","line":5,"fragment":"import type { ProjectIndex } from './types';"}},
+        {"from":"server/lib/diagrams.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/diagrams.ts","line":1,"fragment":"import type { DiagramBlock } from './types';"}},
+        {"from":"server/lib/graph.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/graph.ts","line":1,"fragment":"import { LINK_KINDS, type LinkKind, type WorkRecord } from '"}},
+        {"from":"server/lib/import.ts","to":"server/lib/parse.ts","evidence":{"path":"server/lib/import.ts","line":1,"fragment":"import { firstHeading } from './parse';"}},
+        {"from":"server/lib/import.ts","to":"server/lib/scaffold.ts","evidence":{"path":"server/lib/import.ts","line":2,"fragment":"import { fileNameFor, initialStatus, isRecordType, SECTION_B"}},
+        {"from":"server/lib/import.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/import.ts","line":3,"fragment":"import type { RecordType } from './types';"}},
+        {"from":"server/lib/indexer.ts","to":"server/lib/analyze.ts","evidence":{"path":"server/lib/indexer.ts","line":1,"fragment":"import { analyze } from './analyze';"}},
+        {"from":"server/lib/indexer.ts","to":"server/lib/graph.ts","evidence":{"path":"server/lib/indexer.ts","line":2,"fragment":"import { incomingEdges } from './graph';"}},
+        {"from":"server/lib/indexer.ts","to":"server/lib/reports.ts","evidence":{"path":"server/lib/indexer.ts","line":3,"fragment":"import { latestVerificationDetails } from './reports';"}},
+        {"from":"server/lib/indexer.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/indexer.ts","line":12,"fragment":"import { LINK_KINDS } from './types';"}},
+        {"from":"server/lib/indexer.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/lib/indexer.ts","line":13,"fragment":"import { readWorkspace, sourceReader, type Workspace } from "}},
+        {"from":"server/lib/maps.ts","to":"server/lib/schema.ts","evidence":{"path":"server/lib/maps.ts","line":1,"fragment":"import { validateCodemap, validateDataflow, validateUserflow"}},
+        {"from":"server/lib/reports.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/reports.ts","line":1,"fragment":"import type { Report, VerificationOutcome, VerificationResul"}},
+        {"from":"server/lib/rules.ts","to":"server/lib/graph.ts","evidence":{"path":"server/lib/rules.ts","line":1,"fragment":"import { findDependencyCycles, incomingEdges, outgoing, type"}},
+        {"from":"server/lib/rules.ts","to":"server/lib/maps.ts","evidence":{"path":"server/lib/rules.ts","line":2,"fragment":"import { checkEvidence, evidenceClaims, parseMapRecord, type"}},
+        {"from":"server/lib/rules.ts","to":"server/lib/parse.ts","evidence":{"path":"server/lib/rules.ts","line":3,"fragment":"import { firstHeading } from './parse';"}},
+        {"from":"server/lib/scaffold.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/scaffold.ts","line":1,"fragment":"import { PREFIX_BY_TYPE, RECORD_TYPES, SECTION_BY_TYPE, type"}},
+        {"from":"server/lib/transitions.ts","to":"server/lib/actions.ts","evidence":{"path":"server/lib/transitions.ts","line":1,"fragment":"import { journalAction } from './actions';"}},
+        {"from":"server/lib/transitions.ts","to":"server/lib/rules.ts","evidence":{"path":"server/lib/transitions.ts","line":2,"fragment":"import { checkTransition, type RuleContext } from './rules';"}},
+        {"from":"server/lib/transitions.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/transitions.ts","line":3,"fragment":"import type { RecordAction, WorkRecord } from './types';"}},
+        {"from":"server/lib/workspace.ts","to":"server/lib/analyze.ts","evidence":{"path":"server/lib/workspace.ts","line":6,"fragment":"import type { SourceFile } from './analyze';"}},
+        {"from":"server/lib/workspace.ts","to":"server/lib/parse.ts","evidence":{"path":"server/lib/workspace.ts","line":7,"fragment":"import { coerceDates } from './parse';"}},
+        {"from":"server/lib/workspace.ts","to":"server/lib/paths.ts","evidence":{"path":"server/lib/workspace.ts","line":8,"fragment":"import { normalizeRoot, resolveInside, toProjectPath } from "}},
+        {"from":"server/lib/workspace.ts","to":"server/lib/schema.ts","evidence":{"path":"server/lib/workspace.ts","line":9,"fragment":"import { validateProject, validateReport } from './schema';"}},
+        {"from":"server/lib/workspace.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/workspace.ts","line":10,"fragment":"import type { ProjectManifest, Report, SectionKey } from './"}},
+        {"from":"server/lib/write.ts","to":"server/lib/parse.ts","evidence":{"path":"server/lib/write.ts","line":3,"fragment":"import { coerceDates } from './parse';"}},
+        {"from":"server/lib/write.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/write.ts","line":4,"fragment":"import type { Eol, LinkKind } from './types';"}},
+        {"from":"server/utils/index-service.ts","to":"server/lib/cache.ts","evidence":{"path":"server/utils/index-service.ts","line":1,"fragment":"import { readCache, writeCache } from '../lib/cache';"}},
+        {"from":"server/utils/index-service.ts","to":"server/lib/indexer.ts","evidence":{"path":"server/utils/index-service.ts","line":2,"fragment":"import { buildIndex } from '../lib/indexer';"}},
+        {"from":"server/utils/index-service.ts","to":"server/lib/types.ts","evidence":{"path":"server/utils/index-service.ts","line":3,"fragment":"import type { ProjectIndex } from '../lib/types';"}},
+        {"from":"server/utils/index-service.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/utils/index-service.ts","line":4,"fragment":"import { readWorkspace } from '../lib/workspace';"}},
+        {"from":"server/utils/map-service.ts","to":"server/lib/analyze.ts","evidence":{"path":"server/utils/map-service.ts","line":1,"fragment":"import { analyze } from '../lib/analyze';"}},
+        {"from":"server/utils/map-service.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/utils/map-service.ts","line":11,"fragment":"import { readWorkspace, sourceReader } from '../lib/workspac"}},
+        {"from":"server/utils/projects.ts","to":"server/lib/types.ts","evidence":{"path":"server/utils/projects.ts","line":3,"fragment":"import type { ProjectEntry } from '../lib/types';"}},
+        {"from":"server/utils/record-write.ts","to":"server/lib/analyze.ts","evidence":{"path":"server/utils/record-write.ts","line":3,"fragment":"import { analyze } from '../lib/analyze';"}},
+        {"from":"server/utils/record-write.ts","to":"server/lib/cache.ts","evidence":{"path":"server/utils/record-write.ts","line":4,"fragment":"import { dropCache } from '../lib/cache';"}},
+        {"from":"server/utils/record-write.ts","to":"server/lib/paths.ts","evidence":{"path":"server/utils/record-write.ts","line":5,"fragment":"import { resolveInside } from '../lib/paths';"}},
+        {"from":"server/utils/record-write.ts","to":"server/lib/rules.ts","evidence":{"path":"server/utils/record-write.ts","line":6,"fragment":"import { checkTransition } from '../lib/rules';"}},
+        {"from":"server/utils/record-write.ts","to":"server/lib/schema.ts","evidence":{"path":"server/utils/record-write.ts","line":7,"fragment":"import { validateFrontMatter } from '../lib/schema';"}},
+        {"from":"server/utils/record-write.ts","to":"server/lib/parse.ts","evidence":{"path":"server/utils/record-write.ts","line":8,"fragment":"import { parseRecord } from '../lib/parse';"}},
+        {"from":"server/utils/record-write.ts","to":"server/lib/types.ts","evidence":{"path":"server/utils/record-write.ts","line":9,"fragment":"import type { IndexRecord, Violation, WorkRecord } from '../"}},
+        {"from":"server/utils/record-write.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/utils/record-write.ts","line":10,"fragment":"import { readWorkspace, type Workspace } from '../lib/worksp"}},
+        {"from":"server/utils/record-write.ts","to":"server/lib/actions.ts","evidence":{"path":"server/utils/record-write.ts","line":11,"fragment":"import type { WriteOutcome } from '../lib/actions';"}},
+        {"from":"server/utils/record-write.ts","to":"server/utils/index-service.ts","evidence":{"path":"server/utils/record-write.ts","line":12,"fragment":"import { loadIndex } from './index-service';"}},
+        {"from":"cli/check.ts","to":"server/lib/indexer.ts","evidence":{"path":"cli/check.ts","line":3,"fragment":"import { buildIndex } from '../server/lib/indexer';"}},
+        {"from":"cli/check.ts","to":"server/lib/workspace.ts","evidence":{"path":"cli/check.ts","line":4,"fragment":"import { WorkspaceError } from '../server/lib/workspace';"}},
+        {"from":"cli/check.ts","to":"cli/report.ts","evidence":{"path":"cli/check.ts","line":5,"fragment":"import { exitCode, formatJson, formatText } from './report';"}},
+        {"from":"cli/report.ts","to":"server/lib/types.ts","evidence":{"path":"cli/report.ts","line":1,"fragment":"import type { IssueDto, ProjectIndex } from '../server/lib/t"}},
+        {"from":"app/components/IssueList.vue","to":"server/lib/types.ts","evidence":{"path":"app/components/IssueList.vue","line":2,"fragment":"import type { IssueDto } from '~~/server/lib/types';"}},
+        {"from":"app/components/NewRecord.vue","to":"app/composables/useProjectIndex.ts","evidence":{"path":"app/components/NewRecord.vue","line":2,"fragment":"import type { ApiFailure } from '~/composables/useProjectInd"}},
+        {"from":"app/components/NewRecord.vue","to":"server/lib/types.ts","evidence":{"path":"app/components/NewRecord.vue","line":3,"fragment":"import type { IndexRecord } from '~~/server/lib/types';"}},
+        {"from":"app/components/ProjectFailure.vue","to":"app/composables/useProjectIndex.ts","evidence":{"path":"app/components/ProjectFailure.vue","line":2,"fragment":"import type { ApiFailure } from '~/composables/useProjectInd"}},
+        {"from":"app/components/RecordActions.vue","to":"app/composables/useProjectIndex.ts","evidence":{"path":"app/components/RecordActions.vue","line":2,"fragment":"import type { ApiFailure } from '~/composables/useProjectInd"}},
+        {"from":"app/components/RecordActions.vue","to":"server/lib/types.ts","evidence":{"path":"app/components/RecordActions.vue","line":3,"fragment":"import type { RecordAction } from '~~/server/lib/types';"}},
+        {"from":"app/components/RecordLink.vue","to":"server/lib/types.ts","evidence":{"path":"app/components/RecordLink.vue","line":2,"fragment":"import type { IndexRecord } from '~~/server/lib/types';"}},
+        {"from":"app/composables/useProjectIndex.ts","to":"server/lib/types.ts","evidence":{"path":"app/composables/useProjectIndex.ts","line":1,"fragment":"import type { IndexRecord, ProjectEntry, ProjectIndex, Recor"}},
+        {"from":"app/pages/index.vue","to":"app/composables/useProjectIndex.ts","evidence":{"path":"app/pages/index.vue","line":2,"fragment":"import type { ApiFailure } from '~/composables/useProjectInd"}},
+        {"from":"app/pages/index.vue","to":"server/lib/types.ts","evidence":{"path":"app/pages/index.vue","line":3,"fragment":"import type { ProjectEntry } from '~~/server/lib/types';"}},
+        {"from":"app/pages/projects/[id]/import.vue","to":"app/composables/useProjectIndex.ts","evidence":{"path":"app/pages/projects/[id]/import.vue","line":2,"fragment":"import type { ApiFailure } from '~/composables/useProjectInd"}},
+        {"from":"app/pages/projects/[id]/import.vue","to":"server/lib/import.ts","evidence":{"path":"app/pages/projects/[id]/import.vue","line":3,"fragment":"import type { SurveyRow } from '~~/server/lib/import';"}},
+        {"from":"app/pages/projects/[id]/index.vue","to":"server/lib/types.ts","evidence":{"path":"app/pages/projects/[id]/index.vue","line":2,"fragment":"import type { IndexRecord } from '~~/server/lib/types';"}},
+        {"from":"app/pages/projects/[id]/maps.vue","to":"app/composables/useProjectIndex.ts","evidence":{"path":"app/pages/projects/[id]/maps.vue","line":2,"fragment":"import type { ApiFailure } from '~/composables/useProjectInd"}},
+        {"from":"app/pages/projects/[id]/maps.vue","to":"server/lib/maps.ts","evidence":{"path":"app/pages/projects/[id]/maps.vue","line":3,"fragment":"import type { ProjectMap } from '~~/server/lib/maps';"}},
+        {"from":"app/pages/projects/[id]/records/[recordId].vue","to":"server/lib/types.ts","evidence":{"path":"app/pages/projects/[id]/records/[recordId].vue","line":2,"fragment":"import type { LinkKind } from '~~/server/lib/types';"}},
+        {"from":"app/pages/projects/[id]/requirements.vue","to":"server/lib/types.ts","evidence":{"path":"app/pages/projects/[id]/requirements.vue","line":2,"fragment":"import type { IndexRecord } from '~~/server/lib/types';"}},
+        {"from":"app/utils/graph-layout.ts","to":"server/lib/types.ts","evidence":{"path":"app/utils/graph-layout.ts","line":3,"fragment":"import type { IndexRecord, LinkKind } from '../../server/lib"}},
+        {"from":"app/utils/labels.ts","to":"server/lib/types.ts","evidence":{"path":"app/utils/labels.ts","line":1,"fragment":"import type { Severity } from '~~/server/lib/types';"}},
+        {"from":"app/utils/map-mermaid.ts","to":"server/lib/maps.ts","evidence":{"path":"app/utils/map-mermaid.ts","line":1,"fragment":"import type { ProjectMap } from '../../server/lib/maps';"}}
+      ]
+    }
+}
+```
+
+## Потоки данных
+
+```docdd-dataflow
+{
+    "added": {
+      "sources": [
+        {"id":"project-files","kind":"file","where":"docs/development выбранного проекта","title":"Файлы проекта"},
+        {"id":"index-cache","kind":"file","where":".docdd/index.json","title":"Кэш индекса"},
+        {"id":"projects-list","kind":"file","where":".data/projects.json","title":"Список проектов"}
+      ],
+      "flows": [
+        {"from":"server/api/projects/[id]/file.get.ts","to":"project-files","direction":"read","evidence":{"path":"server/api/projects/[id]/file.get.ts","line":1,"fragment":"import { readFileSync, statSync } from 'node:fs';"}},
+        {"from":"server/api/projects/[id]/import/index.get.ts","to":"project-files","direction":"read","evidence":{"path":"server/api/projects/[id]/import/index.get.ts","line":1,"fragment":"import { existsSync, readFileSync, readdirSync, statSync } f"}},
+        {"from":"server/api/projects/[id]/import/index.post.ts","to":"project-files","direction":"read","evidence":{"path":"server/api/projects/[id]/import/index.post.ts","line":1,"fragment":"import { existsSync, mkdirSync, readFileSync, renameSync, wr"}},
+        {"from":"server/api/projects/[id]/import/index.post.ts","to":"project-files","direction":"write","evidence":{"path":"server/api/projects/[id]/import/index.post.ts","line":69,"fragment":"mkdirSync(dirname(to), { recursive: true });"}},
+        {"from":"server/api/projects/[id]/records/[recordId].get.ts","to":"project-files","direction":"read","evidence":{"path":"server/api/projects/[id]/records/[recordId].get.ts","line":1,"fragment":"import { readFileSync } from 'node:fs';"}},
+        {"from":"server/api/projects/[id]/records/index.post.ts","to":"project-files","direction":"read","evidence":{"path":"server/api/projects/[id]/records/index.post.ts","line":1,"fragment":"import { existsSync, mkdirSync, writeFileSync } from 'node:f"}},
+        {"from":"server/api/projects/[id]/records/index.post.ts","to":"project-files","direction":"write","evidence":{"path":"server/api/projects/[id]/records/index.post.ts","line":64,"fragment":"mkdirSync(dirname(absolute), { recursive: true });"}},
+        {"from":"server/api/projects/init.post.ts","to":"project-files","direction":"read","evidence":{"path":"server/api/projects/init.post.ts","line":1,"fragment":"import { existsSync, mkdirSync, writeFileSync } from 'node:f"}},
+        {"from":"server/api/projects/init.post.ts","to":"project-files","direction":"write","evidence":{"path":"server/api/projects/init.post.ts","line":57,"fragment":"mkdirSync(development, { recursive: true });"}},
+        {"from":"server/lib/cache.ts","to":"project-files","direction":"read","evidence":{"path":"server/lib/cache.ts","line":1,"fragment":"import { mkdirSync, readFileSync, rmSync, writeFileSync } fr"}},
+        {"from":"server/lib/cache.ts","to":"index-cache","direction":"both","evidence":{"path":"server/lib/cache.ts","line":16,"fragment":"return join(normalizeRoot(root), '.docdd', 'index.json');"}},
+        {"from":"server/lib/cache.ts","to":"project-files","direction":"write","evidence":{"path":"server/lib/cache.ts","line":37,"fragment":"mkdirSync(dirname(path), { recursive: true });"}},
+        {"from":"server/lib/workspace.ts","to":"project-files","direction":"read","evidence":{"path":"server/lib/workspace.ts","line":1,"fragment":"import { existsSync, readFileSync, readdirSync, statSync } f"}},
+        {"from":"server/utils/projects.ts","to":"projects-list","direction":"both","evidence":{"path":"server/utils/projects.ts","line":12,"fragment":"return useStorage('data');"}},
+        {"from":"server/utils/record-write.ts","to":"project-files","direction":"read","evidence":{"path":"server/utils/record-write.ts","line":1,"fragment":"import { readFileSync, writeFileSync } from 'node:fs';"}},
+        {"from":"server/utils/record-write.ts","to":"project-files","direction":"write","evidence":{"path":"server/utils/record-write.ts","line":80,"fragment":"writeFileSync(context.absolute, outcome.text, 'utf8');"}}
+      ]
+    }
+}
+```
+
+## Пользовательские пути
+
+```docdd-userflow
+{
+    "added": {
+      "screens": [
+        {"id":"/","title":"index","file":"app/pages/index.vue"},
+        {"id":"/projects/:id/graph","title":"graph","file":"app/pages/projects/[id]/graph.vue"},
+        {"id":"/projects/:id/import","title":"import","file":"app/pages/projects/[id]/import.vue"},
+        {"id":"/projects/:id","title":"index","file":"app/pages/projects/[id]/index.vue"},
+        {"id":"/projects/:id/issues","title":"issues","file":"app/pages/projects/[id]/issues.vue"},
+        {"id":"/projects/:id/maps","title":"maps","file":"app/pages/projects/[id]/maps.vue"},
+        {"id":"/projects/:id/records/:recordId","title":"[recordId]","file":"app/pages/projects/[id]/records/[recordId].vue"},
+        {"id":"/projects/:id/requirements","title":"requirements","file":"app/pages/projects/[id]/requirements.vue"},
+        {"id":"/projects/:id/tasks","title":"tasks","file":"app/pages/projects/[id]/tasks.vue"}
+      ],
+      "transitions": [
+        {"from":"/","to":"/projects/:id","trigger":"ссылка","evidence":{"path":"app/pages/index.vue","line":155,"fragment":"<NuxtLink :to=\"`/projects/${project.id}`\" class=\"font-medium"}},
+        {"from":"/projects/:id/graph","to":"/projects/:id/records/:id","trigger":"ссылка","evidence":{"path":"app/pages/projects/[id]/graph.vue","line":89,"fragment":"<NuxtLink :to=\"`/projects/${projectId}/records/${node.id}`\">"}},
+        {"from":"/projects/:id/import","to":"/projects/:id/records/:id","trigger":"ссылка","evidence":{"path":"app/pages/projects/[id]/import.vue","line":190,"fragment":":to=\"`/projects/${projectId}/records/${item.id}`\""}},
+        {"from":"/projects/:id","to":"/projects/:id/issues","trigger":"ссылка","evidence":{"path":"app/pages/projects/[id]/index.vue","line":67,"fragment":"<NuxtLink :to=\"`/projects/${projectId}/issues`\" class=\"block"}},
+        {"from":"/projects/:id","to":"/projects/:id/tasks","trigger":"ссылка","evidence":{"path":"app/pages/projects/[id]/index.vue","line":83,"fragment":"<NuxtLink :to=\"`/projects/${projectId}/tasks`\" class=\"block\""}},
+        {"from":"/projects/:id","to":"/projects/:id/records/:recordId","trigger":"ссылка","evidence":{"path":"app/pages/projects/[id]/index.vue","line":138,"fragment":":to=\"`/projects/${projectId}/records/${issue.recordId}`\""}},
+        {"from":"/projects/:id/requirements","to":"/projects/:id/records/:id","trigger":"ссылка","evidence":{"path":"app/pages/projects/[id]/requirements.vue","line":78,"fragment":":to=\"`/projects/${projectId}/records/${id}`\""}},
+        {"from":"/projects/:id/tasks","to":"/projects/:id/records/:id","trigger":"ссылка","evidence":{"path":"app/pages/projects/[id]/tasks.vue","line":81,"fragment":":to=\"`/projects/${projectId}/records/${id}`\""}}
+      ],
+      "calls": [
+        {"from":"/","to":"POST /api/projects/init","evidence":{"path":"app/pages/index.vue","line":31,"fragment":"const response = await $fetch<ProjectEntry | { error: ApiFai"}},
+        {"from":"/","to":"POST /api/projects","evidence":{"path":"app/pages/index.vue","line":55,"fragment":"const response = await $fetch<ProjectEntry | { error: ApiFai"}},
+        {"from":"/","to":"DELETE /api/projects/:id","evidence":{"path":"app/pages/index.vue","line":79,"fragment":"await $fetch(`/api/projects/${id}`, { method: 'DELETE', igno"}},
+        {"from":"/projects/:id/import","to":"POST /api/projects/:id/import","evidence":{"path":"app/pages/projects/[id]/import.vue","line":63,"fragment":"const response = await $fetch(`/api/projects/${projectId.val"}}
+      ]
+    }
+}
+```
+
+## Журнал
+
+- 2026-08-31 · заведена · приложение

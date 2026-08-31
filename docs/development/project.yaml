@@ -1,0 +1,29 @@
+contract: docdd.workspace/1
+project:
+  id: docdd-console
+  name: DocDD Console
+  description: Инструмент контроля разработки по правилу «документ ведёт код»
+paths:
+  requirements: requirements
+  design: design
+  decisions: decisions
+  contracts: contracts
+  tasks: tasks
+  phases: phases
+  tests: tests
+  diagrams: diagrams
+  maps: maps
+sources:
+  # Код, на который ссылаются документы и свидетельства карт.
+  code: [server, cli, app]
+  # Проектные документы этого репозитория лежат в docs/ и записями пока не стали.
+  docs: []
+  # Клиентская часть: по ней строится карта пользовательских путей.
+  client: [app]
+roles:
+  - id: architect
+    name: Архитектор
+policy:
+  require_approved_docs_before_dev: true
+  require_verification_before_done: true
+  stale_in_progress_days: 14
