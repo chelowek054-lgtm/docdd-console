@@ -60,6 +60,9 @@ const bodyWithoutJournal = computed(() => {
 
 const extraFields = computed(() => Object.entries(detail.value?.record.extra ?? {}));
 
+/** Блоки из текста рисует сам текст; отдельной карточкой — только файлы `.mmd`. */
+const fileDiagrams = computed(() => (detail.value?.diagrams ?? []).filter((diagram) => diagram.kind === 'file'));
+
 function entries(
   source: Partial<Record<LinkKind, string[]>>,
   labels: Record<LinkKind, string>
@@ -107,23 +110,20 @@ function entries(
             <template #header>
               <h2 class="font-medium">Текст документа</h2>
             </template>
-            <!-- Разметка markdown приходит в фазе 4 вместе с диаграммами; пока
-                 текст показывается как есть, чтобы ничего не потерять. -->
-            <pre class="whitespace-pre-wrap break-words text-sm">{{ bodyWithoutJournal.trim() }}</pre>
+            <DocumentText :body="bodyWithoutJournal" />
           </UCard>
 
-          <UCard v-if="detail.diagrams.length">
+          <UCard v-if="fileDiagrams.length">
             <template #header>
               <h2 class="font-medium">Диаграммы</h2>
             </template>
             <p class="mb-3 text-sm text-muted">
-              Найдено {{ plural(detail.diagrams.length, 'диаграмма', 'диаграммы', 'диаграмм') }}.
-              Отрисовка появится в фазе 4 — пока виден исходный текст.
+              Диаграммы из отдельных файлов <code>.mmd</code>: блоки внутри текста
+              нарисованы там же, где стоят.
             </p>
-            <div v-for="(diagram, at) in detail.diagrams" :key="at" class="mb-3">
+            <div v-for="(diagram, at) in fileDiagrams" :key="at" class="mb-3">
               <p class="text-xs text-muted">
-                {{ diagram.kind === 'inline' ? 'блок в документе' : diagram.path }}
-                <span v-if="diagram.caption"> · {{ diagram.caption }}</span>
+                {{ diagram.path }}<span v-if="diagram.caption"> · {{ diagram.caption }}</span>
               </p>
               <UAlert
                 v-if="diagram.error"
@@ -132,7 +132,7 @@ function entries(
                 :title="diagram.error"
                 description="Ошибка диаграммы не мешает читать документ."
               />
-              <pre v-else class="mt-1 overflow-x-auto rounded bg-elevated p-3 text-xs">{{ diagram.source }}</pre>
+              <MermaidDiagram v-else :source="diagram.source" :id="`file-${at}`" />
             </div>
           </UCard>
         </div>

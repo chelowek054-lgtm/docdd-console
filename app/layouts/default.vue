@@ -11,7 +11,8 @@ const links = computed(() => {
     { label: 'Обзор', to: base },
     { label: 'Задачи', to: `${base}/tasks` },
     { label: 'Требования', to: `${base}/requirements` },
-    { label: 'Нарушения', to: `${base}/issues` }
+    { label: 'Нарушения', to: `${base}/issues` },
+    { label: 'Граф', to: `${base}/graph` }
   ];
 });
 </script>
