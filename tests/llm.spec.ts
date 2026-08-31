@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import { fixPrompt, mapsPrompt, ISSUES_MARKER, STATE_MARKER } from '../server/lib/prompt';
 import type { IssueDto } from '../server/lib/types';
-import { ask, unfence, type Runner } from '../server/utils/llm';
+import { ask, availability, unfence, type Runner } from '../server/utils/llm';
 
 /**
  * Модуль доступа к модели и сборка запросов. Настоящий вызов здесь не делается
@@ -87,6 +87,39 @@ describe('ask', () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.failure.code).toBe('failed');
+  });
+});
+
+describe('availability', () => {
+  it('находит Claude Code в PATH: иначе кнопка гаснет у тех, у кого всё в порядке', () => {
+    const dir = fileURLToPath(new URL('./fixtures/fake-bin/', import.meta.url));
+    const saved = process.env['PATH'];
+    const savedExplicit = process.env['DOCDD_CLAUDE_PATH'];
+    try {
+      delete process.env['DOCDD_CLAUDE_PATH'];
+      process.env['PATH'] = dir;
+      const found = availability();
+      expect(found.available).toBe(true);
+      expect(found.command).toContain('claude');
+    } finally {
+      if (saved !== undefined) process.env['PATH'] = saved;
+      if (savedExplicit !== undefined) process.env['DOCDD_CLAUDE_PATH'] = savedExplicit;
+    }
+  });
+
+  it('не найден — это состояние с объяснением, а не пустой отказ', () => {
+    const saved = process.env['PATH'];
+    const savedExplicit = process.env['DOCDD_CLAUDE_PATH'];
+    try {
+      delete process.env['DOCDD_CLAUDE_PATH'];
+      process.env['PATH'] = fileURLToPath(new URL('./fixtures/', import.meta.url));
+      const found = availability();
+      expect(found.available).toBe(false);
+      expect(found.reason).toContain('DOCDD_CLAUDE_PATH');
+    } finally {
+      if (saved !== undefined) process.env['PATH'] = saved;
+      if (savedExplicit !== undefined) process.env['DOCDD_CLAUDE_PATH'] = savedExplicit;
+    }
   });
 });
 

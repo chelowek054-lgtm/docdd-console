@@ -59,13 +59,37 @@ export function availability(): Availability {
   for (const path of candidates()) {
     if (existsSync(path)) return { available: true, command: path };
   }
-  // В PATH его тоже стоит поискать, но проверить существование нечем:
-  // положимся на запуск и его ошибку.
+  // Обычная установка кладёт `claude` в PATH, и не найти его там значило бы
+  // погасить кнопку у тех, у кого всё в порядке.
+  const inPath = lookupPath();
+  if (inPath) return { available: true, command: inPath };
+
   return {
     available: false,
     command: 'claude',
     reason: 'Claude Code не найден. Установите его или назовите путь в переменной окружения DOCDD_CLAUDE_PATH — тогда запрос можно будет отправить кнопкой. Без него текст запроса копируется в буфер.'
   };
+}
+
+/**
+ * Поиск в PATH. На Windows исполняемость определяется расширением из PATHEXT,
+ * на остальных — самим файлом; проверять права не берёмся, ошибка запуска
+ * скажет точнее.
+ */
+function lookupPath(): string | null {
+  const dirs = (env['PATH'] ?? env['Path'] ?? '').split(platform === 'win32' ? ';' : ':');
+  const extensions = platform === 'win32'
+    ? (env['PATHEXT'] ?? '.COM;.EXE;.BAT;.CMD').split(';').map((item) => item.toLowerCase())
+    : [''];
+
+  for (const dir of dirs) {
+    if (!dir) continue;
+    for (const extension of extensions) {
+      const candidate = join(dir, `claude${extension}`);
+      if (existsSync(candidate)) return candidate;
+    }
+  }
+  return null;
 }
 
 export interface AskOptions {
