@@ -49,6 +49,15 @@ export interface MapsState {
   /** Каталоги, объявленные в манифесте: где модели искать код и клиент. */
   code: readonly string[];
   client: readonly string[];
+  /** Опись: что описывать сейчас и сколько осталось (docs/07-maps.md). */
+  inventory?: {
+    total: number;
+    describedCount: number;
+    next: readonly string[];
+    gone: readonly string[];
+    changed: readonly string[];
+    left: number;
+  };
 }
 
 /** Место, куда подставляется форма блоков карты. */
@@ -65,6 +74,30 @@ export function mapsPrompt(template: string, state: MapsState, schemas = ''): st
   lines.push('');
   lines.push(`Код лежит в: ${listOf(state.code)}.`);
   lines.push(`Клиентская часть: ${listOf(state.client)}.`);
+
+  const inventory = state.inventory;
+  if (inventory) {
+    lines.push('', '## Что описывать', '');
+    lines.push(
+      `Файлов кода: ${inventory.total}, из них описано подтверждёнными картами ${inventory.describedCount}.`
+    );
+    lines.push('');
+    lines.push('**Опиши ровно эти файлы и ничего сверх них** — остальные уже описаны, и переописывать их не надо:', '');
+    for (const path of inventory.next) lines.push(`- \`${path}\``);
+
+    if (inventory.left > 0) {
+      lines.push('', `Это порция: после неё останется ещё ${inventory.left} файлов. Их опишет следующий заход — не пытайся охватить всё разом.`);
+    }
+
+    if (inventory.changed.length > 0) {
+      lines.push('', `Из них изменились после описания: ${inventory.changed.map((path) => '`' + path + '`').join(', ')}. Про них карта сейчас говорит неправду.`);
+    }
+
+    if (inventory.gone.length > 0) {
+      lines.push('', '**Этих файлов больше нет** — объяви убранным всё, что на них опиралось:', '');
+      for (const path of inventory.gone.slice(0, 40)) lines.push(`- \`${path}\``);
+    }
+  }
 
   if (state.unverified.length > 0) {
     lines.push('', '## Что перестало сходиться', '');

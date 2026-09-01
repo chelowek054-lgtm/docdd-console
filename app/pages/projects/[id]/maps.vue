@@ -114,6 +114,8 @@ async function copySource() {
         </UButton>
       </div>
 
+      <MapInventory :project-id="projectId" />
+
       <PromptPanel
         :project-id="projectId"
         kind="maps"

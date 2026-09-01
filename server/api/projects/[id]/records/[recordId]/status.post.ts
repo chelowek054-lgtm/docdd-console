@@ -4,6 +4,7 @@ import { applyStatusChange } from '../../../../../lib/actions';
 import { OutsideRootError } from '../../../../../lib/paths';
 import { WorkspaceError } from '../../../../../lib/workspace';
 import { fail, failWith } from '../../../../../utils/http';
+import { markDescribed } from '../../../../../utils/inventory-service';
 import { findProject } from '../../../../../utils/projects';
 import { openRecord, saveRecord, today, transitionBlockers } from '../../../../../utils/record-write';
 
@@ -58,6 +59,12 @@ export default defineEventHandler(async (event) => {
         'Запись отменена: изменение затронуло бы не только разрешённые поля',
         saved.problems.map((message) => ({ code: 'guard', message }))
       );
+    }
+
+    // Карту подтвердили — значит описанное ею закрыто: отмечаем отпечатки,
+    // чтобы следующий заход не переописывал те же файлы (docs/07-maps.md).
+    if (saved.record.type === 'map' && status === 'approved') {
+      markDescribed(project.root, outcome.text);
     }
 
     return { record: saved.record, journal: outcome.journal };

@@ -1,0 +1,170 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import { describedBy, inventoryState, worthAsking, type FileMark } from '../server/lib/inventory';
+import { parseMapRecord } from '../server/lib/maps';
+import { fingerprint, inventoryOf, markDescribed } from '../server/utils/inventory-service';
+
+/**
+ * Опись файлов (docs/07-maps.md, раздел «Опись файлов»). Ради неё всё и
+ * затевалось: описанное не переописывается, пустой проект называется пустым,
+ * а неподтверждённый черновик не съедает файлы из очереди.
+ */
+
+const LF = String.fromCharCode(10);
+
+const marks = (...paths: [string, string][]): FileMark[] =>
+  paths.map(([path, hash]) => ({ path, hash }));
+
+describe('состояние описи', () => {
+  it('неописанный файл ждёт очереди', () => {
+    const state = inventoryState(marks(['a.ts', 'h1'], ['b.ts', 'h2']), { 'a.ts': 'h1' });
+
+    expect(state.total).toBe(2);
+    expect(state.described).toEqual(['a.ts']);
+    expect(state.pending).toEqual(['b.ts']);
+  });
+
+  it('изменившийся после описания — не описанный: карта про него врёт', () => {
+    const state = inventoryState(marks(['a.ts', 'другой']), { 'a.ts': 'h1' });
+
+    expect(state.changed).toEqual(['a.ts']);
+    expect(state.described).toEqual([]);
+  });
+
+  it('исчезнувший файл назван отдельно: его надо объявить убранным', () => {
+    const state = inventoryState(marks(['a.ts', 'h1']), { 'a.ts': 'h1', 'ушёл.ts': 'h9' });
+    expect(state.gone).toEqual(['ушёл.ts']);
+  });
+
+  it('порция берёт изменившееся вперёд неописанного', () => {
+    const state = inventoryState(
+      marks(['новый.ts', 'h1'], ['старый.ts', 'изменился']),
+      { 'старый.ts': 'было' },
+      1
+    );
+
+    // Про изменившийся карта врёт прямо сейчас — он важнее.
+    expect(state.next).toEqual(['старый.ts']);
+  });
+
+  it('порция ограничивает запрос, а не список', () => {
+    const many = Array.from({ length: 100 }, (_, index) => [`f${index}.ts`, 'h'] as [string, string]);
+    const state = inventoryState(marks(...many), {}, 40);
+
+    expect(state.pending).toHaveLength(100);
+    expect(state.next).toHaveLength(40);
+  });
+
+  it('пустому проекту нечего описывать', () => {
+    const state = inventoryState([], {});
+    expect(state.total).toBe(0);
+    expect(worthAsking(state)).toBe(false);
+  });
+
+  it('всё описано и не менялось — к модели идти незачем', () => {
+    const state = inventoryState(marks(['a.ts', 'h1']), { 'a.ts': 'h1' });
+    expect(worthAsking(state)).toBe(false);
+  });
+
+  it('исчезнувшее одно уже повод спросить: карта помнит то, чего нет', () => {
+    const state = inventoryState(marks(['a.ts', 'h1']), { 'a.ts': 'h1', 'ушёл.ts': 'h9' });
+    expect(worthAsking(state)).toBe(true);
+  });
+});
+
+describe('охват карты', () => {
+  it('файлы берутся из модулей, свидетельств, источников и экранов', () => {
+    const body = [
+      '```docdd-codemap',
+      JSON.stringify({
+        added: {
+          modules: [{ id: 'src/a.ts' }],
+          imports: [{ from: 'src/a.ts', to: 'src/b.ts', evidence: { path: 'src/a.ts', line: 1, fragment: "from './b'" } }]
+        }
+      }),
+      '```',
+      '```docdd-userflow',
+      JSON.stringify({ added: { screens: [{ id: '/', file: 'app/pages/index.vue' }] } }),
+      '```'
+    ].join(LF);
+
+    const described = describedBy(parseMapRecord(body).change);
+    expect(described).toContain('src/a.ts');
+    expect(described).toContain('app/pages/index.vue');
+    // Модуль назван, но сам файл `src/b.ts` только упомянут связью — он не описан.
+    expect(described).not.toContain('src/b.ts');
+  });
+});
+
+describe('опись настоящего проекта', () => {
+  let root = '';
+
+  beforeAll(() => {
+    root = mkdtempSync(join(tmpdir(), 'docdd-inv-'));
+    mkdirSync(join(root, 'docs', 'development'), { recursive: true });
+    mkdirSync(join(root, 'src'), { recursive: true });
+
+    writeFileSync(join(root, 'docs', 'development', 'project.yaml'), [
+      'contract: docdd.workspace/1',
+      'project:',
+      '  id: demo',
+      '  name: Demo',
+      'paths:',
+      '  design: design',
+      'sources:',
+      '  code: [src]',
+      ''
+    ].join(LF), 'utf8');
+
+    writeFileSync(join(root, 'src', 'a.ts'), 'export const a = 1;' + LF, 'utf8');
+    writeFileSync(join(root, 'src', 'b.ts'), 'export const b = 2;' + LF, 'utf8');
+  });
+
+  afterAll(() => {
+    try {
+      rmSync(root, { recursive: true, force: true });
+    } catch {
+      // Прибирать не обязательно.
+    }
+  });
+
+  it('видит файлы кода и считает их неописанными', () => {
+    const state = inventoryOf(root);
+    expect(state.total).toBe(2);
+    expect(state.pending.sort()).toEqual(['src/a.ts', 'src/b.ts']);
+  });
+
+  it('подтверждённая карта закрывает свои файлы, а не все', () => {
+    const body = [
+      '```docdd-codemap',
+      JSON.stringify({ added: { modules: [{ id: 'src/a.ts' }] } }),
+      '```'
+    ].join(LF);
+
+    expect(markDescribed(root, body)).toBe(1);
+
+    const state = inventoryOf(root);
+    expect(state.described).toEqual(['src/a.ts']);
+    expect(state.pending).toEqual(['src/b.ts']);
+  });
+
+  it('правка описанного файла возвращает его в очередь', () => {
+    writeFileSync(join(root, 'src', 'a.ts'), 'export const a = 42;' + LF, 'utf8');
+
+    const state = inventoryOf(root);
+    expect(state.changed).toEqual(['src/a.ts']);
+    // И он пойдёт в ближайший запрос: карта про него говорит неправду.
+    expect(state.next[0]).toBe('src/a.ts');
+  });
+});
+
+describe('отпечаток', () => {
+  it('меняется вместе с содержимым и совпадает у одинакового', () => {
+    expect(fingerprint('текст')).toBe(fingerprint('текст'));
+    expect(fingerprint('текст')).not.toBe(fingerprint('текст.'));
+  });
+});

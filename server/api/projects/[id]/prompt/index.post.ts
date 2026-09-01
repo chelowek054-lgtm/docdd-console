@@ -5,6 +5,8 @@ import { useStorage } from 'nitropack/runtime';
 import { checkEvidence, evidenceClaims, parseMapRecord } from '../../../../lib/maps';
 import { fixPrompt, mapsPrompt, type MapsState } from '../../../../lib/prompt';
 import { mapSchemas } from '../../../../lib/map-schemas';
+import { worthAsking } from '../../../../lib/inventory';
+import { inventoryOf } from '../../../../utils/inventory-service';
 import { readWorkspace, sourceReader, WorkspaceError } from '../../../../lib/workspace';
 import { fail } from '../../../../utils/http';
 import { loadIndex } from '../../../../utils/index-service';
@@ -44,9 +46,31 @@ export default defineEventHandler(async (event) => {
     }
 
     if (kind === 'maps') {
+      const inventory = inventoryOf(project.root);
+
+      // Пустой проект — состояние, а не ошибка, и говорить о нём надо словами.
+      // К модели не идём: запрос стоит времени и денег (docs/07-maps.md).
+      if (inventory.total === 0) {
+        return fail(event, 422, 'project_empty', 'В проекте нет файлов кода: описывать нечего. Проверьте `sources.code` в манифесте');
+      }
+      if (!worthAsking(inventory)) {
+        return fail(event, 422, 'nothing_to_describe', `Все ${inventory.total} файлов описаны подтверждёнными картами и с тех пор не менялись`);
+      }
+
+      const state = await mapsState(project.root);
       return {
-        prompt: mapsPrompt(await template('update-maps.md'), await mapsState(project.root), mapSchemas()),
-        count: 0
+        prompt: mapsPrompt(await template('update-maps.md'), {
+          ...state,
+          inventory: {
+            total: inventory.total,
+            describedCount: inventory.described.length,
+            next: inventory.next,
+            gone: inventory.gone,
+            changed: inventory.changed.filter((path) => inventory.next.includes(path)),
+            left: inventory.pending.length + inventory.changed.length - inventory.next.length
+          }
+        }, mapSchemas()),
+        count: inventory.next.length
       };
     }
 

@@ -37,6 +37,7 @@ updated: 2026-08-31
         {"id":"app/components/DocumentText.vue","title":"DocumentText","layer":"компоненты"},
         {"id":"app/components/FixWork.vue","title":"FixWork","layer":"компоненты"},
         {"id":"app/components/IssueList.vue","title":"IssueList","layer":"компоненты"},
+        {"id":"app/components/MapInventory.vue","title":"MapInventory","layer":"компоненты"},
         {"id":"app/components/MermaidDiagram.vue","title":"MermaidDiagram","layer":"компоненты"},
         {"id":"app/components/ModelLog.vue","title":"ModelLog","layer":"компоненты"},
         {"id":"app/components/ModelProgress.vue","title":"ModelProgress","layer":"компоненты"},
@@ -74,6 +75,7 @@ updated: 2026-08-31
         {"id":"server/api/projects/[id]/import/index.post.ts","title":"index.post","layer":"маршруты"},
         {"id":"server/api/projects/[id]/index/index.get.ts","title":"index.get","layer":"маршруты"},
         {"id":"server/api/projects/[id]/map/index.get.ts","title":"index.get","layer":"маршруты"},
+        {"id":"server/api/projects/[id]/map/inventory.get.ts","title":"inventory.get","layer":"маршруты"},
         {"id":"server/api/projects/[id]/records/[recordId].get.ts","title":"[recordId].get","layer":"маршруты"},
         {"id":"server/api/projects/[id]/records/[recordId].patch.ts","title":"[recordId].patch","layer":"маршруты"},
         {"id":"server/api/projects/[id]/records/[recordId]/status.post.ts","title":"status.post","layer":"маршруты"},
@@ -91,6 +93,7 @@ updated: 2026-08-31
         {"id":"server/lib/graph.ts","title":"graph","layer":"ядро"},
         {"id":"server/lib/import.ts","title":"import","layer":"ядро"},
         {"id":"server/lib/indexer.ts","title":"indexer","layer":"ядро"},
+        {"id":"server/lib/inventory.ts","title":"inventory","layer":"ядро"},
         {"id":"server/lib/map-schemas.ts","title":"map-schemas","layer":"ядро"},
         {"id":"server/lib/maps.ts","title":"maps","layer":"ядро"},
         {"id":"server/lib/parse.ts","title":"parse","layer":"ядро"},
@@ -110,6 +113,7 @@ updated: 2026-08-31
         {"id":"server/utils/git.ts","title":"git","layer":"серверные утилиты"},
         {"id":"server/utils/http.ts","title":"http","layer":"серверные утилиты"},
         {"id":"server/utils/index-service.ts","title":"index-service","layer":"серверные утилиты"},
+        {"id":"server/utils/inventory-service.ts","title":"inventory-service","layer":"серверные утилиты"},
         {"id":"server/utils/map-service.ts","title":"map-service","layer":"серверные утилиты"},
         {"id":"server/utils/projects.ts","title":"projects","layer":"серверные утилиты"},
         {"id":"server/utils/record-write.ts","title":"record-write","layer":"серверные утилиты"},
@@ -196,6 +200,10 @@ updated: 2026-08-31
         {"from":"server/api/projects/[id]/map/index.get.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/projects/[id]/map/index.get.ts","line":5,"fragment":"import { fail } from '../../../../utils/http';"}},
         {"from":"server/api/projects/[id]/map/index.get.ts","to":"server/utils/map-service.ts","evidence":{"path":"server/api/projects/[id]/map/index.get.ts","line":6,"fragment":"import { buildProjectMap } from '../../../../utils/map-servi"}},
         {"from":"server/api/projects/[id]/map/index.get.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/[id]/map/index.get.ts","line":7,"fragment":"import { findProject } from '../../../../utils/projects';"}},
+        {"from":"server/api/projects/[id]/map/inventory.get.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/api/projects/[id]/map/inventory.get.ts","line":3,"fragment":"import { WorkspaceError } from '../../../../lib/workspace';"}},
+        {"from":"server/api/projects/[id]/map/inventory.get.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/projects/[id]/map/inventory.get.ts","line":4,"fragment":"import { fail } from '../../../../utils/http';"}},
+        {"from":"server/api/projects/[id]/map/inventory.get.ts","to":"server/utils/inventory-service.ts","evidence":{"path":"server/api/projects/[id]/map/inventory.get.ts","line":5,"fragment":"import { inventoryOf } from '../../../../utils/inventory-ser"}},
+        {"from":"server/api/projects/[id]/map/inventory.get.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/[id]/map/inventory.get.ts","line":6,"fragment":"import { findProject } from '../../../../utils/projects';"}},
         {"from":"server/api/projects/[id]/prompt/index.post.ts","to":"server/lib/map-schemas.ts","evidence":{"path":"server/api/projects/[id]/prompt/index.post.ts","line":7,"fragment":"import { mapSchemas } from '../../../../lib/map-schemas';"}},
         {"from":"server/api/projects/[id]/prompt/index.post.ts","to":"server/lib/maps.ts","evidence":{"path":"server/api/projects/[id]/prompt/index.post.ts","line":5,"fragment":"import { checkEvidence, evidenceClaims, parseMapRecord } fro"}},
         {"from":"server/api/projects/[id]/prompt/index.post.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/api/projects/[id]/prompt/index.post.ts","line":8,"fragment":"import { readWorkspace, sourceReader, WorkspaceError } from "}},
@@ -225,6 +233,7 @@ updated: 2026-08-31
         {"from":"server/api/projects/[id]/records/[recordId]/status.post.ts","to":"server/lib/paths.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/status.post.ts","line":4,"fragment":"import { OutsideRootError } from '../../../../../lib/paths';"}},
         {"from":"server/api/projects/[id]/records/[recordId]/status.post.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/status.post.ts","line":5,"fragment":"import { WorkspaceError } from '../../../../../lib/workspace"}},
         {"from":"server/api/projects/[id]/records/[recordId]/status.post.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/status.post.ts","line":6,"fragment":"import { fail, failWith } from '../../../../../utils/http';"}},
+        {"from":"server/api/projects/[id]/records/[recordId]/status.post.ts","to":"server/utils/inventory-service.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/status.post.ts","line":7,"fragment":"import { markDescribed } from '../../../../../utils/inventor"}},
         {"from":"server/api/projects/[id]/records/[recordId]/status.post.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/status.post.ts","line":7,"fragment":"import { findProject } from '../../../../../utils/projects';"}},
         {"from":"server/api/projects/[id]/records/[recordId]/status.post.ts","to":"server/utils/record-write.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/status.post.ts","line":8,"fragment":"import { openRecord, saveRecord, today, transitionBlockers }"}},
         {"from":"server/api/projects/[id]/records/[recordId]/work/index.get.ts","to":"server/lib/paths.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/work/index.get.ts","line":5,"fragment":"import { normalizeRoot } from '../../../../../../lib/paths';"}},
@@ -281,6 +290,7 @@ updated: 2026-08-31
         {"from":"server/lib/indexer.ts","to":"server/lib/reports.ts","evidence":{"path":"server/lib/indexer.ts","line":3,"fragment":"import { latestVerificationDetails } from './reports';"}},
         {"from":"server/lib/indexer.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/indexer.ts","line":12,"fragment":"import { LINK_KINDS } from './types';"}},
         {"from":"server/lib/indexer.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/lib/indexer.ts","line":13,"fragment":"import { readWorkspace, sourceReader, type Workspace } from "}},
+        {"from":"server/lib/inventory.ts","to":"server/lib/maps.ts","evidence":{"path":"server/lib/inventory.ts","line":1,"fragment":"import type { MapChange } from './maps';"}},
         {"from":"server/lib/map-schemas.ts","to":"server/lib/schema-digest.ts","evidence":{"path":"server/lib/map-schemas.ts","line":6,"fragment":"import { schemaDigest } from './schema-digest';"}},
         {"from":"server/lib/maps.ts","to":"server/lib/schema.ts","evidence":{"path":"server/lib/maps.ts","line":1,"fragment":"import { validateCodemap, validateDataflow, validateUserflow"}},
         {"from":"server/lib/reports.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/reports.ts","line":1,"fragment":"import type { Report, VerificationOutcome, VerificationResul"}},
@@ -311,6 +321,11 @@ updated: 2026-08-31
         {"from":"server/utils/index-service.ts","to":"server/lib/indexer.ts","evidence":{"path":"server/utils/index-service.ts","line":2,"fragment":"import { buildIndex } from '../lib/indexer';"}},
         {"from":"server/utils/index-service.ts","to":"server/lib/types.ts","evidence":{"path":"server/utils/index-service.ts","line":3,"fragment":"import type { ProjectIndex } from '../lib/types';"}},
         {"from":"server/utils/index-service.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/utils/index-service.ts","line":4,"fragment":"import { readWorkspace } from '../lib/workspace';"}},
+        {"from":"server/utils/inventory-service.ts","to":"server/lib/inventory.ts","evidence":{"path":"server/utils/inventory-service.ts","line":5,"fragment":"import { describedBy, inventoryState, type FileMark, type In"}},
+        {"from":"server/utils/inventory-service.ts","to":"server/lib/maps.ts","evidence":{"path":"server/utils/inventory-service.ts","line":6,"fragment":"import { parseMapRecord } from '../lib/maps';"}},
+        {"from":"server/utils/inventory-service.ts","to":"server/lib/paths.ts","evidence":{"path":"server/utils/inventory-service.ts","line":7,"fragment":"import { normalizeRoot } from '../lib/paths';"}},
+        {"from":"server/utils/inventory-service.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/utils/inventory-service.ts","line":8,"fragment":"import { readWorkspace } from '../lib/workspace';"}},
+        {"from":"server/utils/inventory-service.ts","to":"server/utils/index-service.ts","evidence":{"path":"server/utils/inventory-service.ts","line":9,"fragment":"import { loadIndex } from './index-service';"}},
         {"from":"server/utils/llm.ts","to":"server/lib/stream-events.ts","evidence":{"path":"server/utils/llm.ts","line":6,"fragment":"import { createStreamParser, type ModelEvent } from '../lib/"}},
         {"from":"server/utils/map-service.ts","to":"server/lib/analyze.ts","evidence":{"path":"server/utils/map-service.ts","line":1,"fragment":"import { analyze } from '../lib/analyze';"}},
         {"from":"server/utils/map-service.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/utils/map-service.ts","line":11,"fragment":"import { readWorkspace, sourceReader } from '../lib/workspac"}},
@@ -349,6 +364,7 @@ updated: 2026-08-31
       "sources": [
         {"id":"git-repo","kind":"file","where":"ветки и рабочие деревья проекта","title":"Репозиторий проекта"},
         {"id":"index-cache","kind":"file","where":".docdd/index.json","title":"Кэш индекса"},
+        {"id":"maps-index","kind":"file","where":".docdd/maps-index.json","title":"Опись описанных файлов"},
         {"id":"project-files","kind":"file","where":"docs/development выбранного проекта","title":"Файлы проекта"},
         {"id":"projects-list","kind":"file","where":".data/projects.json","title":"Список проектов"},
         {"id":"session-memory","kind":"file","where":".docdd/sessions.json","title":"Память о разговорах"}
@@ -371,6 +387,8 @@ updated: 2026-08-31
         {"from":"server/utils/fix-service.ts","to":"project-files","direction":"read","evidence":{"path":"server/utils/fix-service.ts","line":255,"fragment":"    const original = readFileSync(absolute, 'utf8');"}},
         {"from":"server/utils/fix-service.ts","to":"project-files","direction":"write","evidence":{"path":"server/utils/fix-service.ts","line":259,"fragment":"    writeFileSync(absolute, outcome.text, 'utf8');"}},
         {"from":"server/utils/git.ts","to":"git-repo","direction":"both","evidence":{"path":"server/utils/git.ts","line":26,"fragment":"    execFile("}},
+        {"from":"server/utils/inventory-service.ts","to":"maps-index","direction":"both","evidence":{"path":"server/utils/inventory-service.ts","line":20,"fragment":"const FILE = '.docdd/maps-index.json';"}},
+        {"from":"server/utils/inventory-service.ts","to":"project-files","direction":"read","evidence":{"path":"server/utils/inventory-service.ts","line":60,"fragment":"      return { path, hash: fingerprint(readFileSync(join(nor"}},
         {"from":"server/utils/projects.ts","to":"projects-list","direction":"both","evidence":{"path":"server/utils/projects.ts","line":12,"fragment":"return useStorage('data');"}},
         {"from":"server/utils/record-write.ts","to":"project-files","direction":"read","evidence":{"path":"server/utils/record-write.ts","line":1,"fragment":"import { readFileSync, writeFileSync } from 'node:fs';"}},
         {"from":"server/utils/record-write.ts","to":"project-files","direction":"write","evidence":{"path":"server/utils/record-write.ts","line":80,"fragment":"writeFileSync(context.absolute, outcome.text, 'utf8');"}},
@@ -415,6 +433,7 @@ updated: 2026-08-31
         {"from":"/projects/:id/import","to":"POST /api/projects/:id/import","evidence":{"path":"app/pages/projects/[id]/import.vue","line":63,"fragment":"const response = await $fetch(`/api/projects/${projectId.val"}},
         {"from":"/projects/:id/issues","to":"POST /api/projects/:id/fix","evidence":{"path":"app/components/FixWork.vue","line":45,"fragment":"  const result = await stream<{ state: FixState }>(`/api/pro"}},
         {"from":"/projects/:id/issues","to":"POST /api/projects/:id/fix/work","evidence":{"path":"app/components/FixWork.vue","line":59,"fragment":"      `/api/projects/${props.projectId}/fix/work`,"}},
+        {"from":"/projects/:id/maps","to":"GET /api/projects/:id/map/inventory","evidence":{"path":"app/components/MapInventory.vue","line":18,"fragment":"const { data } = useFetch<Inventory>(() => `/api/projects/${"}},
         {"from":"/projects/:id/records/:recordId","to":"GET /api/projects/:id/records/:recordId/work","evidence":{"path":"app/components/TaskWork.vue","line":19,"fragment":"  () => `/api/projects/${props.projectId}/records/${props.re"}},
         {"from":"/projects/:id/records/:recordId","to":"POST /api/projects/:id/records/:recordId/work","evidence":{"path":"app/components/TaskWork.vue","line":43,"fragment":"  const url = `/api/projects/${props.projectId}/records/${pr"}}
       ]
@@ -431,3 +450,4 @@ updated: 2026-08-31
 - 2026-08-31 · дописана память о разговорах с моделью · architect
 - 2026-09-01 · дописаны модули починки нарушений · architect
 - 2026-09-01 · дописаны модули выжимки из схем · architect
+- 2026-09-01 · дописаны модули описи файлов · architect
