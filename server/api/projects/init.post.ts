@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { defineEventHandler, readBody } from 'h3';
 
 import { normalizeRoot } from '../../lib/paths';
-import { DEFAULT_PATHS, fileNameFor, manifestYaml, recordTemplate } from '../../lib/scaffold';
+import { claudeMd, DEFAULT_PATHS, fileNameFor, manifestYaml, recordTemplate } from '../../lib/scaffold';
 import type { SectionKey } from '../../lib/types';
 import { developmentDir, hasWorkspace, MANIFEST_FILE } from '../../lib/workspace';
 import { fail } from '../../utils/http';
@@ -69,6 +69,11 @@ export default defineEventHandler(async (event) => {
       recordTemplate(first),
       'utf8'
     );
+
+    // Правила для модели — в корень проекта. Файл уже есть — не трогаем его
+    // вовсе: это чужие правила, и заводить формат не значит их переписывать.
+    const rules = join(normalized, 'CLAUDE.md');
+    if (!existsSync(rules)) writeFileSync(rules, claudeMd({ id, name }), 'utf8');
 
     const entry = { id, name, root: normalized, lastOpenedAt: new Date().toISOString() };
     await saveProject(entry);

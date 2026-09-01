@@ -265,7 +265,7 @@ updated: 2026-08-31
         {"from":"server/api/projects/index.post.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/projects/index.post.ts","line":5,"fragment":"import { fail } from '../../utils/http';"}},
         {"from":"server/api/projects/index.post.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/index.post.ts","line":6,"fragment":"import { findProject, saveProject } from '../../utils/projec"}},
         {"from":"server/api/projects/init.post.ts","to":"server/lib/paths.ts","evidence":{"path":"server/api/projects/init.post.ts","line":6,"fragment":"import { normalizeRoot } from '../../lib/paths';"}},
-        {"from":"server/api/projects/init.post.ts","to":"server/lib/scaffold.ts","evidence":{"path":"server/api/projects/init.post.ts","line":7,"fragment":"import { DEFAULT_PATHS, fileNameFor, manifestYaml, recordTem"}},
+        {"from":"server/api/projects/init.post.ts","to":"server/lib/scaffold.ts","evidence":{"path":"server/api/projects/init.post.ts","line":7,"fragment":"import { claudeMd, DEFAULT_PATHS, fileNameFor, manifestYaml,"}},
         {"from":"server/api/projects/init.post.ts","to":"server/lib/types.ts","evidence":{"path":"server/api/projects/init.post.ts","line":8,"fragment":"import type { SectionKey } from '../../lib/types';"}},
         {"from":"server/api/projects/init.post.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/api/projects/init.post.ts","line":9,"fragment":"import { developmentDir, hasWorkspace, MANIFEST_FILE } from "}},
         {"from":"server/api/projects/init.post.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/projects/init.post.ts","line":10,"fragment":"import { fail } from '../../utils/http';"}},

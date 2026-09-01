@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { checkRow, surveyFile, withFrontMatter } from '../server/lib/import';
 import { parseRecord } from '../server/lib/parse';
 import { validateFrontMatter, validateProject } from '../server/lib/schema';
-import { fileNameFor, manifestYaml, nextId, recordTemplate, slugify } from '../server/lib/scaffold';
+import { claudeMd, fileNameFor, manifestYaml, nextId, recordTemplate, slugify } from '../server/lib/scaffold';
 
 /**
  * Заведение и импорт трогают файлы человека сильнее всего: создают, переносят,
@@ -181,5 +181,41 @@ describe('checkRow', () => {
   it('не даёт незнакомый тип и пустой заголовок', () => {
     expect(checkRow({ path: 'a.md', type: 'adr', title: 'A' }, '# A\n')).toContain('не из списка');
     expect(checkRow({ path: 'a.md', type: 'design', title: '  ' }, '# A\n')).toContain('заголовок');
+  });
+});
+
+describe('CLAUDE.md', () => {
+  const rules = claudeMd({ id: 'fishforecast', name: 'FishForecast' });
+
+  it('назван именем проекта: файл кладётся в чужой корень, и понятно, чей он', () => {
+    expect(rules.startsWith('# FishForecast: правила работы')).toBe(true);
+  });
+
+  it('несёт главное правило целиком, а не ссылку на него', () => {
+    // Модель читает этот файл в проекте, где никакой другой документации о
+    // процессе может не быть.
+    expect(rules).toContain('пока правка документации не подтверждена');
+    expect(rules).toContain('Молчание подтверждением не');
+  });
+
+  it('называет все типы записей с префиксами', () => {
+    for (const prefix of ['`R-`', '`D-`', '`A-`', '`C-`', '`T-`', '`P-`', '`V-`', '`M-`']) {
+      expect(rules, prefix).toContain(prefix);
+    }
+  });
+
+  it('запрещает подтверждать за человека — иначе правило станет украшением', () => {
+    expect(rules).toContain('Не подтверждать документы за человека');
+    expect(rules).toContain('approved');
+  });
+
+  it('требует свидетельства под утверждением', () => {
+    expect(rules).toContain('свидетельств');
+    expect(rules).toContain('путь, номер, фрагмент');
+  });
+
+  it('не описывает устройство проекта: оно живёт в картах и меняется', () => {
+    expect(rules).not.toContain('sources.code');
+    expect(rules).not.toContain('npm run');
   });
 });
