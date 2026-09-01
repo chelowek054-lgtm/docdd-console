@@ -434,6 +434,7 @@ updated: 2026-08-31
         {"from":"/projects/:id/issues","to":"POST /api/projects/:id/fix","evidence":{"path":"app/components/FixWork.vue","line":45,"fragment":"  const result = await stream<{ state: FixState }>(`/api/pro"}},
         {"from":"/projects/:id/issues","to":"POST /api/projects/:id/fix/work","evidence":{"path":"app/components/FixWork.vue","line":59,"fragment":"      `/api/projects/${props.projectId}/fix/work`,"}},
         {"from":"/projects/:id/maps","to":"GET /api/projects/:id/map/inventory","evidence":{"path":"app/components/MapInventory.vue","line":18,"fragment":"const { data } = useFetch<Inventory>(() => `/api/projects/${"}},
+        {"from":"/projects/:id/maps","to":"POST /api/projects/:id/prompt","evidence":{"path":"app/pages/projects/[id]/maps.vue","line":33,"fragment":"    { method: 'POST', body: { kind: 'map-fix', answer, probl"}},
         {"from":"/projects/:id/records/:recordId","to":"GET /api/projects/:id/records/:recordId/work","evidence":{"path":"app/components/TaskWork.vue","line":19,"fragment":"  () => `/api/projects/${props.projectId}/records/${props.re"}},
         {"from":"/projects/:id/records/:recordId","to":"POST /api/projects/:id/records/:recordId/work","evidence":{"path":"app/components/TaskWork.vue","line":43,"fragment":"  const url = `/api/projects/${props.projectId}/records/${pr"}}
       ]
@@ -451,3 +452,4 @@ updated: 2026-08-31
 - 2026-09-01 · дописаны модули починки нарушений · architect
 - 2026-09-01 · дописаны модули выжимки из схем · architect
 - 2026-09-01 · дописаны модули описи файлов · architect
+- 2026-09-01 · дописан второй ход при отказе схемы · architect

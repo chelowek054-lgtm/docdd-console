@@ -3,7 +3,7 @@ import { defineEventHandler, getRouterParam, readBody } from 'h3';
 import { useStorage } from 'nitropack/runtime';
 
 import { checkEvidence, evidenceClaims, parseMapRecord } from '../../../../lib/maps';
-import { fixPrompt, mapsPrompt, type MapsState } from '../../../../lib/prompt';
+import { fixPrompt, mapFixPrompt, mapsPrompt, type MapsState } from '../../../../lib/prompt';
 import { mapSchemas } from '../../../../lib/map-schemas';
 import { worthAsking } from '../../../../lib/inventory';
 import { inventoryOf } from '../../../../utils/inventory-service';
@@ -25,7 +25,13 @@ export default defineEventHandler(async (event) => {
     return fail(event, 404, 'project_not_found', `Проект \`${id}\` не найден в списке`);
   }
 
-  const body = await readBody<{ kind?: unknown; codes?: unknown; severity?: unknown }>(event);
+  const body = await readBody<{
+    kind?: unknown;
+    codes?: unknown;
+    severity?: unknown;
+    answer?: unknown;
+    problems?: unknown;
+  }>(event);
   const kind = typeof body?.kind === 'string' ? body.kind : '';
 
   try {
@@ -74,7 +80,23 @@ export default defineEventHandler(async (event) => {
       };
     }
 
-    return fail(event, 400, 'kind_invalid', 'Известны два запроса: `fix` и `maps`');
+    if (kind === 'map-fix') {
+      // Форма не сошлась — но разбор файлов в силе, и переделывать его незачем.
+      const answer = typeof body?.answer === 'string' ? body.answer : '';
+      const problems = Array.isArray(body?.problems)
+        ? body.problems.filter((problem): problem is string => typeof problem === 'string')
+        : [];
+
+      if (answer.trim() === '') {
+        return fail(event, 400, 'answer_required', 'Нечего править: прошлого ответа нет');
+      }
+      return {
+        prompt: mapFixPrompt(await template('fix-map-answer.md'), answer, problems),
+        count: problems.length
+      };
+    }
+
+    return fail(event, 400, 'kind_invalid', 'Известны запросы: `fix`, `maps`, `map-fix`');
   } catch (error) {
     if (error instanceof WorkspaceError) {
       return fail(event, 422, error.code, error.message, error.detail);

@@ -9,7 +9,7 @@ import dataflowSchema from '../docs/schemas/dataflow.schema.json';
 import evidenceSchema from '../docs/schemas/evidence.schema.json';
 import userflowSchema from '../docs/schemas/userflow.schema.json';
 import { mapSchemas } from '../server/lib/map-schemas';
-import { mapsPrompt, SCHEMAS_MARKER } from '../server/lib/prompt';
+import { mapFixPrompt, mapsPrompt, SCHEMAS_MARKER } from '../server/lib/prompt';
 import { schemaDigest } from '../server/lib/schema-digest';
 
 /**
@@ -93,5 +93,34 @@ describe('запрос на карты', () => {
   it('не отправляет модель искать схемы в чужом проекте', () => {
     // Ссылка в никуда — это ответ, придуманный по догадке, и отказ схемы.
     expect(mapsPrompt(template, state, mapSchemas())).not.toContain('schemas/');
+  });
+});
+
+describe('просьба поправить ответ', () => {
+  const fixTemplate = readFileSync(
+    join(fileURLToPath(new URL('..', import.meta.url)), 'docs', 'prompts', 'fix-map-answer.md'),
+    'utf8'
+  );
+
+  const answer = '```docdd-userflow\n{ "added": { "calls": [{ "trigger": "тап" }] } }\n```';
+  const problems = ['Блок `userflow`: Незнакомое поле `trigger` в `added.calls[]`.'];
+
+  it('несёт прошлый ответ и претензии дословно', () => {
+    const prompt = mapFixPrompt(fixTemplate, answer, problems);
+
+    expect(prompt).toContain('Незнакомое поле `trigger`');
+    expect(prompt).toContain('docdd-userflow');
+    expect(prompt).not.toContain('<!-- ОТВЕТ -->');
+    expect(prompt).not.toContain('<!-- ПРЕТЕНЗИИ -->');
+  });
+
+  it('не просит разбирать файлы заново: работа уже сделана', () => {
+    const prompt = mapFixPrompt(fixTemplate, answer, problems);
+    expect(prompt).toContain('Разбирать проект заново не надо');
+    expect(prompt).toContain('Ничего не выбрасывай');
+  });
+
+  it('без претензий говорит об этом прямо, а не молчит', () => {
+    expect(mapFixPrompt(fixTemplate, answer, [])).toContain('причину приложение не назвало');
   });
 });

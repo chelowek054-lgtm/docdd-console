@@ -60,6 +60,24 @@ export interface MapsState {
   };
 }
 
+/** Места, куда подставляется прошлый ответ и претензии схемы к нему. */
+export const ANSWER_MARKER = '<!-- ОТВЕТ -->';
+export const PROBLEMS_MARKER = '<!-- ПРЕТЕНЗИИ -->';
+
+/**
+ * Просьба поправить ответ, не прошедший схему. Разбор файлов заново не идёт:
+ * работа сделана, чинится только форма (docs/07-maps.md).
+ */
+export function mapFixPrompt(template: string, answer: string, problems: readonly string[]): string {
+  const said = problems.length
+    ? problems.map((problem) => `- ${problem}`).join(LF)
+    : '- Схема не сошлась, а причину приложение не назвало.';
+
+  return withoutFrontNote(template)
+    .replace(PROBLEMS_MARKER, said)
+    .replace(ANSWER_MARKER, answer.trim());
+}
+
 /** Место, куда подставляется форма блоков карты. */
 export const SCHEMAS_MARKER = '<!-- СХЕМЫ -->';
 

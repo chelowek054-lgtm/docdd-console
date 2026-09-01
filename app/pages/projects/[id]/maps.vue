@@ -15,6 +15,38 @@ const { data, refresh, status } = useFetch<MapResponse | { error: ApiFailure }>(
 const saving = ref(false);
 const draftId = ref('');
 const draftFailure = ref<ApiFailure | null>(null);
+/** Ответ, поправленный моделью: заменяет прошлый, пока его не сохранили. */
+const fixed = ref('');
+
+const { running: fixing, elapsed, outcome, log, stream, cancel } = useModelRequest();
+
+/** Претензии схемы дословно: их и получит модель. */
+const problems = computed(() => (draftFailure.value?.blockers ?? []).map((blocker) => blocker.message));
+
+/**
+ * Второй ход после отказа схемы: разбор файлов заново не идёт, чинится
+ * только форма (docs/07-maps.md, раздел «Ответ не прошёл схему»).
+ */
+async function askToFix(answer: string) {
+  const built = await $fetch<{ prompt: string } | { error: ApiFailure }>(
+    `/api/projects/${projectId.value}/prompt`,
+    { method: 'POST', body: { kind: 'map-fix', answer, problems: problems.value }, ignoreResponseError: true }
+  );
+  const problem = failureOf(built);
+  if (problem) {
+    draftFailure.value = problem;
+    return;
+  }
+
+  const result = await stream<{ answer: string }>('/api/llm/ask', {
+    prompt: (built as { prompt: string }).prompt,
+    projectId: projectId.value
+  });
+  if (!result) return;
+
+  fixed.value = result.answer;
+  draftFailure.value = null;
+}
 
 /** Ответ модели сохраняется черновиком: подтверждает человек, а не приложение. */
 async function saveDraft(answer: string) {
@@ -42,6 +74,7 @@ async function saveDraft(answer: string) {
 function onAnswer() {
   draftId.value = '';
   draftFailure.value = null;
+  fixed.value = '';
 }
 
 const failure = computed(() => failureOf(data.value));
@@ -125,8 +158,19 @@ async function copySource() {
       >
         <template #answer="{ answer }">
           <div class="mb-3 flex flex-wrap items-center gap-3">
-            <UButton size="sm" :loading="saving" @click="saveDraft(answer)">
+            <UButton size="sm" :loading="saving" @click="saveDraft(fixed || answer)">
               Сохранить черновиком
+            </UButton>
+
+            <!-- Разбор сорока файлов не выбрасывается из-за лишнего ключа. -->
+            <UButton
+              v-if="draftFailure && !fixing"
+              size="sm"
+              variant="soft"
+              icon="i-lucide-wand-sparkles"
+              @click="askToFix(fixed || answer)"
+            >
+              Попросить поправить
             </UButton>
             <NuxtLink
               v-if="draftId"
@@ -138,8 +182,22 @@ async function copySource() {
               color="error"
               variant="subtle"
               :title="draftFailure.message"
-              :description="(draftFailure.blockers ?? []).map((blocker) => blocker.message).join(' ')"
+              :description="problems.join(' ')"
             />
+          </div>
+
+          <ModelProgress
+            class="mb-3"
+            :running="fixing"
+            :elapsed="elapsed"
+            :outcome="outcome"
+            @cancel="cancel"
+          />
+          <ModelLog class="mb-3" :lines="log" :running="fixing" />
+
+          <div v-if="fixed" class="mb-3">
+            <p class="mb-2 text-sm text-muted">Модель поправила форму. Ниже — исправленный ответ:</p>
+            <pre class="max-h-72 overflow-auto rounded bg-elevated p-3 text-xs whitespace-pre-wrap">{{ fixed }}</pre>
           </div>
         </template>
       </PromptPanel>
