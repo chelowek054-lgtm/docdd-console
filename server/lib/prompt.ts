@@ -51,7 +51,10 @@ export interface MapsState {
   client: readonly string[];
 }
 
-export function mapsPrompt(template: string, state: MapsState): string {
+/** Место, куда подставляется форма блоков карты. */
+export const SCHEMAS_MARKER = '<!-- СХЕМЫ -->';
+
+export function mapsPrompt(template: string, state: MapsState, schemas = ''): string {
   const body = withoutFrontNote(template);
   const lines: string[] = [];
 
@@ -74,7 +77,9 @@ export function mapsPrompt(template: string, state: MapsState): string {
     }
   }
 
-  return body.replace(STATE_MARKER, lines.join(LF));
+  // Форма блоков идёт в самом запросе: сослаться на файл схемы нельзя —
+  // модель работает в чужом проекте, а схемы живут здесь.
+  return body.replace(STATE_MARKER, lines.join(LF)).replace(SCHEMAS_MARKER, schemas);
 }
 
 export interface TaskContext {

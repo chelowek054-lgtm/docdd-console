@@ -4,6 +4,7 @@ import { useStorage } from 'nitropack/runtime';
 
 import { checkEvidence, evidenceClaims, parseMapRecord } from '../../../../lib/maps';
 import { fixPrompt, mapsPrompt, type MapsState } from '../../../../lib/prompt';
+import { mapSchemas } from '../../../../lib/map-schemas';
 import { readWorkspace, sourceReader, WorkspaceError } from '../../../../lib/workspace';
 import { fail } from '../../../../utils/http';
 import { loadIndex } from '../../../../utils/index-service';
@@ -43,7 +44,10 @@ export default defineEventHandler(async (event) => {
     }
 
     if (kind === 'maps') {
-      return { prompt: mapsPrompt(await template('update-maps.md'), await mapsState(project.root)), count: 0 };
+      return {
+        prompt: mapsPrompt(await template('update-maps.md'), await mapsState(project.root), mapSchemas()),
+        count: 0
+      };
     }
 
     return fail(event, 400, 'kind_invalid', 'Известны два запроса: `fix` и `maps`');

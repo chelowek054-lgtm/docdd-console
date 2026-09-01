@@ -55,6 +55,35 @@ export interface ParsedMap {
  * Блоки ```docdd-codemap и соседние. Формат тот же, что у mermaid: человек
  * видит их в любом редакторе markdown, а приложение — по имени языка.
  */
+/**
+ * Одна и та же беда во всех тридцати элементах списка — это одна беда, а не
+ * тридцать. Схлопываем по номеру: человеку надо понять, что чинить, а не
+ * пролистать стену одинаковых строк.
+ */
+export function collapse(issues: readonly string[]): string[] {
+  const counted = new Map<string, { said: string; times: number }>();
+
+  for (const issue of issues) {
+    // `added.modules[12]` и `added.modules[3]` — одно место списка.
+    const key = issue.replace(/\[\d+\]/g, '[]');
+    const seen = counted.get(key);
+    if (seen) {
+      seen.times += 1;
+      continue;
+    }
+    counted.set(key, { said: key, times: 1 });
+  }
+
+  const collapsed = [...counted.values()].map(({ said, times }) => (times > 1 ? `${said} (×${times})` : said));
+  if (collapsed.length <= COLLAPSE_LIMIT) return collapsed;
+
+  const rest = collapsed.length - COLLAPSE_LIMIT;
+  return [...collapsed.slice(0, COLLAPSE_LIMIT), `…и ещё ${rest} — исправьте эти, остальные станут видны`];
+}
+
+/** Дальше этого список бед не читают, а пугаются. */
+const COLLAPSE_LIMIT = 12;
+
 export function parseMapRecord(body: string): ParsedMap {
   const change: MapChange = {};
   const problems: MapProblem[] = [];
@@ -80,7 +109,7 @@ export function parseMapRecord(body: string): ParsedMap {
 
     const issues = validateFor(structure, parsed);
     if (issues.length > 0) {
-      problems.push({ structure, message: `Блок \`${structure}\`: ${issues.join(' ')}` });
+      problems.push({ structure, message: `Блок \`${structure}\`: ${collapse(issues).join(' ')}` });
       continue;
     }
 

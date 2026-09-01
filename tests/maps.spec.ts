@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   checkEvidence,
+  collapse,
   evidenceClaims,
   foldMaps,
   parseMapRecord,
@@ -273,5 +274,36 @@ describe('foldMaps', () => {
     expect(map.codemap.modules).toEqual([]);
     expect(map.userflow.screens).toEqual([]);
     expect(map.from).toEqual([]);
+  });
+});
+
+describe('схлопывание жалоб схемы', () => {
+  it('одна беда во всех элементах списка называется один раз', () => {
+    const issues = Array.from({ length: 30 }, (_, index) =>
+      `Незнакомое поле \`path\` в \`added.modules[${index}]\`: здесь список полей закрыт контрактом.`
+    );
+
+    const collapsed = collapse(issues);
+    expect(collapsed).toHaveLength(1);
+    expect(collapsed[0]).toContain('added.modules[]');
+    expect(collapsed[0]).toContain('×30');
+  });
+
+  it('разные беды остаются разными', () => {
+    const collapsed = collapse([
+      'Не хватает обязательного поля `direction` в `added.flows[0]`.',
+      'Незнакомое поле `what` в `added.flows[0]`.',
+      'Не хватает обязательного поля `direction` в `added.flows[1]`.'
+    ]);
+    expect(collapsed).toHaveLength(2);
+  });
+
+  it('длинный список обрезается, но говорит, сколько осталось', () => {
+    const issues = Array.from({ length: 20 }, (_, index) => `Беда номер ${index} в поле.`);
+    const collapsed = collapse(issues);
+
+    // Стену никто не читает — её пролистывают.
+    expect(collapsed.length).toBeLessThan(issues.length);
+    expect(collapsed[collapsed.length - 1]).toContain('и ещё');
   });
 });

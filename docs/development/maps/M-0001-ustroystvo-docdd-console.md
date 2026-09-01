@@ -91,12 +91,14 @@ updated: 2026-08-31
         {"id":"server/lib/graph.ts","title":"graph","layer":"ядро"},
         {"id":"server/lib/import.ts","title":"import","layer":"ядро"},
         {"id":"server/lib/indexer.ts","title":"indexer","layer":"ядро"},
+        {"id":"server/lib/map-schemas.ts","title":"map-schemas","layer":"ядро"},
         {"id":"server/lib/maps.ts","title":"maps","layer":"ядро"},
         {"id":"server/lib/parse.ts","title":"parse","layer":"ядро"},
         {"id":"server/lib/paths.ts","title":"paths","layer":"ядро"},
         {"id":"server/lib/reports.ts","title":"reports","layer":"ядро"},
         {"id":"server/lib/rules.ts","title":"rules","layer":"ядро"},
         {"id":"server/lib/scaffold.ts","title":"scaffold","layer":"ядро"},
+        {"id":"server/lib/schema-digest.ts","title":"schema-digest","layer":"ядро"},
         {"id":"server/lib/schema.ts","title":"schema","layer":"ядро"},
         {"id":"server/lib/stream-events.ts","title":"stream-events","layer":"ядро"},
         {"id":"server/lib/transitions.ts","title":"transitions","layer":"ядро"},
@@ -194,6 +196,13 @@ updated: 2026-08-31
         {"from":"server/api/projects/[id]/map/index.get.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/projects/[id]/map/index.get.ts","line":5,"fragment":"import { fail } from '../../../../utils/http';"}},
         {"from":"server/api/projects/[id]/map/index.get.ts","to":"server/utils/map-service.ts","evidence":{"path":"server/api/projects/[id]/map/index.get.ts","line":6,"fragment":"import { buildProjectMap } from '../../../../utils/map-servi"}},
         {"from":"server/api/projects/[id]/map/index.get.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/[id]/map/index.get.ts","line":7,"fragment":"import { findProject } from '../../../../utils/projects';"}},
+        {"from":"server/api/projects/[id]/prompt/index.post.ts","to":"server/lib/map-schemas.ts","evidence":{"path":"server/api/projects/[id]/prompt/index.post.ts","line":7,"fragment":"import { mapSchemas } from '../../../../lib/map-schemas';"}},
+        {"from":"server/api/projects/[id]/prompt/index.post.ts","to":"server/lib/maps.ts","evidence":{"path":"server/api/projects/[id]/prompt/index.post.ts","line":5,"fragment":"import { checkEvidence, evidenceClaims, parseMapRecord } fro"}},
+        {"from":"server/api/projects/[id]/prompt/index.post.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/api/projects/[id]/prompt/index.post.ts","line":8,"fragment":"import { readWorkspace, sourceReader, WorkspaceError } from "}},
+        {"from":"server/api/projects/[id]/prompt/index.post.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/projects/[id]/prompt/index.post.ts","line":9,"fragment":"import { fail } from '../../../../utils/http';"}},
+        {"from":"server/api/projects/[id]/prompt/index.post.ts","to":"server/utils/index-service.ts","evidence":{"path":"server/api/projects/[id]/prompt/index.post.ts","line":10,"fragment":"import { loadIndex } from '../../../../utils/index-service';"}},
+        {"from":"server/api/projects/[id]/prompt/index.post.ts","to":"server/utils/map-service.ts","evidence":{"path":"server/api/projects/[id]/prompt/index.post.ts","line":11,"fragment":"import { buildProjectMap } from '../../../../utils/map-servi"}},
+        {"from":"server/api/projects/[id]/prompt/index.post.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/[id]/prompt/index.post.ts","line":12,"fragment":"import { findProject } from '../../../../utils/projects';"}},
         {"from":"server/api/projects/[id]/records/[recordId].get.ts","to":"server/lib/analyze.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId].get.ts","line":6,"fragment":"import { analyze } from '../../../../lib/analyze';"}},
         {"from":"server/api/projects/[id]/records/[recordId].get.ts","to":"server/lib/diagrams.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId].get.ts","line":7,"fragment":"import { extractDiagrams } from '../../../../lib/diagrams';"}},
         {"from":"server/api/projects/[id]/records/[recordId].get.ts","to":"server/lib/maps.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId].get.ts","line":8,"fragment":"import { checkEvidence, evidenceClaims, parseMapRecord } fro"}},
@@ -272,6 +281,7 @@ updated: 2026-08-31
         {"from":"server/lib/indexer.ts","to":"server/lib/reports.ts","evidence":{"path":"server/lib/indexer.ts","line":3,"fragment":"import { latestVerificationDetails } from './reports';"}},
         {"from":"server/lib/indexer.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/indexer.ts","line":12,"fragment":"import { LINK_KINDS } from './types';"}},
         {"from":"server/lib/indexer.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/lib/indexer.ts","line":13,"fragment":"import { readWorkspace, sourceReader, type Workspace } from "}},
+        {"from":"server/lib/map-schemas.ts","to":"server/lib/schema-digest.ts","evidence":{"path":"server/lib/map-schemas.ts","line":6,"fragment":"import { schemaDigest } from './schema-digest';"}},
         {"from":"server/lib/maps.ts","to":"server/lib/schema.ts","evidence":{"path":"server/lib/maps.ts","line":1,"fragment":"import { validateCodemap, validateDataflow, validateUserflow"}},
         {"from":"server/lib/reports.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/reports.ts","line":1,"fragment":"import type { Report, VerificationOutcome, VerificationResul"}},
         {"from":"server/lib/rules.ts","to":"server/lib/graph.ts","evidence":{"path":"server/lib/rules.ts","line":1,"fragment":"import { findDependencyCycles, incomingEdges, outgoing, type"}},
@@ -420,3 +430,4 @@ updated: 2026-08-31
 - 2026-08-31 · дописаны модули ленты работы модели · architect
 - 2026-08-31 · дописана память о разговорах с моделью · architect
 - 2026-09-01 · дописаны модули починки нарушений · architect
+- 2026-09-01 · дописаны модули выжимки из схем · architect
