@@ -388,7 +388,7 @@ updated: 2026-08-31
         {"from":"server/utils/fix-service.ts","to":"project-files","direction":"write","evidence":{"path":"server/utils/fix-service.ts","line":259,"fragment":"    writeFileSync(absolute, outcome.text, 'utf8');"}},
         {"from":"server/utils/git.ts","to":"git-repo","direction":"both","evidence":{"path":"server/utils/git.ts","line":26,"fragment":"    execFile("}},
         {"from":"server/utils/inventory-service.ts","to":"maps-index","direction":"both","evidence":{"path":"server/utils/inventory-service.ts","line":20,"fragment":"const FILE = '.docdd/maps-index.json';"}},
-        {"from":"server/utils/inventory-service.ts","to":"project-files","direction":"read","evidence":{"path":"server/utils/inventory-service.ts","line":60,"fragment":"      return { path, hash: fingerprint(readFileSync(join(nor"}},
+        {"from":"server/utils/inventory-service.ts","to":"project-files","direction":"read","evidence":{"path":"server/utils/inventory-service.ts","line":131,"fragment":"      hash = fingerprint(readFileSync(absolute, 'utf8'));"}},
         {"from":"server/utils/projects.ts","to":"projects-list","direction":"both","evidence":{"path":"server/utils/projects.ts","line":12,"fragment":"return useStorage('data');"}},
         {"from":"server/utils/record-write.ts","to":"project-files","direction":"read","evidence":{"path":"server/utils/record-write.ts","line":1,"fragment":"import { readFileSync, writeFileSync } from 'node:fs';"}},
         {"from":"server/utils/record-write.ts","to":"project-files","direction":"write","evidence":{"path":"server/utils/record-write.ts","line":80,"fragment":"writeFileSync(context.absolute, outcome.text, 'utf8');"}},

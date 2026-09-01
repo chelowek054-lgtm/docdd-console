@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -6,7 +6,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { describedBy, inventoryState, worthAsking, type FileMark } from '../server/lib/inventory';
 import { parseMapRecord } from '../server/lib/maps';
-import { fingerprint, inventoryOf, markDescribed } from '../server/utils/inventory-service';
+import {
+  fingerprint,
+  inventoryOf,
+  markDescribed,
+  marksOf,
+  readInventoryFile
+} from '../server/utils/inventory-service';
 
 /**
  * Опись файлов (docs/07-maps.md, раздел «Опись файлов»). Ради неё всё и
@@ -166,5 +172,79 @@ describe('отпечаток', () => {
   it('меняется вместе с содержимым и совпадает у одинакового', () => {
     expect(fingerprint('текст')).toBe(fingerprint('текст'));
     expect(fingerprint('текст')).not.toBe(fingerprint('текст.'));
+  });
+});
+
+describe('кэш отпечатков', () => {
+  let root = '';
+
+  beforeAll(() => {
+    root = mkdtempSync(join(tmpdir(), 'docdd-cache-'));
+    mkdirSync(join(root, 'docs', 'development'), { recursive: true });
+    mkdirSync(join(root, 'src'), { recursive: true });
+
+    writeFileSync(join(root, 'docs', 'development', 'project.yaml'), [
+      'contract: docdd.workspace/1',
+      'project:',
+      '  id: demo',
+      '  name: Demo',
+      'paths:',
+      '  design: design',
+      'sources:',
+      '  code: [src]',
+      ''
+    ].join(LF), 'utf8');
+
+    writeFileSync(join(root, 'src', 'a.ts'), 'export const a = 1;' + LF, 'utf8');
+  });
+
+  afterAll(() => {
+    try {
+      rmSync(root, { recursive: true, force: true });
+    } catch {
+      // Прибирать не обязательно.
+    }
+  });
+
+  it('проход кладёт рядом с отпечатком размер и время: по ним решают, читать ли', () => {
+    inventoryOf(root);
+
+    const saved = readInventoryFile(root);
+    const note = saved.files['src/a.ts'];
+    expect(note).toBeDefined();
+    expect(note?.size).toBeGreaterThan(0);
+    expect(note?.mtime).toBeGreaterThan(0);
+    expect(note?.hash).toBe(fingerprint('export const a = 1;' + LF));
+  });
+
+  it('совпал ориентир — содержимое не читается: берётся прошлый отпечаток', () => {
+    // Подменяем содержимое, оставив размер и время прежними. Так делать нельзя
+    // никому, кроме теста: это и есть проверка, что файл не перечитан.
+    const before = statSync(join(root, 'src', 'a.ts'));
+    writeFileSync(join(root, 'src', 'a.ts'), 'export const a = 9;' + LF, 'utf8');
+    utimesSync(join(root, 'src', 'a.ts'), before.atime, before.mtime);
+
+    const marks = marksOf(root);
+    // Отпечаток остался прежним — значит содержимое не перечитывали.
+    expect(marks[0]?.hash).toBe(fingerprint('export const a = 1;' + LF));
+  });
+
+  it('разошёлся ориентир — отпечаток пересчитывается', () => {
+    writeFileSync(join(root, 'src', 'a.ts'), 'export const a = 12345;' + LF, 'utf8');
+
+    const marks = marksOf(root);
+    expect(marks[0]?.hash).toBe(fingerprint('export const a = 12345;' + LF));
+  });
+
+  it('старый плоский вид описи читается как описанное: записанное не пропадает', () => {
+    writeFileSync(
+      join(root, '.docdd', 'maps-index.json'),
+      JSON.stringify({ 'src/a.ts': 'старый-отпечаток' }),
+      'utf8'
+    );
+
+    const saved = readInventoryFile(root);
+    expect(saved.described['src/a.ts']).toBe('старый-отпечаток');
+    expect(saved.files).toEqual({});
   });
 });
