@@ -10,6 +10,7 @@ import evidenceSchema from '../../docs/schemas/evidence.schema.json';
 import frontmatterSchema from '../../docs/schemas/frontmatter.schema.json';
 import projectSchema from '../../docs/schemas/project.schema.json';
 import reportSchema from '../../docs/schemas/report.schema.json';
+import recordsSchema from '../../docs/schemas/records.schema.json';
 import userflowSchema from '../../docs/schemas/userflow.schema.json';
 
 /** Схемы берутся прямо из docs/schemas: копия разошлась бы с контрактом в первую же неделю. */
@@ -41,6 +42,7 @@ const validateReportSchema = ajv.compile(reportSchema);
 const validateCodemapSchema = ajv.compile(codemapSchema);
 const validateDataflowSchema = ajv.compile(dataflowSchema);
 const validateUserflowSchema = ajv.compile(userflowSchema);
+const validateRecordsSchema = ajv.compile(recordsSchema);
 
 export function validateFrontMatter(data: unknown): SchemaIssue[] {
   return run(validateFrontmatterSchema, data);
@@ -76,6 +78,11 @@ export function validateDataflow(data: unknown): SchemaIssue[] {
 
 export function validateUserflow(data: unknown): SchemaIssue[] {
   return run(validateUserflowSchema, data);
+}
+
+/** Предложенные записи из разбора входящего (docs/10-inbox.md). */
+export function validateRecords(data: unknown): SchemaIssue[] {
+  return run(validateRecordsSchema, data);
 }
 
 function run(validate: ValidateFunction, data: unknown): SchemaIssue[] {

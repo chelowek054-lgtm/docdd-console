@@ -9,6 +9,7 @@ const links = computed(() => {
   const base = `/projects/${projectId.value}`;
   return [
     { label: 'Обзор', to: base },
+    { label: 'Входящее', to: `${base}/inbox` },
     { label: 'Задачи', to: `${base}/tasks` },
     { label: 'Требования', to: `${base}/requirements` },
     { label: 'Нарушения', to: `${base}/issues` },

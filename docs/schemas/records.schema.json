@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docdd/records.schema.json",
+  "title": "Предложенные записи",
+  "description": "Блок ```docdd-records в ответе модели на разбор входящего. Не файлы, а список: заводит записи приложение.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "records"
+  ],
+  "properties": {
+    "records": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/record"
+      }
+    }
+  },
+  "$defs": {
+    "record": {
+      "type": "object",
+      "required": [
+        "key",
+        "type",
+        "title"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Имя внутри ответа, по которому на запись ссылаются соседние. Номер выдаёт приложение, и модель его не знает."
+        },
+        "type": {
+          "enum": [
+            "requirement",
+            "design",
+            "decision",
+            "contract",
+            "task",
+            "phase",
+            "verification"
+          ]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "body": {
+          "type": "string",
+          "description": "Тело записи: зачем это, что делаем, чего не делаем, как понять, что готово."
+        },
+        "change": {
+          "enum": [
+            "feature",
+            "fix",
+            "rename",
+            "format"
+          ],
+          "description": "Что за изменение вносит задача."
+        },
+        "links": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": "Связи: значение — либо ключ соседней предложенной записи, либо номер уже заведённой."
+        },
+        "note": {
+          "type": "string",
+          "description": "Путь заметки, из которой взялась запись: он уходит в журнал. Приложение сверяет его со списком разбираемых заметок и чужой текст в журнал не пускает."
+        }
+      }
+    }
+  }
+}

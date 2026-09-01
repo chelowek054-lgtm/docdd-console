@@ -60,6 +60,32 @@ export interface MapsState {
   };
 }
 
+/** Места, куда подставляется входящее и уже заведённое. */
+export const NOTES_MARKER = '<!-- ЗАМЕТКИ -->';
+export const KNOWN_MARKER = '<!-- ЗАВЕДЕНО -->';
+
+/**
+ * Разбор входящего: сырые заметки и список уже заведённого, чтобы модель не
+ * предлагала второй раз то, что есть (docs/10-inbox.md).
+ */
+export function inboxPrompt(
+  template: string,
+  notes: readonly { path: string; title: string; text: string }[],
+  known: readonly { id: string; type: string; title: string }[]
+): string {
+  const said = notes.length
+    ? notes.map((note) => [`### ${note.title}`, '', `Файл: \`${note.path}\``, '', note.text.trim()].join(LF)).join(LF + LF)
+    : 'Заметок нет.';
+
+  const already = known.length
+    ? known.map((record) => `- \`${record.id}\` (${record.type}) — ${record.title}`).join(LF)
+    : 'Пока не заведено ничего: это первые записи проекта.';
+
+  return withoutFrontNote(template)
+    .replace(NOTES_MARKER, said)
+    .replace(KNOWN_MARKER, already);
+}
+
 /** Места, куда подставляется прошлый ответ и претензии схемы к нему. */
 export const ANSWER_MARKER = '<!-- ОТВЕТ -->';
 export const PROBLEMS_MARKER = '<!-- ПРЕТЕНЗИИ -->';

@@ -222,7 +222,7 @@ export interface ProjectManifest {
   contract: string;
   project: { id: string; name: string; description?: string };
   paths: Partial<Record<SectionKey, string>>;
-  sources?: { code?: string[]; docs?: string[]; client?: string[] };
+  sources?: { code?: string[]; docs?: string[]; client?: string[]; inbox?: string[] };
   roles?: { id: string; name: string }[];
   policy?: Policy;
 }

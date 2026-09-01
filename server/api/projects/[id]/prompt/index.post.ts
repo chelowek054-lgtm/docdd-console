@@ -3,7 +3,8 @@ import { defineEventHandler, getRouterParam, readBody } from 'h3';
 import { useStorage } from 'nitropack/runtime';
 
 import { checkEvidence, evidenceClaims, parseMapRecord } from '../../../../lib/maps';
-import { fixPrompt, mapFixPrompt, mapsPrompt, type MapsState } from '../../../../lib/prompt';
+import { fixPrompt, inboxPrompt, mapFixPrompt, mapsPrompt, type MapsState } from '../../../../lib/prompt';
+import { inboxNotes } from '../../../../utils/inbox-service';
 import { mapSchemas } from '../../../../lib/map-schemas';
 import { worthAsking } from '../../../../lib/inventory';
 import { inventoryOf } from '../../../../utils/inventory-service';
@@ -31,6 +32,7 @@ export default defineEventHandler(async (event) => {
     severity?: unknown;
     answer?: unknown;
     problems?: unknown;
+    notes?: unknown;
   }>(event);
   const kind = typeof body?.kind === 'string' ? body.kind : '';
 
@@ -80,6 +82,30 @@ export default defineEventHandler(async (event) => {
       };
     }
 
+    if (kind === 'inbox') {
+      // Разбор идёт по заметкам, названным человеком; не назвал — по всем.
+      const chosen = Array.isArray(body?.notes)
+        ? body.notes.filter((note): note is string => typeof note === 'string')
+        : [];
+
+      const all = inboxNotes(project.root);
+      const notes = chosen.length ? all.filter((note) => chosen.includes(note.path)) : all;
+      if (notes.length === 0) {
+        return fail(event, 422, 'inbox_empty', 'Во входящем нет заметок: разбирать нечего');
+      }
+
+      const known = loadIndex(project.root).records.map((record) => ({
+        id: record.id,
+        type: record.type,
+        title: record.title
+      }));
+
+      return {
+        prompt: inboxPrompt(await template('inbox-plan.md'), notes, known),
+        count: notes.length
+      };
+    }
+
     if (kind === 'map-fix') {
       // Форма не сошлась — но разбор файлов в силе, и переделывать его незачем.
       const answer = typeof body?.answer === 'string' ? body.answer : '';
@@ -96,7 +122,7 @@ export default defineEventHandler(async (event) => {
       };
     }
 
-    return fail(event, 400, 'kind_invalid', 'Известны запросы: `fix`, `maps`, `map-fix`');
+    return fail(event, 400, 'kind_invalid', 'Известны запросы: `fix`, `maps`, `map-fix`, `inbox`');
   } catch (error) {
     if (error instanceof WorkspaceError) {
       return fail(event, 422, error.code, error.message, error.detail);
