@@ -73,6 +73,11 @@ export async function listWorkBranches(root: string): Promise<string[]> {
 /**
  * Ветка и отдельное рабочее дерево под задачу. Каталог уже есть — значит заход
  * повторный, и это нормальный случай: доработка идёт там же.
+ *
+ * Каталога нет, а git о нём помнит — тоже случай не редкий: `.docdd` удалили
+ * руками, а запись о дереве осталась в служебных файлах. Без уборки git
+ * откажется заводить дерево заново, сказав «ветка уже занята деревом», и работа
+ * встанет на пустом месте.
  */
 export async function ensureWorktree(
   root: string,
@@ -84,6 +89,10 @@ export async function ensureWorktree(
   if (existsSync(absolute)) {
     return { ok: true, stdout: 'рабочее дерево уже есть', stderr: '', code: 0 };
   }
+
+  // Прибираем записи о деревьях, каталогов которых больше нет. Существующие
+  // деревья это не трогает: git убирает только заведомо пропавшие.
+  await git(root, ['worktree', 'prune']);
 
   const exists = await branchExists(root, branch);
   return exists

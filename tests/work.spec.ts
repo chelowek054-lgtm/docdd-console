@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -170,4 +170,21 @@ describe('память о разговоре', () => {
     writeFileSync(join(root, '.docdd', 'sessions.json'), 'не json', 'utf8');
     expect(sessionOf(root, 'T-0001')).toBeUndefined();
   });
+});
+
+describe('осиротевшая запись о рабочем дереве', () => {
+  it('удалённый каталог не мешает завести дерево заново', async () => {
+    const base = await currentBranch(root);
+    const branch = branchName('T-0002', 'Вторая задача');
+    const relative = '.docdd/worktrees/T-0002';
+
+    expect((await ensureWorktree(root, branch, relative, base as string)).ok).toBe(true);
+
+    // Так бывает, когда `.docdd` убрали руками: каталога нет, а git помнит.
+    rmSync(join(root, '.docdd', 'worktrees', 'T-0002'), { recursive: true, force: true });
+
+    const again = await ensureWorktree(root, branch, relative, base as string);
+    expect(again.ok, again.stderr).toBe(true);
+    expect(existsSync(worktreeRoot(root, 'T-0002'))).toBe(true);
+  }, 60_000);
 });
