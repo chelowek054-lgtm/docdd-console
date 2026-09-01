@@ -219,3 +219,33 @@ describe('CLAUDE.md', () => {
     expect(rules).not.toContain('npm run');
   });
 });
+
+describe('CLAUDE.md про входящее', () => {
+  const rules = claudeMd({ id: 'demo', name: 'Demo' });
+
+  it('называет склад поимённо: иначе модель не знает, куда класть', () => {
+    expect(rules).toContain('docs/inbox');
+    expect(rules).toContain('Один файл — одна тема');
+  });
+
+  it('берёт склад из манифеста, а не зашивает свой', () => {
+    expect(claudeMd({ id: 'demo', name: 'Demo', inbox: 'notes' })).toContain('`notes`');
+  });
+
+  it('запрещает выдумывать номера и писать front matter в заметке', () => {
+    expect(rules).toContain('Не выдумывай номера');
+    expect(rules).toContain('не пиши front matter');
+  });
+
+  it('объясняет, что дальше: разбирает человек через приложение', () => {
+    // Без этого модель попробует завести записи сама и займёт чужие номера.
+    expect(rules).toContain('Разобрать входящее');
+    expect(rules).toContain('не заводи записи сам');
+  });
+});
+
+describe('манифест про входящее', () => {
+  it('заготовка сразу называет склад: иначе экран входящего пуст без причины', () => {
+    expect(manifestYaml({ id: 'demo', name: 'Demo' })).toContain('inbox: [docs/inbox]');
+  });
+});
