@@ -214,6 +214,8 @@ export interface Policy {
   require_approved_docs_before_dev?: boolean;
   require_verification_before_done?: boolean;
   stale_in_progress_days?: number;
+  /** Сколько файлов уходит в один запрос на карты (docs/07-maps.md). */
+  map_portion_files?: number;
 }
 
 export interface ProjectManifest {

@@ -12,8 +12,18 @@ import type { MapChange } from './maps';
  * система остаётся снаружи.
  */
 
-/** Сколько файлов уходит в один запрос. Больше — ответ не поместится. */
+/**
+ * Сколько файлов уходит в один запрос, когда проект не сказал своего.
+ * Своё говорят через `policy.map_portion_files` в манифесте: у каждого
+ * проекта размер ответа свой, и зашивать его в код нечестно.
+ */
 export const PORTION = 40;
+
+/** Порция из манифеста: бессмысленное значение не принимается молча. */
+export function portionOf(policy: { map_portion_files?: number } | undefined): number {
+  const said = policy?.map_portion_files;
+  return typeof said === 'number' && Number.isInteger(said) && said >= 1 ? said : PORTION;
+}
 
 export interface FileMark {
   path: string;

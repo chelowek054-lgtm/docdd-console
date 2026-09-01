@@ -167,6 +167,7 @@ export function manifestYaml(input: ManifestInput, eol = '\n'): string {
     '  require_approved_docs_before_dev: true',
     '  require_verification_before_done: true',
     '  stale_in_progress_days: 14',
+    '  map_portion_files: 40',
     ''
   );
   return lines.join(eol);

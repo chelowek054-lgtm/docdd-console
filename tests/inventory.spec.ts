@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { describedBy, inventoryState, worthAsking, type FileMark } from '../server/lib/inventory';
+import { describedBy, inventoryState, portionOf, worthAsking, type FileMark } from '../server/lib/inventory';
 import { parseMapRecord } from '../server/lib/maps';
 import {
   fingerprint,
@@ -246,5 +246,57 @@ describe('кэш отпечатков', () => {
     const saved = readInventoryFile(root);
     expect(saved.described['src/a.ts']).toBe('старый-отпечаток');
     expect(saved.files).toEqual({});
+  });
+});
+
+describe('размер порции', () => {
+  it('берётся из манифеста: у каждого проекта он свой', () => {
+    expect(portionOf({ map_portion_files: 10 })).toBe(10);
+  });
+
+  it('без указания — сорок', () => {
+    expect(portionOf(undefined)).toBe(40);
+    expect(portionOf({})).toBe(40);
+  });
+
+  it('бессмысленное значение не принимается: ноль порций — это остановка', () => {
+    expect(portionOf({ map_portion_files: 0 })).toBe(40);
+    expect(portionOf({ map_portion_files: -5 })).toBe(40);
+    expect(portionOf({ map_portion_files: 2.5 })).toBe(40);
+  });
+
+  it('проект, назвавший свою порцию, получает её', () => {
+    const root = mkdtempSync(join(tmpdir(), 'docdd-portion-'));
+    mkdirSync(join(root, 'docs', 'development'), { recursive: true });
+    mkdirSync(join(root, 'src'), { recursive: true });
+
+    writeFileSync(join(root, 'docs', 'development', 'project.yaml'), [
+      'contract: docdd.workspace/1',
+      'project:',
+      '  id: demo',
+      '  name: Demo',
+      'paths:',
+      '  design: design',
+      'sources:',
+      '  code: [src]',
+      'policy:',
+      '  map_portion_files: 2',
+      ''
+    ].join(LF), 'utf8');
+
+    for (const name of ['a.ts', 'b.ts', 'c.ts', 'd.ts']) {
+      writeFileSync(join(root, 'src', name), `export const x = '${name}';` + LF, 'utf8');
+    }
+
+    const state = inventoryOf(root);
+    expect(state.portion).toBe(2);
+    expect(state.next).toHaveLength(2);
+    expect(state.pending).toHaveLength(4);
+
+    try {
+      rmSync(root, { recursive: true, force: true });
+    } catch {
+      // Прибирать не обязательно.
+    }
   });
 });

@@ -2,7 +2,13 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-import { describedBy, inventoryState, type FileMark, type InventoryState } from '../lib/inventory';
+import {
+  describedBy,
+  inventoryState,
+  portionOf,
+  type FileMark,
+  type InventoryState
+} from '../lib/inventory';
 import { parseMapRecord } from '../lib/maps';
 import { normalizeRoot } from '../lib/paths';
 import { readWorkspace } from '../lib/workspace';
@@ -149,7 +155,9 @@ export function marksOf(root: string): FileMark[] {
 
 export function inventoryOf(root: string): InventoryState {
   const normalized = normalizeRoot(root);
-  return inventoryState(marksOf(normalized), readDescribed(normalized));
+  // Размер порции — дело проекта, а не инструмента (docs/07-maps.md).
+  const portion = portionOf(readWorkspace(normalized).manifest.policy);
+  return inventoryState(marksOf(normalized), readDescribed(normalized), portion);
 }
 
 /**
