@@ -1,9 +1,10 @@
 import { execFile, execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { WORKTREE_DIR } from '../lib/branch';
 import { normalizeRoot } from '../lib/paths';
+import { gitignoreWithDocdd } from '../lib/scaffold';
 
 /**
  * Работа с git. Приложение делает ровно три вещи: заводит ветку задачи,
@@ -101,6 +102,14 @@ export async function ensureWorktree(
   // Прибираем записи о деревьях, каталогов которых больше нет. Существующие
   // деревья это не трогает: git убирает только заведомо пропавшие.
   await git(root, ['worktree', 'prune']);
+
+  // Проект мог завестись до того, как заведение формата стало исключать
+  // .docdd/ из git (или его завели вручную). Не исключишь — вложенный `.git`
+  // дерева задачи будет пачкать статус всего проекта своими же коммитами.
+  const gitignore = join(normalizeRoot(root), '.gitignore');
+  const before = existsSync(gitignore) ? readFileSync(gitignore, 'utf8') : null;
+  const after = gitignoreWithDocdd(before);
+  if (after !== before) writeFileSync(gitignore, after, 'utf8');
 
   const exists = await branchExists(root, branch);
   return exists

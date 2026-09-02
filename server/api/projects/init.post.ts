@@ -1,10 +1,10 @@
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { defineEventHandler, readBody } from 'h3';
 
 import { normalizeRoot } from '../../lib/paths';
-import { claudeMd, DEFAULT_PATHS, fileNameFor, manifestYaml, recordTemplate } from '../../lib/scaffold';
+import { claudeMd, DEFAULT_PATHS, fileNameFor, gitignoreWithDocdd, manifestYaml, recordTemplate } from '../../lib/scaffold';
 import type { SectionKey } from '../../lib/types';
 import { developmentDir, hasWorkspace, MANIFEST_FILE } from '../../lib/workspace';
 import { fail } from '../../utils/http';
@@ -74,6 +74,14 @@ export default defineEventHandler(async (event) => {
     // вовсе: это чужие правила, и заводить формат не значит их переписывать.
     const rules = join(normalized, 'CLAUDE.md');
     if (!existsSync(rules)) writeFileSync(rules, claudeMd({ id, name }), 'utf8');
+
+    // .docdd/ — рабочие деревья приложения, не часть проекта. Без исключения
+    // из git вложенный .git дерева задачи будет пачкать статус всего проекта
+    // при каждом своём коммите (server/lib/scaffold.ts, gitignoreWithDocdd).
+    const gitignore = join(normalized, '.gitignore');
+    const before = existsSync(gitignore) ? readFileSync(gitignore, 'utf8') : null;
+    const after = gitignoreWithDocdd(before);
+    if (after !== before) writeFileSync(gitignore, after, 'utf8');
 
     const entry = { id, name, root: normalized, lastOpenedAt: new Date().toISOString() };
     await saveProject(entry);

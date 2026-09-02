@@ -204,6 +204,31 @@ export function manifestYaml(input: ManifestInput, eol = '\n'): string {
  */
 const NEW_LINE = String.fromCharCode(10);
 
+const DOCDD_IGNORE_LINE = '.docdd/';
+
+/**
+ * `.gitignore` с обязательной строкой `.docdd/`.
+ *
+ * `.docdd/worktrees/` — рабочие деревья задач и починки, каждое со своим
+ * `.git`. Не исключишь их из чужого репозитория — git проекта увидит вложенный
+ * `.git` как gitlink и станет считать рабочий каталог грязным при каждом новом
+ * коммите внутри дерева задачи, хотя человек ничего не менял (так вышло на
+ * InteractMed: слияние отказало с «есть несохранённые изменения», хотя
+ * человек ничего не трогал). `existing` — уже имеющийся файл, `null`, если
+ * его ещё нет.
+ */
+export function gitignoreWithDocdd(existing: string | null, eol = NEW_LINE): string {
+  if (existing === null) return DOCDD_IGNORE_LINE + eol;
+
+  const already = existing
+    .split(/\r?\n/)
+    .some((line) => line.trim() === DOCDD_IGNORE_LINE || line.trim() === '.docdd');
+  if (already) return existing;
+
+  const separator = existing.endsWith(eol) || existing === '' ? '' : eol;
+  return existing + separator + DOCDD_IGNORE_LINE + eol;
+}
+
 export function claudeMd(input: ManifestInput, eol = NEW_LINE): string {
   const lines = [
     `# ${input.name}: правила работы`,

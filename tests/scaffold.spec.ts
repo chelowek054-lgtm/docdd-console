@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { checkRow, surveyFile, withFrontMatter } from '../server/lib/import';
 import { parseRecord } from '../server/lib/parse';
 import { validateFrontMatter, validateProject } from '../server/lib/schema';
-import { claudeMd, fileNameFor, manifestYaml, nextId, recordTemplate, slugify } from '../server/lib/scaffold';
+import { claudeMd, fileNameFor, gitignoreWithDocdd, manifestYaml, nextId, recordTemplate, slugify } from '../server/lib/scaffold';
 
 /**
  * Заведение и импорт трогают файлы человека сильнее всего: создают, переносят,
@@ -107,6 +107,28 @@ describe('manifestYaml', () => {
     for (const section of ['requirements', 'design', 'decisions', 'contracts', 'tasks', 'phases', 'tests', 'diagrams']) {
       expect(text).toContain(`  ${section}: `);
     }
+  });
+});
+
+describe('gitignoreWithDocdd', () => {
+  it('файла ещё нет — заводит с одной строкой', () => {
+    expect(gitignoreWithDocdd(null)).toBe('.docdd/\n');
+  });
+
+  it('строка уже есть — файл не трогает', () => {
+    const text = '.env\n.docdd/\n';
+    expect(gitignoreWithDocdd(text)).toBe(text);
+  });
+
+  it('строки нет — дописывает в конец, не теряя остального', () => {
+    const text = '.env\n*.log\n';
+    const after = gitignoreWithDocdd(text);
+    expect(after).toBe('.env\n*.log\n.docdd/\n');
+  });
+
+  it('файл без конечного перевода строки — не склеивает строки', () => {
+    const after = gitignoreWithDocdd('.env');
+    expect(after).toBe('.env\n.docdd/\n');
   });
 });
 
