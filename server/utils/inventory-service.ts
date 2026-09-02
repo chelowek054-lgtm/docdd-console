@@ -6,6 +6,7 @@ import {
   describedBy,
   inventoryState,
   portionOf,
+  skippedBy,
   type FileMark,
   type InventoryState
 } from '../lib/inventory';
@@ -35,12 +36,20 @@ interface FileNote {
   hash: string;
 }
 
+/** Решение «в карту не идёт»: отпечаток на момент решения и причина. */
+interface SkipNote {
+  hash: string;
+  why: string;
+}
+
 interface Inventory {
   version: 1;
   /** Кэш отпечатков: ускоряет проход и ни на что больше не влияет. */
   files: Record<string, FileNote>;
   /** Что описано и с каким отпечатком на момент подтверждения карты. */
   described: Record<string, string>;
+  /** Что посмотрели и в карту не положили — с причиной. */
+  skipped: Record<string, SkipNote>;
 }
 
 function pathOf(root: string): string {
@@ -48,7 +57,7 @@ function pathOf(root: string): string {
 }
 
 function empty(): Inventory {
-  return { version: 1, files: {}, described: {} };
+  return { version: 1, files: {}, described: {}, skipped: {} };
 }
 
 export function readInventoryFile(root: string): Inventory {
@@ -63,13 +72,14 @@ export function readInventoryFile(root: string): Inventory {
     // Старый плоский вид (`путь: отпечаток`) читается как описанное: уже
     // записанное не должно пропасть от смены формата.
     if (!raw.version) {
-      return { version: 1, files: {}, described: parsed as Record<string, string> };
+      return { version: 1, files: {}, described: parsed as Record<string, string>, skipped: {} };
     }
 
     return {
       version: 1,
       files: raw.files ?? {},
-      described: raw.described ?? {}
+      described: raw.described ?? {},
+      skipped: raw.skipped ?? {}
     };
   } catch {
     // Испорченная опись — не беда: заход просто перечитает проект заново.
@@ -145,11 +155,11 @@ export function marksOf(root: string): FileMark[] {
 
     // Сохраняем по ходу, а не в конце: прервали проход — уцелеет посчитанное.
     if (counted % FLUSH_EVERY === 0) {
-      write(normalized, { version: 1, files: { ...inventory.files, ...files }, described: inventory.described });
+      write(normalized, { ...inventory, files: { ...inventory.files, ...files } });
     }
   }
 
-  if (counted > 0) write(normalized, { version: 1, files, described: inventory.described });
+  if (counted > 0) write(normalized, { ...inventory, files });
   return marks;
 }
 
@@ -157,7 +167,8 @@ export function inventoryOf(root: string): InventoryState {
   const normalized = normalizeRoot(root);
   // Размер порции — дело проекта, а не инструмента (docs/07-maps.md).
   const portion = portionOf(readWorkspace(normalized).manifest.policy);
-  return inventoryState(marksOf(normalized), readDescribed(normalized), portion);
+  const inventory = readInventoryFile(normalized);
+  return inventoryState(marksOf(normalized), inventory.described, portion, inventory.skipped);
 }
 
 /**
@@ -170,12 +181,23 @@ export function markDescribed(root: string, body: string): number {
   const marks = new Map(marksOf(normalized).map((mark) => [mark.path, mark.hash]));
   const inventory = readInventoryFile(normalized);
 
+  const change = parseMapRecord(body).change;
   let marked = 0;
-  for (const path of describedBy(parseMapRecord(body).change)) {
+
+  for (const path of describedBy(change)) {
     const hash = marks.get(path);
     // Отмечаем только файлы кода: свидетельство может указывать и на документ.
     if (hash === undefined) continue;
     inventory.described[path] = hash;
+    marked += 1;
+  }
+
+  // Решение «в карту не идёт» — такая же часть карты, как и описанное:
+  // без него файл вернулся бы в очередь (docs/07-maps.md).
+  for (const file of skippedBy(change)) {
+    const hash = marks.get(file.path);
+    if (hash === undefined) continue;
+    inventory.skipped[file.path] = { hash, why: file.why };
     marked += 1;
   }
 

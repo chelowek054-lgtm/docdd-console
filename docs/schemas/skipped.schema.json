@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docdd/skipped.schema.json",
+  "title": "Файлы вне карты",
+  "description": "Блок ```docdd-skipped в записи типа map. Файлы, которые модель посмотрела и сознательно не описала: без этого они возвращались бы в очередь бесконечно.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "files"
+  ],
+  "properties": {
+    "files": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/file"
+      }
+    }
+  },
+  "$defs": {
+    "file": {
+      "type": "object",
+      "required": [
+        "path",
+        "why"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Путь от корня проекта через прямой слеш."
+        },
+        "why": {
+          "type": "string",
+          "minLength": 3,
+          "description": "Почему файла нет в карте. Причина обязательна: молчаливый пропуск ничем не отличается от забывчивости."
+        }
+      }
+    }
+  }
+}

@@ -42,9 +42,16 @@ export interface InventoryState {
   changed: string[];
   /** Описаны, но файлов больше нет: их надо объявить убранными. */
   gone: string[];
+  /** Посмотрены и в карту не положены — с причиной. В очередь не идут. */
+  skipped: { path: string; why: string }[];
   /** Порция, которая уйдёт в ближайший запрос. */
   next: string[];
   portion: number;
+}
+
+/** Файлы, которые карта посмотрела и сознательно не описала. */
+export function skippedBy(change: MapChange): { path: string; why: string }[] {
+  return (change.skipped ?? []).filter((file) => file.path && file.why);
 }
 
 /**
@@ -83,16 +90,27 @@ export function describedBy(change: MapChange): string[] {
 export function inventoryState(
   marks: readonly FileMark[],
   described: Readonly<Record<string, string>>,
-  portion = PORTION
+  portion = PORTION,
+  skipped: Readonly<Record<string, { hash: string; why: string }>> = {}
 ): InventoryState {
   const now = new Map(marks.map((mark) => [mark.path, mark.hash]));
 
   const stable: string[] = [];
   const pending: string[] = [];
   const changed: string[] = [];
+  const aside: { path: string; why: string }[] = [];
 
   for (const mark of marks) {
     const was = described[mark.path];
+    const put = skipped[mark.path];
+
+    // Решение «в карту не идёт» держится, пока файл не изменился: другое
+    // содержимое — другой разговор.
+    if (was === undefined && put && put.hash === mark.hash) {
+      aside.push({ path: mark.path, why: put.why });
+      continue;
+    }
+
     if (was === undefined) pending.push(mark.path);
     else if (was === mark.hash) stable.push(mark.path);
     else changed.push(mark.path);
@@ -110,6 +128,7 @@ export function inventoryState(
     pending,
     changed,
     gone,
+    skipped: aside,
     next: queue.slice(0, portion),
     portion
   };

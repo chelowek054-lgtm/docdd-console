@@ -4,7 +4,14 @@ import { join } from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { describedBy, inventoryState, portionOf, worthAsking, type FileMark } from '../server/lib/inventory';
+import {
+  describedBy,
+  inventoryState,
+  portionOf,
+  skippedBy,
+  worthAsking,
+  type FileMark
+} from '../server/lib/inventory';
 import { parseMapRecord } from '../server/lib/maps';
 import {
   fingerprint,
@@ -298,5 +305,61 @@ describe('размер порции', () => {
     } catch {
       // Прибирать не обязательно.
     }
+  });
+});
+
+describe('файлы вне карты', () => {
+  const skipped = { 'src/иконка.png': { hash: 'h1', why: 'картинка, не модуль' } };
+
+  it('решение «в карту не идёт» убирает файл из очереди', () => {
+    const state = inventoryState(marks(['src/иконка.png', 'h1']), {}, 40, skipped);
+
+    expect(state.pending).toEqual([]);
+    expect(state.next).toEqual([]);
+    expect(state.skipped).toEqual([{ path: 'src/иконка.png', why: 'картинка, не модуль' }]);
+  });
+
+  it('файл изменился — решение устарело, и он возвращается в очередь', () => {
+    const state = inventoryState(marks(['src/иконка.png', 'другой']), {}, 40, skipped);
+
+    expect(state.pending).toEqual(['src/иконка.png']);
+    expect(state.skipped).toEqual([]);
+  });
+
+  it('описанное сильнее пропущенного: карта важнее решения не описывать', () => {
+    const state = inventoryState(marks(['src/иконка.png', 'h1']), { 'src/иконка.png': 'h1' }, 40, skipped);
+
+    expect(state.described).toEqual(['src/иконка.png']);
+    expect(state.skipped).toEqual([]);
+  });
+
+  it('без решения по файлу он ждёт очереди — как и раньше', () => {
+    expect(inventoryState(marks(['src/a.ts', 'h1']), {}, 40, {}).pending).toEqual(['src/a.ts']);
+  });
+});
+
+describe('разбор блока пропущенных', () => {
+  it('карта называет файлы вне себя с причиной', () => {
+    const body = [
+      '```docdd-skipped',
+      JSON.stringify({ files: [{ path: 'app/res/colors.xml', why: 'ресурс, не модуль' }] }),
+      '```'
+    ].join(LF);
+
+    const parsed = parseMapRecord(body);
+    expect(parsed.problems).toEqual([]);
+    expect(skippedBy(parsed.change)).toEqual([{ path: 'app/res/colors.xml', why: 'ресурс, не модуль' }]);
+  });
+
+  it('без причины файл не пропускается: молчаливый пропуск равен забывчивости', () => {
+    const body = [
+      '```docdd-skipped',
+      JSON.stringify({ files: [{ path: 'app/res/colors.xml' }] }),
+      '```'
+    ].join(LF);
+
+    const parsed = parseMapRecord(body);
+    expect(parsed.problems.length).toBeGreaterThan(0);
+    expect(skippedBy(parsed.change)).toEqual([]);
   });
 });

@@ -77,6 +77,17 @@ function onAnswer() {
   fixed.value = '';
 }
 
+const { index } = useProjectIndex(projectId);
+
+/** Карты, которые есть, но в картину не входят: черновики и заменённые. */
+const aside = computed(() => {
+  const records = (index.value?.records ?? []).filter((record) => record.type === 'map');
+  return {
+    drafts: records.filter((record) => record.status === 'draft' || record.status === 'review'),
+    superseded: records.filter((record) => record.status === 'superseded')
+  };
+});
+
 const failure = computed(() => failureOf(data.value));
 const map = computed(() => (failure.value ? null : (data.value as MapResponse | null)));
 
@@ -211,8 +222,27 @@ async function copySource() {
         v-if="map && map.from.length === 0"
         class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted"
       >
-        Подтверждённых карт нет — складывать нечего. Карта заводится записью типа
-        <code>map</code> и запрашивается у модели по шаблону из <code>docs/prompts/</code>.
+        <!-- Пусто — тоже ответ, и он обязан назвать причину (docs/04-ui.md). -->
+        <template v-if="aside.superseded.length || aside.drafts.length">
+          <p class="font-medium text-default">
+            Карты есть, но в картину не входит ни одна.
+          </p>
+          <p v-if="aside.superseded.length" class="mt-2">
+            {{ plural(aside.superseded.length, "карта помечена", "карты помечены", "карт помечены") }}
+            заменёнными: <span class="font-mono">{{ aside.superseded.map((record) => record.id).join(", ") }}</span>.
+            Карта — это изменение, а не снимок: картина складывается из суммы подтверждённых.
+            Пометив прежние заменёнными, вы вычли их из суммы.
+          </p>
+          <p v-if="aside.drafts.length" class="mt-2">
+            {{ plural(aside.drafts.length, "карта ждёт", "карты ждут", "карт ждут") }} подтверждения:
+            <span class="font-mono">{{ aside.drafts.map((record) => record.id).join(", ") }}</span>.
+          </p>
+        </template>
+
+        <template v-else>
+          Подтверждённых карт нет — складывать нечего. Карта заводится записью типа
+          <code>map</code> и запрашивается у модели по шаблону из <code>docs/prompts/</code>.
+        </template>
       </div>
 
       <template v-else-if="map">

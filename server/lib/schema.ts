@@ -11,6 +11,7 @@ import frontmatterSchema from '../../docs/schemas/frontmatter.schema.json';
 import projectSchema from '../../docs/schemas/project.schema.json';
 import reportSchema from '../../docs/schemas/report.schema.json';
 import recordsSchema from '../../docs/schemas/records.schema.json';
+import skippedSchema from '../../docs/schemas/skipped.schema.json';
 import userflowSchema from '../../docs/schemas/userflow.schema.json';
 
 /** Схемы берутся прямо из docs/schemas: копия разошлась бы с контрактом в первую же неделю. */
@@ -43,6 +44,7 @@ const validateCodemapSchema = ajv.compile(codemapSchema);
 const validateDataflowSchema = ajv.compile(dataflowSchema);
 const validateUserflowSchema = ajv.compile(userflowSchema);
 const validateRecordsSchema = ajv.compile(recordsSchema);
+const validateSkippedSchema = ajv.compile(skippedSchema);
 
 export function validateFrontMatter(data: unknown): SchemaIssue[] {
   return run(validateFrontmatterSchema, data);
@@ -78,6 +80,11 @@ export function validateDataflow(data: unknown): SchemaIssue[] {
 
 export function validateUserflow(data: unknown): SchemaIssue[] {
   return run(validateUserflowSchema, data);
+}
+
+/** Файлы, которые модель сознательно не описала (docs/07-maps.md). */
+export function validateSkipped(data: unknown): SchemaIssue[] {
+  return run(validateSkippedSchema, data);
 }
 
 /** Предложенные записи из разбора входящего (docs/10-inbox.md). */

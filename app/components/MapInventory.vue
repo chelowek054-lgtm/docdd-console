@@ -11,6 +11,7 @@ interface Inventory {
   pending: string[];
   changed: string[];
   gone: string[];
+  skipped: { path: string; why: string }[];
   next: string[];
   portion: number;
 }
@@ -33,6 +34,7 @@ const files = computed(() => {
   if (shown.value === 'pending') return state.pending;
   if (shown.value === 'changed') return state.changed;
   if (shown.value === 'gone') return state.gone;
+  if (shown.value === 'skipped') return state.skipped.map((file) => `${file.path} — ${file.why}`);
   return [];
 });
 
@@ -73,6 +75,17 @@ function toggle(which: string) {
           @click="toggle('changed')"
         >
           изменились после описания: {{ data.changed.length }}
+        </UButton>
+
+        <!-- Посмотрены и в карту не положены: в очередь они не идут. -->
+        <UButton
+          v-if="data.skipped.length"
+          size="xs"
+          variant="soft"
+          color="neutral"
+          @click="toggle('skipped')"
+        >
+          не в карте: {{ data.skipped.length }}
         </UButton>
 
         <UButton v-if="data.gone.length" size="xs" variant="soft" color="neutral" @click="toggle('gone')">

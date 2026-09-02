@@ -1,4 +1,4 @@
-import { validateCodemap, validateDataflow, validateUserflow } from './schema';
+import { validateCodemap, validateDataflow, validateSkipped, validateUserflow } from './schema';
 
 /**
  * Карты проекта (docs/07-maps.md). Разбор трёх структур из тела записи и
@@ -33,10 +33,18 @@ export interface UserflowPart {
   calls?: { from: string; to: string; evidence: Evidence }[];
 }
 
+/** Файл, который модель посмотрела и в карту не положила. */
+export interface SkippedFile {
+  path: string;
+  why: string;
+}
+
 export interface MapChange {
   codemap?: { added?: CodemapPart; removed?: CodemapPart };
   dataflow?: { added?: DataflowPart; removed?: DataflowPart };
   userflow?: { added?: UserflowPart; removed?: UserflowPart };
+  /** Не структура, а решение: этих файлов в карте нет, и вот почему. */
+  skipped?: SkippedFile[];
 }
 
 export interface MapProblem {
@@ -118,6 +126,27 @@ export function parseMapRecord(body: string): ParsedMap {
     Object.assign(change, { [structure]: parsed });
   }
 
+  // Четвёртый блок — не структура, а решение: эти файлы посмотрели и в карту
+  // не положили. Без него они возвращались бы в очередь бесконечно
+  // (docs/07-maps.md, раздел «Не всё попадает в карту»).
+  const raw = blockOf(body, 'skipped');
+  if (raw !== null && raw.trim() !== '') {
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      const issues = validateSkipped(parsed);
+      if (issues.length > 0) {
+        problems.push({ structure: 'codemap', message: `Блок \`skipped\`: ${collapse(issues.map((issue) => issue.message)).join(' ')}` });
+      } else {
+        change.skipped = (parsed as { files: SkippedFile[] }).files;
+      }
+    } catch (error) {
+      problems.push({
+        structure: 'codemap',
+        message: `Блок \`skipped\` не разбирается как JSON: ${error instanceof Error ? error.message : String(error)}`
+      });
+    }
+  }
+
   return { change, problems, present };
 }
 
@@ -130,7 +159,7 @@ function validateFor(structure: MapStructure, data: unknown): string[] {
   return issues.map((issue) => issue.message);
 }
 
-function blockOf(body: string, structure: MapStructure): string | null {
+function blockOf(body: string, structure: MapStructure | 'skipped'): string | null {
   const pattern = new RegExp(
     `^[ \\t]*(?:\`\`\`|~~~)[ \\t]*docdd-${structure}[ \\t]*\\r?\\n([\\s\\S]*?)^[ \\t]*(?:\`\`\`|~~~)[ \\t]*$`,
     'm'

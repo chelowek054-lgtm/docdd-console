@@ -25,6 +25,7 @@ export default defineEventHandler(async (event) => {
       pending: state.pending,
       changed: state.changed,
       gone: state.gone,
+      skipped: state.skipped,
       next: state.next,
       portion: state.portion
     };
