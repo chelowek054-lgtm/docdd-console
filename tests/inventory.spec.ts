@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -18,7 +18,8 @@ import {
   inventoryOf,
   markDescribed,
   marksOf,
-  readInventoryFile
+  readInventoryFile,
+  rebuildDescribed
 } from '../server/utils/inventory-service';
 
 /**
@@ -361,5 +362,83 @@ describe('разбор блока пропущенных', () => {
     const parsed = parseMapRecord(body);
     expect(parsed.problems.length).toBeGreaterThan(0);
     expect(skippedBy(parsed.change)).toEqual([]);
+  });
+});
+
+describe('пересчёт описи по действующим картам', () => {
+  let root = '';
+
+  beforeAll(() => {
+    root = mkdtempSync(join(tmpdir(), 'docdd-rebuild-'));
+    mkdirSync(join(root, 'docs', 'development', 'maps'), { recursive: true });
+    mkdirSync(join(root, 'src'), { recursive: true });
+
+    writeFileSync(join(root, 'docs', 'development', 'project.yaml'), [
+      'contract: docdd.workspace/1',
+      'project:',
+      '  id: demo',
+      '  name: Demo',
+      'paths:',
+      '  maps: maps',
+      'sources:',
+      '  code: [src]',
+      ''
+    ].join(LF), 'utf8');
+
+    writeFileSync(join(root, 'src', 'a.ts'), 'a', 'utf8');
+    writeFileSync(join(root, 'src', 'b.ts'), 'b', 'utf8');
+  });
+
+  afterAll(() => {
+    try {
+      rmSync(root, { recursive: true, force: true });
+    } catch {
+      // Прибирать не обязательно.
+    }
+  });
+
+  const record = (id: string, status: string, files: string[]) => [
+    '---',
+    `id: ${id}`,
+    'type: map',
+    `title: Карта ${id}`,
+    `status: ${status}`,
+    'created: 2026-09-01',
+    'updated: 2026-09-01',
+    '---',
+    '',
+    '```docdd-codemap',
+    JSON.stringify({ added: { modules: files.map((path) => ({ id: path })) } }),
+    '```',
+    ''
+  ].join(LF);
+
+  const readBody = (path: string) => readFileSync(join(root, path), 'utf8');
+
+  it('файл, застрявший под замeнённой картой, возвращается в очередь', () => {
+    // Карта описала оба файла и была подтверждена — потом её заменили,
+    // а описание в опись так и осталось: файлы там навсегда, если не чинить.
+    writeFileSync(join(root, 'docs', 'development', 'maps', 'M-0001.md'), record('M-0001', 'superseded', ['src/a.ts', 'src/b.ts']), 'utf8');
+    markDescribed(root, readBody('docs/development/maps/M-0001.md'));
+
+    const stuck = inventoryOf(root);
+    expect(stuck.described).toEqual(['src/a.ts', 'src/b.ts']);
+
+    // Пересчёт смотрит только на действующие карты — а таких сейчас нет.
+    expect(rebuildDescribed(root, readBody)).toBe(0);
+
+    const freed = inventoryOf(root);
+    expect(freed.described).toEqual([]);
+    expect(freed.pending.sort()).toEqual(['src/a.ts', 'src/b.ts']);
+  });
+
+  it('файл, который покрывает другая действующая карта, описанным и остаётся', () => {
+    writeFileSync(join(root, 'docs', 'development', 'maps', 'M-0002.md'), record('M-0002', 'approved', ['src/a.ts']), 'utf8');
+
+    expect(rebuildDescribed(root, readBody)).toBe(1);
+
+    const state = inventoryOf(root);
+    expect(state.described).toEqual(['src/a.ts']);
+    expect(state.pending).toEqual(['src/b.ts']);
   });
 });

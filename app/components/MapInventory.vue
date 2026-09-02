@@ -16,9 +16,25 @@ interface Inventory {
   portion: number;
 }
 
-const { data } = useFetch<Inventory>(() => `/api/projects/${props.projectId}/map/inventory`, {
+const { data, refresh } = useFetch<Inventory>(() => `/api/projects/${props.projectId}/map/inventory`, {
   key: () => `inventory:${props.projectId}`
 });
+
+const rebuilding = ref(false);
+
+/**
+ * Файл, застрявший под утратившей силу картой: карту пометили `superseded`,
+ * а он всё ещё считается описанным (docs/07-maps.md).
+ */
+async function rebuild() {
+  rebuilding.value = true;
+  try {
+    await $fetch(`/api/projects/${props.projectId}/map/inventory/rebuild`, { method: 'POST' });
+    await refresh();
+  } finally {
+    rebuilding.value = false;
+  }
+}
 
 const shown = ref('');
 
@@ -95,6 +111,10 @@ function toggle(which: string) {
         <span v-if="left === 0 && !data.gone.length" class="text-muted">
           всё описано и с тех пор не менялось
         </span>
+
+        <UButton size="xs" variant="ghost" color="neutral" :loading="rebuilding" @click="rebuild">
+          Пересчитать опись
+        </UButton>
       </div>
 
       <p v-if="left > data.portion" class="mt-2 text-sm text-muted">

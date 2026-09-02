@@ -80,6 +80,7 @@ updated: 2026-08-31
         {"id":"server/api/projects/[id]/index/index.get.ts","title":"index.get","layer":"маршруты"},
         {"id":"server/api/projects/[id]/map/index.get.ts","title":"index.get","layer":"маршруты"},
         {"id":"server/api/projects/[id]/map/inventory.get.ts","title":"inventory.get","layer":"маршруты"},
+        {"id":"server/api/projects/[id]/map/inventory/rebuild.post.ts","title":"rebuild.post","layer":"маршруты"},
         {"id":"server/api/projects/[id]/records/[recordId].get.ts","title":"[recordId].get","layer":"маршруты"},
         {"id":"server/api/projects/[id]/records/[recordId].patch.ts","title":"[recordId].patch","layer":"маршруты"},
         {"id":"server/api/projects/[id]/records/[recordId]/status.post.ts","title":"status.post","layer":"маршруты"},
@@ -232,6 +233,11 @@ updated: 2026-08-31
         {"from":"server/api/projects/[id]/map/inventory.get.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/projects/[id]/map/inventory.get.ts","line":4,"fragment":"import { fail } from '../../../../utils/http';"}},
         {"from":"server/api/projects/[id]/map/inventory.get.ts","to":"server/utils/inventory-service.ts","evidence":{"path":"server/api/projects/[id]/map/inventory.get.ts","line":5,"fragment":"import { inventoryOf } from '../../../../utils/inventory-ser"}},
         {"from":"server/api/projects/[id]/map/inventory.get.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/[id]/map/inventory.get.ts","line":6,"fragment":"import { findProject } from '../../../../utils/projects';"}},
+        {"from":"server/api/projects/[id]/map/inventory/rebuild.post.ts","to":"server/lib/paths.ts","evidence":{"path":"server/api/projects/[id]/map/inventory/rebuild.post.ts","line":4,"fragment":"import { normalizeRoot, resolveInside } from '../../../../.."}},
+        {"from":"server/api/projects/[id]/map/inventory/rebuild.post.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/api/projects/[id]/map/inventory/rebuild.post.ts","line":5,"fragment":"import { WorkspaceError } from '../../../../../lib/workspace"}},
+        {"from":"server/api/projects/[id]/map/inventory/rebuild.post.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/projects/[id]/map/inventory/rebuild.post.ts","line":6,"fragment":"import { fail } from '../../../../../utils/http';"}},
+        {"from":"server/api/projects/[id]/map/inventory/rebuild.post.ts","to":"server/utils/inventory-service.ts","evidence":{"path":"server/api/projects/[id]/map/inventory/rebuild.post.ts","line":7,"fragment":"import { rebuildDescribed } from '../../../../../utils/inven"}},
+        {"from":"server/api/projects/[id]/map/inventory/rebuild.post.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/[id]/map/inventory/rebuild.post.ts","line":8,"fragment":"import { findProject } from '../../../../../utils/projects';"}},
         {"from":"server/api/projects/[id]/prompt/index.post.ts","to":"server/lib/inventory.ts","evidence":{"path":"server/api/projects/[id]/prompt/index.post.ts","line":9,"fragment":"import { worthAsking } from '../../../../lib/inventory';"}},
         {"from":"server/api/projects/[id]/prompt/index.post.ts","to":"server/lib/map-schemas.ts","evidence":{"path":"server/api/projects/[id]/prompt/index.post.ts","line":8,"fragment":"import { mapSchemas } from '../../../../lib/map-schemas';"}},
         {"from":"server/api/projects/[id]/prompt/index.post.ts","to":"server/lib/maps.ts","evidence":{"path":"server/api/projects/[id]/prompt/index.post.ts","line":5,"fragment":"import { checkEvidence, evidenceClaims, parseMapRecord } fro"}},
@@ -485,7 +491,7 @@ updated: 2026-08-31
         {"from":"/projects/:id/inbox","to":"POST /api/projects/:id/prompt","evidence":{"path":"app/pages/projects/[id]/inbox.vue","line":65,"fragment":"    { method: 'POST', body: { kind: 'inbox', notes: notes.va"}},
         {"from":"/projects/:id/issues","to":"POST /api/projects/:id/fix","evidence":{"path":"app/components/FixWork.vue","line":45,"fragment":"  const result = await stream<{ state: FixState }>(`/api/pro"}},
         {"from":"/projects/:id/issues","to":"POST /api/projects/:id/fix/work","evidence":{"path":"app/components/FixWork.vue","line":59,"fragment":"      `/api/projects/${props.projectId}/fix/work`,"}},
-        {"from":"/projects/:id/maps","to":"GET /api/projects/:id/map/inventory","evidence":{"path":"app/components/MapInventory.vue","line":18,"fragment":"const { data } = useFetch<Inventory>(() => `/api/projects/${"}},
+        {"from":"/projects/:id/maps","to":"GET /api/projects/:id/map/inventory","evidence":{"path":"app/components/MapInventory.vue","line":19,"fragment":"const { data, refresh } = useFetch<Inventory>(() => `/api/pr"}},
         {"from":"/projects/:id/maps","to":"POST /api/projects/:id/prompt","evidence":{"path":"app/pages/projects/[id]/maps.vue","line":33,"fragment":"    { method: 'POST', body: { kind: 'map-fix', answer, probl"}},
         {"from":"/projects/:id/records/:recordId","to":"GET /api/projects/:id/records/:recordId/work","evidence":{"path":"app/components/TaskWork.vue","line":19,"fragment":"  () => `/api/projects/${props.projectId}/records/${props.re"}},
         {"from":"/projects/:id/records/:recordId","to":"POST /api/projects/:id/records/:recordId/work","evidence":{"path":"app/components/TaskWork.vue","line":43,"fragment":"  const url = `/api/projects/${props.projectId}/records/${pr"}}
@@ -509,3 +515,4 @@ updated: 2026-08-31
 - 2026-09-01 · починка идёт по отмеченным нарушениям · architect
 - 2026-09-02 · запрос на починку несёт факты контракта · architect
 - 2026-09-02 · починка проверяет, что план закоммичен · architect
+- 2026-09-02 · опись пересчитывается по действующим картам · architect
