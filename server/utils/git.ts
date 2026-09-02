@@ -87,6 +87,14 @@ export async function ensureWorktree(
 ): Promise<GitResult> {
   const absolute = join(normalizeRoot(root), relativePath);
   if (existsSync(absolute)) {
+    // Дерево могло остаться от прошлой починки и с тех пор отстать от базовой
+    // ветки — в проекте появились новые коммиты, которых оно не увидит (так и
+    // вышло на InteractMed: файлы давно в git, а рабочее дерево починки —
+    // недельной давности). Подтягиваем, только если дерево чистое: если там
+    // лежит неразобранная прошлая правка, трогать нечего, разбирается человек.
+    if (await isClean(absolute)) {
+      await git(absolute, ['merge', '--ff-only', base]);
+    }
     return { ok: true, stdout: 'рабочее дерево уже есть', stderr: '', code: 0 };
   }
 

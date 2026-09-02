@@ -291,4 +291,27 @@ describe('незакоммиченные файлы плана', () => {
 
     rmSync(join(root, 'docs', 'development', 'design', 'D-9998-neotslezh.md'));
   }, 60_000);
+
+  it('старое чистое дерево починки подтягивается к новым коммитам проекта', async () => {
+    // Так и было на InteractMed: дерево починки завели давно, проект с тех пор
+    // ушёл вперёд коммитами, а дерево осталось на месте — новые файлы в нём не
+    // появились, и приложение решило, что они не закоммичены.
+    resetTree();
+
+    writeFileSync(join(root, 'docs', 'development', 'design', 'D-9997-novyy.md'),
+      record('D-9997', 'design', 'Новая запись', 'draft'), 'utf8');
+    run(root, ['add', '-A']);
+    run(root, ['commit', '-m', 'новая запись после того, как дерево починки уже заведено']);
+
+    const outcome = await startFix(root, {
+      plan: 'план',
+      files: ['docs/development/design/D-9997-novyy.md'],
+      template: 'план{{noop}}'
+    });
+
+    // Дерево подтянулось перемоткой само — файл нашёлся, а не «не закоммичено».
+    expect(outcome.ok, outcome.ok ? '' : `${(outcome as { code: string }).code}`).toBe(true);
+
+    resetTree();
+  }, 60_000);
 });
