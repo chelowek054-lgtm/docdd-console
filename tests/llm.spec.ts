@@ -532,9 +532,9 @@ describe('факты контракта в запросе на починку', 
     expect(prompt).toContain('`map` — префикс `M-`');
   });
 
-  it('говорит прямо: superseded — тупик, чинить надо связью у преемника', () => {
+  it('велит чинить superseded_without_successor связью, а не разворотом статуса', () => {
     const prompt = fixPrompt(fixTemplate, [issue()]);
-    expect(prompt).toContain('`superseded` — тупик');
+    expect(prompt).toContain('superseded_without_successor` чинится связью, не разворотом статуса');
     expect(prompt).toContain('supersedes: [ID]');
   });
 

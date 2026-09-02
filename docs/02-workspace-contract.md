@@ -218,11 +218,20 @@ stateDiagram-v2
     review --> draft
     review --> approved
     approved --> superseded
+    approved --> draft
+    superseded --> draft
     draft --> dropped
     review --> dropped
+    dropped --> draft
 ```
 
 У решений вместо `dropped` — `rejected`: смысл тот же, слово принятое в ADR.
+
+Из любого статуса, кроме начального `draft`, есть путь назад
+([adr/0012-status-reopening.md](adr/0012-status-reopening.md)) — обычное
+действие человека с подтверждением и строкой в журнале, а не отдельная
+операция «отмена». Значение записи это не меняет: вернувшись в `draft`,
+запись снова проходит весь путь подтверждения заново.
 
 Задачи:
 
@@ -230,13 +239,17 @@ stateDiagram-v2
 stateDiagram-v2
     [*] --> backlog
     backlog --> ready
+    ready --> backlog
     ready --> in_progress
+    in_progress --> ready
     in_progress --> in_review
     in_review --> in_progress
     in_review --> done
+    done --> in_review
     backlog --> dropped
     ready --> dropped
     in_progress --> dropped
+    dropped --> backlog
 ```
 
 | Переход | Условие |

@@ -538,6 +538,29 @@ describe('transition_forbidden', () => {
     expect(codes(checkTransition(rec('D-0003', 'design', 'review'), 'rejected', ctx))).toEqual(['transition_forbidden']);
   });
 
+  it('из любого статуса, кроме draft, есть путь назад (adr/0012-status-reopening.md)', () => {
+    expect(checkTransition(rec('D-0003', 'design', 'approved'), 'draft', ctx)).toEqual([]);
+    expect(checkTransition(rec('D-0003', 'design', 'superseded'), 'draft', ctx)).toEqual([]);
+    expect(checkTransition(rec('D-0003', 'design', 'dropped'), 'draft', ctx)).toEqual([]);
+    expect(checkTransition(rec('A-0001', 'decision', 'rejected'), 'draft', ctx)).toEqual([]);
+
+    expect(checkTransition(rec('T-0007', 'task', 'ready'), 'backlog', ctx)).toEqual([]);
+    expect(checkTransition(rec('T-0007', 'task', 'done'), 'in_review', ctx)).toEqual([]);
+    expect(checkTransition(rec('T-0007', 'task', 'dropped'), 'backlog', ctx)).toEqual([]);
+
+    // in_progress → ready снова спрашивает условия перехода в ready — так же,
+    // как и backlog → ready: назад не значит «в обход проверки».
+    const withRequirement = rec('T-0007', 'task', 'in_progress', { links: { implements: ['R-0001'] } });
+    expect(checkTransition(withRequirement, 'ready', ctx)).toEqual([]);
+  });
+
+  it('назад — не в обход остального: пропущенных шагов по-прежнему нет', () => {
+    // done → in_progress и dropped → ready остаются запрещены: шаг назад
+    // ведёт на один статус раньше, а не куда угодно.
+    expect(codes(checkTransition(rec('T-0007', 'task', 'done'), 'in_progress', ctx))).toEqual(['transition_forbidden']);
+    expect(codes(checkTransition(rec('T-0007', 'task', 'dropped'), 'ready', ctx))).toEqual(['transition_forbidden']);
+  });
+
   it('называет блокирующее своим кодом, а не общим отказом', () => {
     const doc = rec('D-0004', 'design', 'review');
     const task = rec('T-0002', 'task', 'backlog', { links: { documents: ['D-0004'] } });

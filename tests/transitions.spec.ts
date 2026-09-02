@@ -34,9 +34,11 @@ describe('availableActions', () => {
     expect(ready?.blockers).toEqual([]);
   });
 
-  it('из закрытой задачи не предлагает ничего', () => {
+  it('из закрытой задачи — только назад, на проверку (adr/0012-status-reopening.md)', () => {
     const task = rec('T-0007', 'task', 'done', { links: { implements: ['R-0004'] } });
-    expect(availableActions(task, context([task]))).toEqual([]);
+    const actions = availableActions(task, context([task]));
+    expect(actions.map((action) => action.status)).toEqual(['in_review']);
+    expect(actions[0]?.allowed).toBe(true);
   });
 
   it('у фазы действий нет: её статус считается по задачам', () => {

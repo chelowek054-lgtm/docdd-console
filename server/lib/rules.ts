@@ -74,29 +74,33 @@ const LINK_TITLES: Readonly<Record<LinkKind, string>> = {
   affects: 'меняет карту'
 };
 
+// Из любого статуса, кроме начального `draft`, есть путь назад
+// (docs/adr/0012-status-reopening.md) — обычное подтверждаемое действие,
+// а не отдельная операция «отмена». Значение записи это не меняет:
+// вернувшись в `draft`, запись снова проходит весь путь подтверждения.
 const DOC_TRANSITIONS: Readonly<Record<string, readonly string[]>> = {
   draft: ['review', 'dropped'],
   review: ['draft', 'approved', 'dropped'],
-  approved: ['superseded'],
-  superseded: [],
-  dropped: []
+  approved: ['superseded', 'draft'],
+  superseded: ['draft'],
+  dropped: ['draft']
 };
 
 const DECISION_TRANSITIONS: Readonly<Record<string, readonly string[]>> = {
   draft: ['review', 'rejected'],
   review: ['draft', 'approved', 'rejected'],
-  approved: ['superseded'],
-  superseded: [],
-  rejected: []
+  approved: ['superseded', 'draft'],
+  superseded: ['draft'],
+  rejected: ['draft']
 };
 
 const TASK_TRANSITIONS: Readonly<Record<string, readonly string[]>> = {
   backlog: ['ready', 'dropped'],
-  ready: ['in_progress', 'dropped'],
-  in_progress: ['in_review', 'dropped'],
+  ready: ['in_progress', 'dropped', 'backlog'],
+  in_progress: ['in_review', 'dropped', 'ready'],
   in_review: ['in_progress', 'done'],
-  done: [],
-  dropped: []
+  done: ['in_review'],
+  dropped: ['backlog']
 };
 
 /** «Ready и дальше»: с этого момента задача обязана выполнять требование. */
