@@ -4,7 +4,9 @@ import {
   applyFrontMatter,
   joinRecord,
   journalLine,
+  replaceProse,
   splitRecord,
+  verifyBodyEdit,
   verifyWrite,
   type FrontMatterChanges
 } from './write';
@@ -136,4 +138,41 @@ export function applyFieldPatch(
 
 export function journalAction(status: string): string {
   return JOURNAL_ACTIONS[status] ?? status;
+}
+
+/**
+ * Статусы, в которых содержание уже подтверждено: правка текста задним числом
+ * обесценила бы само подтверждение (docs/adr/0011-body-editing.md). Путь для
+ * нужной правки такой записи — `supersedes` у преемника, не эта функция.
+ */
+export const SETTLED_STATUSES = ['approved', 'done', 'superseded', 'rejected', 'dropped'] as const;
+
+export function isSettled(status: string): boolean {
+  return (SETTLED_STATUSES as readonly string[]).includes(status);
+}
+
+/**
+ * Правка текста документа человеком через интерфейс (docs/adr/0011-body-editing.md).
+ * Раздел «Журнал» переносится как был; в него дописывается ровно одна строка
+ * о самой правке — тем же способом, что и у любого другого действия.
+ */
+export function applyBodyEdit(
+  original: string,
+  options: { body: string; actor: string; today: string }
+): WriteOutcome {
+  const file = splitRecord(original);
+  if (!file) {
+    return { text: original, problems: ['Файл не является записью с front matter.'] };
+  }
+
+  const line = journalLine(options.today, 'текст отредактирован', options.actor);
+  const withProse = replaceProse(file, options.body);
+  const withJournal = appendJournal(withProse, line);
+  const text = joinRecord(applyFrontMatter(withJournal, { updated: options.today }));
+
+  return {
+    text,
+    journal: line,
+    problems: verifyBodyEdit(original, text, line)
+  };
 }

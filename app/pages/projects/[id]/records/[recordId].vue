@@ -166,12 +166,14 @@ function entries(
 
       <div class="grid gap-4 lg:grid-cols-3">
         <div class="space-y-4 lg:col-span-2">
-          <UCard>
-            <template #header>
-              <h2 class="font-medium">Текст документа</h2>
-            </template>
-            <DocumentText :body="bodyWithoutJournal" />
-          </UCard>
+          <BodyEditor
+            :project-id="projectId"
+            :record-id="recordId"
+            :body="bodyWithoutJournal"
+            :status="detail.record.status"
+            :roles="index?.project.roles ?? []"
+            @changed="reload"
+          />
 
           <UCard v-if="fileDiagrams.length">
             <template #header>

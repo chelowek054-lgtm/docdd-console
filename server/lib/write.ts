@@ -283,6 +283,62 @@ function compareFrontMatter(before: string, after: string, allowed: readonly str
   return problems;
 }
 
+/**
+ * Тело без раздела «Журнал» и сам раздел отдельно. Правка текста трогает
+ * только первое — раздел приложение бережёт при любом действии
+ * (docs/adr/0011-body-editing.md).
+ */
+export function splitProse(body: string, eol: string): { prose: string; journal: string[] } {
+  const lines = body.split(/\r?\n/);
+  const heading = lines.findIndex((text) => /^##\s+Журнал\s*$/.test(text));
+  if (heading === -1) return { prose: body, journal: [] };
+  return { prose: lines.slice(0, heading).join(eol).replace(/\s+$/, ''), journal: lines.slice(heading) };
+}
+
+/**
+ * Правка текста поверх файла: раздел «Журнал» переносится как был, новый текст
+ * занимает место прежнего. Строку журнала о самой правке дописывает
+ * `appendJournal` — здесь только пересборка тела.
+ */
+export function replaceProse(file: RecordFile, prose: string): RecordFile {
+  const eol = eolOf(file);
+  const { journal } = splitProse(file.body, eol);
+  const trimmed = prose.replace(/\s+$/, '');
+  const body = journal.length > 0 ? [trimmed, '', ...journal].join(eol) : `${trimmed}${eol}`;
+  return { ...file, body };
+}
+
+/**
+ * Сторож правки текста (docs/adr/0011-body-editing.md). В отличие от
+ * `verifyWrite`, текст волен меняться как угодно — это и есть смысл действия;
+ * неприкосновенны только раздел «Журнал» и front matter сверх `updated`.
+ */
+export function verifyBodyEdit(original: string, next: string, addedJournalLine: string): string[] {
+  const before = splitRecord(original);
+  const after = splitRecord(next);
+  if (!before || !after) return ['Файл перестал быть записью с front matter.'];
+
+  const problems: string[] = [];
+  if (before.eol !== after.eol) {
+    problems.push(`Перевод строки изменился с ${before.eol} на ${after.eol}: это дало бы дифф на весь файл.`);
+  }
+
+  const journalBefore = journalLines(before.body);
+  const journalAfter = journalLines(after.body);
+  if (journalAfter.length !== journalBefore.length + 1) {
+    problems.push('В журнал добавлена не ровно одна строка.');
+  } else {
+    const mismatched = journalBefore.some((line, i) => line !== journalAfter[i]);
+    if (mismatched) problems.push('Существующая строка журнала изменилась — правка текста её не касается.');
+    else if (journalAfter[journalAfter.length - 1] !== addedJournalLine) {
+      problems.push(`В журнал добавлена не та строка: ожидалась «${addedJournalLine}».`);
+    }
+  }
+
+  problems.push(...compareFrontMatter(before.frontMatter, after.frontMatter, ['updated']));
+  return problems;
+}
+
 function topLevelKeys(frontMatter: string): string[] {
   const keys: string[] = [];
   for (const line of frontMatter.split(/\r?\n/)) {

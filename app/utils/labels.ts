@@ -37,6 +37,14 @@ export const RESULT_LABELS: Record<string, string> = {
   skipped: 'пропущена'
 };
 
+/**
+ * Статусы, в которых содержание уже подтверждено: правка текста в приложении
+ * там запрещена — путь для нужной правки такой записи — `supersedes` у
+ * преемника (docs/adr/0011-body-editing.md). Список зеркалит `SETTLED_STATUSES`
+ * на сервере (server/lib/actions.ts); сервер решает так же и без клиента.
+ */
+export const SETTLED_STATUSES = ['approved', 'done', 'superseded', 'rejected', 'dropped'];
+
 export type BadgeColor = 'primary' | 'success' | 'warning' | 'error' | 'info' | 'neutral';
 
 /** Цвет говорит о состоянии, а не украшает: зелёное — подтверждено фактом. */

@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
-import { applyFieldPatch, applyStatusChange } from '../server/lib/actions';
+import { applyBodyEdit, applyFieldPatch, applyStatusChange, isSettled } from '../server/lib/actions';
 import { parseRecord } from '../server/lib/parse';
-import { appendJournal, applyFrontMatter, joinRecord, splitRecord, verifyWrite } from '../server/lib/write';
+import {
+  appendJournal,
+  applyFrontMatter,
+  joinRecord,
+  replaceProse,
+  splitProse,
+  splitRecord,
+  verifyBodyEdit,
+  verifyWrite
+} from '../server/lib/write';
 
 /**
  * Запись трогает файлы человека, поэтому проверяется придирчиво: сохранение
@@ -214,6 +223,72 @@ describe('applyFieldPatch', () => {
     expect(outcome.problems).toEqual([]);
     expect(outcome.text).toContain('  implements: [R-0009]');
     expect(outcome.text).toContain('Текст задачи, который принадлежит человеку.');
+  });
+});
+
+describe('splitProse', () => {
+  it('отделяет раздел «Журнал» от текста человека', () => {
+    const { prose, journal } = splitProse(file().body, LF);
+    expect(prose).toBe(LF + '# Вынести веса модели клёва' + LF + LF + 'Текст задачи, который принадлежит человеку.');
+    expect(journal[0]).toBe('## Журнал');
+    expect(journal).toContain('- 2026-08-01 · готова к работе · architect');
+  });
+
+  it('журнала нет — всё тело остаётся текстом', () => {
+    const withoutJournal = splitRecord(source.slice(0, source.indexOf('## Журнал')))!;
+    const { prose, journal } = splitProse(withoutJournal.body, LF);
+    expect(journal).toEqual([]);
+    expect(prose).toContain('Текст задачи, который принадлежит человеку.');
+  });
+});
+
+describe('replaceProse', () => {
+  it('меняет текст, оставляя раздел «Журнал» как был', () => {
+    const next = replaceProse(file(), '# Новый заголовок' + LF + LF + 'Другой текст.');
+    expect(next.body).toContain('Другой текст.');
+    expect(next.body).not.toContain('Текст задачи, который принадлежит человеку.');
+    expect(next.body).toContain('- 2026-08-01 · готова к работе · architect');
+  });
+});
+
+describe('applyBodyEdit', () => {
+  it('меняет текст и оставляет свой след в журнале', () => {
+    const outcome = applyBodyEdit(source, {
+      body: '# Вынести веса модели клёва' + LF + LF + 'Уточнённый текст задачи.',
+      actor: 'architect',
+      today: '2026-08-30'
+    });
+    expect(outcome.problems).toEqual([]);
+    expect(outcome.text).toContain('Уточнённый текст задачи.');
+    expect(outcome.text).not.toContain('Текст задачи, который принадлежит человеку.');
+    expect(outcome.text).toContain('- 2026-08-30 · текст отредактирован · architect');
+    // Прежняя строка журнала осталась — правка текста её не касается.
+    expect(outcome.text).toContain('- 2026-08-01 · готова к работе · architect');
+    expect(outcome.text).toContain('updated: 2026-08-30');
+    // Статус и остальной front matter — не её дело.
+    expect(outcome.text).toContain('status: ready');
+  });
+
+  it('не пропускает правку, если сторож ловит задетый журнал', () => {
+    // На случай будущей ошибки в replaceProse/appendJournal: сторож должен
+    // остановить запись, а не полагаться на то, что код всегда прав.
+    const spoiled = source.replace('- 2026-08-01 · готова к работе · architect', 'подделанная строка');
+    const problems = verifyBodyEdit(source, spoiled, '- 2026-08-30 · текст отредактирован · architect');
+    expect(problems.length).toBeGreaterThan(0);
+  });
+});
+
+describe('isSettled', () => {
+  it('подтверждённые статусы заперты для правки текста', () => {
+    for (const status of ['approved', 'done', 'superseded', 'rejected', 'dropped']) {
+      expect(isSettled(status)).toBe(true);
+    }
+  });
+
+  it('незавершённые статусы — нет', () => {
+    for (const status of ['draft', 'review', 'backlog', 'ready', 'in_progress', 'in_review']) {
+      expect(isSettled(status)).toBe(false);
+    }
   });
 });
 
