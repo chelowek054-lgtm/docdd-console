@@ -432,8 +432,8 @@ updated: 2026-08-31
         {"from":"server/lib/cache.ts","to":"project-files","direction":"write","evidence":{"path":"server/lib/cache.ts","line":37,"fragment":"mkdirSync(dirname(path), { recursive: true });"}},
         {"from":"server/lib/workspace.ts","to":"project-files","direction":"read","evidence":{"path":"server/lib/workspace.ts","line":1,"fragment":"import { existsSync, readFileSync, readdirSync, statSync } f"}},
         {"from":"server/utils/fix-service.ts","to":"git-repo","direction":"both","evidence":{"path":"server/utils/fix-service.ts","line":136,"fragment":"  const created = await ensureWorktree(normalized, FIX_BRANC"}},
-        {"from":"server/utils/fix-service.ts","to":"project-files","direction":"read","evidence":{"path":"server/utils/fix-service.ts","line":255,"fragment":"    const original = readFileSync(absolute, 'utf8');"}},
-        {"from":"server/utils/fix-service.ts","to":"project-files","direction":"write","evidence":{"path":"server/utils/fix-service.ts","line":259,"fragment":"    writeFileSync(absolute, outcome.text, 'utf8');"}},
+        {"from":"server/utils/fix-service.ts","to":"project-files","direction":"read","evidence":{"path":"server/utils/fix-service.ts","line":272,"fragment":"    const original = readFileSync(absolute, 'utf8');"}},
+        {"from":"server/utils/fix-service.ts","to":"project-files","direction":"write","evidence":{"path":"server/utils/fix-service.ts","line":276,"fragment":"    writeFileSync(absolute, outcome.text, 'utf8');"}},
         {"from":"server/utils/git.ts","to":"git-repo","direction":"both","evidence":{"path":"server/utils/git.ts","line":26,"fragment":"    execFile("}},
         {"from":"server/utils/inventory-service.ts","to":"maps-index","direction":"both","evidence":{"path":"server/utils/inventory-service.ts","line":26,"fragment":"const FILE = '.docdd/maps-index.json';"}},
         {"from":"server/utils/inventory-service.ts","to":"project-files","direction":"read","evidence":{"path":"server/utils/inventory-service.ts","line":147,"fragment":"      hash = fingerprint(readFileSync(absolute, 'utf8'));"}},
@@ -508,3 +508,4 @@ updated: 2026-08-31
 - 2026-09-01 · дописаны модули входящего · architect
 - 2026-09-01 · починка идёт по отмеченным нарушениям · architect
 - 2026-09-02 · запрос на починку несёт факты контракта · architect
+- 2026-09-02 · починка проверяет, что план закоммичен · architect

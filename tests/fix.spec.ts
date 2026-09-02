@@ -15,7 +15,8 @@ import {
   borderOfChosen,
   chosenIssues,
   fixPrompt,
-  fixState
+  fixState,
+  startFix
 } from '../server/utils/fix-service';
 
 /**
@@ -269,4 +270,25 @@ describe('починка по отмеченным нарушениям', () => 
   it('пустой выбор границы не даёт: чинить нечего', () => {
     expect(borderOfChosen(buildIndex(own).index, []).size).toBe(0);
   });
+});
+
+describe('незакоммиченные файлы плана', () => {
+  it('файл, которого нет в git, не даёт молча чинить пустоту', async () => {
+    // Так и было на fishForecast: карты лежали в каталоге, но git их не видел —
+    // рабочее дерево завелось от HEAD и оказалось без них.
+    writeFileSync(join(root, 'docs', 'development', 'design', 'D-9998-neotslezh.md'), 'сырое', 'utf8');
+
+    const outcome = await startFix(root, {
+      plan: 'план',
+      files: ['docs/development/design/D-9998-neotslezh.md'],
+      template: 'план{{noop}}'
+    });
+
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.code).toBe('files_not_committed');
+    expect(outcome.message).toContain('D-9998-neotslezh.md');
+
+    rmSync(join(root, 'docs', 'development', 'design', 'D-9998-neotslezh.md'));
+  }, 60_000);
 });

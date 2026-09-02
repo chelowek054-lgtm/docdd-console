@@ -143,6 +143,20 @@ export async function startFix(
     };
   }
 
+  // Дерево заводится от последнего коммита: незакоммиченный файл там просто не
+  // появится, и модель будет чинить пустоту, не понимая, куда делись записи.
+  const tree = worktreeRoot(normalized, FIX_ID);
+  const missing = options.files.filter((file) => !existsSync(join(tree, file)));
+  if (missing.length > 0) {
+    return {
+      ok: false,
+      code: 'files_not_committed',
+      message:
+        `Не закоммичено в git: ${missing.join(', ')}. Рабочее дерево заводится от последнего` +
+        ' коммита и этих файлов не увидит — закоммитьте их в проекте и повторите'
+    };
+  }
+
   const answer = await ask(fixPrompt(options.template, options.plan, options.files), {
     cwd: worktreeRoot(normalized, FIX_ID),
     // План подтверждён — значит модели тут писать. Спросить разрешение
