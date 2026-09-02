@@ -92,3 +92,12 @@ export function daysSince(isoDate: string | null, now = new Date()): number | nu
   const to = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
   return Math.floor((to - from) / 86_400_000);
 }
+
+/**
+ * Ключ строки нарушения: код, файл и запись. По нему нарушение отмечают на
+ * экране и называют серверу — порядковый номер для этого не годится, он
+ * меняется от перечитывания (docs/04-ui.md).
+ */
+export function issueKey(issue: { code: string; path?: string | null; recordId?: string | null }): string {
+  return [issue.code, issue.path ?? '', issue.recordId ?? ''].join('|');
+}

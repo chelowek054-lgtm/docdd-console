@@ -1,7 +1,8 @@
 import { defineEventHandler, getQuery, getRouterParam } from 'h3';
 
 import { normalizeRoot } from '../../../../../lib/paths';
-import { borderOf, fixState } from '../../../../../utils/fix-service';
+import { borderOf, borderOfChosen, fixState } from '../../../../../utils/fix-service';
+import { pickedIssues } from '../../../../../utils/chosen';
 import { fail } from '../../../../../utils/http';
 import { loadIndex } from '../../../../../utils/index-service';
 import { findProject } from '../../../../../utils/projects';
@@ -19,5 +20,18 @@ export default defineEventHandler(async (event) => {
   const severity = typeof query['severity'] === 'string' ? query['severity'] : '';
 
   const root = normalizeRoot(project.root);
-  return fixState(root, [...borderOf(loadIndex(root), codes, severity).keys()]);
+  const index = loadIndex(root);
+  const chosen = pickedIssues(parseIssues(query['issues']));
+  const border = chosen.length ? borderOfChosen(index, chosen) : borderOf(index, codes, severity);
+  return fixState(root, [...border.keys()]);
 });
+
+/** Выбор приходит строкой JSON: в адресе списка объектов не бывает. */
+function parseIssues(value: unknown): unknown {
+  if (typeof value !== 'string' || value === '') return [];
+  try {
+    return JSON.parse(value);
+  } catch {
+    return [];
+  }
+}

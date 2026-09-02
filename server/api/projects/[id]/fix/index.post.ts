@@ -3,7 +3,8 @@ import { useStorage } from 'nitropack/runtime';
 
 import { normalizeRoot } from '../../../../lib/paths';
 import { abortSignalOf } from '../../../../utils/abort';
-import { borderOf, startFix } from '../../../../utils/fix-service';
+import { borderOf, borderOfChosen, startFix } from '../../../../utils/fix-service';
+import { pickedIssues } from '../../../../utils/chosen';
 import { fail } from '../../../../utils/http';
 import { loadIndex } from '../../../../utils/index-service';
 import { findProject } from '../../../../utils/projects';
@@ -22,13 +23,16 @@ export default defineEventHandler(async (event) => {
     return fail(event, 404, 'project_not_found', `Проект \`${id}\` не найден в списке`);
   }
 
-  const body = await readBody<{ plan?: unknown; codes?: unknown; severity?: unknown }>(event);
+  const body = await readBody<{ plan?: unknown; codes?: unknown; severity?: unknown; issues?: unknown }>(event);
   const plan = typeof body?.plan === 'string' ? body.plan : '';
   const codes = Array.isArray(body?.codes) ? body.codes.filter((code): code is string => typeof code === 'string') : [];
   const severity = typeof body?.severity === 'string' ? body.severity : '';
 
   const root = normalizeRoot(project.root);
-  const border = borderOf(loadIndex(root), codes, severity);
+  const index = loadIndex(root);
+  // Граница считается по отмеченным нарушениям, а не по фильтру экрана.
+  const chosen = pickedIssues(body?.issues);
+  const border = chosen.length ? borderOfChosen(index, chosen) : borderOf(index, codes, severity);
   const files = [...border.keys()];
 
   const stream = eventStream(event);

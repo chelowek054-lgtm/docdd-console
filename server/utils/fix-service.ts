@@ -271,9 +271,44 @@ export async function rejectFix(root: string, allowed: readonly string[]): Promi
   return { ok: true, state: await fixState(normalizeRoot(root), allowed) };
 }
 
+/** Нарушение, названное человеком: по нему и считается всё остальное. */
+export interface ChosenIssue {
+  code: string;
+  path?: string;
+  recordId?: string | null;
+}
+
 /**
- * Файлы и коды нарушений, попавших под фильтр экрана: это и есть граница
- * починки. Приложение знает её само — оно же собрало и план.
+ * Нарушения, отмеченные человеком. Сверяем с индексом, а не верим браузеру:
+ * чинится то, что валидатор находит сейчас, а не то, что было на экране час
+ * назад (docs/adr/0010-model-fixes-violations.md).
+ */
+export function chosenIssues(index: ProjectIndex, chosen: readonly ChosenIssue[]) {
+  return index.issues.filter((issue) =>
+    chosen.some((pick) =>
+      pick.code === issue.code &&
+      (pick.path ?? '') === (issue.path ?? '') &&
+      (pick.recordId ?? null) === (issue.recordId ?? null))
+  );
+}
+
+/** Граница по отмеченным нарушениям: файлы и коды при них. */
+export function borderOfChosen(index: ProjectIndex, chosen: readonly ChosenIssue[]): Map<string, string[]> {
+  const files = new Map<string, string[]>();
+
+  for (const issue of chosenIssues(index, chosen)) {
+    if (!issue.path) continue;
+    const said = files.get(issue.path) ?? [];
+    if (!said.includes(issue.code)) said.push(issue.code);
+    files.set(issue.path, said);
+  }
+
+  return files;
+}
+
+/**
+ * Файлы и коды нарушений, попавших под фильтр экрана: запасной путь для
+ * запросов без поимённого выбора.
  */
 export function borderOf(
   index: ProjectIndex,

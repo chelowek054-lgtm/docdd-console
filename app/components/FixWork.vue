@@ -12,8 +12,8 @@ const props = defineProps<{
   projectId: string;
   /** План, который человек читает: ответ модели на «Исправить». */
   plan: string;
-  codes: string[];
-  severity: string;
+  /** Отмеченные нарушения: по ним считается граница починки. */
+  issues: { code: string; path?: string | null; recordId?: string | null }[];
   roles: { id: string; name: string }[];
 }>();
 
@@ -26,7 +26,7 @@ const state = ref<FixState | null>(null);
 const failure = ref<ApiFailure | null>(null);
 const busy = ref('');
 
-const filter = computed(() => ({ codes: props.codes, severity: props.severity }));
+const filter = computed(() => ({ issues: props.issues }));
 
 /** Отказ приложения — не поломка: он говорит, что предохранитель сработал. */
 const refused = computed(() => {

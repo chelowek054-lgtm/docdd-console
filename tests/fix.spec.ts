@@ -8,7 +8,15 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { FIX_BRANCH, FIX_ID, fixCommitMessage, worktreePath } from '../server/lib/branch';
 import { buildIndex } from '../server/lib/indexer';
 import { currentBranch, ensureWorktree, worktreeRoot } from '../server/utils/git';
-import { acceptFix, approvedIn, borderOf, fixPrompt, fixState } from '../server/utils/fix-service';
+import {
+  acceptFix,
+  approvedIn,
+  borderOf,
+  borderOfChosen,
+  chosenIssues,
+  fixPrompt,
+  fixState
+} from '../server/utils/fix-service';
 
 /**
  * Починка нарушений моделью (docs/adr/0010-model-fixes-violations.md).
@@ -201,5 +209,64 @@ describe('сообщение коммита', () => {
     expect(fixCommitMessage(['schema_invalid', 'link_broken'], 2)).toBe(
       'Починка: schema_invalid, link_broken (записей: 2)'
     );
+  });
+});
+
+describe('починка по отмеченным нарушениям', () => {
+  let own = '';
+
+  beforeAll(() => {
+    // Свой проект: в общем к этому моменту нарушения уже починены.
+    own = mkdtempSync(join(tmpdir(), 'docdd-pick-'));
+    mkdirSync(join(own, 'docs', 'development', 'design'), { recursive: true });
+    mkdirSync(join(own, 'docs', 'development', 'requirements'), { recursive: true });
+
+    writeFileSync(join(own, 'docs', 'development', 'project.yaml'), [
+      'contract: docdd.workspace/1',
+      'project:',
+      '  id: demo',
+      '  name: Demo',
+      'paths:',
+      '  design: design',
+      '  requirements: requirements',
+      ''
+    ].join(LF), 'utf8');
+
+    // Два разных нарушения в двух файлах: есть из чего выбирать.
+    writeFileSync(join(own, 'docs', 'development', 'design', 'D-0009-status.md'),
+      record('D-0009', 'design', 'Статусы', 'в работе'), 'utf8');
+    writeFileSync(join(own, 'docs', 'development', 'requirements', 'R-0003-old.md'),
+      record('R-0003', 'requirement', 'Старое', 'superseded'), 'utf8');
+  });
+
+  afterAll(() => {
+    try {
+      rmSync(own, { recursive: true, force: true });
+    } catch {
+      // Прибирать не обязательно.
+    }
+  });
+
+  it('граница считается по выбору, а не по фильтру экрана', () => {
+    const { index } = buildIndex(own);
+    const all = borderOf(index, [], '');
+    expect(all.size).toBe(2);
+
+    const one = borderOfChosen(index, [
+      { code: 'schema_invalid', path: 'docs/development/design/D-0009-status.md', recordId: 'D-0009' }
+    ]);
+
+    // В границе ровно файл отмеченного нарушения — и ничего сверх.
+    expect([...one.keys()]).toEqual(['docs/development/design/D-0009-status.md']);
+    expect(one.get('docs/development/design/D-0009-status.md')).toEqual(['schema_invalid']);
+  });
+
+  it('выбор сверяется с индексом: чинится найденное сейчас, а не бывшее на экране', () => {
+    const { index } = buildIndex(own);
+    expect(chosenIssues(index, [{ code: 'schema_invalid', path: 'docs/development/design/ушёл.md' }])).toEqual([]);
+  });
+
+  it('пустой выбор границы не даёт: чинить нечего', () => {
+    expect(borderOfChosen(buildIndex(own).index, []).size).toBe(0);
   });
 });

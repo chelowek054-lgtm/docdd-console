@@ -12,6 +12,11 @@ const props = defineProps<{
   /** Отбор для запроса `fix`: те же фильтры, что на экране. */
   codes?: string[];
   severity?: string;
+  /** Отмеченные нарушения: чинится ровно они (docs/04-ui.md). */
+  issues?: { code: string; path?: string | null; recordId?: string | null }[];
+  /** Кнопка неактивна — и обязана назвать причину. */
+  disabled?: boolean;
+  disabledReason?: string;
   label: string;
   hint: string;
 }>();
@@ -41,7 +46,12 @@ async function build() {
       `/api/projects/${props.projectId}/prompt`,
       {
         method: 'POST',
-        body: { kind: props.kind, codes: props.codes, severity: props.severity },
+        body: {
+          kind: props.kind,
+          codes: props.codes,
+          severity: props.severity,
+          issues: props.issues
+        },
         ignoreResponseError: true
       }
     );
@@ -81,9 +91,23 @@ async function send() {
 
 <template>
   <div>
-    <UButton size="sm" variant="soft" icon="i-lucide-wand-sparkles" :loading="building" @click="build">
-      {{ props.label }}
-    </UButton>
+    <div class="flex flex-wrap items-center gap-3">
+      <UButton
+        size="sm"
+        variant="soft"
+        icon="i-lucide-wand-sparkles"
+        :loading="building"
+        :disabled="props.disabled"
+        @click="build"
+      >
+        {{ props.label }}
+      </UButton>
+
+      <!-- Неактивная кнопка обязана назвать причину (docs/04-ui.md). -->
+      <p v-if="props.disabled && props.disabledReason" class="min-w-0 flex-1 text-sm text-muted">
+        {{ props.disabledReason }}
+      </p>
+    </div>
 
     <UCard v-if="open" class="mt-3">
       <template #header>

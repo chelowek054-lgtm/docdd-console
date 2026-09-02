@@ -7,6 +7,8 @@ import { fixPrompt, inboxPrompt, mapFixPrompt, mapsPrompt, type MapsState } from
 import { inboxNotes } from '../../../../utils/inbox-service';
 import { mapSchemas } from '../../../../lib/map-schemas';
 import { worthAsking } from '../../../../lib/inventory';
+import { chosenIssues } from '../../../../utils/fix-service';
+import { pickedIssues } from '../../../../utils/chosen';
 import { inventoryOf } from '../../../../utils/inventory-service';
 import { readWorkspace, sourceReader, WorkspaceError } from '../../../../lib/workspace';
 import { fail } from '../../../../utils/http';
@@ -30,6 +32,7 @@ export default defineEventHandler(async (event) => {
     kind?: unknown;
     codes?: unknown;
     severity?: unknown;
+    issues?: unknown;
     answer?: unknown;
     problems?: unknown;
     notes?: unknown;
@@ -39,6 +42,16 @@ export default defineEventHandler(async (event) => {
   try {
     if (kind === 'fix') {
       const index = loadIndex(project.root);
+      // Человек отметил нарушения поимённо — чиним ровно их.
+      const chosen = pickedIssues(body?.issues);
+      if (chosen.length > 0) {
+        const picked = chosenIssues(loadIndex(project.root), chosen);
+        if (picked.length === 0) {
+          return fail(event, 422, 'issues_gone', 'Отмеченных нарушений больше нет: перечитайте список');
+        }
+        return { prompt: fixPrompt(await template('fix-plan.md'), picked), count: picked.length };
+      }
+
       const codes = Array.isArray(body?.codes)
         ? new Set((body.codes as unknown[]).filter((code): code is string => typeof code === 'string'))
         : null;
