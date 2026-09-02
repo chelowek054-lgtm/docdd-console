@@ -79,6 +79,16 @@
     }
   ],
   "verificationResults": { "V-0001": { "state": "passed", "at": "2026-08-30T10:00:00Z" } },
+  "reports": [
+    {
+      "contract": "docdd.workspace/1",
+      "runner": "ci",
+      "started_at": "2026-08-30T10:00:00Z",
+      "total": 3,
+      "failed": 0,
+      "verifications": { "V-0001": "passed" }
+    }
+  ],
   "issues": [
     { "severity": "error", "code": "task_not_ready_docs", "recordId": "T-0002", "message": "Документ D-0004 не подтверждён" }
   ]
@@ -88,6 +98,11 @@
 `extra` несёт незнакомые поля front matter: приложение их не понимает, но обязано
 вернуть и сохранить. `roles` — список из манифеста: он нужен экрану, чтобы
 подставить подпись в журнал. Роль это подпись, а не доступ ([00-overview.md](00-overview.md)).
+
+`reports` — все прогоны из `docs/development/tests/reports/`, а не только
+последний. `verificationResults` из него же и остаётся: это свёртка «на
+проверку — самый свежий результат», нужная Требованиям; `reports` — сырой
+список по прогонам, нужный экрану Результат ([04-ui.md](04-ui.md)).
 
 Параметр `?refresh=1` пересобирает индекс, игнорируя кэш.
 

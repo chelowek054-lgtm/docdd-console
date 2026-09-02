@@ -57,6 +57,9 @@ export function buildIndex(root: string, now = new Date()): { index: ProjectInde
     verificationResults[id] = outcome;
   }
 
+  // Новые сверху: экран Результат читает список как есть, не пересортировывая.
+  const reports = [...workspace.reports].sort((a, b) => b.started_at.localeCompare(a.started_at));
+
   const records: IndexRecord[] = result.records.map((record) => toIndexRecord(record, result.graph));
   const issues: IssueDto[] = result.violations.map((violation) => ({
     severity: violation.level,
@@ -80,6 +83,7 @@ export function buildIndex(root: string, now = new Date()): { index: ProjectInde
       fingerprint: workspace.fingerprint,
       records,
       verificationResults,
+      reports,
       issues
     }
   };

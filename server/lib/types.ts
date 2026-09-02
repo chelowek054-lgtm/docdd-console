@@ -288,6 +288,8 @@ export interface ProjectIndex {
   fingerprint: string;
   records: IndexRecord[];
   verificationResults: Record<string, VerificationOutcome>;
+  /** Все прогоны, а не только последний результат на проверку (docs/03-server-api.md). */
+  reports: Report[];
   issues: IssueDto[];
 }
 
