@@ -52,12 +52,6 @@ const journal = computed(() => {
     .map((line) => line.trim().slice(2));
 });
 
-const bodyWithoutJournal = computed(() => {
-  const body = detail.value?.body ?? '';
-  const at = body.search(/^##\s+Журнал\s*$/m);
-  return at === -1 ? body : body.slice(0, at);
-});
-
 const extraFields = computed(() => Object.entries(detail.value?.record.extra ?? {}));
 
 const VERDICTS: Record<string, { label: string; color: BadgeColor }> = {
@@ -169,7 +163,7 @@ function entries(
           <BodyEditor
             :project-id="projectId"
             :record-id="recordId"
-            :body="bodyWithoutJournal"
+            :body="detail.body"
             :status="detail.record.status"
             :roles="index?.project.roles ?? []"
             @changed="reload"

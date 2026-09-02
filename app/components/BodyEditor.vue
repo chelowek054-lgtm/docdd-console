@@ -3,8 +3,10 @@ import type { ApiFailure } from '~/composables/useProjectIndex';
 
 /**
  * Правка текста документа человеком (docs/adr/0011-body-editing.md). `body` —
- * текст до раздела «Журнал»: сам раздел здесь не показывается и не редактируется,
- * его бережёт сервер при любом действии.
+ * тело записи целиком, как отдаёт сервер (текст человека и раздел «Журнал»
+ * вместе): именно это сравнивает сервер при сохранении, поэтому здесь
+ * хранится без обрезки. Раздел «Журнал» из неё вырезается только для показа
+ * и правки — сам он не редактируется и не отправляется отдельно.
  */
 const props = defineProps<{
   projectId: string;
@@ -16,9 +18,17 @@ const props = defineProps<{
 
 const emit = defineEmits<{ changed: [] }>();
 
+/** Текст человека без раздела «Журнал» — то, что показывается и правится. */
+function proseOf(body: string): string {
+  const at = body.search(/^##\s+Журнал\s*$/m);
+  return at === -1 ? body : body.slice(0, at);
+}
+
+const prose = computed(() => proseOf(props.body));
+
 const editing = ref(false);
 const draft = ref('');
-/** Текст, с которого началась правка: по нему сервер ловит расхождение с диском. */
+/** Тело целиком на момент открытия правки: по нему сервер ловит расхождение с диском. */
 const baseline = ref('');
 const actor = ref(props.roles[0]?.id ?? '');
 const busy = ref(false);
@@ -27,9 +37,18 @@ const done = ref('');
 
 const locked = computed(() => SETTLED_STATUSES.includes(props.status));
 
+/**
+ * Пока открыт редактор, запись могла поменяться другим действием на этой же
+ * странице — сменой статуса, например: она тоже пишет строку в журнал. Держать
+ * открытым редактор на заведомо устаревшем `baseline` бессмысленно — сохранение
+ * всё равно откажет, а правку жалко потерять молча, поэтому не отменяем её
+ * без предупреждения.
+ */
+const stale = computed(() => editing.value && props.body !== baseline.value);
+
 function startEdit() {
   baseline.value = props.body;
-  draft.value = props.body;
+  draft.value = prose.value;
   failure.value = null;
   done.value = '';
   editing.value = true;
@@ -92,13 +111,22 @@ async function save() {
     </p>
 
     <template v-if="editing">
+      <UAlert
+        v-if="stale"
+        class="mb-3"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        title="Запись обновилась, пока вы её редактировали"
+        description="Другим действием на этой же странице — например, сменой статуса. Сохранить эту правку не выйдет: перенесите текст, отмените и откройте редактор заново."
+      />
       <UTextarea v-model="draft" :rows="16" autoresize class="w-full font-mono text-sm" />
       <div class="mt-3 flex items-center gap-2">
-        <UButton :loading="busy" @click="save">Сохранить</UButton>
+        <UButton :loading="busy" :disabled="stale" @click="save">Сохранить</UButton>
         <UButton variant="ghost" color="neutral" :disabled="busy" @click="cancel">Отменить</UButton>
       </div>
     </template>
-    <DocumentText v-else :body="body" />
+    <DocumentText v-else :body="prose" />
 
     <UAlert
       v-if="failure"
