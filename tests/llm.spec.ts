@@ -525,3 +525,21 @@ describe('запрос, который ничего не меняет', () => {
     expect(asked[1]).toContain('bypassPermissions');
   });
 });
+
+describe('факты контракта в запросе на починку', () => {
+  it('называет тип map и префикс M: их не найти в чужой копии документации', () => {
+    const prompt = fixPrompt(fixTemplate, [issue()]);
+    expect(prompt).toContain('`map` — префикс `M-`');
+  });
+
+  it('говорит прямо: superseded — тупик, чинить надо связью у преемника', () => {
+    const prompt = fixPrompt(fixTemplate, [issue()]);
+    expect(prompt).toContain('`superseded` — тупик');
+    expect(prompt).toContain('supersedes: [ID]');
+  });
+
+  it('велит не доверять чужому файлу документации в проекте', () => {
+    const prompt = fixPrompt(fixTemplate, [issue()]);
+    expect(prompt).toContain('верь фактам выше, а не файлу');
+  });
+});

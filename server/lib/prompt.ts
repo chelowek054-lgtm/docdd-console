@@ -1,3 +1,4 @@
+import { contractDigest } from './contract-digest';
 import type { IssueDto } from './types';
 
 /**
@@ -12,6 +13,7 @@ import type { IssueDto } from './types';
 const LF = String.fromCharCode(10);
 
 export const ISSUES_MARKER = '<!-- НАРУШЕНИЯ -->';
+export const CONTRACT_MARKER = '<!-- КОНТРАКТ -->';
 export const STATE_MARKER = '<!-- СОСТОЯНИЕ -->';
 export const TASK_MARKER = '<!-- ЗАДАЧА -->';
 
@@ -35,7 +37,7 @@ export function fixPrompt(template: string, issues: readonly IssueDto[]): string
       issue.message
     ].join(LF)).join(LF + LF);
 
-  return body.replace(ISSUES_MARKER, list);
+  return body.replace(ISSUES_MARKER, list).replace(CONTRACT_MARKER, contractDigest());
 }
 
 export interface MapsState {

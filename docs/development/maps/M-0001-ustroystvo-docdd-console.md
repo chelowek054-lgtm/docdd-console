@@ -93,6 +93,7 @@ updated: 2026-08-31
         {"id":"server/lib/analyze.ts","title":"analyze","layer":"ядро"},
         {"id":"server/lib/branch.ts","title":"branch","layer":"ядро"},
         {"id":"server/lib/cache.ts","title":"cache","layer":"ядро"},
+        {"id":"server/lib/contract-digest.ts","title":"contract-digest","layer":"ядро"},
         {"id":"server/lib/diagrams.ts","title":"diagrams","layer":"ядро"},
         {"id":"server/lib/graph.ts","title":"graph","layer":"ядро"},
         {"id":"server/lib/import.ts","title":"import","layer":"ядро"},
@@ -312,6 +313,7 @@ updated: 2026-08-31
         {"from":"server/lib/branch.ts","to":"server/lib/scaffold.ts","evidence":{"path":"server/lib/branch.ts","line":1,"fragment":"import { slugify } from './scaffold';"}},
         {"from":"server/lib/cache.ts","to":"server/lib/paths.ts","evidence":{"path":"server/lib/cache.ts","line":4,"fragment":"import { normalizeRoot } from './paths';"}},
         {"from":"server/lib/cache.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/cache.ts","line":5,"fragment":"import type { ProjectIndex } from './types';"}},
+        {"from":"server/lib/contract-digest.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/contract-digest.ts","line":1,"fragment":"import { LINK_KINDS, PREFIX_BY_TYPE, RECORD_TYPES } from './"}},
         {"from":"server/lib/diagrams.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/diagrams.ts","line":1,"fragment":"import type { DiagramBlock } from './types';"}},
         {"from":"server/lib/graph.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/graph.ts","line":1,"fragment":"import { LINK_KINDS, type LinkKind, type WorkRecord } from '"}},
         {"from":"server/lib/import.ts","to":"server/lib/parse.ts","evidence":{"path":"server/lib/import.ts","line":1,"fragment":"import { firstHeading } from './parse';"}},
@@ -327,6 +329,8 @@ updated: 2026-08-31
         {"from":"server/lib/inventory.ts","to":"server/lib/maps.ts","evidence":{"path":"server/lib/inventory.ts","line":1,"fragment":"import type { MapChange } from './maps';"}},
         {"from":"server/lib/map-schemas.ts","to":"server/lib/schema-digest.ts","evidence":{"path":"server/lib/map-schemas.ts","line":6,"fragment":"import { schemaDigest } from './schema-digest';"}},
         {"from":"server/lib/maps.ts","to":"server/lib/schema.ts","evidence":{"path":"server/lib/maps.ts","line":1,"fragment":"import { validateCodemap, validateDataflow, validateSkipped,"}},
+        {"from":"server/lib/prompt.ts","to":"server/lib/contract-digest.ts","evidence":{"path":"server/lib/prompt.ts","line":1,"fragment":"import { contractDigest } from './contract-digest';"}},
+        {"from":"server/lib/prompt.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/prompt.ts","line":2,"fragment":"import type { IssueDto } from './types';"}},
         {"from":"server/lib/reports.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/reports.ts","line":1,"fragment":"import type { Report, VerificationOutcome, VerificationResul"}},
         {"from":"server/lib/rules.ts","to":"server/lib/graph.ts","evidence":{"path":"server/lib/rules.ts","line":1,"fragment":"import { findDependencyCycles, incomingEdges, outgoing, type"}},
         {"from":"server/lib/rules.ts","to":"server/lib/maps.ts","evidence":{"path":"server/lib/rules.ts","line":2,"fragment":"import { checkEvidence, evidenceClaims, parseMapRecord, type"}},
@@ -503,3 +507,4 @@ updated: 2026-08-31
 - 2026-09-01 · дописан второй ход при отказе схемы · architect
 - 2026-09-01 · дописаны модули входящего · architect
 - 2026-09-01 · починка идёт по отмеченным нарушениям · architect
+- 2026-09-02 · запрос на починку несёт факты контракта · architect
