@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { coerceDates, detectEol, firstHeading, parseRecord } from '../server/lib/parse';
+import { coerceDates, detectEol, firstHeading, looksLikeRecord, parseRecord } from '../server/lib/parse';
 
 const source = { path: 'docs/development/tasks/T-0007-primer.md', section: 'tasks' } as const;
 
@@ -22,6 +22,20 @@ const valid = [
   'Текст задачи.',
   ''
 ].join('\n');
+
+describe('looksLikeRecord', () => {
+  it('запись с front matter — похожа', () => {
+    expect(looksLikeRecord(valid)).toBe(true);
+  });
+
+  it('README без front matter — не похожа: это не сломанная запись, это не запись', () => {
+    expect(looksLikeRecord('# docs/development\n\nРабочая папка процесса разработки.\n')).toBe(false);
+  });
+
+  it('BOM в начале не мешает узнать front matter', () => {
+    expect(looksLikeRecord('﻿' + valid)).toBe(true);
+  });
+});
 
 describe('parseRecord', () => {
   it('разбирает запись и не трогает тело', () => {

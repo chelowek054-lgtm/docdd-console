@@ -49,7 +49,7 @@ describe('formatText', () => {
     const text = formatText(index);
     expect(text).toContain('parse_failed');
     expect(text).toContain('docs/development/design/D-9998-broken.md');
-    expect(text).toContain('Первая строка должна быть');
+    expect(text).toContain('YAML во front matter не разбирается');
   });
 
   it('на чистом проекте говорит прямо, а не молчит', () => {

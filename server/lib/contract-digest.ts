@@ -1,4 +1,4 @@
-import { LINK_KINDS, PREFIX_BY_TYPE, RECORD_TYPES } from './types';
+import { CHANGE_KINDS, LINK_KINDS, PREFIX_BY_TYPE, RECORD_TYPES } from './types';
 
 /**
  * Факты контракта человеческим языком, прямо в запрос на починку.
@@ -35,6 +35,10 @@ export function contractDigest(): string {
   lines.push(
     '',
     '**Связи** (`links`): ' + LINK_KINDS.map((kind) => `\`${kind}\``).join(', ') + '.',
+    '',
+    '**`change` у задачи** — один из: ' + CHANGE_KINDS.map((kind) => `\`${kind}\``).join(', ') + '.',
+    'Другого значения нет, и в проекте искать нечего — не переспрашивай, ставь',
+    'ровно одно из этих слов.',
     '',
     '**`superseded_without_successor` чинится связью, не разворотом статуса.**',
     'У `superseded` есть путь назад в `draft` (docs/adr/0012-status-reopening.md)',
