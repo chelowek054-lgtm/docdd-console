@@ -306,6 +306,13 @@ describe('fixPrompt', () => {
     // Шапка шаблона — про то, как приложение его использует; модели она не нужна.
     expect(fixPrompt(fixTemplate, [issue()])).not.toContain('Приложение подставляет сюда');
   });
+
+  it('то же самое, если шаблон на диске оказался с CRLF', () => {
+    // Так и вышло: git на Windows иногда конвертирует перевод строки при
+    // checkout — искать разделитель нужно терпимо к \r, а не только \n.
+    const crlf = fixTemplate.replace(/\n/g, '\r\n');
+    expect(fixPrompt(crlf, [issue()])).not.toContain('Приложение подставляет сюда');
+  });
 });
 
 describe('mapsPrompt', () => {

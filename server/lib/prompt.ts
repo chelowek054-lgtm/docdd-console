@@ -17,10 +17,19 @@ export const CONTRACT_MARKER = '<!-- КОНТРАКТ -->';
 export const STATE_MARKER = '<!-- СОСТОЯНИЕ -->';
 export const TASK_MARKER = '<!-- ЗАДАЧА -->';
 
-/** Шапка шаблона — объяснение для человека, модели она не нужна. */
+const FRONT_NOTE_RULE = /\r?\n---\r?\n/;
+
+/**
+ * Шапка шаблона — объяснение для человека, модели она не нужна.
+ *
+ * Разделитель ищется терпимо к `\r\n`: шаблон — обычный файл на диске, и что
+ * с ним сделает git на Windows (autocrlf) — вопрос не этого кода. Строгое
+ * `\n`-only искало ровно то, чего в файле с CRLF никогда не найдётся, и шапка
+ * целиком утекала в запрос к модели молча, без единой ошибки.
+ */
 function withoutFrontNote(template: string): string {
-  const at = template.indexOf(`${LF}---${LF}`);
-  return at === -1 ? template : template.slice(at + 5).trimStart();
+  const match = FRONT_NOTE_RULE.exec(template);
+  return match ? template.slice(match.index + match[0].length).trimStart() : template;
 }
 
 export function fixPrompt(template: string, issues: readonly IssueDto[]): string {
