@@ -310,7 +310,10 @@ describe('fixPrompt', () => {
   it('то же самое, если шаблон на диске оказался с CRLF', () => {
     // Так и вышло: git на Windows иногда конвертирует перевод строки при
     // checkout — искать разделитель нужно терпимо к \r, а не только \n.
-    const crlf = fixTemplate.replace(/\n/g, '\r\n');
+    // \r?\n → \r\n — идемпотентно превращает в CRLF независимо от того,
+    // каким этот файл лежит на диске именно сейчас: тест не должен зависеть
+    // от git autocrlf в момент запуска.
+    const crlf = fixTemplate.replace(/\r?\n/g, '\r\n');
     expect(fixPrompt(crlf, [issue()])).not.toContain('Приложение подставляет сюда');
   });
 });
