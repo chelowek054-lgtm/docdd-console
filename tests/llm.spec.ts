@@ -542,4 +542,9 @@ describe('факты контракта в запросе на починку', 
     const prompt = fixPrompt(fixTemplate, [issue()]);
     expect(prompt).toContain('верь фактам выше, а не файлу');
   });
+
+  it('называет допустимые значения change: не даёт модели гадать и переспрашивать', () => {
+    const prompt = fixPrompt(fixTemplate, [issue()]);
+    expect(prompt).toContain('`feature`, `fix`, `rename`, `format`');
+  });
 });

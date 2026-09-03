@@ -1,5 +1,5 @@
 import { buildGraph, type Graph } from './graph';
-import { parseRecord } from './parse';
+import { looksLikeRecord, parseRecord } from './parse';
 import { latestVerificationResults } from './reports';
 import { checkAll, checkRecordIdentity, type RuleContext } from './rules';
 import { validateFrontMatter, type SchemaIssue } from './schema';
@@ -51,6 +51,11 @@ export function analyze(input: AnalyzeInput): AnalyzeResult {
   const violations: Violation[] = [];
 
   for (const file of input.files) {
+    // Файл без front matter вообще — не запись, а справочный текст рядом с
+    // записями (README, вендоренная документация формата и подобное). Ему не
+    // нужно чинить то, чего у него в принципе не должно быть.
+    if (!looksLikeRecord(file.text)) continue;
+
     const outcome = parseRecord(file.text, file.source);
     if (!outcome.ok) {
       violations.push(outcome.violation);

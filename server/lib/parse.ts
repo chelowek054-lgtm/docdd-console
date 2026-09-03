@@ -26,6 +26,19 @@ const BOM = '\uFEFF';
  * Разбор одной записи. Строка на входе, объект на выходе — файловой системы
  * здесь нет, поэтому разбор тестируется без окружения.
  */
+/**
+ * Похоже ли начало файла на запись вообще. `docs/development` вправе держать
+ * не только записи — README папки, вендоренную копию документации формата,
+ * любой справочный текст. У такого файла нет и не должно быть front matter;
+ * гонять его через `parseRecord` и получать `parse_failed` — считать чужой
+ * текст сломанной записью, которую «нельзя починить» просто потому, что её
+ * не надо чинить: это не запись (docs/05-validation.md).
+ */
+export function looksLikeRecord(text: string): boolean {
+  const clean = text.startsWith(BOM) ? text.slice(1) : text;
+  return /^---\r?\n/.test(clean);
+}
+
 export function parseRecord(text: string, source: RecordSource): ParseOutcome {
   const clean = text.startsWith(BOM) ? text.slice(1) : text;
 
