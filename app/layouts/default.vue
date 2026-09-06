@@ -7,7 +7,8 @@ const projectId = computed(() => (typeof route.params['id'] === 'string' ? route
 /**
  * Вкладок много, и они не равны друг другу (docs/04-ui.md, «Навигация»):
  * «Работа» — что происходит с процессом сейчас, «Устройство» — как проект
- * устроен. Обзор — вне групп, он один и открывается прямой кнопкой.
+ * устроен, «Наполнение» — как в проект попадают новые записи. Обзор — вне
+ * групп, он один и открывается прямой кнопкой.
  */
 const groups = computed(() => {
   if (!projectId.value) return [];
@@ -27,7 +28,12 @@ const groups = computed(() => {
       label: 'Устройство',
       links: [
         { label: 'Граф', to: `${base}/graph` },
-        { label: 'Карты', to: `${base}/maps` },
+        { label: 'Карты', to: `${base}/maps` }
+      ]
+    },
+    {
+      label: 'Наполнение',
+      links: [
         { label: 'Входящее', to: `${base}/inbox` },
         { label: 'Импорт', to: `${base}/import` }
       ]
