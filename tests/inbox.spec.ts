@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { parseProposal, resolveLinks, titleOf } from '../server/lib/inbox';
-import { inboxNotes, createRecords, DONE_DIR } from '../server/utils/inbox-service';
+import { inboxNotes, createNote, createRecords, DONE_DIR } from '../server/utils/inbox-service';
 
 /**
  * Входящее (docs/10-inbox.md). Главное здесь: записи заводит приложение —
@@ -237,5 +237,103 @@ describe('след в журнале', () => {
     const text = readFileSync(join(root, outcome.created[0]?.path as string), 'utf8');
     expect(text).toContain('заведена · приложение');
     expect(text).not.toContain('что угодно');
+  });
+});
+
+describe('заметка от человека без markdown и файлов', () => {
+  let root = '';
+
+  beforeAll(() => {
+    root = mkdtempSync(join(tmpdir(), 'docdd-note-write-'));
+    mkdirSync(join(root, 'docs', 'development'), { recursive: true });
+    mkdirSync(join(root, 'docs', 'inbox'), { recursive: true });
+    // Манифест валиден, но без sources.inbox — склад просто не назван.
+    writeFileSync(join(root, 'docs', 'development', 'project.yaml'), [
+      'contract: docdd.workspace/1',
+      'project:',
+      '  id: demo',
+      '  name: Demo',
+      'paths:',
+      '  requirements: requirements',
+      ''
+    ].join(LF), 'utf8');
+  });
+
+  afterAll(() => {
+    try {
+      rmSync(root, { recursive: true, force: true });
+    } catch {
+      // Прибирать не обязательно.
+    }
+  });
+
+  it('склад не назван — понятный отказ, а не запись в никуда', () => {
+    const outcome = createNote(root, { title: 'Заголовок', body: 'Текст.' });
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.code).toBe('inbox_not_configured');
+  });
+});
+
+describe('заметка от человека: склад назван', () => {
+  let root = '';
+
+  beforeAll(() => {
+    root = mkdtempSync(join(tmpdir(), 'docdd-note-'));
+    mkdirSync(join(root, 'docs', 'development'), { recursive: true });
+    mkdirSync(join(root, 'docs', 'inbox'), { recursive: true });
+    writeFileSync(join(root, 'docs', 'development', 'project.yaml'), [
+      'contract: docdd.workspace/1',
+      'project:',
+      '  id: demo',
+      '  name: Demo',
+      'paths:',
+      '  requirements: requirements',
+      'sources:',
+      '  inbox: [docs/inbox]',
+      ''
+    ].join(LF), 'utf8');
+  });
+
+  afterAll(() => {
+    try {
+      rmSync(root, { recursive: true, force: true });
+    } catch {
+      // Прибирать не обязательно.
+    }
+  });
+
+  it('ложится тем же файлом .md, каким её положила бы модель', () => {
+    const outcome = createNote(root, { title: 'Оплата картой', body: 'Надо принимать карты.' });
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.path).toBe('docs/inbox/oplata-kartoy.md');
+
+    const text = readFileSync(join(root, outcome.path), 'utf8');
+    expect(text).toBe('# Оплата картой' + LF + LF + 'Надо принимать карты.' + LF);
+
+    // Тот же список, что видит экран: заметка от человека ничем не выделена.
+    expect(inboxNotes(root).map((note) => note.title)).toContain('Оплата картой');
+  });
+
+  it('пустой заголовок или текст — отказ, а не пустой файл на складе', () => {
+    const noTitle = createNote(root, { title: '  ', body: 'Текст.' });
+    expect(noTitle.ok).toBe(false);
+    if (!noTitle.ok) expect(noTitle.code).toBe('title_required');
+
+    const noBody = createNote(root, { title: 'Заголовок', body: '  ' });
+    expect(noBody.ok).toBe(false);
+    if (!noBody.ok) expect(noBody.code).toBe('body_required');
+  });
+
+  it('имя занято — берёт следующее свободное, не затирает чужую заметку', () => {
+    const first = createNote(root, { title: 'Повтор', body: 'Первая.' });
+    const second = createNote(root, { title: 'Повтор', body: 'Вторая.' });
+    expect(first.ok && second.ok).toBe(true);
+    if (!first.ok || !second.ok) return;
+
+    expect(first.path).not.toBe(second.path);
+    expect(readFileSync(join(root, first.path), 'utf8')).toContain('Первая.');
+    expect(readFileSync(join(root, second.path), 'utf8')).toContain('Вторая.');
   });
 });

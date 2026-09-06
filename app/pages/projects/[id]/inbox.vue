@@ -24,6 +24,36 @@ const { data, refresh } = useFetch<Inbox | { error: ApiFailure }>(
 const failure = computed(() => failureOf(data.value));
 const inbox = computed(() => (failure.value ? null : (data.value as Inbox | null)));
 
+const noteTitle = ref('');
+const noteBody = ref('');
+const savingNote = ref(false);
+const noteFailure = ref<ApiFailure | null>(null);
+
+/**
+ * Заметка от человека без markdown и файловой системы — та же дверь на склад,
+ * что и у модели (docs/10-inbox.md, «Что кладёт человек»).
+ */
+async function saveNote() {
+  savingNote.value = true;
+  noteFailure.value = null;
+  try {
+    const response = await $fetch<{ path: string } | { error: ApiFailure }>(
+      `/api/projects/${projectId.value}/inbox/notes`,
+      { method: 'POST', body: { title: noteTitle.value, body: noteBody.value }, ignoreResponseError: true }
+    );
+    const problem = failureOf(response);
+    if (problem) {
+      noteFailure.value = problem;
+      return;
+    }
+    noteTitle.value = '';
+    noteBody.value = '';
+    await refresh();
+  } finally {
+    savingNote.value = false;
+  }
+}
+
 const chosen = ref<string[]>([]);
 const proposed = ref<ProposedRecord[]>([]);
 const dropped = ref<string[]>([]);
@@ -144,9 +174,34 @@ async function create() {
           там схема, и сырой текст дал бы ошибку разбора. Разобранное переезжает в <code>принятое</code>.
         </p>
 
+        <UCard>
+          <template #header>
+            <h2 class="font-medium">Записать наработку</h2>
+          </template>
+          <p class="mb-3 text-sm text-muted">
+            Обычным текстом, без markdown и файлов — заголовок и суть. Приложение само
+            положит заметку на склад, дальше с ней работают так же, как с любой другой.
+          </p>
+          <div class="space-y-3">
+            <UInput v-model="noteTitle" placeholder="Заголовок" size="lg" class="w-full" />
+            <UTextarea v-model="noteBody" placeholder="Что заметили, что нужно, как должно работать…" :rows="4" autoresize class="w-full" />
+            <UButton :loading="savingNote" :disabled="!noteTitle.trim() || !noteBody.trim()" @click="saveNote">
+              Сохранить заметку
+            </UButton>
+          </div>
+          <UAlert
+            v-if="noteFailure"
+            class="mt-3"
+            color="error"
+            variant="subtle"
+            icon="i-lucide-triangle-alert"
+            :title="noteFailure.message"
+          />
+        </UCard>
+
         <div v-if="inbox.notes.length === 0" class="rounded border border-default p-3 text-sm">
-          Заметок нет. Положите их файлами <code>.md</code> — по одной теме на файл; запрос для модели
-          лежит в <code>docs/prompts/inbox.md</code>.
+          Заметок пока нет. Запишите наработку формой выше, или положите файл <code>.md</code>
+          руками — по одной теме на файл; запрос для модели лежит в <code>docs/prompts/inbox.md</code>.
         </div>
 
         <template v-else>
