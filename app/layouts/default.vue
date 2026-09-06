@@ -4,10 +4,40 @@ const route = useRoute();
 /** Навигация появляется, только когда выбран проект: без него ей некуда вести. */
 const projectId = computed(() => (typeof route.params['id'] === 'string' ? route.params['id'] : ''));
 
+// Тот же ключ кэша, что у страниц: индекс не перечитывается лишний раз, счётчики
+// в шапке и на самой вкладке всегда об одном и том же (docs/03-server-api.md).
+const { records, index, errors, warnings } = useProjectIndex(projectId);
+
+/** Открытых задач: не «закрыта» и не «отменена». */
+const openTasks = computed(() => records.value.filter(
+  (record) => record.type === 'task' && !['done', 'dropped'].includes(record.status)
+).length);
+
+/** Неподтверждённых требований: черновик или на подтверждении. */
+const openRequirements = computed(() => records.value.filter(
+  (record) => record.type === 'requirement' && ['draft', 'review'].includes(record.status)
+).length);
+
+/** Проверок без пройденного прогона — не запускалась или последний прогон не `passed`. */
+const openChecks = computed(() => {
+  const results = index.value?.verificationResults ?? {};
+  return records.value.filter(
+    (record) => record.type === 'verification' && results[record.id]?.state !== 'passed'
+  ).length;
+});
+
+const openIssues = computed(() => errors.value.length + warnings.value.length);
+
 /**
  * Вкладок много, и они не равны друг другу (docs/04-ui.md, «Навигация»):
  * «Работа» — что происходит с процессом сейчас, «Устройство» — как проект
- * устроен. Обзор — вне групп, он один и открывается прямой кнопкой.
+ * устроен, «Наполнение» — как в проект попадают новые записи. Обзор — вне
+ * групп, он один и открывается прямой кнопкой.
+ *
+ * Внутри «Работы» вкладки идут в порядке заполнения: сперва требование,
+ * потом задача, которая его выполняет, потом проверка и её результат.
+ * «Нарушения» — не шаг заполнения, а сквозной счётчик по всем остальным
+ * шагам разом, поэтому стоит последним, не в середине цепочки.
  */
 const groups = computed(() => {
   if (!projectId.value) return [];
@@ -16,24 +46,37 @@ const groups = computed(() => {
     {
       label: 'Работа',
       links: [
-        { label: 'Задачи', to: `${base}/tasks` },
-        { label: 'Требования', to: `${base}/requirements` },
-        { label: 'Нарушения', to: `${base}/issues` },
-        { label: 'Проверки', to: `${base}/checks` },
-        { label: 'Результат', to: `${base}/results` }
+        { label: 'Требования', to: `${base}/requirements`, count: openRequirements.value },
+        { label: 'Задачи', to: `${base}/tasks`, count: openTasks.value },
+        { label: 'Проверки', to: `${base}/checks`, count: openChecks.value },
+        { label: 'Результат', to: `${base}/results` },
+        { label: 'Нарушения', to: `${base}/issues`, count: openIssues.value }
       ]
     },
     {
       label: 'Устройство',
       links: [
         { label: 'Граф', to: `${base}/graph` },
-        { label: 'Карты', to: `${base}/maps` },
+        { label: 'Карты', to: `${base}/maps` }
+      ]
+    },
+    {
+      label: 'Наполнение',
+      links: [
         { label: 'Входящее', to: `${base}/inbox` },
         { label: 'Импорт', to: `${base}/import` }
       ]
     }
   ];
 });
+
+/** Пункт меню с числом рядом, если для вкладки есть что считать (docs/04-ui.md). */
+function menuItems(group: (typeof groups.value)[number]) {
+  return group.links.map((link) => ({
+    label: 'count' in link ? `${link.label} · ${link.count}` : link.label,
+    to: link.to
+  }));
+}
 
 const overviewPath = computed(() => (projectId.value ? `/projects/${projectId.value}` : ''));
 
@@ -62,7 +105,7 @@ function isActiveGroup(group: (typeof groups.value)[number]): boolean {
           <UDropdownMenu
             v-for="group in groups"
             :key="group.label"
-            :items="group.links"
+            :items="menuItems(group)"
             :content="{ align: 'start' }"
           >
             <UButton

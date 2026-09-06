@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 
 import { parseProposal, resolveLinks, titleOf, type Note, type ProposedRecord } from '../lib/inbox';
 import { normalizeRoot, resolveInside, toProjectPath } from '../lib/paths';
-import { nextId, recordTemplate } from '../lib/scaffold';
+import { nextId, recordTemplate, slugify } from '../lib/scaffold';
 import { targetPath } from '../lib/import';
 import { DEVELOPMENT_DIR } from '../lib/types';
 import { readWorkspace } from '../lib/workspace';
@@ -44,6 +44,49 @@ export function inboxNotes(root: string): Note[] {
   }
 
   return notes.sort((first, second) => first.path.localeCompare(second.path));
+}
+
+export type NoteOutcome =
+  | { ok: true; path: string }
+  | { ok: false; code: string; message: string };
+
+/**
+ * Заметка от человека — та же дверь на склад, что и у модели: обычный `.md`
+ * файл с заголовком первой строкой (docs/10-inbox.md, «Что кладёт человек»).
+ * Ни markdown, ни файловая система человеку для этого не нужны.
+ */
+export function createNote(root: string, input: { title: string; body: string }): NoteOutcome {
+  const title = input.title.trim();
+  const body = input.body.trim();
+  if (!title) {
+    return { ok: false, code: 'title_required', message: 'Нужен заголовок — по нему заметку узнают в списке' };
+  }
+  if (!body) {
+    return { ok: false, code: 'body_required', message: 'Пустую заметку разбирать нечего' };
+  }
+
+  const normalized = normalizeRoot(root);
+  const workspace = readWorkspace(normalized);
+  const folder = workspace.manifest.sources?.inbox?.[0];
+  if (!folder) {
+    return { ok: false, code: 'inbox_not_configured', message: 'Склад сырых заметок не назван в манифесте' };
+  }
+
+  const absoluteFolder = resolveInside(normalized, folder);
+  mkdirSync(absoluteFolder, { recursive: true });
+
+  // Занято — не затираем чужую заметку, а берём следующее свободное имя.
+  const base = slugify(title);
+  let name = `${base}.md`;
+  for (let n = 2; existsSync(join(absoluteFolder, name)); n += 1) {
+    name = `${base}-${n}.md`;
+  }
+
+  const text = `# ${title}\n\n${body}\n`;
+  writeFileSync(join(absoluteFolder, name), text, 'utf8');
+  dropCache(normalized);
+
+  return { ok: true, path: toProjectPath(normalized, join(absoluteFolder, name)) };
 }
 
 export interface CreatedRecord {
