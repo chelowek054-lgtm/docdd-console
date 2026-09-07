@@ -1,6 +1,7 @@
 import { firstHeading } from './parse';
 import { fileNameFor, initialStatus, isRecordType, SECTION_BY_TYPE } from './scaffold';
 import type { RecordType } from './types';
+import { yamlSafe } from './write';
 
 /**
  * Импорт существующей документации. Приложение показывает, что нашло, и
@@ -101,7 +102,7 @@ export function withFrontMatter(
     '---',
     `id: ${input.id}`,
     `type: ${input.type}`,
-    `title: ${input.title}`,
+    `title: ${yamlSafe(input.title)}`,
     `status: ${initialStatus(input.type)}`,
     `created: ${input.today}`,
     `updated: ${input.today}`

@@ -63,7 +63,7 @@ export function applyFrontMatter(file: RecordFile, changes: FrontMatterChanges):
   if (changes.status !== undefined) lines = setScalar(lines, 'status', changes.status);
   if (changes.change !== undefined) lines = setScalar(lines, 'change', changes.change);
   if (changes.updated !== undefined) lines = setScalar(lines, 'updated', changes.updated);
-  if (changes.owner !== undefined) lines = setScalar(lines, 'owner', changes.owner);
+  if (changes.owner !== undefined) lines = setScalar(lines, 'owner', changes.owner === null ? null : yamlSafe(changes.owner));
   if (changes.phase !== undefined) lines = setScalar(lines, 'phase', changes.phase);
   if (changes.tags !== undefined) lines = setScalar(lines, 'tags', flowList(changes.tags));
   if (changes.links !== undefined) lines = setLinks(lines, changes.links, eol);
@@ -119,6 +119,27 @@ export function journalLines(body: string): string[] {
     if (line.trim().startsWith('- ')) found.push(line);
   }
   return found;
+}
+
+/**
+ * Значение строки front matter — безопасное для YAML. Свободный текст
+ * (заголовок, ответственный, вид проверки) может случайно совпасть с тем,
+ * что YAML понимает по-своему: `Фронтенд: Nuxt 4` выглядит невинно, но
+ * двоеточие с пробелом внутри строки читается как попытка вложенной пары
+ * ключ-значение и роняет разбор всего файла — запись перестаёт открываться,
+ * не объясняя почему. Кавычим только когда это правда нужно, а не всегда:
+ * не стоит менять вид сотен обычных значений ради горстки, которым нужна
+ * защита.
+ */
+export function yamlSafe(value: string): string {
+  const needsQuoting =
+    value === '' ||
+    /^\s|\s$/.test(value) ||
+    /:(\s|$)/.test(value) ||
+    /^[#&*!|>'"%@`\-?:,[\]{}]/.test(value) ||
+    /^(true|false|null|yes|no|~)$/i.test(value) ||
+    /^-?\d+(\.\d+)?$/.test(value);
+  return needsQuoting ? `'${value.replace(/'/g, "''")}'` : value;
 }
 
 function setScalar(lines: string[], key: string, value: string | null): string[] {
