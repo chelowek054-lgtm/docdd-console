@@ -236,7 +236,8 @@ Decision и design из источников, названных в `sources.sha
       "tags": ["vue", "typescript"],
       "label": "stack-conventions",
       "records": [{ "id": "D-0007", "type": "design", "title": "…", "status": "approved", "tags": ["vue"] }],
-      "narrowDomain": []
+      "narrowDomain": [],
+      "availableTags": ["vue", "typescript", "python"]
     }
   ]
 }
@@ -244,8 +245,24 @@ Decision и design из источников, названных в `sources.sha
 
 `narrowDomain` — типы вроде `requirement`/`task`, найденные в источнике: не
 блокирует список `records`, но говорит, что источник не похож на общие
-практики. `error` вместо `records`/`narrowDomain` — путь не открылся как
-DocDD-проект.
+практики. `availableTags` — все теги, которыми размечены подтверждённые
+`decision`/`design` источника, независимо от того, что сейчас выбрано, —
+список для галочек на экране. `error` вместо `records`/`narrowDomain`/
+`availableTags` — путь не открылся как DocDD-проект.
+
+### `PATCH /api/projects/:id/shared`
+
+Галочка одного тега у одного источника — не список источников целиком,
+который по-прежнему только в манифесте руками.
+
+```json
+{ "path": "D:/work/stack-conventions", "tag": "vue", "enabled": true }
+```
+
+Правит `sources.shared[].tags` в манифесте этого проекта точечно
+(server/lib/manifest-write.ts) — не трогая ничего другого в файле. Запись
+`sources.shared`, устроенная не так, как её пишет приложение (например,
+теги блочным списком, а не `[a, b]`), — отказ `422`, файл не меняется.
 
 ## Входящее
 
