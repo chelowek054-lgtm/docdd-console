@@ -3,7 +3,7 @@ import { defineEventHandler, getRouterParam } from 'h3';
 import { normalizeRoot } from '../../../../lib/paths';
 import { WorkspaceError, readWorkspace } from '../../../../lib/workspace';
 import { fail } from '../../../../utils/http';
-import { inboxNotes } from '../../../../utils/inbox-service';
+import { archivedNotes, beforeArchive, derivedFrom, inboxNotes } from '../../../../utils/inbox-service';
 import { findProject } from '../../../../utils/projects';
 
 /**
@@ -20,11 +20,22 @@ export default defineEventHandler(async (event) => {
   try {
     const root = normalizeRoot(project.root);
     const folders = readWorkspace(root).manifest.sources?.inbox ?? [];
+    const derived = derivedFrom(root);
 
     return {
       folders,
       // Текст заметок наружу не отдаём: экрану нужен список, а не содержимое.
-      notes: inboxNotes(root).map((note) => ({ path: note.path, title: note.title, size: note.text.length }))
+      notes: inboxNotes(root).map((note) => ({ path: note.path, title: note.title, size: note.text.length })),
+      // Разобранные не исчезают со счёта — видно, что из заметки выросло
+      // (docs/06-phases.md, фаза 11).
+      archived: archivedNotes(root).map((note) => ({
+        path: note.path,
+        title: note.title,
+        size: note.text.length,
+        // Журнал знает заметку по пути до переезда в «принятое» — искать
+        // связь по нынешнему пути значило бы не найти её никогда.
+        derived: derived.get(beforeArchive(note.path)) ?? []
+      }))
     };
   } catch (error) {
     if (error instanceof WorkspaceError) {

@@ -5,7 +5,15 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { parseProposal, resolveLinks, titleOf } from '../server/lib/inbox';
-import { inboxNotes, createNote, createRecords, DONE_DIR } from '../server/utils/inbox-service';
+import {
+  archivedNotes,
+  beforeArchive,
+  derivedFrom,
+  inboxNotes,
+  createNote,
+  createRecords,
+  DONE_DIR
+} from '../server/utils/inbox-service';
 
 /**
  * Входящее (docs/10-inbox.md). Главное здесь: записи заводит приложение —
@@ -181,6 +189,32 @@ describe('заведение записей', () => {
     expect(inboxNotes(root)).toHaveLength(0);
   });
 
+  it('разобранная заметка находится и после переезда — база знаний, а не разовый лоток', () => {
+    const archived = archivedNotes(root);
+    expect(archived).toHaveLength(1);
+    expect(archived[0]?.path).toBe('docs/inbox/принятое/oplata.md');
+    expect(archived[0]?.title).toBe('Оплата картой');
+  });
+
+  it('видно, что из заметки выросло', () => {
+    // T-0001 не называла note в предложении — в связь с заметкой попадает
+    // только та запись, что её действительно назвала.
+    const derived = derivedFrom(root);
+    expect(derived.get('docs/inbox/oplata.md')).toEqual(['R-0001']);
+  });
+
+  it('связь находится и по пути ПОСЛЕ переезда — так её и ищет экран', () => {
+    // Журнал знает заметку по пути до archive(); список разобранного отдаёт
+    // путь после. beforeArchive — мост между ними; без него это два разных
+    // пути к одному файлу, и derived.get() всегда возвращал бы пусто.
+    const archivedPath = archivedNotes(root)[0]?.path as string;
+    expect(archivedPath).toBe('docs/inbox/принятое/oplata.md');
+
+    const derived = derivedFrom(root);
+    expect(derived.get(archivedPath)).toBeUndefined();
+    expect(derived.get(beforeArchive(archivedPath))).toEqual(['R-0001']);
+  });
+
   it('номера не переиспользуются: следующая запись получает свободный', () => {
     const outcome = createRecords(root, [{ key: 'vtoroe', type: 'requirement', title: 'Второе' }], []);
     expect(outcome.ok).toBe(true);
@@ -237,6 +271,49 @@ describe('след в журнале', () => {
     const text = readFileSync(join(root, outcome.created[0]?.path as string), 'utf8');
     expect(text).toContain('заведена · приложение');
     expect(text).not.toContain('что угодно');
+  });
+});
+
+describe('одна заметка — несколько записей', () => {
+  let root = '';
+
+  beforeAll(() => {
+    root = mkdtempSync(join(tmpdir(), 'docdd-multi-'));
+    mkdirSync(join(root, 'docs', 'development', 'requirements'), { recursive: true });
+    mkdirSync(join(root, 'docs', 'inbox'), { recursive: true });
+    writeFileSync(join(root, 'docs', 'development', 'project.yaml'), [
+      'contract: docdd.workspace/1',
+      'project:',
+      '  id: demo',
+      '  name: Demo',
+      'paths:',
+      '  requirements: requirements',
+      'sources:',
+      '  inbox: [docs/inbox]',
+      ''
+    ].join(LF), 'utf8');
+    writeFileSync(join(root, 'docs', 'inbox', 'raznoe.md'), '# Разное' + LF + LF + 'Тут смешано два требования.', 'utf8');
+
+    createRecords(
+      root,
+      [
+        { key: 'a', type: 'requirement', title: 'Первое', note: 'docs/inbox/raznoe.md' },
+        { key: 'b', type: 'requirement', title: 'Второе', note: 'docs/inbox/raznoe.md' }
+      ],
+      ['docs/inbox/raznoe.md']
+    );
+  });
+
+  afterAll(() => {
+    try {
+      rmSync(root, { recursive: true, force: true });
+    } catch {
+      // Прибирать не обязательно.
+    }
+  });
+
+  it('заметка, разобранная в несколько записей разом, ссылается на обе', () => {
+    expect(derivedFrom(root).get('docs/inbox/raznoe.md')).toEqual(['R-0001', 'R-0002']);
   });
 });
 

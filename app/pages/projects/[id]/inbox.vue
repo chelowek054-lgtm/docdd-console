@@ -14,7 +14,11 @@ const projectId = computed(() => String(route.params['id'] ?? ''));
 interface Inbox {
   folders: string[];
   notes: { path: string; title: string; size: number }[];
+  /** Разобранные — не исчезли, а переехали; видно, что из каждой выросло. */
+  archived: { path: string; title: string; size: number; derived: string[] }[];
 }
+
+const showArchived = ref(false);
 
 const { data, refresh } = useFetch<Inbox | { error: ApiFailure }>(
   () => `/api/projects/${projectId.value}/inbox`,
@@ -312,6 +316,42 @@ async function create() {
           title="Не всё сошлось"
           :description="problems.join(' ')"
         />
+
+        <!-- Разобранное не исчезает: находится и через месяц, видно, что выросло
+             (docs/06-phases.md, фаза 11). Свёрнуто по умолчанию — это история,
+             а не то, ради чего экран открывают каждый раз. -->
+        <div v-if="inbox.archived.length">
+          <UButton
+            size="sm"
+            variant="ghost"
+            color="neutral"
+            :icon="showArchived ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+            @click="showArchived = !showArchived"
+          >
+            Разобранное: {{ inbox.archived.length }}
+          </UButton>
+
+          <ul v-if="showArchived" class="mt-2 space-y-2">
+            <li v-for="note in inbox.archived" :key="note.path" class="rounded border border-default p-3 text-sm">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="font-medium">{{ note.title }}</span>
+                <span class="font-mono text-xs text-muted">{{ note.path }}</span>
+              </div>
+              <p class="mt-1 text-xs text-muted">
+                <template v-if="note.derived.length">
+                  выросло:
+                  <NuxtLink
+                    v-for="id in note.derived"
+                    :key="id"
+                    :to="`/projects/${projectId}/records/${id}`"
+                    class="ml-1 font-mono hover:underline"
+                  >{{ id }}</NuxtLink>
+                </template>
+                <template v-else>ни одна запись явно не назвала эту заметку своим источником</template>
+              </p>
+            </li>
+          </ul>
+        </div>
       </template>
     </template>
   </div>

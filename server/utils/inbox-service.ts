@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync,
 import { dirname, join } from 'node:path';
 
 import { parseProposal, resolveLinks, titleOf, type Note, type ProposedRecord } from '../lib/inbox';
+import { parseRecord } from '../lib/parse';
 import { normalizeRoot, resolveInside, toProjectPath } from '../lib/paths';
 import { nextId, recordTemplate, slugify } from '../lib/scaffold';
 import { targetPath } from '../lib/import';
@@ -44,6 +45,70 @@ export function inboxNotes(root: string): Note[] {
   }
 
   return notes.sort((first, second) => first.path.localeCompare(second.path));
+}
+
+/**
+ * Разобранные заметки — из `принятое` (docs/06-phases.md, фаза 11). Раньше
+ * разбор был разовым действием: заметка переезжала и с экрана исчезала
+ * насовсем, и через месяц её было не найти иначе, чем руками в файлах.
+ */
+export function archivedNotes(root: string): Note[] {
+  const normalized = normalizeRoot(root);
+  const workspace = readWorkspace(normalized);
+  const notes: Note[] = [];
+
+  for (const folder of workspace.manifest.sources?.inbox ?? []) {
+    const absolute = join(normalized, folder, DONE_DIR);
+    if (!existsSync(absolute)) continue;
+
+    for (const entry of readdirSync(absolute, { withFileTypes: true })) {
+      if (entry.isDirectory()) continue;
+      if (!entry.name.toLowerCase().endsWith('.md')) continue;
+
+      const path = join(absolute, entry.name);
+      const text = readFileSync(path, 'utf8');
+      notes.push({ path: toProjectPath(normalized, path), title: titleOf(entry.name, text), text });
+    }
+  }
+
+  return notes.sort((first, second) => first.path.localeCompare(second.path));
+}
+
+/**
+ * Путь заметки до переезда в «принятое» — тот самый, что записан в чужом
+ * журнале строкой «заведена из…» (`archive()` меняет только каталог, не имя).
+ * Без этого пересчёта путь из списка разобранного и путь из журнала — две
+ * разные строки об одном и том же файле, и найти связь между ними нечем.
+ */
+export function beforeArchive(path: string): string {
+  return path.replace(`/${DONE_DIR}/`, '/');
+}
+
+/**
+ * Для каждой заметки — какие записи из неё выросли (docs/06-phases.md,
+ * фаза 11). Строка журнала — единственный существующий след происхождения
+ * (docs/10-inbox.md, «След»), поэтому источник и здесь она, а не отдельное
+ * поле: заводить вторую форму того же факта — плодить способ разойтись.
+ * Ключ карты — путь **на момент, когда запись заводили**, то есть до
+ * переезда заметки в `принятое`; смотри `beforeArchive`.
+ */
+export function derivedFrom(root: string): Map<string, string[]> {
+  const normalized = normalizeRoot(root);
+  const workspace = readWorkspace(normalized);
+  const result = new Map<string, string[]>();
+
+  for (const file of workspace.files) {
+    const outcome = parseRecord(file.text, file.source);
+    if (!outcome.ok) continue;
+
+    const match = /заведена из (\S+)/.exec(outcome.record.body);
+    const notePath = match?.[1];
+    if (!notePath) continue;
+
+    result.set(notePath, [...(result.get(notePath) ?? []), outcome.record.id]);
+  }
+
+  return result;
 }
 
 export type NoteOutcome =
