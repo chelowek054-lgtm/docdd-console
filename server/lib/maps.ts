@@ -9,8 +9,6 @@ import { validateCodemap, validateDataflow, validateSkipped, validateUserflow } 
 
 export type MapStructure = 'codemap' | 'dataflow' | 'userflow';
 
-export const MAP_STRUCTURES: readonly MapStructure[] = ['codemap', 'dataflow', 'userflow'];
-
 export interface Evidence {
   path: string;
   line: number;
@@ -59,6 +57,75 @@ export interface ParsedMap {
   present: MapStructure[];
 }
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/**
+ * Реестр видов карты (docs/06-phases.md, фаза 9). Разбор, сверка и свод —
+ * одна и та же машина для всех видов; разница между `codemap`, `dataflow` и
+ * `userflow` — только в том, какие поля у блока и у каких из них есть
+ * свидетельство. Новый вид добавляется записью сюда и типом в `MapChange` /
+ * `ProjectMap` — не правкой `parseMapRecord`, `evidenceClaims` или `foldMaps`,
+ * которые уже отработали на трёх нынешних видах.
+ */
+interface MapField {
+  name: string;
+  keyOf: (item: any) => string;
+  /** Есть ли у элементов поля свидетельство — тогда сверка их не обходит. */
+  evidence?: (item: any) => { label: string; evidence: Evidence };
+}
+
+interface MapKind {
+  name: MapStructure;
+  validate: (data: unknown) => { message: string }[];
+  fields: readonly MapField[];
+}
+
+const MAP_KINDS: readonly MapKind[] = [
+  {
+    name: 'codemap',
+    validate: validateCodemap,
+    fields: [
+      { name: 'modules', keyOf: (item) => item.id },
+      {
+        name: 'imports',
+        keyOf: (item) => `${item.from}>${item.to}`,
+        evidence: (item) => ({ label: `${item.from} → ${item.to}`, evidence: item.evidence })
+      }
+    ]
+  },
+  {
+    name: 'dataflow',
+    validate: validateDataflow,
+    fields: [
+      { name: 'sources', keyOf: (item) => item.id },
+      {
+        name: 'flows',
+        keyOf: (item) => `${item.from}>${item.to}`,
+        evidence: (item) => ({ label: `${item.from} ${item.direction} ${item.to}`, evidence: item.evidence })
+      }
+    ]
+  },
+  {
+    name: 'userflow',
+    validate: validateUserflow,
+    fields: [
+      { name: 'screens', keyOf: (item) => item.id },
+      {
+        name: 'transitions',
+        keyOf: (item) => `${item.from}>${item.to}`,
+        evidence: (item) => ({ label: `${item.from} → ${item.to}`, evidence: item.evidence })
+      },
+      {
+        name: 'calls',
+        keyOf: (item) => `${item.from}>${item.to}`,
+        evidence: (item) => ({ label: `${item.from} → ${item.to}`, evidence: item.evidence })
+      }
+    ]
+  }
+];
+
+export const MAP_STRUCTURES: readonly MapStructure[] = MAP_KINDS.map((kind) => kind.name);
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
 /**
  * Блоки ```docdd-codemap и соседние. Формат тот же, что у mermaid: человек
  * видит их в любом редакторе markdown, а приложение — по имени языка.
@@ -97,10 +164,10 @@ export function parseMapRecord(body: string): ParsedMap {
   const problems: MapProblem[] = [];
   const present: MapStructure[] = [];
 
-  for (const structure of MAP_STRUCTURES) {
-    const raw = blockOf(body, structure);
+  for (const kind of MAP_KINDS) {
+    const raw = blockOf(body, kind.name);
     if (raw === null) continue;
-    present.push(structure);
+    present.push(kind.name);
 
     if (raw.trim() === '') continue;
 
@@ -109,21 +176,21 @@ export function parseMapRecord(body: string): ParsedMap {
       parsed = JSON.parse(raw);
     } catch (error) {
       problems.push({
-        structure,
-        message: `Блок \`${structure}\` не разбирается как JSON: ${error instanceof Error ? error.message : String(error)}`
+        structure: kind.name,
+        message: `Блок \`${kind.name}\` не разбирается как JSON: ${error instanceof Error ? error.message : String(error)}`
       });
       continue;
     }
 
-    const issues = validateFor(structure, parsed);
+    const issues = kind.validate(parsed).map((issue) => issue.message);
     if (issues.length > 0) {
-      problems.push({ structure, message: `Блок \`${structure}\`: ${collapse(issues).join(' ')}` });
+      problems.push({ structure: kind.name, message: `Блок \`${kind.name}\`: ${collapse(issues).join(' ')}` });
       continue;
     }
 
     // Присваиваем после проверки: в карту не должно попасть ничего, что не
     // прошло схему, иначе общая картина соберётся из мусора.
-    Object.assign(change, { [structure]: parsed });
+    Object.assign(change, { [kind.name]: parsed });
   }
 
   // Четвёртый блок — не структура, а решение: эти файлы посмотрели и в карту
@@ -150,15 +217,6 @@ export function parseMapRecord(body: string): ParsedMap {
   return { change, problems, present };
 }
 
-function validateFor(structure: MapStructure, data: unknown): string[] {
-  const issues = structure === 'codemap'
-    ? validateCodemap(data)
-    : structure === 'dataflow'
-      ? validateDataflow(data)
-      : validateUserflow(data);
-  return issues.map((issue) => issue.message);
-}
-
 function blockOf(body: string, structure: MapStructure | 'skipped'): string | null {
   const pattern = new RegExp(
     `^[ \\t]*(?:\`\`\`|~~~)[ \\t]*docdd-${structure}[ \\t]*\\r?\\n([\\s\\S]*?)^[ \\t]*(?:\`\`\`|~~~)[ \\t]*$`,
@@ -178,32 +236,27 @@ export interface EvidenceClaim {
   evidence: Evidence;
 }
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /** Все утверждения карты, у которых есть свидетельство. Из них и состоит сверка. */
 export function evidenceClaims(change: MapChange): EvidenceClaim[] {
   const claims: EvidenceClaim[] = [];
 
   for (const side of ['added', 'removed'] as EvidenceSide[]) {
-    const code = change.codemap?.[side];
-    for (const edge of code?.imports ?? []) {
-      claims.push({ structure: 'codemap', side, label: `${edge.from} → ${edge.to}`, evidence: edge.evidence });
-    }
-
-    const data = change.dataflow?.[side];
-    for (const flow of data?.flows ?? []) {
-      claims.push({ structure: 'dataflow', side, label: `${flow.from} ${flow.direction} ${flow.to}`, evidence: flow.evidence });
-    }
-
-    const user = change.userflow?.[side];
-    for (const step of user?.transitions ?? []) {
-      claims.push({ structure: 'userflow', side, label: `${step.from} → ${step.to}`, evidence: step.evidence });
-    }
-    for (const call of user?.calls ?? []) {
-      claims.push({ structure: 'userflow', side, label: `${call.from} → ${call.to}`, evidence: call.evidence });
+    for (const kind of MAP_KINDS) {
+      const part = (change as any)[kind.name]?.[side];
+      for (const field of kind.fields) {
+        if (!field.evidence) continue;
+        for (const item of part?.[field.name] ?? []) {
+          const { label, evidence } = field.evidence(item);
+          claims.push({ structure: kind.name, side, label, evidence });
+        }
+      }
     }
   }
 
   return claims;
 }
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 export type EvidenceVerdict = 'ok' | 'missing' | 'stale' | 'still_present';
 
@@ -265,21 +318,22 @@ export function foldMaps(changes: readonly { id: string; change: MapChange }[]):
   for (const { id, change } of changes) {
     result.from.push(id);
 
-    apply(result.codemap, 'modules', change.codemap, (item) => item.id);
-    apply(result.codemap, 'imports', change.codemap, (item) => `${item.from}>${item.to}`);
-    apply(result.dataflow, 'sources', change.dataflow, (item) => item.id);
-    apply(result.dataflow, 'flows', change.dataflow, (item) => `${item.from}>${item.to}`);
-    apply(result.userflow, 'screens', change.userflow, (item) => item.id);
-    apply(result.userflow, 'transitions', change.userflow, (item) => `${item.from}>${item.to}`);
-    apply(result.userflow, 'calls', change.userflow, (item) => `${item.from}>${item.to}`);
+    for (const kind of MAP_KINDS) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const part = (change as any)[kind.name];
+      for (const field of kind.fields) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        apply((result as any)[kind.name], field.name, part, field.keyOf);
+      }
+    }
   }
 
   return result;
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// Три структуры отличаются только именами полей, а обходятся одинаково.
-// Разложить это по типам аккуратнее стоило бы втрое больше кода, чем экономит.
+// Поля разных видов карты отличаются только именами, а обходятся одинаково —
+// подробности вида несёт реестр (`MAP_KINDS`), эта функция сама видов не знает.
 function apply(
   target: any,
   field: string,

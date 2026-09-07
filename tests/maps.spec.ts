@@ -135,8 +135,8 @@ describe('evidenceClaims', () => {
 });
 
 describe('checkMaps', () => {
-  const mapRecord = (id: string, status: string, text: string) =>
-    rec(id, 'map', status, { body: text, section: 'maps', path: `docs/development/maps/${id}.md` });
+  const mapRecord = (id: string, status: string, text: string, extra?: Record<string, unknown>) =>
+    rec(id, 'map', status, { body: text, section: 'maps', path: `docs/development/maps/${id}.md`, extra });
 
   it('map_invalid: карту, которую нельзя разобрать, называет по имени', () => {
     const record = mapRecord('M-0001', 'approved', ['```docdd-codemap', '{ битый', '```'].join(LF));
@@ -190,14 +190,12 @@ describe('checkMaps', () => {
   });
 
   it('intent: true — не сверяет карту нового проекта, даже без единой задачи', () => {
-    const map = mapRecord('M-0001', 'approved', body('codemap', { added: { imports: [import1] } }));
-    map.data['intent'] = true;
+    const map = mapRecord('M-0001', 'approved', body('codemap', { added: { imports: [import1] } }), { intent: true });
     expect(checkMaps(context([map]))).toEqual([]);
   });
 
   it('intent: true сильнее закрытой задачи — план остаётся планом, пока сам не скажешь иначе', () => {
-    const map = mapRecord('M-0001', 'approved', body('codemap', { added: { imports: [import1] } }));
-    map.data['intent'] = true;
+    const map = mapRecord('M-0001', 'approved', body('codemap', { added: { imports: [import1] } }), { intent: true });
     const task = rec('T-0001', 'task', 'done', { links: { affects: ['M-0001'] } });
     expect(checkMaps(context([map, task]))).toEqual([]);
   });
