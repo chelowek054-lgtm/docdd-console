@@ -344,6 +344,10 @@ export function checkMaps(ctx: RuleContext): Violation[] {
     }
 
     if (record.status !== 'approved' || !ctx.readSource) continue;
+    // `intent: true` — карта нового кода, которого ещё нет: сверка не про то,
+    // закрыта ли задача, а про то, что задачи для этого куска может не быть
+    // вовсе (docs/07-maps.md, «Карта нового проекта»).
+    if (record.data['intent'] === true) continue;
     // Незакрытая задача означает, что кода ещё нет: это план, а не расхождение.
     if (!settled(ctx, record.id)) continue;
 

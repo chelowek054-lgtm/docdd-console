@@ -47,7 +47,14 @@ export default defineEventHandler(async (event) => {
       issues: index.issues.filter((issue) => issue.recordId === recordId || issue.path === record.path),
       verifications: verificationsOf(index, record.links.verified_by ?? []),
       ...(record.type === 'map'
-        ? { map: mapViewOf(project.root, parsed.record.body, record.status, settled(index, record.id)) }
+        ? {
+          map: mapViewOf(
+            project.root,
+            parsed.record.body,
+            record.status,
+            parsed.record.data['intent'] !== true && settled(index, record.id)
+          )
+        }
         : {})
     };
     return detail;

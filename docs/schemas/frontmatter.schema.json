@@ -105,7 +105,11 @@
       "then": {
         "properties": {
           "id": { "pattern": "^M-[0-9]{4}$" },
-          "status": { "enum": ["draft", "review", "approved", "superseded", "dropped"] }
+          "status": { "enum": ["draft", "review", "approved", "superseded", "dropped"] },
+          "intent": {
+            "type": "boolean",
+            "description": "Пока true — сверка со свидетельствами не запускается независимо от задач: карта описывает код, которого ещё нет (docs/07-maps.md)."
+          }
         }
       }
     },
