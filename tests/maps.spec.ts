@@ -81,6 +81,13 @@ describe('parseMapRecord', () => {
     const parsed = parseMapRecord(body('dataflow', { added: { sources: [{ id: 'x', kind: 'блокчейн' }] } }));
     expect(parsed.problems).toHaveLength(1);
   });
+
+  it('разбирает функциональную карту — четвёртый вид поверх реестра', () => {
+    const parsed = parseMapRecord(body('functional', { added: { capabilities: [{ id: 'orders', title: 'Заказы' }] } }));
+    expect(parsed.problems).toEqual([]);
+    expect(parsed.present).toEqual(['functional']);
+    expect(parsed.change.functional?.added?.capabilities).toEqual([{ id: 'orders', title: 'Заказы' }]);
+  });
 });
 
 describe('checkEvidence', () => {
@@ -131,6 +138,15 @@ describe('evidenceClaims', () => {
     const claims = evidenceClaims(change);
     expect(claims).toHaveLength(4);
     expect(claims.filter((claim) => claim.side === 'removed')).toHaveLength(1);
+  });
+
+  it('у функциональной карты утверждений для сверки нет вовсе', () => {
+    // Не забыли добавить свидетельство — у вида его в принципе не бывает:
+    // подтверждается человеком, а не построчной сверкой с файлом.
+    const change: MapChange = {
+      functional: { added: { capabilities: [{ id: 'orders', title: 'Заказы' }] } }
+    };
+    expect(evidenceClaims(change)).toEqual([]);
   });
 });
 
@@ -191,6 +207,14 @@ describe('checkMaps', () => {
 
   it('intent: true — не сверяет карту нового проекта, даже без единой задачи', () => {
     const map = mapRecord('M-0001', 'approved', body('codemap', { added: { imports: [import1] } }), { intent: true });
+    expect(checkMaps(context([map]))).toEqual([]);
+  });
+
+  it('функциональную карту не сверяет никогда — ей нечего предъявить как свидетельство', () => {
+    // Без единой задачи и без intent: у обычной карты это дало бы
+    // map_evidence_missing (вакуумная истинность settled). У функциональной —
+    // сверять просто нечего, evidenceClaims для неё всегда пуст.
+    const map = mapRecord('M-0001', 'approved', body('functional', { added: { capabilities: [{ id: 'orders' }] } }));
     expect(checkMaps(context([map]))).toEqual([]);
   });
 
@@ -293,6 +317,21 @@ describe('foldMaps', () => {
     expect(map.codemap.modules).toEqual([]);
     expect(map.userflow.screens).toEqual([]);
     expect(map.from).toEqual([]);
+  });
+
+  it('складывает функциональную карту тем же приёмом, без свидетельства', () => {
+    const map = foldMaps([
+      { id: 'M-0001', change: { functional: { added: { capabilities: [{ id: 'orders', title: 'Заказы' }] } } } },
+      {
+        id: 'M-0002',
+        change: {
+          functional: {
+            added: { capabilities: [{ id: 'orders.pay', title: 'Оплата', parent: 'orders' }] }
+          }
+        }
+      }
+    ]);
+    expect(map.functional.capabilities.map((item) => item.id)).toEqual(['orders', 'orders.pay']);
   });
 });
 

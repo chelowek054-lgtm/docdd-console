@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docdd/functional.schema.json",
+  "title": "Изменение функциональной карты",
+  "description": "Блок ```docdd-functional в записи типа map. Возможности системы в терминах предметной области — не код, не поток данных. Без свидетельства: подтверждается человеком, как обычная запись, а не построчной сверкой с файлом (docs/07-maps.md).",
+
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "added": { "$ref": "#/$defs/part" },
+    "removed": { "$ref": "#/$defs/part" }
+  },
+
+  "$defs": {
+    "part": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "capabilities": { "type": "array", "items": { "$ref": "#/$defs/capability" } }
+      }
+    },
+    "capability": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "description": "Свободный идентификатор, не путь и не номер." },
+        "title": { "type": "string", "description": "Как это назовёт доменный специалист, не разработчик." },
+        "parent": { "type": "string", "description": "id родительской возможности — так набирается иерархия, дерево, не список." }
+      }
+    }
+  }
+}

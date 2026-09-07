@@ -334,7 +334,7 @@ updated: 2026-08-31
         {"from":"server/lib/indexer.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/lib/indexer.ts","line":13,"fragment":"import { readWorkspace, sourceReader, type Workspace } from "}},
         {"from":"server/lib/inventory.ts","to":"server/lib/maps.ts","evidence":{"path":"server/lib/inventory.ts","line":1,"fragment":"import type { MapChange } from './maps';"}},
         {"from":"server/lib/map-schemas.ts","to":"server/lib/schema-digest.ts","evidence":{"path":"server/lib/map-schemas.ts","line":6,"fragment":"import { schemaDigest } from './schema-digest';"}},
-        {"from":"server/lib/maps.ts","to":"server/lib/schema.ts","evidence":{"path":"server/lib/maps.ts","line":1,"fragment":"import { validateCodemap, validateDataflow, validateSkipped,"}},
+        {"from":"server/lib/maps.ts","to":"server/lib/schema.ts","evidence":{"path":"server/lib/maps.ts","line":1,"fragment":"import { validateCodemap, validateDataflow, validateFunctio"}},
         {"from":"server/lib/prompt.ts","to":"server/lib/contract-digest.ts","evidence":{"path":"server/lib/prompt.ts","line":1,"fragment":"import { contractDigest } from './contract-digest';"}},
         {"from":"server/lib/prompt.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/prompt.ts","line":2,"fragment":"import type { IssueDto } from './types';"}},
         {"from":"server/lib/reports.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/reports.ts","line":1,"fragment":"import type { Report, VerificationOutcome, VerificationResul"}},

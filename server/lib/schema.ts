@@ -8,6 +8,7 @@ import codemapSchema from '../../docs/schemas/codemap.schema.json';
 import dataflowSchema from '../../docs/schemas/dataflow.schema.json';
 import evidenceSchema from '../../docs/schemas/evidence.schema.json';
 import frontmatterSchema from '../../docs/schemas/frontmatter.schema.json';
+import functionalSchema from '../../docs/schemas/functional.schema.json';
 import projectSchema from '../../docs/schemas/project.schema.json';
 import reportSchema from '../../docs/schemas/report.schema.json';
 import recordsSchema from '../../docs/schemas/records.schema.json';
@@ -43,6 +44,7 @@ const validateReportSchema = ajv.compile(reportSchema);
 const validateCodemapSchema = ajv.compile(codemapSchema);
 const validateDataflowSchema = ajv.compile(dataflowSchema);
 const validateUserflowSchema = ajv.compile(userflowSchema);
+const validateFunctionalSchema = ajv.compile(functionalSchema);
 const validateRecordsSchema = ajv.compile(recordsSchema);
 const validateSkippedSchema = ajv.compile(skippedSchema);
 
@@ -80,6 +82,11 @@ export function validateDataflow(data: unknown): SchemaIssue[] {
 
 export function validateUserflow(data: unknown): SchemaIssue[] {
   return run(validateUserflowSchema, data);
+}
+
+/** Возможности системы на языке предметной области — без свидетельства (docs/07-maps.md). */
+export function validateFunctional(data: unknown): SchemaIssue[] {
+  return run(validateFunctionalSchema, data);
 }
 
 /** Файлы, которые модель сознательно не описала (docs/07-maps.md). */

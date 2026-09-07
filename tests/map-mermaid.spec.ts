@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { codemapMermaid, dataflowMermaid, userflowMermaid } from '../app/utils/map-mermaid';
+import { codemapMermaid, dataflowMermaid, functionalMermaid, userflowMermaid } from '../app/utils/map-mermaid';
 import { emptyProjectMap, type ProjectMap } from '../server/lib/maps';
 
 /**
@@ -134,5 +134,75 @@ describe('userflowMermaid', () => {
     }));
     expect(text).toContain("Экран 'Карты'");
     expect(text).not.toContain('"Экран "');
+  });
+});
+
+describe('functionalMermaid', () => {
+  it('одна верхняя возможность становится корнем без обёртки', () => {
+    const text = functionalMermaid(mapWith({
+      functional: {
+        capabilities: [
+          { id: 'orders', title: 'Заказы' },
+          { id: 'orders.pay', title: 'Оплата', parent: 'orders' }
+        ]
+      }
+    }));
+    expect(text).toContain('mindmap');
+    expect(text).not.toContain('root((Проект))');
+    expect(text).toContain('f_orders(Заказы)');
+    expect(text).toContain('f_orders_pay(Оплата)');
+    // Вложенность — отступом: у ребёнка отступ больше, чем у родителя.
+    const parentAt = text.split('\n').findIndex((line) => line.includes('f_orders('));
+    const childAt = text.split('\n').findIndex((line) => line.includes('f_orders_pay('));
+    const indentOf = (line: string) => (line.match(/^ */)?.[0] ?? '').length;
+    const lines = text.split('\n');
+    expect(indentOf(lines[childAt] ?? '')).toBeGreaterThan(indentOf(lines[parentAt] ?? ''));
+  });
+
+  it('несколько верхних возможностей собираются под общим узлом', () => {
+    const text = functionalMermaid(mapWith({
+      functional: {
+        capabilities: [
+          { id: 'orders', title: 'Заказы' },
+          { id: 'billing', title: 'Биллинг' }
+        ]
+      }
+    }));
+    expect(text).toContain('root((Проект))');
+    expect(text).toContain('f_orders(Заказы)');
+    expect(text).toContain('f_billing(Биллинг)');
+  });
+
+  it('ссылка на несуществующего родителя не теряет возможность', () => {
+    const text = functionalMermaid(mapWith({
+      functional: { capabilities: [{ id: 'orphan', title: 'Одна', parent: 'нет-такой' }] }
+    }));
+    expect(text).toContain('f_orphan(Одна)');
+  });
+
+  it('повторный id не рисует один узел дважды в разных ветках', () => {
+    const text = functionalMermaid(mapWith({
+      functional: {
+        capabilities: [
+          { id: 'a', title: 'Первая' },
+          { id: 'b', title: 'Б', parent: 'a' },
+          // Тот же id 'a', но объявлен потомком 'b' — без защиты узел 'a'
+          // нарисовался бы и корнем, и веткой глубже одновременно.
+          { id: 'a', title: 'Вторая', parent: 'b' }
+        ]
+      }
+    }));
+    expect(text.match(/f_a\(/g)).toHaveLength(1);
+  });
+
+  it('скобки в названии не рвут синтаксис узла', () => {
+    const text = functionalMermaid(mapWith({
+      functional: { capabilities: [{ id: 'x', title: 'Отчёты (PDF)' }] }
+    }));
+    expect(text).not.toMatch(/\(Отчёты \(PDF\)\)/);
+  });
+
+  it('пустая структура даёт пустую строку, а не пустую диаграмму', () => {
+    expect(functionalMermaid(emptyProjectMap())).toBe('');
   });
 });
