@@ -122,6 +122,16 @@ export function journalLines(body: string): string[] {
 }
 
 /**
+ * Тело записи без раздела «Журнал»: он про движение записи, а не про её суть
+ * — тому, кто читает содержание (в запросе модели, в общих практиках), это
+ * не нужно (server/utils/work-service.ts, server/utils/shared-service.ts).
+ */
+export function withoutJournal(body: string): string {
+  const at = body.search(/^##\s+Журнал\s*$/m);
+  return at === -1 ? body : body.slice(0, at);
+}
+
+/**
  * Значение строки front matter — безопасное для YAML. Свободный текст
  * (заголовок, ответственный, вид проверки) может случайно совпасть с тем,
  * что YAML понимает по-своему: `Фронтенд: Nuxt 4` выглядит невинно, но

@@ -134,13 +134,25 @@ async function toggleTag(source: SharedSourceView, tag: string) {
               <p v-if="source.records.length === 0" class="mt-3 text-sm text-muted">
                 По отмеченным тегам в источнике ничего подтверждённого не нашлось.
               </p>
-              <ul v-else class="mt-3 space-y-1">
-                <li v-for="record in source.records" :key="record.id" class="flex flex-wrap items-center gap-2 text-sm">
-                  <UBadge variant="subtle">{{ typeLabel(record.type) }}</UBadge>
-                  <span class="font-mono text-xs text-muted">[{{ source.label }}] {{ record.id }}</span>
-                  <span>{{ record.title }}</span>
-                </li>
-              </ul>
+              <template v-else>
+                <ul class="mt-3 space-y-1">
+                  <li v-for="record in source.records" :key="record.id" class="flex flex-wrap items-center gap-2 text-sm">
+                    <UBadge variant="subtle">{{ typeLabel(record.type) }}</UBadge>
+                    <NuxtLink
+                      v-if="source.registeredProjectId"
+                      :to="`/projects/${source.registeredProjectId}/records/${record.id}`"
+                      class="font-mono text-xs text-muted hover:underline"
+                    >[{{ source.label }}] {{ record.id }}</NuxtLink>
+                    <span v-else class="font-mono text-xs text-muted">[{{ source.label }}] {{ record.id }}</span>
+                    <span>{{ record.title }}</span>
+                  </li>
+                </ul>
+                <p v-if="!source.registeredProjectId" class="mt-2 text-xs text-muted">
+                  Источник не открыт в приложении своим проектом — прочитать запись целиком
+                  можно, добавив <span class="font-mono">{{ source.path }}</span> на
+                  <NuxtLink to="/" class="hover:underline">экране проектов</NuxtLink>.
+                </p>
+              </template>
             </template>
           </template>
         </template>

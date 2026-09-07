@@ -4,7 +4,7 @@ import { normalizeRoot } from '../../../../lib/paths';
 import { WorkspaceError, readWorkspace } from '../../../../lib/workspace';
 import { fail } from '../../../../utils/http';
 import { sharedSourcesOf } from '../../../../utils/shared-service';
-import { findProject } from '../../../../utils/projects';
+import { findProject, listProjects } from '../../../../utils/projects';
 
 /**
  * Общие практики проекта (docs/11-shared-sources.md). Источник не назван в
@@ -21,7 +21,8 @@ export default defineEventHandler(async (event) => {
   try {
     const root = normalizeRoot(project.root);
     const sources = readWorkspace(root).manifest.sources?.shared ?? [];
-    return { sources: sharedSourcesOf(sources) };
+    const registered = await listProjects();
+    return { sources: sharedSourcesOf(sources, registered) };
   } catch (error) {
     if (error instanceof WorkspaceError) {
       return fail(event, 422, error.code, error.message, error.detail);

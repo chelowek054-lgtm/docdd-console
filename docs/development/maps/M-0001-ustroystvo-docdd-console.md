@@ -309,7 +309,7 @@ updated: 2026-08-31
         {"from":"server/api/projects/[id]/shared/index.get.ts","to":"server/lib/paths.ts","evidence":{"path":"server/api/projects/[id]/shared/index.get.ts","line":3,"fragment":"import { normalizeRoot } from '../../../../lib/paths';"}},
         {"from":"server/api/projects/[id]/shared/index.get.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/api/projects/[id]/shared/index.get.ts","line":4,"fragment":"import { WorkspaceError, readWorkspace } from '../../../../l"}},
         {"from":"server/api/projects/[id]/shared/index.get.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/projects/[id]/shared/index.get.ts","line":5,"fragment":"import { fail } from '../../../../utils/http';"}},
-        {"from":"server/api/projects/[id]/shared/index.get.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/[id]/shared/index.get.ts","line":7,"fragment":"import { findProject } from '../../../../utils/projects';"}},
+        {"from":"server/api/projects/[id]/shared/index.get.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/[id]/shared/index.get.ts","line":7,"fragment":"import { findProject, listProjects } from '../../../../utils/pro"}},
         {"from":"server/api/projects/[id]/shared/index.get.ts","to":"server/utils/shared-service.ts","evidence":{"path":"server/api/projects/[id]/shared/index.get.ts","line":6,"fragment":"import { sharedSourcesOf } from '../../../../utils/shared-se"}},
         {"from":"server/api/projects/[id]/shared/index.patch.ts","to":"server/lib/paths.ts","evidence":{"path":"server/api/projects/[id]/shared/index.patch.ts","line":3,"fragment":"import { normalizeRoot } from '../../../../lib/paths';"}},
         {"from":"server/api/projects/[id]/shared/index.patch.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/projects/[id]/shared/index.patch.ts","line":4,"fragment":"import { fail } from '../../../../utils/http';"}},
@@ -418,21 +418,26 @@ updated: 2026-08-31
         {"from":"server/utils/sessions.ts","to":"server/lib/paths.ts","evidence":{"path":"server/utils/sessions.ts","line":4,"fragment":"import { normalizeRoot } from '../lib/paths';"}},
         {"from":"server/utils/shared-service.ts","to":"server/lib/cache.ts","evidence":{"path":"server/utils/shared-service.ts","line":4,"fragment":"import { dropCache } from '../lib/cache';"}},
         {"from":"server/utils/shared-service.ts","to":"server/lib/manifest-write.ts","evidence":{"path":"server/utils/shared-service.ts","line":5,"fragment":"import { toggleSharedTag } from '../lib/manifest-write';"}},
-        {"from":"server/utils/shared-service.ts","to":"server/lib/paths.ts","evidence":{"path":"server/utils/shared-service.ts","line":6,"fragment":"import { normalizeRoot } from '../lib/paths';"}},
-        {"from":"server/utils/shared-service.ts","to":"server/lib/shared.ts","evidence":{"path":"server/utils/shared-service.ts","line":7,"fragment":"import { availableTagsOf, narrowDomainTypes, sharedRecordsO"}},
-        {"from":"server/utils/shared-service.ts","to":"server/lib/types.ts","evidence":{"path":"server/utils/shared-service.ts","line":8,"fragment":"import type { SharedSource } from '../lib/types';"}},
-        {"from":"server/utils/shared-service.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/utils/shared-service.ts","line":9,"fragment":"import { developmentDir, MANIFEST_FILE, WorkspaceError } fr"}},
-        {"from":"server/utils/shared-service.ts","to":"server/utils/index-service.ts","evidence":{"path":"server/utils/shared-service.ts","line":10,"fragment":"import { loadIndex } from './index-service';"}},
+        {"from":"server/utils/shared-service.ts","to":"server/lib/parse.ts","evidence":{"path":"server/utils/shared-service.ts","line":6,"fragment":"import { parseRecord } from '../lib/parse';"}},
+        {"from":"server/utils/shared-service.ts","to":"server/lib/paths.ts","evidence":{"path":"server/utils/shared-service.ts","line":7,"fragment":"import { normalizeRoot, resolveInside } from '../lib/paths'"}},
+        {"from":"server/utils/shared-service.ts","to":"server/lib/shared.ts","evidence":{"path":"server/utils/shared-service.ts","line":8,"fragment":"import { availableTagsOf, narrowDomainTypes, sharedRecordsO"}},
+        {"from":"server/utils/shared-service.ts","to":"server/lib/types.ts","evidence":{"path":"server/utils/shared-service.ts","line":9,"fragment":"import type { ProjectEntry, SharedSource } from '../lib/typ"}},
+        {"from":"server/utils/shared-service.ts","to":"server/lib/write.ts","evidence":{"path":"server/utils/shared-service.ts","line":10,"fragment":"import { withoutJournal } from '../lib/write';"}},
+        {"from":"server/utils/shared-service.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/utils/shared-service.ts","line":11,"fragment":"import { developmentDir, MANIFEST_FILE, WorkspaceError } fr"}},
+        {"from":"server/utils/shared-service.ts","to":"server/utils/index-service.ts","evidence":{"path":"server/utils/shared-service.ts","line":12,"fragment":"import { loadIndex } from './index-service';"}},
         {"from":"server/utils/work-service.ts","to":"server/lib/actions.ts","evidence":{"path":"server/utils/work-service.ts","line":3,"fragment":"import { applyJournalNote } from '../lib/actions';"}},
         {"from":"server/utils/work-service.ts","to":"server/lib/branch.ts","evidence":{"path":"server/utils/work-service.ts","line":4,"fragment":"import { branchName, commitMessage, worktreePath } from '../"}},
         {"from":"server/utils/work-service.ts","to":"server/lib/maps.ts","evidence":{"path":"server/utils/work-service.ts","line":5,"fragment":"import { parseMapRecord } from '../lib/maps';"}},
         {"from":"server/utils/work-service.ts","to":"server/lib/paths.ts","evidence":{"path":"server/utils/work-service.ts","line":6,"fragment":"import { normalizeRoot } from '../lib/paths';"}},
-        {"from":"server/utils/work-service.ts","to":"server/lib/stream-events.ts","evidence":{"path":"server/utils/work-service.ts","line":23,"fragment":"import type { ModelEvent } from '../lib/stream-events';"}},
+        {"from":"server/utils/work-service.ts","to":"server/lib/stream-events.ts","evidence":{"path":"server/utils/work-service.ts","line":25,"fragment":"import type { ModelEvent } from '../lib/stream-events';"}},
         {"from":"server/utils/work-service.ts","to":"server/lib/types.ts","evidence":{"path":"server/utils/work-service.ts","line":8,"fragment":"import type { IndexRecord, ProjectIndex } from '../lib/types"}},
-        {"from":"server/utils/work-service.ts","to":"server/utils/git.ts","evidence":{"path":"server/utils/work-service.ts","line":21,"fragment":"} from './git';"}},
-        {"from":"server/utils/work-service.ts","to":"server/utils/map-service.ts","evidence":{"path":"server/utils/work-service.ts","line":23,"fragment":"import { buildProjectMap } from './map-service';"}},
-        {"from":"server/utils/work-service.ts","to":"server/utils/record-write.ts","evidence":{"path":"server/utils/work-service.ts","line":24,"fragment":"import { openRecord, saveRecord, today } from './record-writ"}},
-        {"from":"server/utils/work-service.ts","to":"server/utils/sessions.ts","evidence":{"path":"server/utils/work-service.ts","line":26,"fragment":"import { forgetSession, rememberSession, sessionOf } from '."}}
+        {"from":"server/utils/work-service.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/utils/work-service.ts","line":10,"fragment":"import { readWorkspace } from '../lib/workspace';"}},
+        {"from":"server/utils/work-service.ts","to":"server/lib/write.ts","evidence":{"path":"server/utils/work-service.ts","line":9,"fragment":"import { withoutJournal } from '../lib/write';"}},
+        {"from":"server/utils/work-service.ts","to":"server/utils/git.ts","evidence":{"path":"server/utils/work-service.ts","line":23,"fragment":"} from './git';"}},
+        {"from":"server/utils/work-service.ts","to":"server/utils/map-service.ts","evidence":{"path":"server/utils/work-service.ts","line":26,"fragment":"import { buildProjectMap } from './map-service';"}},
+        {"from":"server/utils/work-service.ts","to":"server/utils/record-write.ts","evidence":{"path":"server/utils/work-service.ts","line":27,"fragment":"import { openRecord, saveRecord, today } from './record-writ"}},
+        {"from":"server/utils/work-service.ts","to":"server/utils/sessions.ts","evidence":{"path":"server/utils/work-service.ts","line":28,"fragment":"import { forgetSession, rememberSession, sessionOf } from '."}},
+        {"from":"server/utils/work-service.ts","to":"server/utils/shared-service.ts","evidence":{"path":"server/utils/work-service.ts","line":29,"fragment":"import { connectedPractices } from './shared-service';"}}
       ]
     }
 }
@@ -475,8 +480,8 @@ updated: 2026-08-31
         {"from":"server/utils/record-write.ts","to":"project-files","direction":"read","evidence":{"path":"server/utils/record-write.ts","line":1,"fragment":"import { readFileSync, writeFileSync } from 'node:fs';"}},
         {"from":"server/utils/record-write.ts","to":"project-files","direction":"write","evidence":{"path":"server/utils/record-write.ts","line":80,"fragment":"writeFileSync(context.absolute, outcome.text, 'utf8');"}},
         {"from":"server/utils/sessions.ts","to":"session-memory","direction":"both","evidence":{"path":"server/utils/sessions.ts","line":15,"fragment":"const FILE = '.docdd/sessions.json';"}},
-        {"from":"server/utils/work-service.ts","to":"git-repo","direction":"both","evidence":{"path":"server/utils/work-service.ts","line":107,"fragment":"  const created = await ensureWorktree(normalized, branch, r"}},
-        {"from":"server/utils/work-service.ts","to":"project-files","direction":"write","evidence":{"path":"server/utils/work-service.ts","line":277,"fragment":"  const saved = saveRecord(context, outcome, root);"}}
+        {"from":"server/utils/work-service.ts","to":"git-repo","direction":"both","evidence":{"path":"server/utils/work-service.ts","line":110,"fragment":"  const created = await ensureWorktree(normalized, branch, r"}},
+        {"from":"server/utils/work-service.ts","to":"project-files","direction":"write","evidence":{"path":"server/utils/work-service.ts","line":294,"fragment":"  const saved = saveRecord(context, outcome, root);"}}
       ]
     }
 }

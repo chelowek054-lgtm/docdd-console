@@ -237,7 +237,8 @@ Decision и design из источников, названных в `sources.sha
       "label": "stack-conventions",
       "records": [{ "id": "D-0007", "type": "design", "title": "…", "status": "approved", "tags": ["vue"] }],
       "narrowDomain": [],
-      "availableTags": ["vue", "typescript", "python"]
+      "availableTags": ["vue", "typescript", "python"],
+      "registeredProjectId": null
     }
   ]
 }
@@ -247,8 +248,11 @@ Decision и design из источников, названных в `sources.sha
 блокирует список `records`, но говорит, что источник не похож на общие
 практики. `availableTags` — все теги, которыми размечены подтверждённые
 `decision`/`design` источника, независимо от того, что сейчас выбрано, —
-список для галочек на экране. `error` вместо `records`/`narrowDomain`/
-`availableTags` — путь не открылся как DocDD-проект.
+список для галочек на экране. `registeredProjectId` — `id` источника, если
+он и сам открыт в приложении своим проектом (тогда экран строит ссылку на
+запись); `null` — валиден, но не зарегистрирован, сослаться некуда. `error`
+вместо `records`/`narrowDomain`/`availableTags`/`registeredProjectId` — путь
+не открылся как DocDD-проект.
 
 ### `PATCH /api/projects/:id/shared`
 
