@@ -10,6 +10,7 @@ import { parseMapRecord, MAP_STRUCTURES, type MapChange } from '../../../../lib/
 import { OutsideRootError, normalizeRoot, resolveInside } from '../../../../lib/paths';
 import { nextId } from '../../../../lib/scaffold';
 import { DEVELOPMENT_DIR, WorkspaceError, readWorkspace } from '../../../../lib/workspace';
+import { yamlSafe } from '../../../../lib/write';
 import { fail, failWith } from '../../../../utils/http';
 import { loadIndex } from '../../../../utils/index-service';
 import { findProject } from '../../../../utils/projects';
@@ -103,7 +104,7 @@ function draftText(id: string, title: string, change: MapChange, present: readon
     '---',
     `id: ${id}`,
     'type: map',
-    `title: ${title}`,
+    `title: ${yamlSafe(title)}`,
     'status: draft',
     `created: ${today()}`,
     `updated: ${today()}`,

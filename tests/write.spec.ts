@@ -10,7 +10,8 @@ import {
   splitProse,
   splitRecord,
   verifyBodyEdit,
-  verifyWrite
+  verifyWrite,
+  yamlSafe
 } from '../server/lib/write';
 
 /**
@@ -105,6 +106,11 @@ describe('applyFrontMatter', () => {
     const withoutOwner = splitRecord(source.replace('owner: dev' + LF, ''))!;
     const next = applyFrontMatter(withoutOwner, { owner: 'architect' });
     expect(next.frontMatter.split(LF).at(-1)).toBe('owner: architect');
+  });
+
+  it('значение с двоеточием уходит в кавычках — иначе YAML читает его как вложенный ключ', () => {
+    const next = applyFrontMatter(file(), { owner: 'Иванов: временно' });
+    expect(next.frontMatter.split(LF)).toContain(`owner: 'Иванов: временно'`);
   });
 
   it('удаляет поле, когда значение снято', () => {
@@ -309,5 +315,42 @@ describe('дифф после смены статуса', () => {
     expect(added.length).toBe(3);
     expect(removed.length).toBe(2);
     expect(changed).toBeGreaterThan(0);
+  });
+});
+
+describe('yamlSafe', () => {
+  it('обычную строку не трогает', () => {
+    expect(yamlSafe('Обычное требование')).toBe('Обычное требование');
+  });
+
+  it('двоеточие с пробелом внутри строки — кавычит: иначе YAML читает его как вложенный ключ', () => {
+    expect(yamlSafe('Бэкенд: FastAPI')).toBe(`'Бэкенд: FastAPI'`);
+  });
+
+  it('двоеточие в конце строки — тоже кавычит', () => {
+    expect(yamlSafe('Итог:')).toBe(`'Итог:'`);
+  });
+
+  it('двоеточие без пробела после — не кавычит: не похоже на пару ключ-значение', () => {
+    expect(yamlSafe('Встреча в 10:30')).toBe('Встреча в 10:30');
+  });
+
+  it('пустую строку кавычит', () => {
+    expect(yamlSafe('')).toBe(`''`);
+  });
+
+  it('строку, похожую на булево или число, кавычит — иначе тип поля изменится молча', () => {
+    expect(yamlSafe('true')).toBe(`'true'`);
+    expect(yamlSafe('null')).toBe(`'null'`);
+    expect(yamlSafe('42')).toBe(`'42'`);
+  });
+
+  it('ведущий спецсимвол кавычит', () => {
+    expect(yamlSafe('#не заголовок')).toBe(`'#не заголовок'`);
+    expect(yamlSafe('- пункт списка')).toBe(`'- пункт списка'`);
+  });
+
+  it('внутреннюю одинарную кавычку удваивает по правилам YAML', () => {
+    expect(yamlSafe(`Иванов: "О'Брайен"`)).toBe(`'Иванов: "О''Брайен"'`);
   });
 });

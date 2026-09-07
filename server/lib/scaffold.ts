@@ -1,5 +1,5 @@
 import { PREFIX_BY_TYPE, RECORD_TYPES, SECTION_BY_TYPE, type LinkKind, type RecordType, type SectionKey } from './types';
-import { journalLine } from './write';
+import { journalLine, yamlSafe } from './write';
 
 export { PREFIX_BY_TYPE, SECTION_BY_TYPE };
 
@@ -126,13 +126,13 @@ export function recordTemplate(input: TemplateInput, eol = '\n'): string {
     '---',
     `id: ${input.id}`,
     `type: ${input.type}`,
-    `title: ${input.title}`,
+    `title: ${yamlSafe(input.title)}`,
     `status: ${initialStatus(input.type)}`
   ];
-  if (input.owner) lines.push(`owner: ${input.owner}`);
+  if (input.owner) lines.push(`owner: ${yamlSafe(input.owner)}`);
   if (input.type === 'task' && input.change) lines.push(`change: ${input.change}`);
   lines.push(`created: ${input.today}`, `updated: ${input.today}`);
-  if (input.type === 'verification') lines.push(`kind: ${input.kind ?? 'manual'}`);
+  if (input.type === 'verification') lines.push(`kind: ${yamlSafe(input.kind ?? 'manual')}`);
 
   const links = input.links ?? {};
   const kinds = (Object.keys(links) as LinkKind[]).filter((kind) => (links[kind]?.length ?? 0) > 0);

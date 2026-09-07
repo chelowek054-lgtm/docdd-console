@@ -90,6 +90,19 @@ describe('recordTemplate', () => {
     expect(text).toContain('- 2026-08-31 · заведена · приложение');
   });
 
+  it('заголовок с двоеточием уходит в кавычках, а не ломает запись', () => {
+    const text = recordTemplate({ id: 'A-0001', type: 'decision', title: 'Бэкенд: FastAPI + чистая архитектура', today: '2026-08-31' });
+    const parsed = parseRecord(text, { path: 'docs/development/decisions/A-0001-a.md' });
+    expect(parsed.ok, parsed.ok ? '' : parsed.violation.message).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.record.title).toBe('Бэкенд: FastAPI + чистая архитектура');
+  });
+
+  it('обычный заголовок без двоеточия остаётся без кавычек', () => {
+    const text = recordTemplate({ id: 'R-0001', type: 'requirement', title: 'Обычное требование', today: '2026-08-31' });
+    expect(text).toContain('title: Обычное требование');
+  });
+
   it('несколько заметок в журнале — одна строка, через запятую', () => {
     const text = recordTemplate({
       id: 'T-0001',
@@ -224,6 +237,17 @@ describe('withFrontMatter', () => {
     const next = withFrontMatter(crlf, { id: 'D-0001', type: 'design', title: 'А', today: '2026-08-31' });
     expect(next.endsWith(crlf)).toBe(true);
     expect(next.split('\r\n').length).toBeGreaterThan(next.split(/(?<!\r)\n/).length);
+  });
+
+  it('заголовок с двоеточием не ломает front matter', () => {
+    // `Бэкенд: FastAPI` без кавычек — YAML читает второе двоеточие как
+    // попытку вложенной пары ключ-значение и на многих реализациях либо
+    // роняет разбор, либо тихо возвращает пустой front matter.
+    const next = withFrontMatter(body, { id: 'D-0001', type: 'design', title: 'Бэкенд: FastAPI', today: '2026-08-31' });
+    const parsed = parseRecord(next, { path: 'docs/development/design/D-0001-a.md' });
+    expect(parsed.ok, parsed.ok ? '' : parsed.violation.message).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.record.title).toBe('Бэкенд: FastAPI');
   });
 });
 

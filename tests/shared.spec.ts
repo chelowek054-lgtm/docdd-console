@@ -91,6 +91,15 @@ describe('narrowDomainTypes', () => {
     ];
     expect(narrowDomainTypes(records)).toEqual(['requirement', 'task']);
   });
+
+  it('отменённую или заменённую запись не считает — источник, который почистили, не должен снова выглядеть грязным', () => {
+    const records = [
+      rec('R-0001', 'requirement', 'dropped'),
+      rec('R-0002', 'requirement', 'superseded'),
+      rec('D-0001', 'decision', 'approved')
+    ];
+    expect(narrowDomainTypes(records)).toEqual([]);
+  });
 });
 
 const LF = String.fromCharCode(10);

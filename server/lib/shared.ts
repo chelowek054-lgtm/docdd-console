@@ -13,6 +13,14 @@ const SHARED_TYPES = new Set(['decision', 'design']);
 /** Присутствие этих типов в источнике — признак узкого домена, а не общих практик. */
 const NARROW_DOMAIN_TYPES = new Set(['requirement', 'task', 'map', 'verification', 'contract']);
 
+/**
+ * Статусы, за которыми записи нет: retired-запись не свидетельствует о том,
+ * что источник — чужой рабочий проект, а свидетельствует об обратном — что
+ * его почистили. Без этого фильтра почищенный источник получал бы то же
+ * предупреждение, что и захламлённый, и чистить было бы незачем.
+ */
+const RETIRED_STATUSES = new Set(['dropped', 'superseded', 'rejected']);
+
 export interface SharedRecord {
   id: string;
   type: string;
@@ -45,5 +53,10 @@ export function sharedRecordsOf(records: readonly IndexRecord[], tags: readonly 
  * заметным, а не тихо принятой связью.
  */
 export function narrowDomainTypes(records: readonly IndexRecord[]): string[] {
-  return [...new Set(records.map((record) => record.type).filter((type) => NARROW_DOMAIN_TYPES.has(type)))].sort();
+  return [...new Set(
+    records
+      .filter((record) => !RETIRED_STATUSES.has(record.status))
+      .map((record) => record.type)
+      .filter((type) => NARROW_DOMAIN_TYPES.has(type))
+  )].sort();
 }
