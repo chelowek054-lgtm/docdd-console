@@ -180,6 +180,27 @@ describe('checkMaps', () => {
     const map = mapRecord('M-0001', 'draft', body('codemap', { added: { imports: [import1] } }));
     expect(checkMaps(context([map]))).toEqual([]);
   });
+
+  it('карту без единой задачи сверяет сразу — так уже описывают существующий код', () => {
+    // Ни одна задача не ссылается на M-0001: `settled` находит пустой список
+    // задач и, что все они закрыты, — верно вакуумно. Так и должно быть для
+    // карты, заведённой «Обновить карты» по уже написанному коду.
+    const map = mapRecord('M-0001', 'approved', body('codemap', { added: { imports: [import1] } }));
+    expect(codes(checkMaps(context([map])))).toEqual(['map_evidence_missing']);
+  });
+
+  it('intent: true — не сверяет карту нового проекта, даже без единой задачи', () => {
+    const map = mapRecord('M-0001', 'approved', body('codemap', { added: { imports: [import1] } }));
+    map.data['intent'] = true;
+    expect(checkMaps(context([map]))).toEqual([]);
+  });
+
+  it('intent: true сильнее закрытой задачи — план остаётся планом, пока сам не скажешь иначе', () => {
+    const map = mapRecord('M-0001', 'approved', body('codemap', { added: { imports: [import1] } }));
+    map.data['intent'] = true;
+    const task = rec('T-0001', 'task', 'done', { links: { affects: ['M-0001'] } });
+    expect(checkMaps(context([map, task]))).toEqual([]);
+  });
 });
 
 describe('task_maps_unapproved', () => {
