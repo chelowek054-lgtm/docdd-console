@@ -218,11 +218,23 @@ export interface Policy {
   map_portion_files?: number;
 }
 
+/**
+ * Другой DocDD-проект как источник общих практик — путь к его корню и теги,
+ * по которым подключаются его decision/design (docs/11-shared-sources.md).
+ * Путь не обязан лежать внутри корня ЭТОГО проекта: источник — отдельный,
+ * независимо провалидированный корень, а не подпапка (docs/01-architecture.md,
+ * «Безопасность»).
+ */
+export interface SharedSource {
+  path: string;
+  tags?: string[];
+}
+
 export interface ProjectManifest {
   contract: string;
   project: { id: string; name: string; description?: string };
   paths: Partial<Record<SectionKey, string>>;
-  sources?: { code?: string[]; docs?: string[]; client?: string[]; inbox?: string[] };
+  sources?: { code?: string[]; docs?: string[]; client?: string[]; inbox?: string[]; shared?: SharedSource[] };
   roles?: { id: string; name: string }[];
   policy?: Policy;
 }

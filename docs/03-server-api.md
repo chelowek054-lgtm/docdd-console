@@ -220,6 +220,33 @@
 Черновики и отменённые карты сюда не входят: пока человек не подтвердил, это
 намерение, а не устройство проекта.
 
+## Общие практики
+
+### `GET /api/projects/:id/shared`
+
+Decision и design из источников, названных в `sources.shared` манифеста —
+каждый источник читается как отдельный, самостоятельно провалидированный
+проект, не как путь внутри корня этого ([11-shared-sources.md](11-shared-sources.md)).
+
+```json
+{
+  "sources": [
+    {
+      "path": "D:/work/stack-conventions",
+      "tags": ["vue", "typescript"],
+      "label": "stack-conventions",
+      "records": [{ "id": "D-0007", "type": "design", "title": "…", "status": "approved", "tags": ["vue"] }],
+      "narrowDomain": []
+    }
+  ]
+}
+```
+
+`narrowDomain` — типы вроде `requirement`/`task`, найденные в источнике: не
+блокирует список `records`, но говорит, что источник не похож на общие
+практики. `error` вместо `records`/`narrowDomain` — путь не открылся как
+DocDD-проект.
+
 ## Входящее
 
 Сырые заметки и заведение записей по ним — `GET /api/projects/:id/inbox`

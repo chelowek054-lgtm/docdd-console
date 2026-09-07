@@ -29,6 +29,9 @@ paths:
 sources:
   code: [app/src]
   docs: [app/docs]
+  shared:
+    - path: D:/work/stack-conventions
+      tags: [vue, typescript]
 roles:
   - id: architect
     name: Архитектор
@@ -39,9 +42,14 @@ policy:
   map_portion_files: 40
 ```
 
-Пути — относительно `docs/development`. Имена папок не зашиваются в код:
+`paths.*` — относительно `docs/development`; `sources.code`/`docs`/`client`/
+`inbox` — относительно корня проекта. Имена папок не зашиваются в код:
 приложение читает манифест. Отсутствующий ключ в `paths` означает, что такого
 раздела в проекте нет, а не ошибку.
+
+`sources.shared[].path` — не относительный путь внутри этого проекта, а свой
+корень: другой DocDD-проект, обычно отдельным репозиторием
+([11-shared-sources.md](11-shared-sources.md)).
 
 Поколение контракта проверяется до всего остального. `docdd.workspace/2` —
 отказ с понятной причиной, а не попытка прочитать половину.
