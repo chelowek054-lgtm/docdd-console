@@ -113,8 +113,12 @@ export default defineEventHandler(async (event) => {
         title: record.title
       }));
 
+      // Нынешние возможности — чтобы предложение пополняло карту, а не
+      // задваивало то, что в ней уже есть (docs/06-phases.md, фаза 12).
+      const capabilities = buildProjectMap(project.root).functional.capabilities;
+
       return {
-        prompt: inboxPrompt(await template('inbox-plan.md'), notes, known),
+        prompt: inboxPrompt(await template('inbox-plan.md'), notes, known, capabilities),
         count: notes.length
       };
     }

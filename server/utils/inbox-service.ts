@@ -8,6 +8,7 @@ import { nextId, recordTemplate, slugify } from '../lib/scaffold';
 import { targetPath } from '../lib/import';
 import { DEVELOPMENT_DIR } from '../lib/types';
 import { readWorkspace } from '../lib/workspace';
+import { journalLines } from '../lib/write';
 import { dropCache } from '../lib/cache';
 import { loadIndex } from './index-service';
 import { today } from './record-write';
@@ -91,6 +92,10 @@ export function beforeArchive(path: string): string {
  * поле: заводить вторую форму того же факта — плодить способ разойтись.
  * Ключ карты — путь **на момент, когда запись заводили**, то есть до
  * переезда заметки в `принятое`; смотри `beforeArchive`.
+ *
+ * Одна запись может назвать несколько заметок разом (фаза 12: знание бывает
+ * разбросано по нескольким файлам) — тогда каждая заметка получает ссылку на
+ * эту запись, а не только первая.
  */
 export function derivedFrom(root: string): Map<string, string[]> {
   const normalized = normalizeRoot(root);
@@ -101,11 +106,17 @@ export function derivedFrom(root: string): Map<string, string[]> {
     const outcome = parseRecord(file.text, file.source);
     if (!outcome.ok) continue;
 
-    const match = /заведена из (\S+)/.exec(outcome.record.body);
-    const notePath = match?.[1];
-    if (!notePath) continue;
+    for (const line of journalLines(outcome.record.body)) {
+      // Строка вида «- 2026-09-07 · заведена из a.md, b.md · приложение» —
+      // тот же разделитель полей, что и у journalLine().
+      const action = line.split(' · ')[1] ?? '';
+      const match = /^заведена из (.+)$/.exec(action);
+      if (!match?.[1]) continue;
 
-    result.set(notePath, [...(result.get(notePath) ?? []), outcome.record.id]);
+      for (const notePath of match[1].split(', ')) {
+        result.set(notePath, [...(result.get(notePath) ?? []), outcome.record.id]);
+      }
+    }
   }
 
   return result;
@@ -213,9 +224,11 @@ export function createRecords(root: string, proposed: readonly ProposedRecord[],
       continue;
     }
 
-    // Имя заметки в журнал пускаем, только если это правда одна из
-    // разбираемых: свободный текст модели в журнале записи не место.
-    const source = record.note && notes.includes(record.note) ? record.note : '';
+    // Имена заметок в журнал пускаем, только если это правда те, что
+    // разбираются: свободный текст модели в журнале записи не место.
+    const sources = (record.notes ?? []).filter((note) => notes.includes(note));
+    // Возможности — только у карт: у остальных типов поле просто игнорируется.
+    const capabilities = record.type === 'map' ? record.capabilities : undefined;
 
     const text = recordTemplate({
       id,
@@ -223,8 +236,9 @@ export function createRecords(root: string, proposed: readonly ProposedRecord[],
       title: record.title,
       today: stamp,
       links: resolved.links,
-      ...(source ? { source } : {}),
+      ...(sources.length ? { sources } : {}),
       ...(record.body ? { body: record.body } : {}),
+      ...(capabilities?.length ? { capabilities } : {}),
       ...(record.type === 'task' && record.change ? { change: record.change } : {})
     });
 

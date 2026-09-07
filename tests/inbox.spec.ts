@@ -5,6 +5,8 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { parseProposal, resolveLinks, titleOf } from '../server/lib/inbox';
+import { parseMapRecord } from '../server/lib/maps';
+import { inboxPrompt } from '../server/lib/prompt';
 import {
   archivedNotes,
   beforeArchive,
@@ -53,7 +55,22 @@ describe('разбор предложения', () => {
   });
 
   it('чужой тип не проходит', () => {
-    const parsed = parseProposal(block([{ key: 'a', type: 'map', title: 'Карта' }]));
+    const parsed = parseProposal(block([{ key: 'a', type: 'заметка', title: 'Мимо схемы' }]));
+    expect(parsed.records).toEqual([]);
+  });
+
+  it('карта — тоже допустимый тип: разбор входящего может пополнить функциональную карту', () => {
+    const parsed = parseProposal(block([
+      { key: 'a', type: 'map', title: 'Приём пациента', capabilities: [{ id: 'priyom', title: 'Приём пациента' }] }
+    ]));
+    expect(parsed.problems).toEqual([]);
+    expect(parsed.records[0]?.capabilities).toEqual([{ id: 'priyom', title: 'Приём пациента' }]);
+  });
+
+  it('возможность без id не проходит: по нему возможности ссылаются друг на друга', () => {
+    const parsed = parseProposal(block([
+      { key: 'a', type: 'map', title: 'Карта', capabilities: [{ title: 'Без идентификатора' }] }
+    ]));
     expect(parsed.records).toEqual([]);
   });
 
@@ -113,6 +130,24 @@ describe('заголовок заметки', () => {
   });
 });
 
+describe('запрос на разбор входящего', () => {
+  const bare = '<!-- ЗАВЕДЕНО -->|<!-- КАРТА -->|<!-- ЗАМЕТКИ -->';
+
+  it('без карты — говорит, что первая возможность будет первой', () => {
+    const prompt = inboxPrompt(bare, [], []);
+    expect(prompt).toContain('Функциональной карты пока нет');
+  });
+
+  it('с картой — перечисляет возможности; по родителю виден вложенный уровень', () => {
+    const prompt = inboxPrompt(bare, [], [], [
+      { id: 'priyom', title: 'Приём пациента' },
+      { id: 'zhaloby', title: 'Жалобы', parent: 'priyom' }
+    ]);
+    expect(prompt).toContain('`priyom` — Приём пациента');
+    expect(prompt).toContain('`zhaloby` — Жалобы (внутри `priyom`)');
+  });
+});
+
 describe('заведение записей', () => {
   let root = '';
 
@@ -157,7 +192,7 @@ describe('заведение записей', () => {
     const outcome = createRecords(
       root,
       [
-        { key: 'oplata', type: 'requirement', title: 'Оплата картой', body: 'Надо принимать карты.', note: 'docs/inbox/oplata.md' },
+        { key: 'oplata', type: 'requirement', title: 'Оплата картой', body: 'Надо принимать карты.', notes: ['docs/inbox/oplata.md'] },
         { key: 'forma', type: 'task', title: 'Форма оплаты', change: 'feature', links: { implements: ['oplata'] } }
       ],
       ['docs/inbox/oplata.md']
@@ -261,7 +296,7 @@ describe('след в журнале', () => {
   it('чужой текст в журнал не попадает: имя заметки сверяется со списком', () => {
     const outcome = createRecords(
       root,
-      [{ key: 'a', type: 'requirement', title: 'Раз', note: 'сюда я напишу что угодно' }],
+      [{ key: 'a', type: 'requirement', title: 'Раз', notes: ['сюда я напишу что угодно'] }],
       ['docs/inbox/настоящая.md']
     );
 
@@ -297,8 +332,8 @@ describe('одна заметка — несколько записей', () => 
     createRecords(
       root,
       [
-        { key: 'a', type: 'requirement', title: 'Первое', note: 'docs/inbox/raznoe.md' },
-        { key: 'b', type: 'requirement', title: 'Второе', note: 'docs/inbox/raznoe.md' }
+        { key: 'a', type: 'requirement', title: 'Первое', notes: ['docs/inbox/raznoe.md'] },
+        { key: 'b', type: 'requirement', title: 'Второе', notes: ['docs/inbox/raznoe.md'] }
       ],
       ['docs/inbox/raznoe.md']
     );
@@ -314,6 +349,113 @@ describe('одна заметка — несколько записей', () => 
 
   it('заметка, разобранная в несколько записей разом, ссылается на обе', () => {
     expect(derivedFrom(root).get('docs/inbox/raznoe.md')).toEqual(['R-0001', 'R-0002']);
+  });
+});
+
+describe('одна запись — несколько заметок', () => {
+  let root = '';
+
+  beforeAll(() => {
+    root = mkdtempSync(join(tmpdir(), 'docdd-multinote-'));
+    mkdirSync(join(root, 'docs', 'development', 'tasks'), { recursive: true });
+    mkdirSync(join(root, 'docs', 'inbox'), { recursive: true });
+    writeFileSync(join(root, 'docs', 'development', 'project.yaml'), [
+      'contract: docdd.workspace/1',
+      'project:',
+      '  id: demo',
+      '  name: Demo',
+      'paths:',
+      '  tasks: tasks',
+      'sources:',
+      '  inbox: [docs/inbox]',
+      ''
+    ].join(LF), 'utf8');
+    writeFileSync(join(root, 'docs', 'inbox', 'a.md'), '# Часть первая' + LF + LF + 'Кусок знания номер один.', 'utf8');
+    writeFileSync(join(root, 'docs', 'inbox', 'b.md'), '# Часть вторая' + LF + LF + 'Кусок знания номер два.', 'utf8');
+
+    createRecords(
+      root,
+      [{ key: 't', type: 'task', title: 'Собрать воедино', notes: ['docs/inbox/a.md', 'docs/inbox/b.md'] }],
+      ['docs/inbox/a.md', 'docs/inbox/b.md']
+    );
+  });
+
+  afterAll(() => {
+    try {
+      rmSync(root, { recursive: true, force: true });
+    } catch {
+      // Прибирать не обязательно.
+    }
+  });
+
+  it('журнал называет обе заметки одной строкой', () => {
+    const text = readFileSync(join(root, 'docs', 'development', 'tasks', 'T-0001-sobrat-voedino.md'), 'utf8');
+    expect(text).toContain('заведена из docs/inbox/a.md, docs/inbox/b.md');
+  });
+
+  it('обе заметки знают, что из них выросла эта запись', () => {
+    const derived = derivedFrom(root);
+    expect(derived.get('docs/inbox/a.md')).toEqual(['T-0001']);
+    expect(derived.get('docs/inbox/b.md')).toEqual(['T-0001']);
+  });
+});
+
+describe('карта из входящего', () => {
+  let root = '';
+  let mapPath = '';
+
+  beforeAll(() => {
+    root = mkdtempSync(join(tmpdir(), 'docdd-mapnote-'));
+    mkdirSync(join(root, 'docs', 'development', 'maps'), { recursive: true });
+    mkdirSync(join(root, 'docs', 'inbox'), { recursive: true });
+    writeFileSync(join(root, 'docs', 'development', 'project.yaml'), [
+      'contract: docdd.workspace/1',
+      'project:',
+      '  id: demo',
+      '  name: Demo',
+      'paths:',
+      '  maps: maps',
+      'sources:',
+      '  inbox: [docs/inbox]',
+      ''
+    ].join(LF), 'utf8');
+
+    const outcome = createRecords(
+      root,
+      [{
+        key: 'm',
+        type: 'map',
+        title: 'Приём пациента',
+        body: 'Со слов врача: приём — отдельная возможность системы.',
+        capabilities: [{ id: 'priyom', title: 'Приём пациента' }],
+        notes: []
+      }],
+      []
+    );
+    if (outcome.ok) mapPath = outcome.created[0]?.path ?? '';
+  });
+
+  afterAll(() => {
+    try {
+      rmSync(root, { recursive: true, force: true });
+    } catch {
+      // Прибирать не обязательно.
+    }
+  });
+
+  it('заводит map-запись с прозой и блоком docdd-functional под ней', () => {
+    const text = readFileSync(join(root, mapPath), 'utf8');
+    expect(text).toContain('Со слов врача: приём — отдельная возможность системы.');
+    expect(text).toContain('```docdd-functional');
+    expect(text).toContain('"id": "priyom"');
+    expect(text).toContain('status: draft');
+  });
+
+  it('блок разбирается той же машиной, что и карты, написанные руками', () => {
+    const text = readFileSync(join(root, mapPath), 'utf8');
+    const parsed = parseMapRecord(text);
+    expect(parsed.problems).toEqual([]);
+    expect(parsed.change.functional?.added?.capabilities).toEqual([{ id: 'priyom', title: 'Приём пациента' }]);
   });
 });
 

@@ -1,4 +1,5 @@
 import { PREFIX_BY_TYPE, RECORD_TYPES, SECTION_BY_TYPE, type LinkKind, type RecordType, type SectionKey } from './types';
+import { journalLine } from './write';
 
 export { PREFIX_BY_TYPE, SECTION_BY_TYPE };
 
@@ -86,10 +87,16 @@ export interface TemplateInput {
    */
   body?: string;
   /**
-   * Откуда запись взялась: имя заметки входящего. Уходит в журнал —
-   * через месяц вопрос «откуда это» задаётся обязательно.
+   * Откуда запись взялась: заметки входящего. Уходят в журнал одной строкой —
+   * через месяц вопрос «откуда это» задаётся обязательно. Записи с одной
+   * заметкой и с несколькими выглядят одинаково: список из одного элемента.
    */
-  source?: string;
+  sources?: string[];
+  /**
+   * Только для карт: возможности, предложенные разбором входящего — уходят
+   * блоком ```docdd-functional под текстом тела (docs/06-phases.md, фаза 12).
+   */
+  capabilities?: { id: string; title?: string; parent?: string }[];
 }
 
 /** Начальный статус: всё заводится черновиком, задача — очередью. */
@@ -97,6 +104,17 @@ export function initialStatus(type: RecordType): string {
   if (type === 'task') return 'backlog';
   if (type === 'phase') return 'planned';
   return 'draft';
+}
+
+/**
+ * Тело карты с предложенными возможностями: прозу — если она есть — и под ней
+ * фенс-блок `docdd-functional`, тем же приёмом, что и у карт, написанных
+ * руками (docs/07-maps.md). Собирается кодом, а не текстом модели: так модели
+ * не нужно помнить синтаксис фенс-блока и рисковать сломать его экранированием.
+ */
+function bodyWithCapabilities(prose: string, capabilities: NonNullable<TemplateInput['capabilities']>): string {
+  const block = ['```docdd-functional', JSON.stringify({ added: { capabilities } }, null, 2), '```'];
+  return prose === '' ? block.join(NEW_LINE) : [prose, '', ...block].join(NEW_LINE);
 }
 
 /**
@@ -127,7 +145,13 @@ export function recordTemplate(input: TemplateInput, eol = '\n'): string {
   }
 
   const said = (input.body ?? '').trim();
-  const body = said === '' ? 'Зачем это, что делаем, чего не делаем, как понять, что готово.' : said;
+  const capabilities = input.capabilities ?? [];
+  const body = capabilities.length > 0
+    ? bodyWithCapabilities(said, capabilities)
+    : (said === '' ? 'Зачем это, что делаем, чего не делаем, как понять, что готово.' : said);
+
+  const sources = input.sources ?? [];
+  const action = sources.length > 0 ? `заведена из ${sources.join(', ')}` : 'заведена';
 
   lines.push(
     '---',
@@ -138,7 +162,7 @@ export function recordTemplate(input: TemplateInput, eol = '\n'): string {
     '',
     '## Журнал',
     '',
-    `- ${input.today} · ${input.source ? `заведена из ${input.source}` : 'заведена'} · приложение`,
+    journalLine(input.today, action, 'приложение'),
     ''
   );
 

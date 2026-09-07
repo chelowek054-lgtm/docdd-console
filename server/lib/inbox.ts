@@ -18,8 +18,14 @@ export interface ProposedRecord {
   title: string;
   body?: string;
   change?: string;
-  /** Заметка, из которой взялась запись: уходит в журнал. */
-  note?: string;
+  /**
+   * Заметки, из которых взялась запись: уходят в журнал. Одна запись может
+   * опираться на несколько, если знание было разбросано по нескольким файлам
+   * (docs/06-phases.md, фаза 12).
+   */
+  notes?: string[];
+  /** Только у `type: map` — возможности для функциональной карты. */
+  capabilities?: { id: string; title?: string; parent?: string }[];
   links?: Record<string, string[]>;
 }
 

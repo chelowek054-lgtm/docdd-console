@@ -12,7 +12,8 @@ export const TYPE_LABELS: Record<string, string> = {
   contract: 'Контракт',
   task: 'Задача',
   phase: 'Фаза',
-  verification: 'Проверка'
+  verification: 'Проверка',
+  map: 'Карта'
 };
 
 export const STATUS_LABELS: Record<string, string> = {
