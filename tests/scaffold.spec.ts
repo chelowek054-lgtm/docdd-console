@@ -89,6 +89,43 @@ describe('recordTemplate', () => {
     expect(text).toContain('## Журнал');
     expect(text).toContain('- 2026-08-31 · заведена · приложение');
   });
+
+  it('несколько заметок в журнале — одна строка, через запятую', () => {
+    const text = recordTemplate({
+      id: 'T-0001',
+      type: 'task',
+      title: 'Задача',
+      today: '2026-08-31',
+      sources: ['docs/inbox/a.md', 'docs/inbox/b.md']
+    });
+    expect(text).toContain('- 2026-08-31 · заведена из docs/inbox/a.md, docs/inbox/b.md · приложение');
+  });
+
+  it('возможности карты уходят фенс-блоком docdd-functional под прозой', () => {
+    const text = recordTemplate({
+      id: 'M-0001',
+      type: 'map',
+      title: 'Приём пациента',
+      today: '2026-08-31',
+      body: 'Со слов врача.',
+      capabilities: [{ id: 'priyom', title: 'Приём пациента' }]
+    });
+    expect(text).toContain('Со слов врача.');
+    expect(text).toContain('```docdd-functional');
+    expect(text.indexOf('Со слов врача.')).toBeLessThan(text.indexOf('```docdd-functional'));
+  });
+
+  it('без прозы — только блок, без пустой заготовки-подсказки над ним', () => {
+    const text = recordTemplate({
+      id: 'M-0001',
+      type: 'map',
+      title: 'Приём пациента',
+      today: '2026-08-31',
+      capabilities: [{ id: 'priyom' }]
+    });
+    expect(text).not.toContain('Зачем это, что делаем');
+    expect(text).toContain('```docdd-functional');
+  });
 });
 
 function prefixOf(type: string): string {

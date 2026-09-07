@@ -71,18 +71,21 @@ export interface MapsState {
   };
 }
 
-/** Места, куда подставляется входящее и уже заведённое. */
+/** Места, куда подставляется входящее, уже заведённое и нынешняя карта. */
 export const NOTES_MARKER = '<!-- ЗАМЕТКИ -->';
 export const KNOWN_MARKER = '<!-- ЗАВЕДЕНО -->';
+export const CAPABILITIES_MARKER = '<!-- КАРТА -->';
 
 /**
- * Разбор входящего: сырые заметки и список уже заведённого, чтобы модель не
- * предлагала второй раз то, что есть (docs/10-inbox.md).
+ * Разбор входящего: сырые заметки, список уже заведённого и нынешняя
+ * функциональная карта, чтобы модель не предлагала второй раз то, что есть
+ * (docs/10-inbox.md, docs/06-phases.md, фаза 12).
  */
 export function inboxPrompt(
   template: string,
   notes: readonly { path: string; title: string; text: string }[],
-  known: readonly { id: string; type: string; title: string }[]
+  known: readonly { id: string; type: string; title: string }[],
+  capabilities: readonly { id: string; title?: string; parent?: string }[] = []
 ): string {
   const said = notes.length
     ? notes.map((note) => [`### ${note.title}`, '', `Файл: \`${note.path}\``, '', note.text.trim()].join(LF)).join(LF + LF)
@@ -92,9 +95,16 @@ export function inboxPrompt(
     ? known.map((record) => `- \`${record.id}\` (${record.type}) — ${record.title}`).join(LF)
     : 'Пока не заведено ничего: это первые записи проекта.';
 
+  const map = capabilities.length
+    ? capabilities
+      .map((item) => `- \`${item.id}\`${item.title ? ` — ${item.title}` : ''}${item.parent ? ` (внутри \`${item.parent}\`)` : ''}`)
+      .join(LF)
+    : 'Функциональной карты пока нет: первая предложенная возможность станет в ней первой записью.';
+
   return withoutFrontNote(template)
     .replace(NOTES_MARKER, said)
-    .replace(KNOWN_MARKER, already);
+    .replace(KNOWN_MARKER, already)
+    .replace(CAPABILITIES_MARKER, map);
 }
 
 /** Места, куда подставляется прошлый ответ и претензии схемы к нему. */

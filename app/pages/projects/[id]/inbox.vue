@@ -281,8 +281,21 @@ async function create() {
 
               <p v-if="record.body" class="mt-2 whitespace-pre-wrap text-sm text-muted">{{ record.body }}</p>
 
+              <!-- Только у карт: возможности, которые запись предложит в функциональную
+                   карту (docs/06-phases.md, фаза 12) — человек должен увидеть их до
+                   заведения, а не только текст блока внутри готовой записи. -->
+              <ul v-if="record.capabilities && record.capabilities.length" class="mt-2 space-y-0.5 text-sm">
+                <li v-for="cap in record.capabilities" :key="cap.id" class="font-mono text-xs text-muted">
+                  {{ cap.parent ? `↳ ${cap.parent} · ` : '' }}{{ cap.title || cap.id }}
+                </li>
+              </ul>
+
               <p v-if="record.links && Object.keys(record.links).length" class="mt-2 font-mono text-xs text-muted">
                 <span v-for="(values, kind) in record.links" :key="kind">{{ kind }}: {{ values.join(', ') }} </span>
+              </p>
+
+              <p v-if="record.notes && record.notes.length" class="mt-2 font-mono text-xs text-muted">
+                из: {{ record.notes.join(', ') }}
               </p>
             </li>
           </ul>
