@@ -246,18 +246,12 @@ async function copySource() {
       </div>
 
       <template v-else-if="map">
-        <div class="flex flex-wrap gap-2">
-          <UButton
-            v-for="view in views"
-            :key="view.key"
-            size="sm"
-            :variant="shown === view.key ? 'solid' : 'outline'"
-            :color="shown === view.key ? 'primary' : 'neutral'"
-            @click="shown = view.key as typeof shown"
-          >
-            {{ view.title }}
-          </UButton>
-        </div>
+        <!-- Подвкладка на вид карты: у каждой свой смысл (вопрос, на который
+             она отвечает), а не просто разные данные под одной кнопкой. -->
+        <UTabs
+          v-model="shown"
+          :items="views.map((view) => ({ label: view.title, value: view.key, badge: view.count }))"
+        />
 
         <UCard v-if="current">
           <template #header>
@@ -266,9 +260,10 @@ async function copySource() {
                 <h2 class="font-medium">{{ current.title }}</h2>
                 <p class="text-sm text-muted">{{ current.question }}</p>
               </div>
-              <p class="ml-auto text-sm text-muted">{{ current.count }}</p>
+              <!-- Число уже видно бейджем на вкладке — здесь дублировать незачем. -->
               <UButton
                 v-if="current.source"
+                class="ml-auto"
                 size="sm"
                 variant="ghost"
                 color="neutral"
