@@ -1,4 +1,4 @@
-import { validateCodemap, validateDataflow, validateSkipped, validateUserflow } from './schema';
+import { validateCodemap, validateDataflow, validateFunctional, validateSkipped, validateUserflow } from './schema';
 
 /**
  * Карты проекта (docs/07-maps.md). Разбор трёх структур из тела записи и
@@ -7,7 +7,7 @@ import { validateCodemap, validateDataflow, validateSkipped, validateUserflow } 
  * (docs/adr/0007-maps-lead-code.md).
  */
 
-export type MapStructure = 'codemap' | 'dataflow' | 'userflow';
+export type MapStructure = 'codemap' | 'dataflow' | 'userflow' | 'functional';
 
 export interface Evidence {
   path: string;
@@ -31,6 +31,15 @@ export interface UserflowPart {
   calls?: { from: string; to: string; evidence: Evidence }[];
 }
 
+/**
+ * Возможности системы на языке предметной области, не кода. Без свидетельства
+ * — иначе, чем у остальных трёх видов: подтверждается человеком, как обычная
+ * запись, а не построчной сверкой с файлом (docs/07-maps.md).
+ */
+export interface FunctionalPart {
+  capabilities?: { id: string; title?: string; parent?: string }[];
+}
+
 /** Файл, который модель посмотрела и в карту не положила. */
 export interface SkippedFile {
   path: string;
@@ -41,6 +50,7 @@ export interface MapChange {
   codemap?: { added?: CodemapPart; removed?: CodemapPart };
   dataflow?: { added?: DataflowPart; removed?: DataflowPart };
   userflow?: { added?: UserflowPart; removed?: UserflowPart };
+  functional?: { added?: FunctionalPart; removed?: FunctionalPart };
   /** Не структура, а решение: этих файлов в карте нет, и вот почему. */
   skipped?: SkippedFile[];
 }
@@ -119,6 +129,15 @@ const MAP_KINDS: readonly MapKind[] = [
         keyOf: (item) => `${item.from}>${item.to}`,
         evidence: (item) => ({ label: `${item.from} → ${item.to}`, evidence: item.evidence })
       }
+    ]
+  },
+  {
+    name: 'functional',
+    validate: validateFunctional,
+    // Без evidence вовсе: подтверждается человеком, а не сверкой с файлом —
+    // evidenceClaims не даст по этому виду ни одного утверждения для сверки.
+    fields: [
+      { name: 'capabilities', keyOf: (item) => item.id }
     ]
   }
 ];
@@ -294,6 +313,7 @@ export interface ProjectMap {
   codemap: Required<CodemapPart>;
   dataflow: Required<DataflowPart>;
   userflow: Required<UserflowPart>;
+  functional: Required<FunctionalPart>;
   /** Какие записи сложены, в порядке применения. */
   from: string[];
 }
@@ -303,6 +323,7 @@ export function emptyProjectMap(): ProjectMap {
     codemap: { modules: [], imports: [] },
     dataflow: { sources: [], flows: [] },
     userflow: { screens: [], transitions: [], calls: [] },
+    functional: { capabilities: [] },
     from: []
   };
 }

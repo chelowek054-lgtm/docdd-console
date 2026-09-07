@@ -117,3 +117,50 @@ export function userflowMermaid(map: ProjectMap): string {
   }
   return lines.join(LF);
 }
+
+/**
+ * Дерево возможностей — не flowchart: тут нет рёбер со своим смыслом, только
+ * вложенность, и mermaid для этого держит отдельный вид (`mindmap`). Доменный
+ * специалист читает вложенность как есть, без легенды про стрелки и формы.
+ */
+export function functionalMermaid(map: ProjectMap): string {
+  const { capabilities } = map.functional;
+  if (capabilities.length === 0) return '';
+
+  // Скобки ломают синтаксис узла mindmap (`id(текст)`) — в flowchart их
+  // прятала кавычка вокруг подписи, здесь кавычки нет.
+  const safe = (text: string) => label(text).replace(/[()]/g, ' ');
+
+  const byId = new Map(capabilities.map((item) => [item.id, item]));
+  const ROOT = Symbol('root');
+  const childrenOf = new Map<string | typeof ROOT, typeof capabilities>();
+  for (const item of capabilities) {
+    const parent: string | typeof ROOT = item.parent && byId.has(item.parent) ? item.parent : ROOT;
+    childrenOf.set(parent, [...(childrenOf.get(parent) ?? []), item]);
+  }
+
+  const lines = ['mindmap'];
+  const placed = new Set<string>();
+
+  function render(item: (typeof capabilities)[number], depth: number): void {
+    // Схема не требует уникальности id: два элемента с одним и тем же id в
+    // разных ветках дерева нарисовали бы один узел дважды, с двух разных
+    // мест сразу — mermaid запутается, какое определение верное.
+    if (placed.has(item.id)) return;
+    placed.add(item.id);
+    lines.push(`${'  '.repeat(depth)}${nodeId('f', item.id)}(${safe(item.title ?? item.id)})`);
+    for (const child of childrenOf.get(item.id) ?? []) render(child, depth + 1);
+  }
+
+  const tops = childrenOf.get(ROOT) ?? [];
+  if (tops.length === 1 && tops[0]) {
+    render(tops[0], 1);
+  } else {
+    // Mindmap — дерево с одним корнем; несколько верхних возможностей разом
+    // собираем под общим узлом, а не молча теряем часть картины.
+    lines.push('  root((Проект))');
+    for (const top of tops) render(top, 2);
+  }
+
+  return lines.join(LF);
+}

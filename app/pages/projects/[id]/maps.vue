@@ -115,11 +115,18 @@ const views = computed(() => {
       question: 'Какие экраны есть, как между ними ходят и что каждый дёргает',
       count: `${value.userflow.screens.length} экранов, ${value.userflow.calls.length} вызовов`,
       source: userflowMermaid(value)
+    },
+    {
+      key: 'functional',
+      title: 'Функциональная карта',
+      question: 'Что система умеет на языке предметной области, не кода',
+      count: `${value.functional.capabilities.length} возможностей`,
+      source: functionalMermaid(value)
     }
   ];
 });
 
-const shown = ref<'codemap' | 'dataflow' | 'userflow'>('codemap');
+const shown = ref<'codemap' | 'dataflow' | 'userflow' | 'functional'>('codemap');
 const current = computed(() => views.value.find((view) => view.key === shown.value));
 
 const copied = ref(false);
