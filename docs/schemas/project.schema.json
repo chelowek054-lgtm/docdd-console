@@ -97,6 +97,29 @@
             "type": "string"
           },
           "description": "Где лежат сырые заметки: из них заводятся записи. Снаружи docs/development — там схема, и сырой текст даст ошибку разбора."
+        },
+        "shared": {
+          "type": "array",
+          "description": "Другие DocDD-проекты как источник общих практик: путь к их корню и теги, по которым подключаются их decision/design (docs/11-shared-sources.md). Путь — не подпапка этого проекта, а отдельный корень.",
+          "items": {
+            "type": "object",
+            "required": [
+              "path"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Что подключено. Пусто или не задано — источник назван, но ничего из него не показывается: подключение выбором тегов, а не переносом файла целиком."
+              }
+            }
+          }
         }
       }
     },

@@ -79,6 +79,17 @@ describe('validateProject', () => {
     const issues = validateProject({ ...manifest, paths: { ideas: 'ideas' } });
     expect(issues.some((issue) => issue.message.includes('ideas'))).toBe(true);
   });
+
+  it('источник практик — путь и теги, теги можно не называть', () => {
+    const withShared = { ...manifest, sources: { shared: [{ path: 'D:/work/stack-conventions', tags: ['vue'] }] } };
+    expect(validateProject(withShared)).toEqual([]);
+    expect(validateProject({ ...manifest, sources: { shared: [{ path: 'D:/work/stack-conventions' }] } })).toEqual([]);
+  });
+
+  it('источнику практик обязателен путь', () => {
+    const issues = validateProject({ ...manifest, sources: { shared: [{ tags: ['vue'] }] } });
+    expect(issues.length).toBeGreaterThan(0);
+  });
 });
 
 const report = {
