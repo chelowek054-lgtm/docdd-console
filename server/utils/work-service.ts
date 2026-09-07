@@ -6,6 +6,8 @@ import { parseMapRecord } from '../lib/maps';
 import { normalizeRoot } from '../lib/paths';
 import { taskPrompt, type TaskContext } from '../lib/prompt';
 import type { IndexRecord, ProjectIndex } from '../lib/types';
+import { withoutJournal } from '../lib/write';
+import { readWorkspace } from '../lib/workspace';
 import {
   changesIn,
   commitAll,
@@ -24,6 +26,7 @@ import type { ModelEvent } from '../lib/stream-events';
 import { buildProjectMap } from './map-service';
 import { openRecord, saveRecord, today } from './record-write';
 import { forgetSession, rememberSession, sessionOf } from './sessions';
+import { connectedPractices } from './shared-service';
 
 /**
  * Выполнение задачи через клиент (docs/09-execution.md). Приложение заводит
@@ -214,7 +217,12 @@ export async function orphanBranches(root: string, index: ProjectIndex): Promise
   return branches.filter((branch) => closed.has(branch));
 }
 
-function taskContext(
+/**
+ * Собрать то, что уйдёт в запрос модели на выполнение задачи. Экспортируется
+ * ради проверки на настоящих данных без git и без вызова модели — сборка
+ * запроса и запуск работы не обязаны идти одним куском (docs/09-execution.md).
+ */
+export function taskContext(
   root: string,
   index: ProjectIndex,
   record: IndexRecord,
@@ -234,6 +242,16 @@ function taskContext(
 
   const mapId = (record.links.affects ?? [])[0];
 
+  // Общие практики — то, что подключено в sources.shared этого проекта
+  // (docs/11-shared-sources.md): без них модель писала бы код, не зная про
+  // решения вроде «FastAPI + чистая архитектура», принятые для всего стека.
+  let shared: ReturnType<typeof connectedPractices> = [];
+  try {
+    shared = connectedPractices(readWorkspace(root).manifest.sources?.shared ?? []);
+  } catch {
+    // Манифест не прочитался — задача всё равно должна собираться, просто без практик.
+  }
+
   return {
     id: record.id,
     title: record.title,
@@ -243,6 +261,7 @@ function taskContext(
     map: mapId ? mapChange(root, index, mapId) : '',
     // Сжатая карта: где что лежит — вместо обхода всех файлов проекта.
     modules: buildProjectMap(root).codemap.modules,
+    practices: shared,
     rework,
     round
   };
@@ -262,11 +281,6 @@ function readRecord(root: string, path: string): string {
   } catch {
     return '';
   }
-}
-
-function withoutJournal(body: string): string {
-  const at = body.search(/^##\s+Журнал\s*$/m);
-  return at === -1 ? body : body.slice(0, at);
 }
 
 function readBody(root: string, record: IndexRecord): string {

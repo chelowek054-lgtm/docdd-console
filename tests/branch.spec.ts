@@ -68,6 +68,7 @@ describe('taskPrompt', () => {
       { id: 'server/lib/parse.ts', title: 'Разбор', layer: 'ядро' },
       { id: 'app/pages/index.vue', title: 'Проекты', layer: 'экраны' }
     ],
+    practices: [] as { label: string; id: string; title: string; body: string }[],
     rework: '',
     round: 1
   };
@@ -108,5 +109,20 @@ describe('taskPrompt', () => {
     const prompt = taskPrompt(template, { ...task, map: '', modules: [] });
     expect(prompt).toContain('Задача T-0007');
     expect(prompt).not.toContain('Где что лежит');
+  });
+
+  it('подключённые практики уходят в запрос текстом, с меткой источника', () => {
+    const prompt = taskPrompt(template, {
+      ...task,
+      practices: [{ label: 'docdd-console', id: 'A-0002', title: 'Бэкенд: FastAPI', body: 'Чистая архитектура, DI-контейнер.' }]
+    });
+    expect(prompt).toContain('## Общие практики');
+    expect(prompt).toContain('[docdd-console] A-0002: Бэкенд: FastAPI');
+    expect(prompt).toContain('Чистая архитектура, DI-контейнер.');
+  });
+
+  it('практик не подключено — раздела в запросе нет вовсе', () => {
+    const prompt = taskPrompt(template, task);
+    expect(prompt).not.toContain('## Общие практики');
   });
 });

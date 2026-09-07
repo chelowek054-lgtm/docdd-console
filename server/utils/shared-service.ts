@@ -3,9 +3,11 @@ import { join } from 'node:path';
 
 import { dropCache } from '../lib/cache';
 import { toggleSharedTag } from '../lib/manifest-write';
-import { normalizeRoot } from '../lib/paths';
+import { parseRecord } from '../lib/parse';
+import { normalizeRoot, resolveInside } from '../lib/paths';
 import { availableTagsOf, narrowDomainTypes, sharedRecordsOf, type SharedRecord } from '../lib/shared';
-import type { SharedSource } from '../lib/types';
+import type { ProjectEntry, SharedSource } from '../lib/types';
+import { withoutJournal } from '../lib/write';
 import { developmentDir, MANIFEST_FILE, WorkspaceError } from '../lib/workspace';
 import { loadIndex } from './index-service';
 
@@ -28,29 +30,118 @@ export interface SharedSourceView {
   narrowDomain: string[];
   /** Чем вообще можно подключиться — список для галочек, не только выбранное сейчас. */
   availableTags: string[];
+  /**
+   * Источник открыт в приложении как обычный проект — вот его id, чтобы
+   * сослаться на конкретную запись (`/projects/:id/records/:recordId`).
+   * `null` — источник валиден, но не зарегистрирован: сослаться некуда,
+   * пока его не откроют отдельно.
+   */
+  registeredProjectId: string | null;
   /** Путь не открылся как DocDD-проект: не найден, не тот контракт, битый манифест. */
   error?: string;
 }
 
-export function sharedSourcesOf(sources: readonly SharedSource[]): SharedSourceView[] {
+export function sharedSourcesOf(sources: readonly SharedSource[], registered: readonly ProjectEntry[] = []): SharedSourceView[] {
   return sources.map((source) => {
     const tags = source.tags ?? [];
     try {
       const root = normalizeRoot(source.path);
       const index = loadIndex(root);
+      const match = registered.find((project) => {
+        try {
+          return normalizeRoot(project.root) === root;
+        } catch {
+          return false;
+        }
+      });
       return {
         path: source.path,
         tags,
         label: index.project.id,
         records: sharedRecordsOf(index.records, tags),
         narrowDomain: narrowDomainTypes(index.records),
-        availableTags: availableTagsOf(index.records)
+        availableTags: availableTagsOf(index.records),
+        registeredProjectId: match?.id ?? null
       };
     } catch (error) {
       const message = error instanceof WorkspaceError ? error.message : String(error);
-      return { path: source.path, tags, label: source.path, records: [], narrowDomain: [], availableTags: [], error: message };
+      return {
+        path: source.path,
+        tags,
+        label: source.path,
+        records: [],
+        narrowDomain: [],
+        availableTags: [],
+        registeredProjectId: null,
+        error: message
+      };
     }
   });
+}
+
+export interface ConnectedPractice {
+  /** `id` проекта-источника — та же метка, что и на экране «Практики». */
+  label: string;
+  id: string;
+  type: string;
+  title: string;
+  /** Текст записи без front matter и раздела «Журнал» — то, что читает модель. */
+  body: string;
+}
+
+/**
+ * Практики, реально подключённые тегами, — с текстом, а не только
+ * заголовком: то, что уходит в запрос модели на выполнение задачи
+ * (server/utils/work-service.ts, docs/09-execution.md). В отличие от
+ * `sharedSourcesOf` (для экрана — довольно id и названия), здесь для
+ * каждой подключённой записи читается файл источника.
+ */
+export function connectedPractices(sources: readonly SharedSource[]): ConnectedPractice[] {
+  const result: ConnectedPractice[] = [];
+
+  for (const source of sources) {
+    const tags = source.tags ?? [];
+    if (tags.length === 0) continue;
+
+    try {
+      const root = normalizeRoot(source.path);
+      const index = loadIndex(root);
+      const matched = sharedRecordsOf(index.records, tags);
+
+      for (const record of matched) {
+        const full = index.records.find((item) => item.id === record.id);
+        if (!full) continue;
+
+        const text = readSourceFile(root, full.path);
+        if (text === null) continue;
+
+        const parsed = parseRecord(text, { path: full.path });
+        if (!parsed.ok) continue;
+
+        result.push({
+          label: index.project.id,
+          id: record.id,
+          type: record.type,
+          title: record.title,
+          body: withoutJournal(parsed.record.body).trim()
+        });
+      }
+    } catch {
+      // Источник не открылся — то же самое, что на экране «Практики»
+      // становится ошибкой у этого источника; здесь задачу это не должно
+      // остановить, поэтому источник просто пропускается.
+    }
+  }
+
+  return result;
+}
+
+function readSourceFile(root: string, relativePath: string): string | null {
+  try {
+    return readFileSync(resolveInside(root, relativePath), 'utf8');
+  } catch {
+    return null;
+  }
 }
 
 export type ToggleTagOutcome =

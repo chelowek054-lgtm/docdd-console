@@ -191,6 +191,8 @@ export interface TaskContext {
   map: string;
   /** Сжатая карта проекта: где что лежит, без обхода всех файлов. */
   modules: { id: string; title?: string; layer?: string }[];
+  /** Общие практики, подключённые в sources.shared (docs/11-shared-sources.md). */
+  practices: { label: string; id: string; title: string; body: string }[];
   /** Что человек сказал по прошлому заходу. Пусто — заход первый. */
   rework: string;
   round: number;
@@ -226,6 +228,18 @@ export function taskPrompt(template: string, task: TaskContext): string {
       lines.push(`- \`${module.id}\`${title}${layer}`);
     }
     lines.push('');
+  }
+
+  if (task.practices.length > 0) {
+    lines.push(
+      '## Общие практики',
+      '',
+      'Подключены для этого проекта (docs/11-shared-sources.md) — держись их, а не своих привычек по умолчанию:',
+      ''
+    );
+    for (const practice of task.practices) {
+      lines.push(`### [${practice.label}] ${practice.id}: ${practice.title}`, '', practice.body.trim(), '');
+    }
   }
 
   if (task.rework.trim()) {

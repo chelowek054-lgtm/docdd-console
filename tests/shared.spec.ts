@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { availableTagsOf, narrowDomainTypes, sharedRecordsOf } from '../server/lib/shared';
 import type { IndexRecord } from '../server/lib/types';
-import { sharedSourcesOf, toggleSourceTag } from '../server/utils/shared-service';
+import { connectedPractices, sharedSourcesOf, toggleSourceTag } from '../server/utils/shared-service';
 
 /**
  * Общие практики (docs/11-shared-sources.md). Здесь — только отбор, чистые
@@ -244,6 +244,19 @@ describe('sharedSourcesOf', () => {
     expect(views[0]?.records.map((r) => r.id)).toEqual(['D-0001']);
     expect(views[1]?.error).toBeTruthy();
   });
+
+  it('источник не зарегистрирован проектом — ссылаться некуда, id пуст', () => {
+    const [view] = sharedSourcesOf([{ path: source, tags: ['vue'] }]);
+    expect(view?.registeredProjectId).toBeNull();
+  });
+
+  it('источник зарегистрирован — виден id, по которому строится ссылка на запись', () => {
+    const [view] = sharedSourcesOf(
+      [{ path: source, tags: ['vue'] }],
+      [{ id: 'stack-conventions', name: 'Stack Conventions', root: source, lastOpenedAt: '2026-09-07T00:00:00.000Z' }]
+    );
+    expect(view?.registeredProjectId).toBe('stack-conventions');
+  });
 });
 
 describe('toggleSourceTag', () => {
@@ -312,5 +325,86 @@ describe('toggleSourceTag', () => {
     if (outcome.ok) return;
     expect(outcome.code).toBe('source_not_found');
     expect(readFileSync(manifestPath(), 'utf8')).toBe(before);
+  });
+});
+
+describe('connectedPractices', () => {
+  let source = '';
+
+  beforeAll(() => {
+    source = mkdtempSync(join(tmpdir(), 'docdd-practices-source-'));
+    mkdirSync(join(source, 'docs', 'development', 'decisions'), { recursive: true });
+
+    writeFileSync(join(source, 'docs', 'development', 'project.yaml'), [
+      'contract: docdd.workspace/1',
+      'project:',
+      '  id: stack-conventions',
+      '  name: Stack Conventions',
+      'paths:',
+      '  decisions: decisions',
+      ''
+    ].join(LF), 'utf8');
+
+    writeFileSync(join(source, 'docs', 'development', 'decisions', 'A-0001-vue.md'), [
+      '---',
+      'id: A-0001',
+      'type: decision',
+      'title: Composition API везде',
+      'status: approved',
+      'created: 2026-09-07',
+      'updated: 2026-09-07',
+      'tags: [vue]',
+      '---',
+      '',
+      '# Composition API везде',
+      '',
+      'Текст решения — то, что должно попасть в запрос модели.',
+      '',
+      '## Журнал',
+      '',
+      '- 2026-09-07 · заведена · architect',
+      ''
+    ].join(LF), 'utf8');
+
+    writeFileSync(
+      join(source, 'docs', 'development', 'decisions', 'A-0002-chernovik.md'),
+      record('A-0002', 'decision', 'draft', 'Ещё не решили', ['vue']),
+      'utf8'
+    );
+  });
+
+  afterAll(() => {
+    try {
+      rmSync(source, { recursive: true, force: true });
+    } catch {
+      // Прибирать не обязательно.
+    }
+  });
+
+  it('текст записи доходит без front matter и журнала — это и уходит в запрос модели', () => {
+    const practices = connectedPractices([{ path: source, tags: ['vue'] }]);
+    expect(practices).toHaveLength(1);
+    expect(practices[0]).toMatchObject({ label: 'stack-conventions', id: 'A-0001', title: 'Composition API везде' });
+    expect(practices[0]?.body).toContain('Текст решения');
+    expect(practices[0]?.body).not.toContain('Журнал');
+    expect(practices[0]?.body).not.toContain('id: A-0001');
+  });
+
+  it('черновик не подключается — то же правило, что и на экране', () => {
+    const practices = connectedPractices([{ path: source, tags: ['vue'] }]);
+    expect(practices.map((p) => p.id)).not.toContain('A-0002');
+  });
+
+  it('тегов не выбрано — практик нет', () => {
+    expect(connectedPractices([{ path: source, tags: [] }])).toEqual([]);
+  });
+
+  it('источник не открылся — пропускается, задача всё равно собирается', () => {
+    const bad = join(source, 'нет-такой-папки');
+    expect(connectedPractices([{ path: bad, tags: ['vue'] }])).toEqual([]);
+  });
+
+  it('sources.shared не задан вовсе — пустой список, не ошибка', () => {
+    expect(connectedPractices([])).toEqual([]);
   });
 });
