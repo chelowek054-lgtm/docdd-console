@@ -60,3 +60,18 @@ export function narrowDomainTypes(records: readonly IndexRecord[]): string[] {
       .filter((type) => NARROW_DOMAIN_TYPES.has(type))
   )].sort();
 }
+
+/**
+ * Все теги, которыми размечены `decision`/`design` источника, — независимо
+ * от того, что сейчас выбрано в `sources.shared`. Это и есть список для
+ * галочек на экране «Практики»: показывает, чем вообще можно подключиться,
+ * а не только то, что уже подключено (docs/11-shared-sources.md).
+ */
+export function availableTagsOf(records: readonly IndexRecord[]): string[] {
+  return [...new Set(
+    records
+      .filter((record) => SHARED_TYPES.has(record.type))
+      .filter((record) => record.status === 'approved')
+      .flatMap((record) => record.tags)
+  )].sort();
+}

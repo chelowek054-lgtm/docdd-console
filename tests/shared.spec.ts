@@ -1,12 +1,12 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { narrowDomainTypes, sharedRecordsOf } from '../server/lib/shared';
+import { availableTagsOf, narrowDomainTypes, sharedRecordsOf } from '../server/lib/shared';
 import type { IndexRecord } from '../server/lib/types';
-import { sharedSourcesOf } from '../server/utils/shared-service';
+import { sharedSourcesOf, toggleSourceTag } from '../server/utils/shared-service';
 
 /**
  * Общие практики (docs/11-shared-sources.md). Здесь — только отбор, чистые
@@ -102,6 +102,29 @@ describe('narrowDomainTypes', () => {
   });
 });
 
+describe('availableTagsOf', () => {
+  it('собирает теги только с decision/design, только подтверждённых, без повторов, по алфавиту', () => {
+    const records = [
+      rec('D-0001', 'decision', 'approved', ['vue', 'typescript']),
+      rec('D-0002', 'design', 'approved', ['typescript', 'backend']),
+      rec('D-0003', 'decision', 'draft', ['not-yet']),
+      rec('T-0001', 'task', 'approved', ['not-a-practice'])
+    ];
+    expect(availableTagsOf(records)).toEqual(['backend', 'typescript', 'vue']);
+  });
+
+  it('пусто, когда подключиться нечем', () => {
+    expect(availableTagsOf([])).toEqual([]);
+  });
+
+  it('видит тег, даже если он ни разу не выбран в подключении, — это и есть список для галочек', () => {
+    const records = [rec('D-0001', 'decision', 'approved', ['kotlin', 'android'])];
+    expect(availableTagsOf(records)).toEqual(['android', 'kotlin']);
+    // Отбор по тегам без выбора — пусто; доступные теги — не то же самое.
+    expect(sharedRecordsOf(records, [])).toEqual([]);
+  });
+});
+
 const LF = String.fromCharCode(10);
 
 function record(id: string, type: string, status: string, title: string, tags: string[]): string {
@@ -188,6 +211,11 @@ describe('sharedSourcesOf', () => {
     expect(view?.records.map((r) => r.id)).toEqual(['A-0001']);
   });
 
+  it('доступные теги видны все — включая typescript, которым сейчас не подключено ничего', () => {
+    const [view] = sharedSourcesOf([{ path: source, tags: ['vue'] }]);
+    expect(view?.availableTags).toEqual(['typescript', 'vue']);
+  });
+
   it('тегов не выбрано — источник назван, но пуст', () => {
     const [view] = sharedSourcesOf([{ path: source, tags: [] }]);
     expect(view?.records).toEqual([]);
@@ -215,5 +243,74 @@ describe('sharedSourcesOf', () => {
     expect(views).toHaveLength(2);
     expect(views[0]?.records.map((r) => r.id)).toEqual(['D-0001']);
     expect(views[1]?.error).toBeTruthy();
+  });
+});
+
+describe('toggleSourceTag', () => {
+  let consumer = '';
+
+  beforeAll(() => {
+    consumer = mkdtempSync(join(tmpdir(), 'docdd-shared-consumer-'));
+    mkdirSync(join(consumer, 'docs', 'development'), { recursive: true });
+  });
+
+  afterAll(() => {
+    try {
+      rmSync(consumer, { recursive: true, force: true });
+    } catch {
+      // Прибирать не обязательно.
+    }
+  });
+
+  function manifestWith(sharedBlock: string): string {
+    return [
+      'contract: docdd.workspace/1',
+      'project:',
+      '  id: consumer',
+      '  name: Consumer',
+      'paths:',
+      '  requirements: requirements',
+      'sources:',
+      '  # комментарий человека — должен уцелеть',
+      '  inbox: [docs/inbox]',
+      '  shared:',
+      sharedBlock,
+      ''
+    ].join(LF);
+  }
+
+  const manifestPath = () => join(consumer, 'docs', 'development', 'project.yaml');
+
+  it('включает тег — источник назван, тегов ещё не было', () => {
+    writeFileSync(manifestPath(), manifestWith('    - path: /source'), 'utf8');
+    const outcome = toggleSourceTag(consumer, '/source', 'vue', true);
+    expect(outcome.ok, outcome.ok ? '' : outcome.message).toBe(true);
+    const text = readFileSync(manifestPath(), 'utf8');
+    expect(text).toContain('tags: [vue]');
+    expect(text).toContain('комментарий человека — должен уцелеть');
+  });
+
+  it('включает второй тег рядом с уже выбранным', () => {
+    writeFileSync(manifestPath(), manifestWith('    - path: /source\n      tags: [vue]'), 'utf8');
+    const outcome = toggleSourceTag(consumer, '/source', 'typescript', true);
+    expect(outcome.ok).toBe(true);
+    expect(readFileSync(manifestPath(), 'utf8')).toContain('tags: [vue, typescript]');
+  });
+
+  it('выключает тег, не трогая остальные', () => {
+    writeFileSync(manifestPath(), manifestWith('    - path: /source\n      tags: [vue, typescript, backend]'), 'utf8');
+    const outcome = toggleSourceTag(consumer, '/source', 'typescript', false);
+    expect(outcome.ok).toBe(true);
+    expect(readFileSync(manifestPath(), 'utf8')).toContain('tags: [vue, backend]');
+  });
+
+  it('источника с таким путём нет — понятный отказ, файл не тронут', () => {
+    const before = manifestWith('    - path: /source\n      tags: [vue]');
+    writeFileSync(manifestPath(), before, 'utf8');
+    const outcome = toggleSourceTag(consumer, '/другой-путь', 'vue', true);
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) return;
+    expect(outcome.code).toBe('source_not_found');
+    expect(readFileSync(manifestPath(), 'utf8')).toBe(before);
   });
 });
