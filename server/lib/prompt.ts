@@ -230,17 +230,7 @@ export function taskPrompt(template: string, task: TaskContext): string {
     lines.push('');
   }
 
-  if (task.practices.length > 0) {
-    lines.push(
-      '## Общие практики',
-      '',
-      'Подключены для этого проекта (docs/11-shared-sources.md) — держись их, а не своих привычек по умолчанию:',
-      ''
-    );
-    for (const practice of task.practices) {
-      lines.push(`### [${practice.label}] ${practice.id}: ${practice.title}`, '', practice.body.trim(), '');
-    }
-  }
+  lines.push(...practicesSection(task.practices));
 
   if (task.rework.trim()) {
     lines.push(
@@ -254,6 +244,47 @@ export function taskPrompt(template: string, task: TaskContext): string {
   }
 
   return body.replace(TASK_MARKER, lines.join(LF));
+}
+
+/**
+ * Раздел «Общие практики» — общий вид у запроса на задачу (`taskPrompt`) и у
+ * запроса на сверку кода (`verifyPrompt`): один и тот же текст практик не
+ * должен по-разному выглядеть в двух местах.
+ */
+function practicesSection(practices: readonly { label: string; id: string; title: string; body: string }[]): string[] {
+  if (practices.length === 0) return [];
+
+  const lines: string[] = [
+    '## Общие практики',
+    '',
+    'Подключены для этого проекта (docs/11-shared-sources.md) — держись их, а не своих привычек по умолчанию:',
+    ''
+  ];
+  for (const practice of practices) {
+    lines.push(`### [${practice.label}] ${practice.id}: ${practice.title}`, '', practice.body.trim(), '');
+  }
+  return lines;
+}
+
+export const VERIFY_MARKER = '<!-- СВЕРКА -->';
+
+/**
+ * Запрос на разовую сверку кода с подключёнными практиками
+ * (docs/09-execution.md, «Сверка кода с практиками»). В отличие от
+ * `taskPrompt`, код модель читает сама (доступ read-only, корень проекта —
+ * рабочая папка) — здесь только практики и просьба ответить предложением
+ * записи `type: verification`, тем же блоком `docdd-records`, что и у
+ * разбора входящего.
+ */
+export function verifyPrompt(
+  template: string,
+  practices: readonly { label: string; id: string; title: string; body: string }[]
+): string {
+  const lines = practices.length > 0
+    ? practicesSection(practices)
+    : ['Практик не подключено ни у одного источника (`sources.shared`) — сверять код не с чем.'];
+
+  return withoutFrontNote(template).replace(VERIFY_MARKER, lines.join(LF));
 }
 
 function listOf(values: readonly string[]): string {

@@ -3,7 +3,8 @@ import { defineEventHandler, getRouterParam, readBody } from 'h3';
 import { useStorage } from 'nitropack/runtime';
 
 import { checkEvidence, evidenceClaims, parseMapRecord } from '../../../../lib/maps';
-import { fixPrompt, inboxPrompt, mapFixPrompt, mapsPrompt, type MapsState } from '../../../../lib/prompt';
+import { fixPrompt, inboxPrompt, mapFixPrompt, mapsPrompt, verifyPrompt, type MapsState } from '../../../../lib/prompt';
+import { connectedPractices } from '../../../../utils/shared-service';
 import { inboxNotes } from '../../../../utils/inbox-service';
 import { mapSchemas } from '../../../../lib/map-schemas';
 import { worthAsking } from '../../../../lib/inventory';
@@ -139,7 +140,16 @@ export default defineEventHandler(async (event) => {
       };
     }
 
-    return fail(event, 400, 'kind_invalid', 'Известны запросы: `fix`, `maps`, `map-fix`, `inbox`');
+    if (kind === 'verify') {
+      const workspace = readWorkspace(project.root);
+      const practices = connectedPractices(workspace.manifest.sources?.shared ?? []);
+      if (practices.length === 0) {
+        return fail(event, 422, 'no_practices', 'Ни один источник в `sources.shared` не подключает ни одного тега: сверять код не с чем');
+      }
+      return { prompt: verifyPrompt(await template('verify-plan.md'), practices), count: practices.length };
+    }
+
+    return fail(event, 400, 'kind_invalid', 'Известны запросы: `fix`, `maps`, `map-fix`, `inbox`, `verify`');
   } catch (error) {
     if (error instanceof WorkspaceError) {
       return fail(event, 422, error.code, error.message, error.detail);
