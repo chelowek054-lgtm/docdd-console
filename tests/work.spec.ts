@@ -149,6 +149,42 @@ describe('работа над задачей', () => {
     if (outcome.ok) return;
     expect(outcome.code).toBe('process_records_touched');
   }, 120_000);
+
+  it('модель с полным доступом коммитит сама — дифф всё равно виден и принимается', async () => {
+    // Задача решает не задачей T-0001 (в её ветке уже есть история из
+    // предыдущих тестов) — заводим отдельную, T-0004.
+    writeFileSync(
+      join(root, 'docs', 'development', 'tasks', 'T-0004-b.md'),
+      record('T-0004', 'task', 'Четвёртая задача', `links:${LF}  implements: [R-0001]`),
+      'utf8'
+    );
+    run(root, ['add', '-A']);
+    run(root, ['commit', '-m', 'заведена T-0004']);
+
+    const base = await currentBranch(root);
+    const branch = branchName('T-0004', 'Четвёртая задача');
+    expect((await ensureWorktree(root, branch, '.docdd/worktrees/T-0004', base as string)).ok).toBe(true);
+
+    const tree = worktreeRoot(root, 'T-0004');
+    // Доступ `full` даёт модели Bash — она вправе закоммитить сама, не
+    // дожидаясь `accept()` (docs/adr/0008-llm-through-claude-code.md).
+    writeFileSync(join(tree, 'src', 'added-t0004.ts'), 'export const four = 4;' + LF, 'utf8');
+    run(tree, ['add', '-A']);
+    run(tree, ['commit', '-m', 'T-0004: модель закоммитила сама']);
+    expect(await isClean(tree)).toBe(true);
+
+    const { index } = buildIndex(root);
+    const task = index.records.find((item) => item.id === 'T-0004');
+    const state = await workState(root, task!, '');
+    // Рабочее дерево чистое, но дифф с базой — не пустой: коммит виден.
+    expect(state.files).toContain('src/added-t0004.ts');
+
+    const outcome = await accept(root, task!, 'architect');
+    expect(outcome.ok, outcome.ok ? '' : `${outcome.code}: ${outcome.message}`).toBe(true);
+
+    const merged = run(root, ['show', 'HEAD:src/added-t0004.ts']);
+    expect(merged).toContain('four = 4');
+  }, 120_000);
 });
 
 describe('память о разговоре', () => {

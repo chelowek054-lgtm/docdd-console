@@ -54,8 +54,12 @@ export async function workState(root: string, record: IndexRecord, body: string)
   const relative = worktreePath(record.id);
   const started = await hasWorktree(root, record.id);
 
+  // Диффу нужна точка отсчёта, от которой ветка задачи разошлась: без нее
+  // не отличить наработку, которую модель закоммитила сама, от пустой
+  // рабочей папки (changesIn).
+  const base = started ? await currentBranch(root) : null;
   const changes: WorkChanges = started
-    ? await changesIn(worktreeRoot(root, record.id))
+    ? await changesIn(worktreeRoot(root, record.id), base)
     : { files: [], diff: '' };
 
   return {
