@@ -20,6 +20,8 @@ sources:
   docs: []
   # Клиентская часть: по ней строится карта пользовательских путей.
   client: [app]
+  # Черновики новых редакций A-0001..A-0009 в skill-стиле (supersedes).
+  inbox: [docs/inbox]
 roles:
   - id: architect
     name: Архитектор
