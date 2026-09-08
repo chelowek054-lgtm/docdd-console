@@ -6,17 +6,14 @@ import { defineEventHandler, getRouterParam, readBody } from 'h3';
 import { analyze } from '../../../../lib/analyze';
 import { dropCache } from '../../../../lib/cache';
 import { targetPath } from '../../../../lib/import';
-import { parseMapRecord, MAP_STRUCTURES, type MapChange } from '../../../../lib/maps';
+import { mapDraftText, parseMapRecord } from '../../../../lib/maps';
 import { OutsideRootError, normalizeRoot, resolveInside } from '../../../../lib/paths';
 import { nextId } from '../../../../lib/scaffold';
 import { DEVELOPMENT_DIR, WorkspaceError, readWorkspace } from '../../../../lib/workspace';
-import { yamlSafe } from '../../../../lib/write';
 import { fail, failWith } from '../../../../utils/http';
 import { loadIndex } from '../../../../utils/index-service';
 import { findProject } from '../../../../utils/projects';
 import { today } from '../../../../utils/record-write';
-
-const LF = String.fromCharCode(10);
 
 /**
  * Ответ модели — черновиком записи типа `map`. Приложение проверяет три
@@ -74,7 +71,7 @@ export default defineEventHandler(async (event) => {
     }
 
     mkdirSync(dirname(absolute), { recursive: true });
-    writeFileSync(absolute, draftText(recordId, title, parsed.change, parsed.present), 'utf8');
+    writeFileSync(absolute, mapDraftText(recordId, title, parsed.change, parsed.present, today()), 'utf8');
     dropCache(root);
 
     const index = loadIndex(root, true);
@@ -93,38 +90,3 @@ export default defineEventHandler(async (event) => {
     return fail(event, 500, 'draft_failed', 'Не удалось сохранить черновик карты', String(error));
   }
 });
-
-/**
- * Тело черновика: только блоки структур и оговорка, откуда они взялись. Текст
- * ответа целиком не сохраняем — в записи должно лежать то, что читается, а не
- * стенограмма разговора.
- */
-function draftText(id: string, title: string, change: MapChange, present: readonly string[]): string {
-  const lines = [
-    '---',
-    `id: ${id}`,
-    'type: map',
-    `title: ${yamlSafe(title)}`,
-    'status: draft',
-    `created: ${today()}`,
-    `updated: ${today()}`,
-    '---',
-    '',
-    `# ${title}`,
-    '',
-    'Черновик: составлен моделью, не подтверждён. Прочитайте, поправьте руками',
-    'то, что модель не поняла, и подтвердите — до этого карта на общую картину',
-    'не влияет.',
-    ''
-  ];
-
-  for (const structure of MAP_STRUCTURES) {
-    if (!present.includes(structure)) continue;
-    // Пишем разобранное, а не кусок ответа: так в записи оказывается ровно то,
-    // что прошло схему, в одном и том же виде независимо от разметки модели.
-    lines.push('```docdd-' + structure, JSON.stringify(change[structure] ?? {}, null, 2), '```', '');
-  }
-
-  lines.push('## Журнал', '', `- ${today()} · заведена черновиком · модель`, '');
-  return lines.join(LF);
-}
