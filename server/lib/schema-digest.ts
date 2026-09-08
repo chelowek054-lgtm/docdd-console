@@ -36,12 +36,22 @@ function resolve(schema: JsonSchema, root: JsonSchema, known: Record<string, Jso
   return known[ref] ?? schema;
 }
 
+/**
+ * Схема несёт `description` ровно за тем, чтобы модель поняла, что писать в
+ * поле, а не только что оно есть, — но выжимка это молчала до сих пор:
+ * `modules[].id` описан схемой как «путь от корня проекта», а без описания в
+ * запросе модель, читающая Python, честно писала туда `gastrograf.domain.nutrition`
+ * (свой, языковой способ называть модуль) вместо литерального пути к файлу —
+ * и такой модуль ничего не покрывал: опись не находит в проекте файла с таким
+ * именем и просит описать те же файлы заново, до бесконечности.
+ */
 function fieldOf(name: string, field: JsonSchema, required: boolean): string {
   const marks: string[] = [];
   if (required) marks.push('обязательное');
   if (field.enum) marks.push(`одно из: ${field.enum.join(', ')}`);
   else if (field.type === 'array') marks.push('список');
   else if (field.type && field.type !== 'string') marks.push(field.type);
+  if (field.description) marks.push(field.description);
 
   const said = marks.length ? ` — ${marks.join('; ')}` : '';
   return `  - \`${name}\`${said}`;

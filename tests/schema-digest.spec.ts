@@ -68,6 +68,14 @@ describe('выжимка из схемы', () => {
     expect(digest).toContain('file, http, db, queue, env, memory');
   });
 
+  it('несёт описание поля из схемы, а не только имя и «обязательное»', () => {
+    // Без этого модель, читающая Python, называла module.id на свой лад
+    // («gastrograf.domain.nutrition»), а не путём файла — опись не находила
+    // такой файл и просила описать его снова, до бесконечности.
+    const digest = schemaDigest(codemapSchema, 'docdd-codemap', REFS);
+    expect(digest).toContain('`id` — обязательное; Путь от корня проекта.');
+  });
+
   it('расписывает свидетельство: оно описано отдельной схемой', () => {
     const digest = schemaDigest(codemapSchema, 'docdd-codemap', REFS);
     expect(digest).toContain('`evidence.path`');
