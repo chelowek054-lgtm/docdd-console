@@ -75,3 +75,22 @@ export function availableTagsOf(records: readonly IndexRecord[]): string[] {
       .flatMap((record) => record.tags)
   )].sort();
 }
+
+/**
+ * Чем именно подключает каждый доступный тег — id записей, а не только
+ * само название тега (галочка на экране без этого не отвечает на вопрос
+ * «а что конкретно я сейчас подключаю»). Тот же отбор, что и у
+ * `availableTagsOf`: подтверждённые decision/design, независимо от того,
+ * что выбрано в `sources.shared` сейчас.
+ */
+export function recordIdsByTag(records: readonly IndexRecord[]): Record<string, string[]> {
+  const result: Record<string, string[]> = {};
+  for (const record of records) {
+    if (!SHARED_TYPES.has(record.type) || record.status !== 'approved') continue;
+    for (const tag of record.tags) {
+      (result[tag] ??= []).push(record.id);
+    }
+  }
+  for (const ids of Object.values(result)) ids.sort();
+  return result;
+}

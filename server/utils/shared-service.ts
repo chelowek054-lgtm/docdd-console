@@ -5,7 +5,7 @@ import { dropCache } from '../lib/cache';
 import { toggleSharedTag } from '../lib/manifest-write';
 import { parseRecord } from '../lib/parse';
 import { normalizeRoot, resolveInside } from '../lib/paths';
-import { availableTagsOf, narrowDomainTypes, sharedRecordsOf, type SharedRecord } from '../lib/shared';
+import { availableTagsOf, narrowDomainTypes, recordIdsByTag, sharedRecordsOf, type SharedRecord } from '../lib/shared';
 import type { ProjectEntry, SharedSource } from '../lib/types';
 import { withoutJournal } from '../lib/write';
 import { developmentDir, MANIFEST_FILE, WorkspaceError } from '../lib/workspace';
@@ -30,6 +30,8 @@ export interface SharedSourceView {
   narrowDomain: string[];
   /** Чем вообще можно подключиться — список для галочек, не только выбранное сейчас. */
   availableTags: string[];
+  /** Чем каждый доступный тег подключает — id записей, для подсказки рядом с галочкой. */
+  tagRecords: Record<string, string[]>;
   /**
    * Источник открыт в приложении как обычный проект — вот его id, чтобы
    * сослаться на конкретную запись (`/projects/:id/records/:recordId`).
@@ -68,6 +70,7 @@ export function sharedSourcesOf(sources: readonly SharedSource[], registered: re
         records: sharedRecordsOf(index.records, tags),
         narrowDomain: narrowDomainTypes(index.records),
         availableTags: availableTagsOf(index.records),
+        tagRecords: recordIdsByTag(index.records),
         registeredProjectId: match?.id ?? null,
         preview: connectedPractices([{ path: source.path, tags }])
       };
@@ -80,6 +83,7 @@ export function sharedSourcesOf(sources: readonly SharedSource[], registered: re
         records: [],
         narrowDomain: [],
         availableTags: [],
+        tagRecords: {},
         registeredProjectId: null,
         preview: [],
         error: message

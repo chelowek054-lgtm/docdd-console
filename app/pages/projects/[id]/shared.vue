@@ -132,6 +132,7 @@ async function toggleTag(source: SharedSourceView, tag: string) {
                   @update:model-value="toggleTag(source, tag)"
                 />
                 <span class="font-mono">{{ tag }}</span>
+                <span class="font-mono text-xs text-muted">{{ (source.tagRecords[tag] ?? []).join(', ') }}</span>
               </label>
             </div>
 
