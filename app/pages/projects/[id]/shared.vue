@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { ApiFailure } from '~/composables/useProjectIndex';
+import type { CreatedRecord } from '~~/server/utils/inbox-service';
+import type { ProposedRecord } from '~~/server/lib/inbox';
 import type { SharedSourceView } from '~~/server/utils/shared-service';
 
 /**
@@ -31,6 +33,76 @@ function togglePreview(path: string) {
   if (next.has(path)) next.delete(path);
   else next.add(path);
   previewOpen.value = next;
+}
+
+/**
+ * Сверка кода с практиками (docs/09-execution.md): та же цепочка «собрать
+ * запрос → спросить модель → разобрать ответ», что и у «Разобрать входящее»
+ * (app/pages/projects/[id]/inbox.vue) — код модель читает сама, приложение
+ * только доводит её ответ до предложенной записи и заводит её после
+ * подтверждения человеком.
+ */
+const { running: verifying, elapsed: verifyElapsed, outcome: verifyOutcome, log: verifyLog, stream: verifyStream, cancel: cancelVerify } = useModelRequest();
+const verifyTrouble = ref<ApiFailure | null>(null);
+const verifyProposed = ref<ProposedRecord[]>([]);
+const verifySaid = ref('');
+const verifyCreated = ref<CreatedRecord[]>([]);
+const verifySaving = ref(false);
+
+async function verify() {
+  verifyTrouble.value = null;
+  verifyProposed.value = [];
+  verifyCreated.value = [];
+  verifySaid.value = '';
+
+  const built = await $fetch<{ prompt: string } | { error: ApiFailure }>(
+    `/api/projects/${projectId.value}/prompt`,
+    { method: 'POST', body: { kind: 'verify' }, ignoreResponseError: true }
+  );
+  const problem = failureOf(built);
+  if (problem) {
+    verifyTrouble.value = problem;
+    return;
+  }
+
+  const answer = await verifyStream<{ answer: string }>('/api/llm/ask', {
+    prompt: (built as { prompt: string }).prompt,
+    projectId: projectId.value
+  });
+  if (!answer) return;
+
+  const parsed = await $fetch<{ records: ProposedRecord[]; problems: string[] } | { error: ApiFailure }>(
+    `/api/projects/${projectId.value}/inbox/preview`,
+    { method: 'POST', body: { answer: answer.answer }, ignoreResponseError: true }
+  );
+  const broken = failureOf(parsed);
+  if (broken) {
+    verifyTrouble.value = broken;
+    return;
+  }
+
+  verifyProposed.value = (parsed as { records: ProposedRecord[] }).records;
+  verifySaid.value = answer.answer;
+}
+
+async function createVerification() {
+  verifySaving.value = true;
+  verifyTrouble.value = null;
+  try {
+    const response = await $fetch<{ created: CreatedRecord[] } | { error: ApiFailure }>(
+      `/api/projects/${projectId.value}/inbox/records`,
+      { method: 'POST', body: { records: verifyProposed.value, notes: [] }, ignoreResponseError: true }
+    );
+    const problem = failureOf(response);
+    if (problem) {
+      verifyTrouble.value = problem;
+      return;
+    }
+    verifyCreated.value = (response as { created: CreatedRecord[] }).created;
+    verifyProposed.value = [];
+  } finally {
+    verifySaving.value = false;
+  }
 }
 
 async function toggleTag(source: SharedSourceView, tag: string) {
@@ -184,6 +256,54 @@ async function toggleTag(source: SharedSourceView, tag: string) {
           </template>
         </template>
       </div>
+
+      <template v-if="sources.length > 0">
+        <div class="flex flex-wrap items-center gap-3">
+          <UButton v-if="!verifying" icon="i-lucide-search-check" @click="verify">Сверить код с практиками</UButton>
+          <p v-if="!verifying" class="text-sm text-muted">
+            Разовая проверка: модель читает код проекта и подключённые практики, отвечает
+            списком расхождений. Ничего в коде не меняет.
+          </p>
+        </div>
+
+        <ModelProgress :running="verifying" :elapsed="verifyElapsed" :outcome="verifyOutcome" @cancel="cancelVerify" />
+        <ModelLog :lines="verifyLog" :running="verifying" />
+
+        <UAlert
+          v-if="verifyTrouble"
+          color="error"
+          variant="subtle"
+          icon="i-lucide-triangle-alert"
+          :title="verifyTrouble.message"
+          :description="(verifyTrouble.blockers ?? []).map((blocker) => blocker.message).join(' ') || verifyTrouble.detail"
+        />
+
+        <template v-if="verifyProposed.length">
+          <div v-for="record in verifyProposed" :key="record.key" class="rounded border border-default p-3">
+            <p class="font-medium">{{ record.title }}</p>
+            <p v-if="record.body" class="mt-2 whitespace-pre-wrap text-sm text-muted">{{ record.body }}</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-3">
+            <UButton color="primary" :loading="verifySaving" @click="createVerification">Завести запись</UButton>
+            <p class="text-sm text-muted">Черновик, как и всё остальное — подтверждать всё равно вам.</p>
+          </div>
+        </template>
+
+        <div v-if="verifySaid && !verifyProposed.length && !verifying" class="rounded border border-default p-3">
+          <p class="mb-2 text-sm font-medium">Ответ не сложился в запись</p>
+          <DocumentText :body="verifySaid" />
+        </div>
+
+        <template v-if="verifyCreated.length">
+          <ul class="space-y-1 text-sm">
+            <li v-for="record in verifyCreated" :key="record.id">
+              <NuxtLink :to="`/projects/${projectId}/records/${record.id}`" class="hover:underline">
+                <span class="font-mono">{{ record.id }}</span> — {{ record.title }}
+              </NuxtLink>
+            </li>
+          </ul>
+        </template>
+      </template>
     </template>
   </div>
 </template>

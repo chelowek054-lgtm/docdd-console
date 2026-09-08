@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { branchName, commitMessage, isWorkBranch, recordOfBranch, worktreePath } from '../server/lib/branch';
-import { taskPrompt, TASK_MARKER } from '../server/lib/prompt';
+import { taskPrompt, TASK_MARKER, verifyPrompt, VERIFY_MARKER } from '../server/lib/prompt';
 
 /**
  * Имена ветки и дерева задачи и запрос на её выполнение
@@ -14,6 +14,11 @@ import { taskPrompt, TASK_MARKER } from '../server/lib/prompt';
 
 const template = readFileSync(
   join(fileURLToPath(new URL('..', import.meta.url)), 'docs', 'prompts', 'task.md'),
+  'utf8'
+);
+
+const verifyTemplate = readFileSync(
+  join(fileURLToPath(new URL('..', import.meta.url)), 'docs', 'prompts', 'verify-plan.md'),
   'utf8'
 );
 
@@ -123,6 +128,23 @@ describe('taskPrompt', () => {
 
   it('практик не подключено — раздела в запросе нет вовсе', () => {
     const prompt = taskPrompt(template, task);
+    expect(prompt).not.toContain('## Общие практики');
+  });
+});
+
+describe('verifyPrompt', () => {
+  it('кладёт текст практик, с меткой источника', () => {
+    const prompt = verifyPrompt(verifyTemplate, [
+      { label: 'docdd-console', id: 'A-0007', title: 'ESLint', body: 'Только `===`/`!==`.' }
+    ]);
+    expect(prompt).not.toContain(VERIFY_MARKER);
+    expect(prompt).toContain('[docdd-console] A-0007: ESLint');
+    expect(prompt).toContain('Только `===`/`!==`.');
+  });
+
+  it('практик не подключено — прямо сказано, а не пустой раздел', () => {
+    const prompt = verifyPrompt(verifyTemplate, []);
+    expect(prompt).toContain('Практик не подключено');
     expect(prompt).not.toContain('## Общие практики');
   });
 });
