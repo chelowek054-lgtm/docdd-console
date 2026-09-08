@@ -257,6 +257,18 @@ describe('sharedSourcesOf', () => {
     );
     expect(view?.registeredProjectId).toBe('stack-conventions');
   });
+
+  it('preview — то же самое, что уйдёт в запрос модели, для тегов этого источника прямо сейчас', () => {
+    const [view] = sharedSourcesOf([{ path: source, tags: ['vue'] }]);
+    expect(view?.preview).toEqual([
+      expect.objectContaining({ label: 'stack-conventions', id: 'A-0001', title: 'Composition API везде' })
+    ]);
+  });
+
+  it('тегов не выбрано — preview пуст, как и раздел в запросе для этого источника', () => {
+    const [view] = sharedSourcesOf([{ path: source, tags: [] }]);
+    expect(view?.preview).toEqual([]);
+  });
 });
 
 describe('toggleSourceTag', () => {

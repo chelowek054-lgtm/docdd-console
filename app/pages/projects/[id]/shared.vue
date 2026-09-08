@@ -24,6 +24,15 @@ const sources = computed(() => (failure.value ? [] : ((data.value as { sources: 
 const pending = ref<string | null>(null);
 const toggleFailure = ref<ApiFailure | null>(null);
 
+/** Раскрытые предпросмотры — по умолчанию свёрнуты, ключ — путь источника. */
+const previewOpen = ref<Set<string>>(new Set());
+function togglePreview(path: string) {
+  const next = new Set(previewOpen.value);
+  if (next.has(path)) next.delete(path);
+  else next.add(path);
+  previewOpen.value = next;
+}
+
 async function toggleTag(source: SharedSourceView, tag: string) {
   const key = `${source.path}#${tag}`;
   pending.value = key;
@@ -110,7 +119,7 @@ async function toggleTag(source: SharedSourceView, tag: string) {
                  несколько decision/design разом, и один и тот же тег виден
                  сразу у всех записей, которые он охватывает. -->
             <p class="mt-3 text-xs text-muted">Подключить по тегам:</p>
-            <div class="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+            <div class="mt-1 flex flex-col gap-1">
               <label
                 v-for="tag in source.availableTags"
                 :key="tag"
@@ -152,6 +161,23 @@ async function toggleTag(source: SharedSourceView, tag: string) {
                   можно, добавив <span class="font-mono">{{ source.path }}</span> на
                   <NuxtLink to="/" class="hover:underline">экране проектов</NuxtLink>.
                 </p>
+
+                <UButton
+                  v-if="source.preview.length > 0"
+                  size="xs"
+                  variant="link"
+                  class="mt-2 px-0"
+                  :icon="previewOpen.has(source.path) ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+                  @click="togglePreview(source.path)"
+                >
+                  Что уйдёт в запрос модели
+                </UButton>
+                <div v-if="previewOpen.has(source.path)" class="mt-2 space-y-3 rounded bg-elevated p-3">
+                  <div v-for="practice in source.preview" :key="practice.id">
+                    <p class="font-mono text-xs text-muted">[{{ practice.label }}] {{ practice.id }}: {{ practice.title }}</p>
+                    <pre class="mt-1 whitespace-pre-wrap text-xs">{{ practice.body }}</pre>
+                  </div>
+                </div>
               </template>
             </template>
           </template>
