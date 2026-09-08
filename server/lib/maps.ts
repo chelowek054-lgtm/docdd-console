@@ -1,4 +1,7 @@
 import { validateCodemap, validateDataflow, validateFunctional, validateSkipped, validateUserflow } from './schema';
+import { yamlSafe } from './write';
+
+const LF = String.fromCharCode(10);
 
 /**
  * Карты проекта (docs/07-maps.md). Разбор трёх структур из тела записи и
@@ -377,3 +380,53 @@ function apply(
   }
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
+
+/**
+ * Тело черновика: только блоки структур и оговорка, откуда они взялись. Текст
+ * ответа целиком не сохраняем — в записи должно лежать то, что читается, а не
+ * стенограмма разговора.
+ *
+ * Блок `docdd-skipped` — не структура, а решение («этот файл в карту не
+ * идёт, и вот почему») — но, если его не сохранить в файл, `markDescribed()`
+ * (server/utils/inventory-service.ts) в момент подтверждения его не найдёт: он
+ * читает именно этот файл, а не ответ модели, из которого черновик собран.
+ * Файл, о котором модель сказала «пропускаю», без этого возвращался бы в
+ * очередь на следующий заход бесконечно — то, ради чего блок и придуман.
+ */
+export function mapDraftText(
+  id: string,
+  title: string,
+  change: MapChange,
+  present: readonly MapStructure[],
+  today: string
+): string {
+  const lines = [
+    '---',
+    `id: ${id}`,
+    'type: map',
+    `title: ${yamlSafe(title)}`,
+    'status: draft',
+    `created: ${today}`,
+    `updated: ${today}`,
+    '---',
+    '',
+    `# ${title}`,
+    '',
+    'Черновик: составлен моделью, не подтверждён. Прочитайте, поправьте руками',
+    'то, что модель не поняла, и подтвердите — до этого карта на общую картину',
+    'не влияет.',
+    ''
+  ];
+
+  for (const structure of MAP_STRUCTURES) {
+    if (!present.includes(structure)) continue;
+    lines.push('```docdd-' + structure, JSON.stringify(change[structure] ?? {}, null, 2), '```', '');
+  }
+
+  if (change.skipped && change.skipped.length > 0) {
+    lines.push('```docdd-skipped', JSON.stringify({ files: change.skipped }, null, 2), '```', '');
+  }
+
+  lines.push('## Журнал', '', `- ${today} · заведена черновиком · модель`, '');
+  return lines.join(LF);
+}

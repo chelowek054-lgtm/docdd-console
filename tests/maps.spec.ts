@@ -5,6 +5,7 @@ import {
   collapse,
   evidenceClaims,
   foldMaps,
+  mapDraftText,
   parseMapRecord,
   type MapChange
 } from '../server/lib/maps';
@@ -87,6 +88,37 @@ describe('parseMapRecord', () => {
     expect(parsed.problems).toEqual([]);
     expect(parsed.present).toEqual(['functional']);
     expect(parsed.change.functional?.added?.capabilities).toEqual([{ id: 'orders', title: 'Заказы' }]);
+  });
+
+  it('разбирает блок `docdd-skipped» — файл, который в карту не идёт, и причина', () => {
+    const text = [
+      body('codemap', { added: { imports: [import1] } }),
+      body('skipped', { files: [{ path: 'README.md', why: 'документ, не модуль' }] })
+    ].join(LF);
+    const parsed = parseMapRecord(text);
+    expect(parsed.problems).toEqual([]);
+    expect(parsed.change.skipped).toEqual([{ path: 'README.md', why: 'документ, не модуль' }]);
+  });
+});
+
+describe('mapDraftText', () => {
+  const change: MapChange = {
+    codemap: { added: { imports: [import1] } },
+    skipped: [{ path: 'README.md', why: 'документ, не модуль' }]
+  };
+
+  it('несёт блок `docdd-skipped` в сохранённый черновик', () => {
+    // Не структура, а решение — но markDescribed() (server/utils/
+    // inventory-service.ts) в момент подтверждения читает именно этот файл,
+    // а не ответ модели: не попал сюда — файл вернётся в очередь бесконечно.
+    const text = mapDraftText('M-0007', 'Карта', change, ['codemap'], '2026-09-08');
+    const parsed = parseMapRecord(text);
+    expect(parsed.change.skipped).toEqual([{ path: 'README.md', why: 'документ, не модуль' }]);
+  });
+
+  it('пропущенных файлов нет — блока в черновике тоже нет', () => {
+    const text = mapDraftText('M-0007', 'Карта', { codemap: change.codemap }, ['codemap'], '2026-09-08');
+    expect(text).not.toContain('docdd-skipped');
   });
 });
 
