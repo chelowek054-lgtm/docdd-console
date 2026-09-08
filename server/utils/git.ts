@@ -127,24 +127,51 @@ export interface WorkChanges {
 /**
  * Что модель наработала. `--intent-to-add` показывает и новые файлы, но ничего
  * не индексирует: приложение читает дерево, а не меняет его состояние.
+ *
+ * Модель работает с полным доступом (`access: 'full'`) — ей доступен Bash, и
+ * она вправе закоммитить сама, не дожидаясь `accept()`. Дифф против одного
+ * лишь `HEAD` такое не видит: рабочее дерево после коммита чистое, а «что
+ * наработано» — это то, чем ветка задачи отличается от `base`, независимо от
+ * того, закоммичено оно или нет. `base` не задан (например, задачу подняли до
+ * этой правки) — сравниваем по-старому, с `HEAD`.
  */
-export async function changesIn(worktree: string): Promise<WorkChanges> {
+export async function changesIn(worktree: string, base?: string | null): Promise<WorkChanges> {
   await git(worktree, ['add', '--intent-to-add', '--all']);
 
-  const status = await git(worktree, ['status', '--porcelain']);
-  const files = status.stdout
+  const against = await diffBase(worktree, base);
+
+  const names = await git(worktree, ['diff', '--name-only', against]);
+  const files = names.stdout
     .split(/\r?\n/)
-    .filter((line) => line.trim() !== '')
-    .map((line) => line.slice(3).trim().split(' -> ').pop() ?? '')
+    .map((line) => line.trim())
     .filter((path) => path !== '');
 
-  const diff = await git(worktree, ['diff', '--no-color']);
+  const diff = await git(worktree, ['diff', '--no-color', against]);
   return { files, diff: diff.stdout };
 }
 
+/** Точка отсчёта для диффа: место, где ветка задачи разошлась с `base`. */
+async function diffBase(worktree: string, base?: string | null): Promise<string> {
+  if (base) {
+    const mergeBase = await git(worktree, ['merge-base', 'HEAD', base]);
+    if (mergeBase.ok && mergeBase.stdout.trim()) return mergeBase.stdout.trim();
+  }
+  return 'HEAD';
+}
+
+/**
+ * Модель с полным доступом вправе закоммитить сама (см. `changesIn`) — тогда
+ * дерево уже чистое, и `git commit` откажет: коммитить нечего. Это не сбой:
+ * работа уже лежит в истории ветки, принимать её отдельным коммитом не нужно.
+ */
 export async function commitAll(worktree: string, message: string): Promise<GitResult> {
   const added = await git(worktree, ['add', '--all']);
   if (!added.ok) return added;
+
+  if (await isClean(worktree)) {
+    return { ok: true, stdout: 'уже закоммичено', stderr: '', code: 0 };
+  }
+
   return git(worktree, ['commit', '--no-verify', '-m', message]);
 }
 
