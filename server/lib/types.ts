@@ -96,6 +96,7 @@ export type ViolationCode =
   | 'task_not_ready_docs'
   | 'task_no_requirement'
   | 'task_done_unverified'
+  | 'code_sources_empty_after_feature'
   | 'transition_forbidden'
   | 'requirement_unverified'
   | 'requirement_unimplemented'
@@ -157,6 +158,7 @@ export const VIOLATION_LEVELS: Readonly<Record<ViolationCode, Severity>> = {
   task_not_ready_docs: 'error',
   task_no_requirement: 'error',
   task_done_unverified: 'error',
+  code_sources_empty_after_feature: 'warning',
   transition_forbidden: 'error',
   requirement_unverified: 'warning',
   requirement_unimplemented: 'warning',

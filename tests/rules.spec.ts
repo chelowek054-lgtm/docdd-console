@@ -9,6 +9,7 @@ import {
   checkRecordIdentity,
   checkSuperseded,
   checkTransition,
+  codeSourcesEmptyAfterFeature,
   docChangedAfterTask,
   requirementUnimplemented,
   requirementUnverified,
@@ -390,6 +391,35 @@ describe('task_done_unverified', () => {
   it('молчит при выключенной политике', () => {
     const ctx = context([verification, done], { policy: { require_verification_before_done: false } });
     expect(taskDoneUnverified(ctx)).toEqual([]);
+  });
+});
+
+describe('code_sources_empty_after_feature', () => {
+  const feature = (status: string) => rec('T-0002', 'task', status, { extra: { change: 'feature' } });
+
+  it('срабатывает: feature-задача закрыта, а sources.code пуст', () => {
+    const ctx = context([feature('done')], { codeRoots: [] });
+    expect(codes(codeSourcesEmptyAfterFeature(ctx))).toEqual(['code_sources_empty_after_feature']);
+  });
+
+  it('срабатывает и на in_review — код мог появиться раньше закрытия', () => {
+    const ctx = context([feature('in_review')], { codeRoots: [] });
+    expect(codes(codeSourcesEmptyAfterFeature(ctx))).toEqual(['code_sources_empty_after_feature']);
+  });
+
+  it('молчит, когда sources.code назван', () => {
+    const ctx = context([feature('done')], { codeRoots: ['backend'] });
+    expect(codeSourcesEmptyAfterFeature(ctx)).toEqual([]);
+  });
+
+  it('молчит на задаче, которая ещё не дошла до in_review', () => {
+    const ctx = context([feature('in_progress')], { codeRoots: [] });
+    expect(codeSourcesEmptyAfterFeature(ctx)).toEqual([]);
+  });
+
+  it('молчит на задаче с другим change', () => {
+    const ctx = context([rec('T-0002', 'task', 'done', { extra: { change: 'fix' } })], { codeRoots: [] });
+    expect(codeSourcesEmptyAfterFeature(ctx)).toEqual([]);
   });
 });
 
