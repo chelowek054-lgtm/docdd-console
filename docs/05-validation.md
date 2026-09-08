@@ -90,6 +90,7 @@ flowchart LR
 | `task_not_ready_docs` | error | Задача `ready` или `in_progress`, а её `documents` или `refines` не подтверждены |
 | `task_no_requirement` | error | Задача `ready` и дальше без единой `implements` |
 | `task_done_unverified` | error | Задача `done`, а её проверки не `passed`; при включённой политике |
+| `code_sources_empty_after_feature` | warning | `feature`-задача дошла до `in_review`/`done`, а `sources.code` в манифесте пуст |
 | `transition_forbidden` | error | Запрошен переход, которого нет в схеме статусов |
 | `requirement_unverified` | warning | Требование `approved` без единой `verified_by` |
 | `requirement_unimplemented` | warning | Требование `approved`, на которое не ссылается ни одна задача |

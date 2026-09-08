@@ -175,6 +175,7 @@ export function checkAll(ctx: RuleContext): Violation[] {
     ...taskNotReadyDocs(ctx),
     ...taskNoRequirement(ctx),
     ...taskDoneUnverified(ctx),
+    ...codeSourcesEmptyAfterFeature(ctx),
     ...requirementUnverified(ctx),
     ...requirementUnimplemented(ctx),
     ...docChangedAfterTask(ctx),
@@ -552,6 +553,30 @@ export function taskDoneUnverified(ctx: RuleContext): Violation[] {
         'Задача ' + task.id + ' закрыта, а проверка ' + id + ' ' + state + '. Закрытая задача без пройденной проверки — обещание, а не факт.'
       ));
     }
+  }
+  return found;
+}
+
+/**
+ * `feature`-задача закрылась, а `sources.code` в манифесте всё ещё пуст —
+ * значит написанный код физически лежит в проекте, но приложение о нём не
+ * знает: карта его не увидит, ссылки на файлы кода не проверятся, и
+ * следующий заход в «Карты» ответит «в проекте нет файлов кода», хотя это
+ * неправда. Родилось на gastrograf: код появился в `backend/`, а
+ * `sources.code` остался `[]` — три задачи молча закрылись мимо манифеста.
+ */
+export function codeSourcesEmptyAfterFeature(ctx: RuleContext): Violation[] {
+  if (ctx.code.roots.length > 0) return [];
+  const found: Violation[] = [];
+  for (const task of tasks(ctx)) {
+    if (task.data['change'] !== 'feature') continue;
+    if (task.status !== 'in_review' && task.status !== 'done') continue;
+    found.push(violation(
+      'code_sources_empty_after_feature',
+      task.id,
+      task.source.path,
+      `Задача ${task.id} — feature, дошла до \`${task.status}\`, а sources.code в манифесте пуст. Если код уже написан — назовите его каталог в манифесте, иначе карта его не увидит.`
+    ));
   }
   return found;
 }
