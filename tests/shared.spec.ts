@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { availableTagsOf, narrowDomainTypes, sharedRecordsOf } from '../server/lib/shared';
+import { availableTagsOf, narrowDomainTypes, recordIdsByTag, sharedRecordsOf } from '../server/lib/shared';
 import type { IndexRecord } from '../server/lib/types';
 import { connectedPractices, sharedSourcesOf, toggleSourceTag } from '../server/utils/shared-service';
 
@@ -122,6 +122,28 @@ describe('availableTagsOf', () => {
     expect(availableTagsOf(records)).toEqual(['android', 'kotlin']);
     // Отбор по тегам без выбора — пусто; доступные теги — не то же самое.
     expect(sharedRecordsOf(records, [])).toEqual([]);
+  });
+});
+
+describe('recordIdsByTag', () => {
+  it('называет id записей у каждого тега — что именно галочка подключит', () => {
+    const records = [
+      rec('A-0001', 'decision', 'approved', ['vue', 'typescript']),
+      rec('A-0002', 'design', 'approved', ['typescript'])
+    ];
+    expect(recordIdsByTag(records)).toEqual({ vue: ['A-0001'], typescript: ['A-0001', 'A-0002'] });
+  });
+
+  it('черновик и чужой тип не в счёт', () => {
+    const records = [
+      rec('A-0003', 'decision', 'draft', ['vue']),
+      rec('T-0001', 'task', 'approved', ['vue'])
+    ];
+    expect(recordIdsByTag(records)).toEqual({});
+  });
+
+  it('пусто, когда подключиться нечем', () => {
+    expect(recordIdsByTag([])).toEqual({});
   });
 });
 

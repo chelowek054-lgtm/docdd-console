@@ -420,7 +420,7 @@ updated: 2026-08-31
         {"from":"server/utils/shared-service.ts","to":"server/lib/manifest-write.ts","evidence":{"path":"server/utils/shared-service.ts","line":5,"fragment":"import { toggleSharedTag } from '../lib/manifest-write';"}},
         {"from":"server/utils/shared-service.ts","to":"server/lib/parse.ts","evidence":{"path":"server/utils/shared-service.ts","line":6,"fragment":"import { parseRecord } from '../lib/parse';"}},
         {"from":"server/utils/shared-service.ts","to":"server/lib/paths.ts","evidence":{"path":"server/utils/shared-service.ts","line":7,"fragment":"import { normalizeRoot, resolveInside } from '../lib/paths'"}},
-        {"from":"server/utils/shared-service.ts","to":"server/lib/shared.ts","evidence":{"path":"server/utils/shared-service.ts","line":8,"fragment":"import { availableTagsOf, narrowDomainTypes, sharedRecordsO"}},
+        {"from":"server/utils/shared-service.ts","to":"server/lib/shared.ts","evidence":{"path":"server/utils/shared-service.ts","line":8,"fragment":"import { availableTagsOf, narrowDomainTypes, recordIdsByTa"}},
         {"from":"server/utils/shared-service.ts","to":"server/lib/types.ts","evidence":{"path":"server/utils/shared-service.ts","line":9,"fragment":"import type { ProjectEntry, SharedSource } from '../lib/typ"}},
         {"from":"server/utils/shared-service.ts","to":"server/lib/write.ts","evidence":{"path":"server/utils/shared-service.ts","line":10,"fragment":"import { withoutJournal } from '../lib/write';"}},
         {"from":"server/utils/shared-service.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/utils/shared-service.ts","line":11,"fragment":"import { developmentDir, MANIFEST_FILE, WorkspaceError } fr"}},
