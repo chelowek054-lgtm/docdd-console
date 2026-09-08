@@ -37,6 +37,13 @@ export interface SharedSourceView {
    * пока его не откроют отдельно.
    */
   registeredProjectId: string | null;
+  /**
+   * То же самое, что реально уйдёт в раздел «Общие практики» запроса модели
+   * (docs/09-execution.md), для текущих `tags` этого источника, — предпросмотр
+   * на экране (04-ui.md) читает готовый результат, не пересказывает его. Пусто,
+   * если тегов не выбрано — тогда и в запросе для этого источника ничего нет.
+   */
+  preview: ConnectedPractice[];
   /** Путь не открылся как DocDD-проект: не найден, не тот контракт, битый манифест. */
   error?: string;
 }
@@ -61,7 +68,8 @@ export function sharedSourcesOf(sources: readonly SharedSource[], registered: re
         records: sharedRecordsOf(index.records, tags),
         narrowDomain: narrowDomainTypes(index.records),
         availableTags: availableTagsOf(index.records),
-        registeredProjectId: match?.id ?? null
+        registeredProjectId: match?.id ?? null,
+        preview: connectedPractices([{ path: source.path, tags }])
       };
     } catch (error) {
       const message = error instanceof WorkspaceError ? error.message : String(error);
@@ -73,6 +81,7 @@ export function sharedSourcesOf(sources: readonly SharedSource[], registered: re
         narrowDomain: [],
         availableTags: [],
         registeredProjectId: null,
+        preview: [],
         error: message
       };
     }
