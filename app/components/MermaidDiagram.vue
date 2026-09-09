@@ -1,9 +1,23 @@
 <script setup lang="ts">
+import type { MermaidEdge } from '../utils/map-mermaid';
+
 const props = defineProps<{
   source: string;
   id: string;
   /** id узла в тексте mermaid → полный текст для наведения (app/utils/map-mermaid.ts). */
   details?: Record<string, string>;
+  /** id узла → файл, который открывает клик (только у узлов, которые карта назвала). */
+  paths?: Record<string, string>;
+  /** Свидетельство каждой связи — для клика по ребру. */
+  edges?: MermaidEdge[];
+  /** id узла → id соседей — для подсветки при клике (app/utils/map-mermaid.ts). */
+  neighbors?: Record<string, string[]>;
+}>();
+
+const emit = defineEmits<{
+  /** Клик по узлу — id узла (ключ в `details`/`paths`/`neighbors`). */
+  'node-click': [id: string];
+  'edge-click': [edge: MermaidEdge];
 }>();
 
 const wrapper = ref<HTMLElement | null>(null);
@@ -11,6 +25,10 @@ const viewport = ref<HTMLElement | null>(null);
 const container = ref<HTMLElement | null>(null);
 const error = ref('');
 const fullscreen = ref(false);
+/** Узел, на который кликнули последним — приглушает всё, кроме его соседей. */
+const focused = ref<string | null>(null);
+/** DOM-элемент ребра ↔ его данные — построено при отрисовке, используется и кликом, и приглушением. */
+let edgeElements: { edge: MermaidEdge; el: SVGPathElement }[] = [];
 
 /**
  * Отрисовка mermaid — только в браузере: библиотека меряет текст и без DOM не
@@ -20,6 +38,8 @@ const fullscreen = ref(false);
 async function draw() {
   if (!import.meta.client || !container.value) return;
   error.value = '';
+  focused.value = null;
+  edgeElements = [];
   try {
     const mermaid = (await import('mermaid')).default;
     mermaid.initialize({
@@ -34,6 +54,7 @@ async function draw() {
     const { svg } = await mermaid.render(`mermaid-${props.id}`, props.source);
     container.value.innerHTML = svg;
     annotateTitles();
+    attachInteractions();
     resetView();
   } catch (cause) {
     container.value.innerHTML = '';
@@ -45,21 +66,97 @@ onMounted(draw);
 watch(() => props.source, draw);
 
 /**
+ * Ключ узла (как в `details`/`paths`) по элементу SVG. Mermaid называет узел
+ * по нашему id с добавками (`flowchart-m_xxx-3`), поэтому ищем по вхождению,
+ * а не по точному совпадению — тем же способом, каким искали для title.
+ */
+function keyOfNode(node: Element): string | null {
+  const entries = Object.keys(props.details ?? {});
+  return entries.find((key) => node.id.includes(`${key}-`) || node.id.endsWith(key)) ?? null;
+}
+
+/**
  * Подробности при наведении — родной `<title>` внутри узла SVG, без своей
- * всплывающей подсказки: mermaid называет узел по нашему id с добавками
- * (`flowchart-m_xxx-3`), поэтому ищем по вхождению, а не по точному совпадению.
+ * всплывающей подсказки.
  */
 function annotateTitles() {
   if (!container.value || !props.details) return;
-  const entries = Object.entries(props.details);
-  if (entries.length === 0) return;
+  for (const node of container.value.querySelectorAll<SVGGElement>('.node, .mindmap-node')) {
+    const key = keyOfNode(node);
+    const text = key ? props.details[key] : undefined;
+    if (!text) continue;
+    const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+    title.textContent = text;
+    node.insertBefore(title, node.firstChild);
+  }
+}
+
+/**
+ * Клик по узлу и по ребру — «узел ведёт к коду, ребро — к свидетельству»
+ * (docs/04-ui.md, «Карты»). Ребро ищем по id узлов внутри собственного id
+ * ребра — mermaid кладёт оба id туда сам (`L_<from>_<to>_<n>`), тем же
+ * приёмом вхождения, что и у узла; `dataset.claimed` бережёт от повторной
+ * привязки одного DOM-элемента, если между теми же узлами несколько связей.
+ */
+function attachInteractions() {
+  if (!container.value) return;
 
   for (const node of container.value.querySelectorAll<SVGGElement>('.node, .mindmap-node')) {
-    const match = entries.find(([key]) => node.id.includes(`${key}-`) || node.id.endsWith(key));
-    if (!match?.[1]) continue;
-    const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-    title.textContent = match[1];
-    node.insertBefore(title, node.firstChild);
+    const key = keyOfNode(node);
+    if (!key) continue;
+    (node.style as CSSStyleDeclaration).cursor = 'pointer';
+    node.addEventListener('click', (event) => {
+      event.stopPropagation();
+      onNodeClick(key);
+    });
+  }
+
+  for (const edge of props.edges ?? []) {
+    const marker = `L_${edge.from}_${edge.to}_`;
+    const path = [...container.value.querySelectorAll<SVGPathElement>('.edgePaths path')]
+      .find((candidate) => candidate.id.includes(marker) && !candidate.dataset['claimed']);
+    if (!path) continue;
+    path.dataset['claimed'] = '1';
+    path.style.cursor = 'pointer';
+    path.style.pointerEvents = 'stroke';
+    path.addEventListener('click', (event) => {
+      event.stopPropagation();
+      emit('edge-click', edge);
+    });
+    edgeElements.push({ edge, el: path });
+  }
+
+  // Клик по пустому месту диаграммы снимает фокус — узлы/рёбра сами
+  // останавливают всплытие, сюда доходит только клик мимо них.
+  viewport.value?.addEventListener('click', () => {
+    if (focused.value !== null) {
+      focused.value = null;
+      applyFocus();
+    }
+  });
+}
+
+function onNodeClick(key: string) {
+  focused.value = focused.value === key ? null : key;
+  applyFocus();
+  emit('node-click', key);
+}
+
+/**
+ * Фокус на соседях — приглушает всё остальное, не перерисовывая диаграмму:
+ * плотный граф иначе не разглядеть, какая связь чья (docs/04-ui.md, «Карты»).
+ */
+function applyFocus() {
+  if (!container.value) return;
+  const active = focused.value;
+  const keep = active ? new Set([active, ...(props.neighbors?.[active] ?? [])]) : null;
+
+  for (const node of container.value.querySelectorAll<SVGGElement>('.node, .mindmap-node')) {
+    const key = keyOfNode(node);
+    node.style.opacity = !keep || (key !== null && keep.has(key)) ? '1' : '0.15';
+  }
+  for (const { edge, el } of edgeElements) {
+    el.style.opacity = !active || edge.from === active || edge.to === active ? '1' : '0.15';
   }
 }
 
@@ -154,6 +251,25 @@ function onFullscreenChange() {
 
 onMounted(() => document.addEventListener('fullscreenchange', onFullscreenChange));
 onUnmounted(() => document.removeEventListener('fullscreenchange', onFullscreenChange));
+
+/**
+ * SVG уже лежит в DOM — экспорт это просто его сериализация в файл, без
+ * похода на сервер и без второй библиотеки. Кладём в него фон явно: страница
+ * может быть в тёмной теме, а сохранённый файл должен читаться и вне неё.
+ */
+function exportSvg() {
+  const svg = container.value?.querySelector('svg');
+  if (!svg) return;
+  const clone = svg.cloneNode(true) as SVGSVGElement;
+  clone.style.backgroundColor = document.documentElement.classList.contains('dark') ? '#111827' : '#FFFFFF';
+  const blob = new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${props.id}.svg`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 </script>
 
 <template>
@@ -195,6 +311,14 @@ onUnmounted(() => document.removeEventListener('fullscreenchange', onFullscreenC
           variant="subtle"
           :title="fullscreen ? 'Выйти из полного экрана' : 'На весь экран'"
           @click="toggleFullscreen"
+        />
+        <UButton
+          icon="i-lucide-download"
+          size="xs"
+          color="neutral"
+          variant="subtle"
+          title="Сохранить как SVG"
+          @click="exportSvg"
         />
       </div>
       <div

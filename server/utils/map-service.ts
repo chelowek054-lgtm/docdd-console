@@ -1,5 +1,6 @@
 import { analyze } from '../lib/analyze';
 import {
+  annotateEvidenceStatus,
   checkEvidence,
   evidenceClaims,
   foldMaps,
@@ -51,5 +52,7 @@ export function buildProjectMap(root: string): ProjectMapResult {
     }
   }
 
-  return { ...foldMaps(changes), unverified };
+  const folded = foldMaps(changes);
+  annotateEvidenceStatus(folded, read);
+  return { ...folded, unverified };
 }
