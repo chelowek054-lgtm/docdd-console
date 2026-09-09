@@ -6,6 +6,7 @@ import {
   DEVELOPMENT_DIR,
   PREFIX_BY_TYPE,
   RECORD_TYPES,
+  RETIRED_STATUSES,
   SECTION_BY_TYPE,
   violation,
   type LinkKind,
@@ -335,13 +336,18 @@ export function checkMaps(ctx: RuleContext): Violation[] {
     if (record.type !== 'map' || !record.id) continue;
 
     const parsed = parseMapRecord(record.body);
-    for (const problem of parsed.problems) {
-      found.push(violation(
-        'map_invalid',
-        record.id,
-        record.source.path,
-        problem.message + ' Карта, которую нельзя разобрать, ничего не описывает.'
-      ));
+    // Отставленная карта (заменена, отменена, отвергнута) больше не читается
+    // как текущая — её форма никого не вводит в заблуждение и чинить в ней
+    // уже нечего (docs/05-validation.md).
+    if (!RETIRED_STATUSES.has(record.status)) {
+      for (const problem of parsed.problems) {
+        found.push(violation(
+          'map_invalid',
+          record.id,
+          record.source.path,
+          problem.message + ' Карта, которую нельзя разобрать, ничего не описывает.'
+        ));
+      }
     }
 
     if (record.status !== 'approved' || !ctx.readSource) continue;

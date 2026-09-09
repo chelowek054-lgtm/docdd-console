@@ -5,6 +5,7 @@ import { checkAll, checkRecordIdentity, type RuleContext } from './rules';
 import { validateFrontMatter, type SchemaIssue } from './schema';
 import {
   violation,
+  RETIRED_STATUSES,
   type ProjectManifest,
   type RecordSource,
   type Report,
@@ -66,7 +67,12 @@ export function analyze(input: AnalyzeInput): AnalyzeResult {
 
     const identity = checkRecordIdentity(record);
     violations.push(...identity);
-    violations.push(...schemaViolations(record, identity));
+    // Отставленная запись (заменена, отменена, отвергнута) больше не читается
+    // как текущая — недостающее в ней поле не дело, которое кому-то доделывать
+    // (docs/05-validation.md).
+    if (!RETIRED_STATUSES.has(record.status)) {
+      violations.push(...schemaViolations(record, identity));
+    }
   }
 
   const graph = buildGraph(records);
