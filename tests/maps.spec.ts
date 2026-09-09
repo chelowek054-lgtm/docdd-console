@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  annotateEvidenceStatus,
   checkEvidence,
   collapse,
   evidenceClaims,
@@ -374,6 +375,66 @@ describe('foldMaps', () => {
       }
     ]);
     expect(map.functional.capabilities.map((item) => item.id)).toEqual(['orders', 'orders.pay']);
+  });
+
+  it('несёт, какая карта последней объявила узел — для трассируемости на экране', () => {
+    const map = foldMaps([
+      { id: 'M-0001', change: { codemap: { added: { modules: [{ id: 'a.ts', title: 'Было' }] } } } },
+      { id: 'M-0002', change: { codemap: { added: { modules: [{ id: 'a.ts', title: 'Стало' }] } } } }
+    ]);
+    // Уточнение — та же запись физически, поэтому и declaredBy сменился на неё.
+    expect(map.codemap.modules[0]?.declaredBy).toBe('M-0002');
+  });
+});
+
+describe('annotateEvidenceStatus', () => {
+  it('свежему свидетельству ставит ok, уехавшему — stale', () => {
+    const map = foldMaps([{
+      id: 'M-0001',
+      change: {
+        codemap: {
+          added: {
+            imports: [
+              { from: 'a.ts', to: 'b.ts', evidence: { path: 'a.ts', line: 1, fragment: 'import b' } },
+              { from: 'a.ts', to: 'c.ts', evidence: { path: 'a.ts', line: 99, fragment: 'нет такого' } }
+            ]
+          }
+        }
+      }
+    }]);
+    annotateEvidenceStatus(map, (path) => (path === 'a.ts' ? 'import b' : null));
+    expect(map.codemap.imports[0]?.status).toBe('ok');
+    expect(map.codemap.imports[1]?.status).toBe('stale');
+  });
+
+  it('ставит статус на все виды рёбер, а не только на codemap', () => {
+    const map = foldMaps([{
+      id: 'M-0001',
+      change: {
+        dataflow: {
+          added: {
+            flows: [{
+              from: 'a.ts', to: 's', direction: 'read',
+              evidence: { path: 'a.ts', line: 1, fragment: 'query' }
+            }]
+          }
+        },
+        userflow: {
+          added: {
+            transitions: [{
+              from: '/a', to: '/b', evidence: { path: 'a.ts', line: 1, fragment: 'query' }
+            }],
+            calls: [{
+              from: '/a', to: 'GET /x', evidence: { path: 'a.ts', line: 1, fragment: 'query' }
+            }]
+          }
+        }
+      }
+    }]);
+    annotateEvidenceStatus(map, () => 'query');
+    expect(map.dataflow.flows[0]?.status).toBe('ok');
+    expect(map.userflow.transitions[0]?.status).toBe('ok');
+    expect(map.userflow.calls[0]?.status).toBe('ok');
   });
 });
 

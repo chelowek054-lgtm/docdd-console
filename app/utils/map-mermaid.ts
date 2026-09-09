@@ -1,26 +1,73 @@
-import type { ProjectMap } from '../../server/lib/maps';
+import type { Evidence, EvidenceVerdict, ProjectMap } from '../../server/lib/maps';
 
 /**
  * Карты в текст mermaid. Тот же текст показывается на экране и выгружается,
  * чтобы вставить его в документ проекта и перерисовывать в его сборке
  * (docs/07-maps.md).
  *
- * Каждая функция отдаёт не только текст, но и `details` — что показать при
- * наведении на узел: подпись на схеме укорочена ради места, а здесь —
- * полностью, вместе с тем, что на схему не поместилось (слой, вид источника,
- * путь файла). Экран (MermaidDiagram.vue) находит узел в отрисованном SVG по
- * тому же идентификатору и вставляет туда `<title>` — наведение мышью, без
- * своей всплывающей подсказки.
+ * Каждая функция отдаёт не только текст, но и что показать при наведении и
+ * клике: `details` — полная подпись при наведении, `paths` — файл, который
+ * открывает клик по узлу (`04-ui.md`, «Карты» — только если карта его
+ * назвала, никогда не выдумывается по `id`), `nodes` — то же самое плюс
+ * заголовок/слой/карта-источник структурой, для карточки при клике
+ * (`MapInspector.vue`), `edges` — свидетельство и свежесть каждой связи
+ * вместе с id её узлов (тех же, что в `details`), по которым экран
+ * (`MermaidDiagram.vue`) ищет ребро в отрисованном SVG — mermaid кладёт оба
+ * id в свой собственный id ребра, так же как в узле (см. `annotateTitles`),
+ * и по ним же строится `neighbors` — для подсветки соседей узла при клике,
+ * без похода в SVG вовсе.
  */
+
+export interface MermaidEdge {
+  /** id узлов — как в тексте диаграммы (`nodeId()` ниже), не исходные from/to карты. */
+  from: string;
+  to: string;
+  evidence: Evidence;
+  status?: EvidenceVerdict;
+  /** Какая карта последней объявила эту связь (`server/lib/maps.ts`, `declaredBy`). */
+  declaredBy?: string;
+}
+
+export interface MermaidNode {
+  id: string;
+  title?: string;
+  layer?: string;
+  path?: string;
+  declaredBy?: string;
+}
+
+/** Что показывает `MapInspector.vue` — узел (по `MermaidNode`) или ребро (по `MermaidEdge`). */
+export type MapSelection =
+  | ({ kind: 'node' } & MermaidNode)
+  | ({ kind: 'edge' } & Pick<MermaidEdge, 'evidence' | 'status' | 'declaredBy'>);
 
 export interface MermaidOutput {
   text: string;
   /** id узла (как в тексте mermaid) → полный текст для title при наведении. */
   details: Record<string, string>;
+  /** id узла → файл, который открывает клик. Узлов без объявленного файла тут нет. */
+  paths: Record<string, string>;
+  /** id узла → метаданные для карточки при клике (MapInspector.vue). */
+  nodes: Record<string, MermaidNode>;
+  /** Свидетельство и id узлов каждой связи — порядок совпадает с текстом диаграммы. */
+  edges: MermaidEdge[];
+  /** id узла → id узлов, с которыми он соединён связью (в любую сторону). */
+  neighbors: Record<string, string[]>;
 }
 
 const LF = String.fromCharCode(10);
-const EMPTY: MermaidOutput = { text: '', details: {} };
+const EMPTY: MermaidOutput = { text: '', details: {}, paths: {}, nodes: {}, edges: [], neighbors: {} };
+
+/** `neighbors` — из уже собранных рёбер, один проход, обе стороны сразу. */
+function neighborsOf(edges: readonly MermaidEdge[]): Record<string, string[]> {
+  const map = new Map<string, Set<string>>();
+  const link = (a: string, b: string) => map.set(a, (map.get(a) ?? new Set()).add(b));
+  for (const edge of edges) {
+    link(edge.from, edge.to);
+    link(edge.to, edge.from);
+  }
+  return Object.fromEntries([...map].map(([id, set]) => [id, [...set]]));
+}
 
 /** Идентификатор узла для mermaid: путь с точками и слешами он не переваривает. */
 function nodeId(prefix: string, value: string): string {
@@ -73,11 +120,27 @@ function classDefs(categories: ReadonlySet<string>, prefix: string): string[] {
   return [...categories].map((category) => `    classDef ${nodeId(prefix, category)} fill:${colorOf(category)},stroke:#6B7280;`);
 }
 
+/**
+ * `linkStyle` красит связь по её порядковому номеру в тексте диаграммы — тому
+ * же номеру, что и позиция в массиве `edges` (см. заголовок файла). Красим
+ * только то, что разошлось с кодом: не сошедшееся свидетельство важнее
+ * увидеть на самой связи, а не только в списке нарушений (`docs/04-ui.md`).
+ */
+function styleUnverified(lines: string[], edges: readonly MermaidEdge[]): void {
+  edges.forEach((edge, index) => {
+    if (edge.status && edge.status !== 'ok') {
+      lines.push(`    linkStyle ${index} stroke:#DC2626,stroke-width:2px;`);
+    }
+  });
+}
+
 export function codemapMermaid(map: ProjectMap): MermaidOutput {
   const { modules, imports } = map.codemap;
   if (modules.length === 0 && imports.length === 0) return EMPTY;
 
   const details: Record<string, string> = {};
+  const paths: Record<string, string> = {};
+  const nodes: Record<string, MermaidNode> = {};
   const lines = ['flowchart LR'];
   // Слои становятся подграфами: колонка на слой читается лучше клубка.
   const layers = new Map<string, typeof modules>();
@@ -94,6 +157,8 @@ export function codemapMermaid(map: ProjectMap): MermaidOutput {
       const node = nodeId('m', module.id);
       lines.push(`        ${node}["${label(module.title ?? module.id)}"]:::${nodeId('layer', layer)}`);
       details[node] = [module.id, module.title, `слой: ${layer}`].filter(Boolean).join(LF);
+      if (module.path) paths[node] = module.path;
+      nodes[node] = { id: module.id, title: module.title, layer, path: module.path, declaredBy: module.declaredBy };
     }
     lines.push('    end');
   }
@@ -106,10 +171,15 @@ export function codemapMermaid(map: ProjectMap): MermaidOutput {
     imports.flatMap((edge) => [edge.from, edge.to])
   );
 
+  const edges: MermaidEdge[] = [];
   for (const edge of imports) {
-    lines.push(`    ${nodeId('m', edge.from)} --> ${nodeId('m', edge.to)}`);
+    const from = nodeId('m', edge.from);
+    const to = nodeId('m', edge.to);
+    lines.push(`    ${from} --> ${to}`);
+    edges.push({ from, to, evidence: edge.evidence, status: edge.status, declaredBy: edge.declaredBy });
   }
-  return { text: lines.join(LF), details };
+  styleUnverified(lines, edges);
+  return { text: lines.join(LF), details, paths, nodes, edges, neighbors: neighborsOf(edges) };
 }
 
 const SOURCE_KIND_LABEL: Record<string, string> = {
@@ -126,6 +196,8 @@ export function dataflowMermaid(map: ProjectMap): MermaidOutput {
   if (sources.length === 0 && flows.length === 0) return EMPTY;
 
   const details: Record<string, string> = {};
+  const paths: Record<string, string> = {};
+  const nodes: Record<string, MermaidNode> = {};
   const lines = ['flowchart LR'];
   lines.push(...classDefs(new Set(sources.map((source) => source.kind)), 'kind'));
 
@@ -143,6 +215,17 @@ export function dataflowMermaid(map: ProjectMap): MermaidOutput {
       `вид: ${SOURCE_KIND_LABEL[source.kind] ?? source.kind}`,
       source.where ? `где: ${source.where}` : ''
     ].filter(Boolean).join(LF);
+    // Открыть можно только буквальный файл — адрес БД, очереди или имя
+    // переменной окружения клик никуда не поведёт (04-ui.md, «Карты»).
+    const filePath = source.kind === 'file' ? source.where : undefined;
+    if (filePath) paths[node] = filePath;
+    nodes[node] = {
+      id: source.id,
+      title: source.title,
+      layer: SOURCE_KIND_LABEL[source.kind] ?? source.kind,
+      path: filePath,
+      declaredBy: source.declaredBy
+    };
   }
 
   declareImplicit(lines, details, 's', new Set(sources.map((source) => source.id)), flows.map((flow) => flow.to));
@@ -152,6 +235,7 @@ export function dataflowMermaid(map: ProjectMap): MermaidOutput {
     details[node] = name;
   }
 
+  const edges: MermaidEdge[] = [];
   for (const flow of flows) {
     // Чтение — сплошная стрелка, запись — пунктир, «оба» — жирная сплошная:
     // направление данных видно по линии, не только по подписи.
@@ -159,8 +243,10 @@ export function dataflowMermaid(map: ProjectMap): MermaidOutput {
     const from = flow.direction === 'read' ? nodeId('s', flow.to) : nodeId('f', flow.from);
     const to = flow.direction === 'read' ? nodeId('f', flow.from) : nodeId('s', flow.to);
     lines.push(`    ${from} ${arrow}|${flow.direction}| ${to}`);
+    edges.push({ from, to, evidence: flow.evidence, status: flow.status, declaredBy: flow.declaredBy });
   }
-  return { text: lines.join(LF), details };
+  styleUnverified(lines, edges);
+  return { text: lines.join(LF), details, paths, nodes, edges, neighbors: neighborsOf(edges) };
 }
 
 export function userflowMermaid(map: ProjectMap): MermaidOutput {
@@ -168,6 +254,8 @@ export function userflowMermaid(map: ProjectMap): MermaidOutput {
   if (screens.length === 0 && transitions.length === 0 && calls.length === 0) return EMPTY;
 
   const details: Record<string, string> = {};
+  const paths: Record<string, string> = {};
+  const nodes: Record<string, MermaidNode> = {};
   const lines = ['flowchart TD'];
   lines.push('    classDef screen fill:#DBEAFE,stroke:#2563EB;');
   lines.push('    classDef api fill:#F3E8FF,stroke:#7C3AED;');
@@ -176,6 +264,8 @@ export function userflowMermaid(map: ProjectMap): MermaidOutput {
     const node = nodeId('u', screen.id);
     lines.push(`    ${node}["${label(screen.title ?? screen.id)}"]:::screen`);
     details[node] = [screen.id, screen.title, screen.file ? `файл: ${screen.file}` : ''].filter(Boolean).join(LF);
+    if (screen.file) paths[node] = screen.file;
+    nodes[node] = { id: screen.id, title: screen.title, path: screen.file, declaredBy: screen.declaredBy };
   }
   declareImplicit(
     lines,
@@ -185,20 +275,30 @@ export function userflowMermaid(map: ProjectMap): MermaidOutput {
     [...transitions.flatMap((step) => [step.from, step.to]), ...calls.map((call) => call.from)]
   );
 
+  // Порядок здесь и порядок `edges` ниже должны совпасть: сначала переходы,
+  // потом вызовы — тем же порядком, каким они лягут строками в диаграмму.
+  const edges: MermaidEdge[] = [];
   for (const step of transitions) {
     // Известен триггер — сплошная стрелка с подписью; неизвестен —
     // пунктиром: переход есть, а чем он вызывается, карта не говорит.
     const via = step.trigger ? `|${label(step.trigger, 24)}|` : '';
     const arrow = step.trigger ? '-->' : '-.->';
-    lines.push(`    ${nodeId('u', step.from)} ${arrow}${via} ${nodeId('u', step.to)}`);
+    const from = nodeId('u', step.from);
+    const to = nodeId('u', step.to);
+    lines.push(`    ${from} ${arrow}${via} ${to}`);
+    edges.push({ from, to, evidence: step.evidence, status: step.status, declaredBy: step.declaredBy });
   }
   for (const call of calls) {
     const node = nodeId('api', call.to);
     lines.push(`    ${node}(["${label(call.to)}"]):::api`);
     details[node] = call.to;
-    lines.push(`    ${nodeId('u', call.from)} -.-> ${node}`);
+    nodes[node] = { id: call.to };
+    const from = nodeId('u', call.from);
+    lines.push(`    ${from} -.-> ${node}`);
+    edges.push({ from, to: node, evidence: call.evidence, status: call.status, declaredBy: call.declaredBy });
   }
-  return { text: lines.join(LF), details };
+  styleUnverified(lines, edges);
+  return { text: lines.join(LF), details, paths, nodes, edges, neighbors: neighborsOf(edges) };
 }
 
 /**
@@ -206,6 +306,8 @@ export function userflowMermaid(map: ProjectMap): MermaidOutput {
  * вложенность, и mermaid для этого держит отдельный вид (`mindmap`). Доменный
  * специалист читает вложенность как есть, без легенды про стрелки и формы.
  * Цвет по ветке mindmap расставляет сам — раскрашивать его классами незачем.
+ * Свидетельства нет вовсе (docs/07-maps.md) — узел ведёт только к своему
+ * месту в дереве, `paths` и `edges` у этого вида всегда пустые.
  */
 export function functionalMermaid(map: ProjectMap): MermaidOutput {
   const { capabilities } = map.functional;
@@ -249,5 +351,5 @@ export function functionalMermaid(map: ProjectMap): MermaidOutput {
     for (const top of tops) render(top, 2);
   }
 
-  return { text: lines.join(LF), details };
+  return { text: lines.join(LF), details, paths: {}, nodes: {}, edges: [], neighbors: {} };
 }

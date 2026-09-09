@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ApiFailure } from '~/composables/useProjectIndex';
+import type { MapSelection, MermaidEdge } from '~/utils/map-mermaid';
 import type { ProjectMap } from '~~/server/lib/maps';
 
 const route = useRoute();
@@ -91,6 +92,37 @@ const aside = computed(() => {
 const failure = computed(() => failureOf(data.value));
 const map = computed(() => (failure.value ? null : (data.value as MapResponse | null)));
 
+/**
+ * Слои кодовой базы — чекбоксы «скрыть», а не «показать»: по умолчанию видно
+ * всё, скрытые запоминаются по имени слоя, а не по индексу — переживают
+ * «Обновить карты» и новые слои сами не пропадают из списка.
+ */
+const allLayers = computed(() => {
+  const set = new Set<string>();
+  for (const item of map.value?.codemap.modules ?? []) set.add(item.layer ?? 'без слоя');
+  return [...set].sort();
+});
+const hiddenLayers = ref<Set<string>>(new Set());
+function toggleLayer(layer: string) {
+  const next = new Set(hiddenLayers.value);
+  if (next.has(layer)) next.delete(layer);
+  else next.add(layer);
+  hiddenLayers.value = next;
+}
+
+/** Кодовая база с вычетом скрытых слоёв — рёбра к спрятанному модулю тоже прячутся. */
+const filteredCodemap = computed(() => {
+  const value = map.value;
+  if (!value || hiddenLayers.value.size === 0) return value?.codemap;
+  const visible = new Set(
+    value.codemap.modules.filter((item) => !hiddenLayers.value.has(item.layer ?? 'без слоя')).map((item) => item.id)
+  );
+  return {
+    modules: value.codemap.modules.filter((item) => visible.has(item.id)),
+    imports: value.codemap.imports.filter((edge) => visible.has(edge.from) && visible.has(edge.to))
+  };
+});
+
 const views = computed(() => {
   const value = map.value;
   if (!value) return [];
@@ -100,7 +132,7 @@ const views = computed(() => {
       title: 'Кодовая база',
       question: 'Из чего состоит проект и что на что опирается',
       count: `${value.codemap.modules.length} модулей, ${value.codemap.imports.length} связей`,
-      ...codemapMermaid(value)
+      ...codemapMermaid({ ...value, codemap: filteredCodemap.value ?? value.codemap })
     },
     {
       key: 'dataflow',
@@ -136,6 +168,20 @@ async function copySource() {
   await navigator.clipboard.writeText(source);
   copied.value = true;
   setTimeout(() => { copied.value = false; }, 2000);
+}
+
+/**
+ * Узел ведёт к коду, ребро — к свидетельству (docs/04-ui.md, «Карты»):
+ * карточка открывается сбоку, диаграмма остаётся под рукой.
+ */
+const selection = ref<MapSelection | null>(null);
+function onNodeClick(id: string) {
+  const node = current.value?.nodes?.[id];
+  if (!node) return; // Нет метаданных — карте нечего показать (functional map, неизвестный узел).
+  selection.value = { kind: 'node', ...node };
+}
+function onEdgeClick(edge: MermaidEdge) {
+  selection.value = { kind: 'edge', evidence: edge.evidence, status: edge.status, declaredBy: edge.declaredBy };
 }
 </script>
 
@@ -282,11 +328,37 @@ async function copySource() {
             </div>
           </template>
 
+          <!-- Слои — только у кодовой базы: у остальных видов узел не несёт слоя. -->
+          <div v-if="shown === 'codemap' && allLayers.length > 1" class="mb-3 flex flex-wrap gap-1">
+            <UButton
+              v-for="layer in allLayers"
+              :key="layer"
+              size="xs"
+              :color="hiddenLayers.has(layer) ? 'neutral' : 'primary'"
+              :variant="hiddenLayers.has(layer) ? 'outline' : 'subtle'"
+              @click="toggleLayer(layer)"
+            >
+              {{ layer }}
+            </UButton>
+          </div>
+
           <p v-if="!current.text" class="text-sm text-muted">
             В подтверждённых картах эта структура не описана.
           </p>
-          <MermaidDiagram v-else :source="current.text" :details="current.details" :id="`map-${current.key}`" />
+          <MermaidDiagram
+            v-else
+            :source="current.text"
+            :details="current.details"
+            :paths="current.paths"
+            :edges="current.edges"
+            :neighbors="current.neighbors"
+            :id="`map-${current.key}`"
+            @node-click="onNodeClick"
+            @edge-click="onEdgeClick"
+          />
         </UCard>
+
+        <MapInspector :project-id="projectId" :selection="selection" @close="selection = null" />
       </template>
     </template>
   </div>

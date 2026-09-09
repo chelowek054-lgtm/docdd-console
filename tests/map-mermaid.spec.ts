@@ -69,7 +69,72 @@ describe('codemapMermaid', () => {
   });
 
   it('пустая структура даёт пустую строку, а не пустую диаграмму', () => {
-    expect(codemapMermaid(emptyProjectMap())).toEqual({ text: '', details: {} });
+    expect(codemapMermaid(emptyProjectMap())).toEqual({ text: '', details: {}, paths: {}, nodes: {}, edges: [], neighbors: {} });
+  });
+
+  it('путь модуля — в paths по id узла, а не выдуман по module.id', () => {
+    const { paths } = codemapMermaid(mapWith({
+      codemap: {
+        modules: [
+          { id: 'gastrograf.config', title: 'Настройки', path: 'backend/gastrograf/config.py' },
+          { id: 'gastrograf.domain', title: 'Домен' }
+        ],
+        imports: []
+      }
+    }));
+    expect(paths['m_gastrograf_config']).toBe('backend/gastrograf/config.py');
+    expect(paths['m_gastrograf_domain']).toBeUndefined();
+  });
+
+  it('edges несёт свидетельство и статус связи в порядке появления в тексте', () => {
+    const { edges } = codemapMermaid(mapWith({
+      codemap: {
+        modules: [],
+        imports: [
+          { from: 'a.ts', to: 'b.ts', evidence: { path: 'a.ts', line: 1, fragment: 'x' }, status: 'ok' },
+          { from: 'b.ts', to: 'c.ts', evidence: { path: 'b.ts', line: 2, fragment: 'y' }, status: 'stale' }
+        ]
+      }
+    }));
+    expect(edges).toEqual([
+      { from: 'm_a_ts', to: 'm_b_ts', evidence: { path: 'a.ts', line: 1, fragment: 'x' }, status: 'ok' },
+      { from: 'm_b_ts', to: 'm_c_ts', evidence: { path: 'b.ts', line: 2, fragment: 'y' }, status: 'stale' }
+    ]);
+  });
+
+  it('несошедшееся свидетельство красит связь на диаграмме', () => {
+    const { text } = codemapMermaid(mapWith({
+      codemap: {
+        modules: [],
+        imports: [
+          { from: 'a.ts', to: 'b.ts', evidence: { path: 'a.ts', line: 1, fragment: 'x' }, status: 'stale' }
+        ]
+      }
+    }));
+    expect(text).toContain('linkStyle 0 stroke:#DC2626');
+  });
+
+  it('neighbors связывает узлы в обе стороны — для подсветки соседей при клике', () => {
+    const { neighbors } = codemapMermaid(mapWith({
+      codemap: {
+        modules: [],
+        imports: [{ from: 'a.ts', to: 'b.ts', evidence: { path: 'a.ts', line: 1, fragment: 'x' } }]
+      }
+    }));
+    expect(neighbors['m_a_ts']).toEqual(['m_b_ts']);
+    expect(neighbors['m_b_ts']).toEqual(['m_a_ts']);
+  });
+
+  it('сошедшееся свидетельство связь не красит', () => {
+    const { text } = codemapMermaid(mapWith({
+      codemap: {
+        modules: [],
+        imports: [
+          { from: 'a.ts', to: 'b.ts', evidence: { path: 'a.ts', line: 1, fragment: 'x' }, status: 'ok' }
+        ]
+      }
+    }));
+    expect(text).not.toContain('linkStyle');
   });
 });
 
@@ -118,6 +183,20 @@ describe('dataflowMermaid', () => {
   it('подробности при наведении несут вид и место источника', () => {
     const { details } = dataflowMermaid(flow('read'));
     expect(details['s_index_cache']).toBe('index-cache\nКэш индекса\nвид: файл\nгде: .docdd/index.json');
+  });
+
+  it('источник kind: file с where — открывается кликом; другие виды — нет', () => {
+    const { paths } = dataflowMermaid(mapWith({
+      dataflow: {
+        sources: [
+          { id: 'index-cache', kind: 'file', where: '.docdd/index.json' },
+          { id: 'graph-db', kind: 'db', where: 'postgresql://...' }
+        ],
+        flows: []
+      }
+    }));
+    expect(paths['s_index_cache']).toBe('.docdd/index.json');
+    expect(paths['s_graph_db']).toBeUndefined();
   });
 
   it('необъявленный источник всё равно назван', () => {
@@ -193,6 +272,29 @@ describe('userflowMermaid', () => {
       userflow: { screens: [{ id: '/projects', title: 'Проекты', file: 'app/pages/index.vue' }], transitions: [], calls: [] }
     }));
     expect(details['u__projects']).toBe('/projects\nПроекты\nфайл: app/pages/index.vue');
+  });
+
+  it('файл экрана открывается кликом; экран без файла — нет', () => {
+    const { paths } = userflowMermaid(mapWith({
+      userflow: {
+        screens: [{ id: '/projects', file: 'app/pages/index.vue' }, { id: '/about' }],
+        transitions: [],
+        calls: []
+      }
+    }));
+    expect(paths['u__projects']).toBe('app/pages/index.vue');
+    expect(paths['u__about']).toBeUndefined();
+  });
+
+  it('edges несёт переходы раньше вызовов — тем же порядком, что и в тексте', () => {
+    const { edges } = userflowMermaid(mapWith({
+      userflow: {
+        screens: [{ id: '/a' }, { id: '/b' }],
+        transitions: [{ from: '/a', to: '/b', evidence: { path: 'x', line: 1, fragment: 'y' } }],
+        calls: [{ from: '/a', to: 'GET /api', evidence: { path: 'x', line: 2, fragment: 'z' } }]
+      }
+    }));
+    expect(edges.map((edge) => edge.evidence.fragment)).toEqual(['y', 'z']);
   });
 
   it('кавычки в заголовке не рвут диаграмму', () => {
@@ -277,6 +379,6 @@ describe('functionalMermaid', () => {
   });
 
   it('пустая структура даёт пустую строку, а не пустую диаграмму', () => {
-    expect(functionalMermaid(emptyProjectMap())).toEqual({ text: '', details: {} });
+    expect(functionalMermaid(emptyProjectMap())).toEqual({ text: '', details: {}, paths: {}, nodes: {}, edges: [], neighbors: {} });
   });
 });

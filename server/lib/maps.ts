@@ -18,20 +18,32 @@ export interface Evidence {
   fragment: string;
 }
 
+/**
+ * `declaredBy` — какая карта последней объявила этот узел или связь. Не поле
+ * записи: модель его не пишет и схема не знает — приложение проставляет само
+ * при складывании (`foldMaps`), поэтому есть только в составленной картине
+ * (`ProjectMap`), а в разборе одной записи всегда `undefined`.
+ */
 export interface CodemapPart {
-  modules?: { id: string; title?: string; layer?: string }[];
-  imports?: { from: string; to: string; evidence: Evidence }[];
+  modules?: { id: string; title?: string; layer?: string; path?: string; declaredBy?: string }[];
+  imports?: { from: string; to: string; evidence: Evidence; status?: EvidenceVerdict; declaredBy?: string }[];
 }
 
 export interface DataflowPart {
-  sources?: { id: string; kind: string; where?: string; title?: string }[];
-  flows?: { from: string; to: string; direction: string; evidence: Evidence }[];
+  sources?: { id: string; kind: string; where?: string; title?: string; declaredBy?: string }[];
+  flows?: {
+    from: string; to: string; direction: string; evidence: Evidence;
+    status?: EvidenceVerdict; declaredBy?: string;
+  }[];
 }
 
 export interface UserflowPart {
-  screens?: { id: string; title?: string; file?: string }[];
-  transitions?: { from: string; to: string; trigger?: string; evidence: Evidence }[];
-  calls?: { from: string; to: string; evidence: Evidence }[];
+  screens?: { id: string; title?: string; file?: string; declaredBy?: string }[];
+  transitions?: {
+    from: string; to: string; trigger?: string; evidence: Evidence;
+    status?: EvidenceVerdict; declaredBy?: string;
+  }[];
+  calls?: { from: string; to: string; evidence: Evidence; status?: EvidenceVerdict; declaredBy?: string }[];
 }
 
 /**
@@ -40,7 +52,7 @@ export interface UserflowPart {
  * запись, а не построчной сверкой с файлом (docs/07-maps.md).
  */
 export interface FunctionalPart {
-  capabilities?: { id: string; title?: string; parent?: string }[];
+  capabilities?: { id: string; title?: string; parent?: string; declaredBy?: string }[];
 }
 
 /** Файл, который модель посмотрела и в карту не положила. */
@@ -311,6 +323,23 @@ export function checkEvidence(evidence: Evidence, text: string | null, side: Evi
   return 'stale';
 }
 
+/**
+ * Статус свежести — на каждое ребро сложенной картины, а не только в общий
+ * счётчик `unverified`: экран красит конкретное ребро, а не заставляет
+ * сопоставлять номер из списка нарушений с линией на диаграмме
+ * (docs/04-ui.md, «Карты»). Ребро в сложенной картине всегда «объявленное» —
+ * убранное фолдинг уже вычел, поэтому сторона всегда `added`.
+ */
+export function annotateEvidenceStatus(map: ProjectMap, read: (path: string) => string | null): void {
+  const mark = (item: { evidence: Evidence; status?: EvidenceVerdict }) => {
+    item.status = checkEvidence(item.evidence, read(item.evidence.path), 'added');
+  };
+  for (const item of map.codemap.imports) mark(item);
+  for (const item of map.dataflow.flows) mark(item);
+  for (const item of map.userflow.transitions) mark(item);
+  for (const item of map.userflow.calls) mark(item);
+}
+
 /** Сложенная картина проекта: производное от подтверждённых карт. */
 export interface ProjectMap {
   codemap: Required<CodemapPart>;
@@ -347,7 +376,7 @@ export function foldMaps(changes: readonly { id: string; change: MapChange }[]):
       const part = (change as any)[kind.name];
       for (const field of kind.fields) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        apply((result as any)[kind.name], field.name, part, field.keyOf);
+        apply((result as any)[kind.name], field.name, part, field.keyOf, id);
       }
     }
   }
@@ -362,7 +391,8 @@ function apply(
   target: any,
   field: string,
   part: { added?: any; removed?: any } | undefined,
-  keyOf: (item: any) => string
+  keyOf: (item: any) => string,
+  mapId: string
 ): void {
   if (!part) return;
 
@@ -371,7 +401,11 @@ function apply(
     target[field] = target[field].filter((item: unknown) => !removed.has(keyOf(item)));
   }
 
-  for (const item of part.added?.[field] ?? []) {
+  for (const rawItem of part.added?.[field] ?? []) {
+    // Какая карта последней объявила этот узел или связь — для трассируемости
+    // на экране (docs/04-ui.md, «Карты»): не сама сверка с кодом, только
+    // «откуда это в картине», как `from` у всей структуры, но по элементу.
+    const item = { ...rawItem, declaredBy: mapId };
     const key = keyOf(item);
     const at = target[field].findIndex((existing: unknown) => keyOf(existing) === key);
     // Повторное объявление — не дубль, а уточнение: побеждает последнее.
