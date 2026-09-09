@@ -1,5 +1,10 @@
 <script setup lang="ts">
-const props = defineProps<{ source: string; id: string }>();
+const props = defineProps<{
+  source: string;
+  id: string;
+  /** id узла в тексте mermaid → полный текст для наведения (app/utils/map-mermaid.ts). */
+  details?: Record<string, string>;
+}>();
 
 const wrapper = ref<HTMLElement | null>(null);
 const viewport = ref<HTMLElement | null>(null);
@@ -24,10 +29,11 @@ async function draw() {
       // Пересечений линий на плотном графе (десятки модулей, импорты крест-накрест)
       // меньше, если узлам и рангам просторнее — по умолчанию dagre экономит место
       // там, где для читаемости лучше не экономить.
-      flowchart: { nodeSpacing: 60, rankSpacing: 80, curve: 'basis' }
+      flowchart: { nodeSpacing: 60, rankSpacing: 90, curve: 'linear' }
     });
     const { svg } = await mermaid.render(`mermaid-${props.id}`, props.source);
     container.value.innerHTML = svg;
+    annotateTitles();
     resetView();
   } catch (cause) {
     container.value.innerHTML = '';
@@ -37,6 +43,25 @@ async function draw() {
 
 onMounted(draw);
 watch(() => props.source, draw);
+
+/**
+ * Подробности при наведении — родной `<title>` внутри узла SVG, без своей
+ * всплывающей подсказки: mermaid называет узел по нашему id с добавками
+ * (`flowchart-m_xxx-3`), поэтому ищем по вхождению, а не по точному совпадению.
+ */
+function annotateTitles() {
+  if (!container.value || !props.details) return;
+  const entries = Object.entries(props.details);
+  if (entries.length === 0) return;
+
+  for (const node of container.value.querySelectorAll<SVGGElement>('.node, .mindmap-node')) {
+    const match = entries.find(([key]) => node.id.includes(`${key}-`) || node.id.endsWith(key));
+    if (!match?.[1]) continue;
+    const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+    title.textContent = match[1];
+    node.insertBefore(title, node.firstChild);
+  }
+}
 
 /**
  * Зум и панорамирование — своими руками, без библиотеки: сдвиг и масштаб

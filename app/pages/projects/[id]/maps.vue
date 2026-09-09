@@ -100,28 +100,28 @@ const views = computed(() => {
       title: 'Кодовая база',
       question: 'Из чего состоит проект и что на что опирается',
       count: `${value.codemap.modules.length} модулей, ${value.codemap.imports.length} связей`,
-      source: codemapMermaid(value)
+      ...codemapMermaid(value)
     },
     {
       key: 'dataflow',
       title: 'Потоки данных',
       question: 'Откуда данные приходят, где лежат и куда уходят',
       count: `${value.dataflow.sources.length} источников, ${value.dataflow.flows.length} потоков`,
-      source: dataflowMermaid(value)
+      ...dataflowMermaid(value)
     },
     {
       key: 'userflow',
       title: 'Пользовательские пути',
       question: 'Какие экраны есть, как между ними ходят и что каждый дёргает',
       count: `${value.userflow.screens.length} экранов, ${value.userflow.calls.length} вызовов`,
-      source: userflowMermaid(value)
+      ...userflowMermaid(value)
     },
     {
       key: 'functional',
       title: 'Функциональная карта',
       question: 'Что система умеет на языке предметной области, не кода',
       count: `${value.functional.capabilities.length} возможностей`,
-      source: functionalMermaid(value)
+      ...functionalMermaid(value)
     }
   ];
 });
@@ -131,7 +131,7 @@ const current = computed(() => views.value.find((view) => view.key === shown.val
 
 const copied = ref(false);
 async function copySource() {
-  const source = current.value?.source;
+  const source = current.value?.text;
   if (!source) return;
   await navigator.clipboard.writeText(source);
   copied.value = true;
@@ -269,7 +269,7 @@ async function copySource() {
               </div>
               <!-- Число уже видно бейджем на вкладке — здесь дублировать незачем. -->
               <UButton
-                v-if="current.source"
+                v-if="current.text"
                 class="ml-auto"
                 size="sm"
                 variant="ghost"
@@ -282,10 +282,10 @@ async function copySource() {
             </div>
           </template>
 
-          <p v-if="!current.source" class="text-sm text-muted">
+          <p v-if="!current.text" class="text-sm text-muted">
             В подтверждённых картах эта структура не описана.
           </p>
-          <MermaidDiagram v-else :source="current.source" :id="`map-${current.key}`" />
+          <MermaidDiagram v-else :source="current.text" :details="current.details" :id="`map-${current.key}`" />
         </UCard>
       </template>
     </template>
