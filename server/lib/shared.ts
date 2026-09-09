@@ -1,4 +1,4 @@
-import type { IndexRecord } from './types';
+import { RETIRED_STATUSES, type IndexRecord } from './types';
 
 /**
  * Общие практики между проектами (docs/11-shared-sources.md, docs/06-phases.md,
@@ -12,14 +12,6 @@ const SHARED_TYPES = new Set(['decision', 'design']);
 
 /** Присутствие этих типов в источнике — признак узкого домена, а не общих практик. */
 const NARROW_DOMAIN_TYPES = new Set(['requirement', 'task', 'map', 'verification', 'contract']);
-
-/**
- * Статусы, за которыми записи нет: retired-запись не свидетельствует о том,
- * что источник — чужой рабочий проект, а свидетельствует об обратном — что
- * его почистили. Без этого фильтра почищенный источник получал бы то же
- * предупреждение, что и захламлённый, и чистить было бы незачем.
- */
-const RETIRED_STATUSES = new Set(['dropped', 'superseded', 'rejected']);
 
 export interface SharedRecord {
   id: string;

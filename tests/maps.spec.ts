@@ -191,6 +191,16 @@ describe('checkMaps', () => {
     expect(codes(checkMaps(context([record])))).toEqual(['map_invalid']);
   });
 
+  it('но отставленную (заменена, отменена) карту с той же бедой — уже не называет', () => {
+    // Форма карты, которую нельзя разобрать, никого не вводит в заблуждение,
+    // если карта уже не читается как текущая — чинить в ней нечего.
+    const superseded = mapRecord('M-0001', 'superseded', ['```docdd-codemap', '{ битый', '```'].join(LF));
+    expect(checkMaps(context([superseded]))).toEqual([]);
+
+    const dropped = mapRecord('M-0002', 'dropped', ['```docdd-codemap', '{ битый', '```'].join(LF));
+    expect(checkMaps(context([dropped]))).toEqual([]);
+  });
+
   it('молчит на карте-намерении: задача ещё не закрыта, кода нет', () => {
     const map = mapRecord('M-0001', 'approved', body('codemap', { added: { imports: [import1] } }));
     const task = rec('T-0001', 'task', 'in_progress', { links: { affects: ['M-0001'] } });

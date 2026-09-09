@@ -44,3 +44,27 @@ describe('файлы без front matter', () => {
     expect(result.violations.length).toBeGreaterThan(0);
   });
 });
+
+describe('отставленная запись со сломанной схемой', () => {
+  const brokenVerification = (status: string) => file(
+    'docs/development/tests/V-0001-slomana.md',
+    `---\nid: V-0001\ntype: verification\ntitle: Без kind\nstatus: ${status}\ncreated: 2026-09-08\nupdated: 2026-09-08\n---\n\nТекст.\n`
+  );
+
+  it('approved без обязательного kind — нарушение', () => {
+    const result = analyze({ files: [brokenVerification('approved')], manifest });
+    expect(result.violations.some((item) => item.code === 'schema_invalid')).toBe(true);
+  });
+
+  it('но та же беда в записи, помеченной superseded, — уже не нарушение', () => {
+    // Заменена, отменена, отвергнута — содержание не читается как текущее,
+    // и недостающее поле не дело, которое кому-то доделывать.
+    const result = analyze({ files: [brokenVerification('superseded')], manifest });
+    expect(result.violations.some((item) => item.code === 'schema_invalid')).toBe(false);
+  });
+
+  it('и в dropped — тоже (rejected не входит в статусы verification)', () => {
+    const result = analyze({ files: [brokenVerification('dropped')], manifest });
+    expect(result.violations.some((item) => item.code === 'schema_invalid')).toBe(false);
+  });
+});

@@ -364,7 +364,7 @@ updated: 2026-08-31
         {"from":"server/lib/rules.ts","to":"server/lib/parse.ts","evidence":{"path":"server/lib/rules.ts","line":3,"fragment":"import { firstHeading } from './parse';"}},
         {"from":"server/lib/scaffold.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/scaffold.ts","line":1,"fragment":"import { PREFIX_BY_TYPE, RECORD_TYPES, SECTION_BY_TYPE, type"}},
         {"from":"server/lib/scaffold.ts","to":"server/lib/write.ts","evidence":{"path":"server/lib/scaffold.ts","line":2,"fragment":"import { journalLine, yamlSafe } from './write';"}},
-        {"from":"server/lib/shared.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/shared.ts","line":1,"fragment":"import type { IndexRecord } from './types';"}},
+        {"from":"server/lib/shared.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/shared.ts","line":1,"fragment":"import { RETIRED_STATUSES, type IndexRecord } from './type"}},
         {"from":"server/lib/transitions.ts","to":"server/lib/actions.ts","evidence":{"path":"server/lib/transitions.ts","line":1,"fragment":"import { journalAction } from './actions';"}},
         {"from":"server/lib/transitions.ts","to":"server/lib/rules.ts","evidence":{"path":"server/lib/transitions.ts","line":2,"fragment":"import { checkTransition, type RuleContext } from './rules';"}},
         {"from":"server/lib/transitions.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/transitions.ts","line":3,"fragment":"import type { RecordAction, WorkRecord } from './types';"}},

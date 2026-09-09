@@ -28,6 +28,14 @@ export const RECORD_TYPES: readonly RecordType[] = [
   'map'
 ];
 
+/**
+ * Статусы, за которыми запись больше не действует: содержание не читается
+ * как текущее — либо его заменили (`supersedes` у преемника), либо от него
+ * отказались. Пропускается там, где важно только то, что живо сейчас
+ * (docs/11-shared-sources.md, docs/05-validation.md).
+ */
+export const RETIRED_STATUSES = new Set(['dropped', 'superseded', 'rejected']);
+
 /** Ключ раздела из `paths` манифеста. Имена папок в код не зашиваются. */
 export type SectionKey =
   | 'requirements'
