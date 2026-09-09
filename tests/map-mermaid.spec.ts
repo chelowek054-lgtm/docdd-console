@@ -5,7 +5,9 @@ import { emptyProjectMap, type ProjectMap } from '../server/lib/maps';
 
 /**
  * Тот же текст показывается на экране и выгружается в документ проекта
- * (docs/07-maps.md), поэтому проверяется он, а не картинка.
+ * (docs/07-maps.md), поэтому проверяется он, а не картинка. `details` —
+ * подсказка при наведении (MermaidDiagram.vue) — проверяется отдельно: она не
+ * попадает в документ, только на экран.
  */
 
 function mapWith(part: Partial<ProjectMap>): ProjectMap {
@@ -14,7 +16,7 @@ function mapWith(part: Partial<ProjectMap>): ProjectMap {
 
 describe('codemapMermaid', () => {
   it('раскладывает модули по слоям подграфами', () => {
-    const text = codemapMermaid(mapWith({
+    const { text } = codemapMermaid(mapWith({
       codemap: {
         modules: [
           { id: 'server/lib/parse.ts', title: 'Разбор', layer: 'ядро' },
@@ -29,8 +31,17 @@ describe('codemapMermaid', () => {
     expect(text).toContain('["Разбор"]');
   });
 
+  it('красит модуль по слою — классом, назначенным по имени слоя', () => {
+    const { text } = codemapMermaid(mapWith({
+      codemap: { modules: [{ id: 'server/lib/parse.ts', title: 'Разбор', layer: 'ядро' }], imports: [] }
+    }));
+    // Тот же слой между перерисовками красится в тот же класс — по имени, не по случаю.
+    expect(text).toContain(':::layer_ядро');
+    expect(text).toContain('classDef layer_ядро fill:');
+  });
+
   it('узел, упомянутый только в связи, показывает путём, а не идентификатором', () => {
-    const text = codemapMermaid(mapWith({
+    const { text } = codemapMermaid(mapWith({
       codemap: {
         modules: [],
         imports: [{
@@ -50,8 +61,15 @@ describe('codemapMermaid', () => {
     expect(text).toContain('["app/src/bite.ts"]');
   });
 
+  it('подробности при наведении несут id, заголовок и слой полностью', () => {
+    const { details } = codemapMermaid(mapWith({
+      codemap: { modules: [{ id: 'server/lib/parse.ts', title: 'Разбор', layer: 'ядро' }], imports: [] }
+    }));
+    expect(details['m_server_lib_parse_ts']).toBe('server/lib/parse.ts\nРазбор\nслой: ядро');
+  });
+
   it('пустая структура даёт пустую строку, а не пустую диаграмму', () => {
-    expect(codemapMermaid(emptyProjectMap())).toBe('');
+    expect(codemapMermaid(emptyProjectMap())).toEqual({ text: '', details: {} });
   });
 });
 
@@ -69,23 +87,41 @@ describe('dataflowMermaid', () => {
   });
 
   it('хранилище рисует цилиндром: вид источника читается без легенды', () => {
-    expect(dataflowMermaid(flow('write'))).toContain('[("Кэш индекса")]');
+    expect(dataflowMermaid(flow('write')).text).toContain('[("Кэш индекса")]');
+  });
+
+  it('красит источник по виду (kind), а не по случайному цвету', () => {
+    const { text } = dataflowMermaid(flow('write'));
+    expect(text).toContain(':::kind_file');
+    expect(text).toContain('classDef kind_file fill:');
+  });
+
+  it('чтение — сплошная стрелка от источника, запись — пунктир, «оба» — жирная', () => {
+    const read = dataflowMermaid(flow('read')).text.split('\n').find((item) => item.includes('|read|')) ?? '';
+    const write = dataflowMermaid(flow('write')).text.split('\n').find((item) => item.includes('|write|')) ?? '';
+    const both = dataflowMermaid(flow('both')).text.split('\n').find((item) => item.includes('|both|')) ?? '';
+    expect(read).toContain('-->');
+    expect(write).toContain('-.->');
+    expect(both).toContain('==>');
   });
 
   it('чтение идёт стрелкой от источника — по направлению данных', () => {
-    const text = dataflowMermaid(flow('read'));
-    const line = text.split('\n').find((item) => item.includes('|read|')) ?? '';
+    const line = dataflowMermaid(flow('read')).text.split('\n').find((item) => item.includes('|read|')) ?? '';
     expect(line.indexOf('s_index_cache')).toBeLessThan(line.indexOf('f_server_lib_cache_ts'));
   });
 
   it('запись идёт стрелкой к источнику', () => {
-    const text = dataflowMermaid(flow('write'));
-    const line = text.split('\n').find((item) => item.includes('|write|')) ?? '';
+    const line = dataflowMermaid(flow('write')).text.split('\n').find((item) => item.includes('|write|')) ?? '';
     expect(line.indexOf('f_server_lib_cache_ts')).toBeLessThan(line.indexOf('s_index_cache'));
   });
 
+  it('подробности при наведении несут вид и место источника', () => {
+    const { details } = dataflowMermaid(flow('read'));
+    expect(details['s_index_cache']).toBe('index-cache\nКэш индекса\nвид: файл\nгде: .docdd/index.json');
+  });
+
   it('необъявленный источник всё равно назван', () => {
-    const text = dataflowMermaid(mapWith({
+    const { text } = dataflowMermaid(mapWith({
       dataflow: {
         sources: [],
         flows: [{
@@ -100,7 +136,7 @@ describe('dataflowMermaid', () => {
 
 describe('userflowMermaid', () => {
   it('связывает экран с маршрутом API: этим карты и сшиваются', () => {
-    const text = userflowMermaid(mapWith({
+    const { text } = userflowMermaid(mapWith({
       userflow: {
         screens: [{ id: '/projects', title: 'Проекты' }],
         transitions: [],
@@ -110,12 +146,24 @@ describe('userflowMermaid', () => {
         }]
       }
     }));
-    expect(text).toContain('(["GET /api/projects"])');
+    expect(text).toContain('(["GET /api/projects"]):::api');
     expect(text).toContain('-.->');
   });
 
-  it('подписывает переход тем, чем он вызывается', () => {
-    const text = userflowMermaid(mapWith({
+  it('экран и вызов API красятся разными классами', () => {
+    const { text } = userflowMermaid(mapWith({
+      userflow: {
+        screens: [{ id: '/projects', title: 'Проекты' }],
+        transitions: [],
+        calls: [{ from: '/projects', to: 'GET /api/projects', evidence: { path: 'a', line: 1, fragment: 'x' } }]
+      }
+    }));
+    expect(text).toContain(':::screen');
+    expect(text).toContain(':::api');
+  });
+
+  it('подписывает переход тем, чем он вызывается — сплошной стрелкой', () => {
+    const { text } = userflowMermaid(mapWith({
       userflow: {
         screens: [{ id: '/a' }, { id: '/b' }],
         transitions: [{
@@ -126,10 +174,29 @@ describe('userflowMermaid', () => {
       }
     }));
     expect(text).toContain('|ссылка в навигации|');
+    expect(text).toContain('u__a -->|ссылка в навигации| u__b');
+  });
+
+  it('переход без известного триггера рисуется пунктиром — карта не выдумывает, чем он вызван', () => {
+    const { text } = userflowMermaid(mapWith({
+      userflow: {
+        screens: [{ id: '/a' }, { id: '/b' }],
+        transitions: [{ from: '/a', to: '/b', evidence: { path: 'a', line: 1, fragment: 'x' } }],
+        calls: []
+      }
+    }));
+    expect(text).toContain('u__a -.-> u__b');
+  });
+
+  it('подробности при наведении несут id, заголовок и файл экрана', () => {
+    const { details } = userflowMermaid(mapWith({
+      userflow: { screens: [{ id: '/projects', title: 'Проекты', file: 'app/pages/index.vue' }], transitions: [], calls: [] }
+    }));
+    expect(details['u__projects']).toBe('/projects\nПроекты\nфайл: app/pages/index.vue');
   });
 
   it('кавычки в заголовке не рвут диаграмму', () => {
-    const text = userflowMermaid(mapWith({
+    const { text } = userflowMermaid(mapWith({
       userflow: { screens: [{ id: '/x', title: 'Экран "Карты"' }], transitions: [], calls: [] }
     }));
     expect(text).toContain("Экран 'Карты'");
@@ -139,7 +206,7 @@ describe('userflowMermaid', () => {
 
 describe('functionalMermaid', () => {
   it('одна верхняя возможность становится корнем без обёртки', () => {
-    const text = functionalMermaid(mapWith({
+    const { text } = functionalMermaid(mapWith({
       functional: {
         capabilities: [
           { id: 'orders', title: 'Заказы' },
@@ -159,8 +226,15 @@ describe('functionalMermaid', () => {
     expect(indentOf(lines[childAt] ?? '')).toBeGreaterThan(indentOf(lines[parentAt] ?? ''));
   });
 
+  it('подробности при наведении несут id и заголовок возможности', () => {
+    const { details } = functionalMermaid(mapWith({
+      functional: { capabilities: [{ id: 'orders', title: 'Заказы' }] }
+    }));
+    expect(details['f_orders']).toBe('orders\nЗаказы');
+  });
+
   it('несколько верхних возможностей собираются под общим узлом', () => {
-    const text = functionalMermaid(mapWith({
+    const { text } = functionalMermaid(mapWith({
       functional: {
         capabilities: [
           { id: 'orders', title: 'Заказы' },
@@ -174,14 +248,14 @@ describe('functionalMermaid', () => {
   });
 
   it('ссылка на несуществующего родителя не теряет возможность', () => {
-    const text = functionalMermaid(mapWith({
+    const { text } = functionalMermaid(mapWith({
       functional: { capabilities: [{ id: 'orphan', title: 'Одна', parent: 'нет-такой' }] }
     }));
     expect(text).toContain('f_orphan(Одна)');
   });
 
   it('повторный id не рисует один узел дважды в разных ветках', () => {
-    const text = functionalMermaid(mapWith({
+    const { text } = functionalMermaid(mapWith({
       functional: {
         capabilities: [
           { id: 'a', title: 'Первая' },
@@ -196,13 +270,13 @@ describe('functionalMermaid', () => {
   });
 
   it('скобки в названии не рвут синтаксис узла', () => {
-    const text = functionalMermaid(mapWith({
+    const { text } = functionalMermaid(mapWith({
       functional: { capabilities: [{ id: 'x', title: 'Отчёты (PDF)' }] }
     }));
     expect(text).not.toMatch(/\(Отчёты \(PDF\)\)/);
   });
 
   it('пустая структура даёт пустую строку, а не пустую диаграмму', () => {
-    expect(functionalMermaid(emptyProjectMap())).toBe('');
+    expect(functionalMermaid(emptyProjectMap())).toEqual({ text: '', details: {} });
   });
 });
