@@ -483,7 +483,7 @@ updated: 2026-08-31
         {"from":"server/utils/inventory-service.ts","to":"project-files","direction":"read","evidence":{"path":"server/utils/inventory-service.ts","line":147,"fragment":"      hash = fingerprint(readFileSync(absolute, 'utf8'));"}},
         {"from":"server/utils/projects.ts","to":"projects-list","direction":"both","evidence":{"path":"server/utils/projects.ts","line":12,"fragment":"return useStorage('data');"}},
         {"from":"server/utils/record-write.ts","to":"project-files","direction":"read","evidence":{"path":"server/utils/record-write.ts","line":1,"fragment":"import { readFileSync, writeFileSync } from 'node:fs';"}},
-        {"from":"server/utils/record-write.ts","to":"project-files","direction":"write","evidence":{"path":"server/utils/record-write.ts","line":80,"fragment":"writeFileSync(context.absolute, outcome.text, 'utf8');"}},
+        {"from":"server/utils/record-write.ts","to":"project-files","direction":"write","evidence":{"path":"server/utils/record-write.ts","line":90,"fragment":"writeFileSync(context.absolute, outcome.text, 'utf8');"}},
         {"from":"server/utils/sessions.ts","to":"session-memory","direction":"both","evidence":{"path":"server/utils/sessions.ts","line":15,"fragment":"const FILE = '.docdd/sessions.json';"}},
         {"from":"server/utils/work-service.ts","to":"git-repo","direction":"both","evidence":{"path":"server/utils/work-service.ts","line":114,"fragment":"  const created = await ensureWorktree(normalized, branch, r"}},
         {"from":"server/utils/work-service.ts","to":"project-files","direction":"write","evidence":{"path":"server/utils/work-service.ts","line":298,"fragment":"  const saved = saveRecord(context, outcome, root);"}}
