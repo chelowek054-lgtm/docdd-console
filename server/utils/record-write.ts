@@ -59,8 +59,14 @@ export type SaveResult =
   | { ok: false; problems: string[] };
 
 /**
- * Запись происходит, только если сторож молчит и front matter после правки
- * по-прежнему проходит схему. Отказ записать лучше испорченного документа.
+ * Запись происходит, только если сторож молчит и правка не роняет схему
+ * *сильнее*, чем она уже была. Отказ записать лучше испорченного документа —
+ * но запись, уже испорченная до этой правки (front matter собран руками в
+ * обход схемы, минуя приложение), не должна становиться от этого неприкасаемой
+ * навсегда: без этого разрешён только правки того самого поля, которого не
+ * хватает, — а его как раз и трогать нельзя (isSettled), и запись зависает без
+ * единого доступного действия. Новые нарушения — те, которых не было в файле
+ * до правки, — по-прежнему отказ.
  */
 export function saveRecord(context: RecordContext, outcome: WriteOutcome, root: string): SaveResult {
   if (outcome.problems.length > 0) {
@@ -72,7 +78,11 @@ export function saveRecord(context: RecordContext, outcome: WriteOutcome, root: 
     return { ok: false, problems: [parsed.violation.message] };
   }
 
-  const issues = validateFrontMatter(parsed.record.data);
+  const originalParsed = parseRecord(context.original, context.record.source);
+  const before = new Set(
+    originalParsed.ok ? validateFrontMatter(originalParsed.record.data).map((issue) => issue.message) : []
+  );
+  const issues = validateFrontMatter(parsed.record.data).filter((issue) => !before.has(issue.message));
   if (issues.length > 0) {
     return { ok: false, problems: issues.map((issue) => issue.message) };
   }
