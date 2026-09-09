@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { load } from 'js-yaml';
 
 import type { SourceFile } from './analyze';
+import { isIgnored, parseGitignore } from './ignore';
 import { coerceDates } from './parse';
 import { normalizeRoot, resolveInside, toProjectPath } from './paths';
 import { validateProject, validateReport } from './schema';
@@ -166,15 +167,36 @@ function readReport(path: string): Report | null {
   }
 }
 
-function walk(directory: string): string[] {
+/** Всегда мимо описи, даже если про них никто не написал в `.gitignore`. */
+const ALWAYS_IGNORED = ['.git/'];
+
+function walk(directory: string, inherited: readonly string[] = []): string[] {
   if (!existsSync(directory)) return [];
+
+  // `.gitignore` этой папки действует и в ней самой, и глубже — так же, как
+  // у настоящего git; более глубокий не отменяет более мелкий, а добавляется.
+  const own = readGitignore(directory);
+  const rules = own.length > 0 ? [...inherited, ...own] : inherited;
+
   const found: string[] = [];
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    if (isIgnored(ALWAYS_IGNORED, entry.name, entry.isDirectory())) continue;
+    if (isIgnored(rules, entry.name, entry.isDirectory())) continue;
+
     const path = join(directory, entry.name);
-    if (entry.isDirectory()) found.push(...walk(path));
+    if (entry.isDirectory()) found.push(...walk(path, rules));
     else if (entry.isFile()) found.push(path);
   }
   return found.sort();
+}
+
+function readGitignore(directory: string): string[] {
+  const path = join(directory, '.gitignore');
+  try {
+    return parseGitignore(readFileSync(path, 'utf8'));
+  } catch {
+    return [];
+  }
 }
 
 function stamp(path: string, projectPath: string): string {
