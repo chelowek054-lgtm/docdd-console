@@ -177,7 +177,7 @@ updated: 2026-08-31
         {"from":"app/pages/projects/[id]/shared.vue","to":"server/lib/inbox.ts","evidence":{"path":"app/pages/projects/[id]/shared.vue","line":4,"fragment":"import type { ProposedRecord } from '~~/server/lib/inbox';"}},
         {"from":"app/utils/graph-layout.ts","to":"server/lib/types.ts","evidence":{"path":"app/utils/graph-layout.ts","line":3,"fragment":"import type { IndexRecord, LinkKind } from '../../server/lib"}},
         {"from":"app/utils/labels.ts","to":"server/lib/types.ts","evidence":{"path":"app/utils/labels.ts","line":1,"fragment":"import type { Severity } from '~~/server/lib/types';"}},
-        {"from":"app/utils/map-mermaid.ts","to":"server/lib/maps.ts","evidence":{"path":"app/utils/map-mermaid.ts","line":1,"fragment":"import type { Evidence, EvidenceVerdict, ProjectMap } from '../../server/lib/maps';"}},
+        {"from":"app/utils/map-mermaid.ts","to":"server/lib/maps.ts","evidence":{"path":"app/utils/map-mermaid.ts","line":1,"fragment":"from '../../server/lib/maps';"}},
         {"from":"cli/check.ts","to":"cli/report.ts","evidence":{"path":"cli/check.ts","line":5,"fragment":"import { exitCode, formatJson, formatText } from './report';"}},
         {"from":"cli/check.ts","to":"server/lib/indexer.ts","evidence":{"path":"cli/check.ts","line":3,"fragment":"import { buildIndex } from '../server/lib/indexer';"}},
         {"from":"cli/check.ts","to":"server/lib/workspace.ts","evidence":{"path":"cli/check.ts","line":4,"fragment":"import { WorkspaceError } from '../server/lib/workspace';"}},

@@ -24,8 +24,19 @@ export interface Evidence {
  * при складывании (`foldMaps`), поэтому есть только в составленной картине
  * (`ProjectMap`), а в разборе одной записи всегда `undefined`.
  */
+/** Один пункт публичного интерфейса модуля: что из него импортируют. */
+export interface ApiItem {
+  name: string;
+  kind?: string;
+  summary?: string;
+  signature?: string;
+}
+
 export interface CodemapPart {
-  modules?: { id: string; title?: string; layer?: string; path?: string; declaredBy?: string }[];
+  modules?: {
+    id: string; title?: string; layer?: string; path?: string;
+    summary?: string; api?: ApiItem[]; declaredBy?: string;
+  }[];
   imports?: { from: string; to: string; evidence: Evidence; status?: EvidenceVerdict; declaredBy?: string }[];
 }
 
