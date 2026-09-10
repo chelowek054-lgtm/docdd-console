@@ -34,6 +34,8 @@ const open = computed({
 
 /** В узкой колонке код не читается — на весь экран по кнопке в шапке. */
 const wide = ref(false);
+/** Перенос длинных строк кода — чтобы не гонять горизонтальный скроллбар. */
+const wrap = ref(false);
 
 const STATUS_LABEL: Record<EvidenceVerdict, string> = {
   ok: 'сходится с файлом',
@@ -126,7 +128,7 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
 </script>
 
 <template>
-  <USlideover v-model:open="open" :portal="to ?? true" :ui="{ content: wide ? 'max-w-[92vw]' : 'max-w-xl' }">
+  <USlideover v-model:open="open" :portal="to ?? true" :ui="{ content: wide ? 'max-w-[96vw]' : 'max-w-xl' }">
     <template #header>
       <div v-if="selection" class="flex w-full items-start gap-2">
         <div class="min-w-0 flex-1">
@@ -192,7 +194,19 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
         </template>
 
         <template v-if="path">
-          <h3 class="font-medium">Файл</h3>
+          <div class="flex items-center gap-2">
+            <h3 class="font-medium">Файл</h3>
+            <UButton
+              v-if="file"
+              class="ml-auto"
+              :icon="wrap ? 'i-lucide-move-horizontal' : 'i-lucide-wrap-text'"
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              :title="wrap ? 'Не переносить строки' : 'Переносить длинные строки'"
+              @click="wrap = !wrap"
+            />
+          </div>
           <p class="font-mono text-xs text-muted">{{ path }}</p>
 
           <p v-if="loadingFile" class="text-muted">Открываю…</p>
@@ -202,14 +216,21 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
             variant="subtle"
             :title="fileFailure.message"
           />
-          <div v-else-if="file" class="max-h-[70vh] overflow-auto rounded border border-default">
+          <div
+            v-else-if="file"
+            class="overflow-auto rounded border border-default"
+            :class="wide ? 'max-h-[calc(100vh-16rem)]' : 'max-h-[70vh]'"
+          >
             <pre class="text-xs leading-5"><div
               v-for="(tokens, index) in codeLines"
               :key="index"
               :ref="(el) => setLineRef(el, index + 1)"
               class="flex px-2"
               :class="highlightLine === index + 1 ? 'bg-warning/20' : ''"
-            ><span class="w-10 shrink-0 select-none text-right text-dimmed">{{ index + 1 }}</span><span class="pl-3 whitespace-pre"><span
+            ><span class="w-10 shrink-0 select-none text-right text-dimmed">{{ index + 1 }}</span><span
+              class="pl-3"
+              :class="wrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre'"
+            ><span
               v-for="(token, ti) in tokens"
               :key="ti"
               :style="tokenStyle(token)"
