@@ -12,6 +12,13 @@ const props = defineProps<{
   edges?: MermaidEdge[];
   /** id узла → id соседей — для подсветки при клике (app/utils/map-mermaid.ts). */
   neighbors?: Record<string, string[]>;
+  /**
+   * Разворачивать на весь экран этот элемент вместо самой диаграммы. Родитель
+   * передаёт общий контейнер, в который телепортирует и карточку узла, —
+   * иначе Fullscreen API показывает только поддерево полноэкранного элемента,
+   * и карточка, живущая в портале рядом, из фуллскрина не видна.
+   */
+  fullscreenTarget?: HTMLElement | null;
 }>();
 
 const emit = defineEmits<{
@@ -237,16 +244,18 @@ function zoomBy(factor: number) {
 }
 
 async function toggleFullscreen() {
-  if (!wrapper.value) return;
+  const target = props.fullscreenTarget ?? wrapper.value;
+  if (!target) return;
   if (document.fullscreenElement) {
     await document.exitFullscreen();
   } else {
-    await wrapper.value.requestFullscreen();
+    await target.requestFullscreen();
   }
 }
 
 function onFullscreenChange() {
-  fullscreen.value = document.fullscreenElement === wrapper.value;
+  const active = document.fullscreenElement;
+  fullscreen.value = !!active && (active === wrapper.value || active === props.fullscreenTarget);
 }
 
 onMounted(() => document.addEventListener('fullscreenchange', onFullscreenChange));
@@ -277,7 +286,7 @@ function exportSvg() {
     <div
       ref="wrapper"
       class="relative overflow-hidden rounded border border-default"
-      :class="fullscreen ? 'h-screen w-screen bg-default' : ''"
+      :class="fullscreen ? (fullscreenTarget ? 'h-[85vh]' : 'h-screen w-screen bg-default') : ''"
     >
       <div class="absolute right-2 top-2 z-10 flex gap-1">
         <UButton

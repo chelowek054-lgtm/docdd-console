@@ -2,6 +2,7 @@
 import type { ComponentPublicInstance } from 'vue';
 
 import type { ApiFailure } from '~/composables/useProjectIndex';
+import { highlightCode, type CodeToken } from '~/utils/highlight';
 import type { MapSelection } from '~/utils/map-mermaid';
 import type { EvidenceVerdict } from '~~/server/lib/maps';
 
@@ -9,13 +10,20 @@ import type { EvidenceVerdict } from '~~/server/lib/maps';
  * Клик по узлу или ребру карты открывает эту карточку сбоку — не уводя с
  * диаграммы (docs/04-ui.md, «Карты»). У узла: что модуль делает (`summary`
  * карты), его публичный интерфейс (`api` карты) и содержимое файла — тем же
- * `GET /file`, что и ссылка из тела записи. У ребра: свидетельство и файл,
- * прокрученный к нужной строке.
+ * `GET /file`, что и ссылка из тела записи, с подсветкой синтаксиса. У ребра:
+ * свидетельство и файл, прокрученный к нужной строке.
  */
 
 const props = defineProps<{
   projectId: string;
   selection: MapSelection | null;
+  /**
+   * Куда телепортировать карточку. В обычном режиме — в `<body>` (по
+   * умолчанию), а когда диаграмма развёрнута на весь экран — в тот же
+   * контейнер, иначе Fullscreen API карточку не покажет (она вне поддерева
+   * полноэкранного элемента).
+   */
+  to?: HTMLElement | null;
 }>();
 const emit = defineEmits<{ close: [] }>();
 
@@ -75,10 +83,27 @@ watch([() => props.projectId, path], async ([projectId, filePath]) => {
   }
 }, { immediate: true });
 
-const lines = computed(() => file.value?.content.split(/\r?\n/) ?? []);
+/**
+ * Строки кода с подсветкой. Пока Shiki грузится — показываем текст без цвета:
+ * увидеть код важнее, чем ждать раскраску.
+ */
+const highlighted = ref<CodeToken[][]>([]);
+const plainLines = computed<CodeToken[][]>(() =>
+  (file.value?.content.split(/\r?\n/) ?? []).map((line) => [{ content: line }])
+);
+const codeLines = computed(() => (highlighted.value.length ? highlighted.value : plainLines.value));
+
+watch([() => file.value?.content, path], async () => {
+  highlighted.value = [];
+  const content = file.value?.content;
+  if (!content) return;
+  const dark = import.meta.client && document.documentElement.classList.contains('dark');
+  highlighted.value = await highlightCode(content, path.value ?? '', dark);
+});
+
 const lineRefs = ref<Record<number, HTMLElement>>({});
 
-watch([lines, highlightLine], async () => {
+watch([codeLines, highlightLine], async () => {
   if (highlightLine.value === null) return;
   await nextTick();
   lineRefs.value[highlightLine.value]?.scrollIntoView({ block: 'center' });
@@ -88,12 +113,20 @@ function setLineRef(el: Element | ComponentPublicInstance | null, line: number) 
   if (el instanceof HTMLElement) lineRefs.value[line] = el;
 }
 
+function tokenStyle(token: CodeToken) {
+  return {
+    color: token.color,
+    fontStyle: token.italic ? 'italic' : undefined,
+    fontWeight: token.bold ? '600' : undefined
+  };
+}
+
 const nodeApi = computed(() => (props.selection?.kind === 'node' ? props.selection.api ?? [] : []));
 const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.selection.summary : undefined));
 </script>
 
 <template>
-  <USlideover v-model:open="open" :ui="{ content: wide ? 'max-w-[92vw]' : 'max-w-xl' }">
+  <USlideover v-model:open="open" :portal="to ?? true" :ui="{ content: wide ? 'max-w-[92vw]' : 'max-w-xl' }">
     <template #header>
       <div v-if="selection" class="flex w-full items-start gap-2">
         <div class="min-w-0 flex-1">
@@ -171,12 +204,16 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
           />
           <div v-else-if="file" class="max-h-[70vh] overflow-auto rounded border border-default">
             <pre class="text-xs leading-5"><div
-              v-for="(line, index) in lines"
+              v-for="(tokens, index) in codeLines"
               :key="index"
               :ref="(el) => setLineRef(el, index + 1)"
               class="flex px-2"
               :class="highlightLine === index + 1 ? 'bg-warning/20' : ''"
-            ><span class="w-10 shrink-0 select-none text-right text-dimmed">{{ index + 1 }}</span><span class="pl-3 whitespace-pre">{{ line }}</span></div></pre>
+            ><span class="w-10 shrink-0 select-none text-right text-dimmed">{{ index + 1 }}</span><span class="pl-3 whitespace-pre"><span
+              v-for="(token, ti) in tokens"
+              :key="ti"
+              :style="tokenStyle(token)"
+            >{{ token.content }}</span><span v-if="!tokens.length">&#8203;</span></span></div></pre>
           </div>
         </template>
 
