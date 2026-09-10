@@ -21,7 +21,8 @@
     "js-yaml": "^4.1.0",
     "markdown-it": "^15.0.1",
     "mermaid": "^11.17.2",
-    "nuxt": "^4.4.5"
+    "nuxt": "^4.4.5",
+    "shiki": "^3.23.0"
   },
   "devDependencies": {
     "@iconify-json/lucide": "^1.2.127",

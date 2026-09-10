@@ -161,6 +161,9 @@ const views = computed(() => {
 const shown = ref<'codemap' | 'dataflow' | 'userflow' | 'functional'>('codemap');
 const current = computed(() => views.value.find((view) => view.key === shown.value));
 
+/** Общий контейнер диаграммы и карточки — цель разворота на весь экран. */
+const stage = ref<HTMLElement | null>(null);
+
 const copied = ref(false);
 async function copySource() {
   const source = current.value?.text;
@@ -306,59 +309,65 @@ function onEdgeClick(edge: MermaidEdge) {
           :items="views.map((view) => ({ label: view.title, value: view.key, badge: view.count }))"
         />
 
-        <UCard v-if="current">
-          <template #header>
-            <div class="flex flex-wrap items-center gap-3">
-              <div>
-                <h2 class="font-medium">{{ current.title }}</h2>
-                <p class="text-sm text-muted">{{ current.question }}</p>
+        <!-- Общий контейнер диаграммы и карточки узла: на весь экран
+             разворачивается он, а не сама диаграмма, — иначе карточка (портал
+             рядом) из фуллскрина не видна (docs/04-ui.md, «Карты»). -->
+        <div ref="stage" class="[&:fullscreen]:overflow-auto [&:fullscreen]:bg-default [&:fullscreen]:p-4">
+          <UCard v-if="current">
+            <template #header>
+              <div class="flex flex-wrap items-center gap-3">
+                <div>
+                  <h2 class="font-medium">{{ current.title }}</h2>
+                  <p class="text-sm text-muted">{{ current.question }}</p>
+                </div>
+                <!-- Число уже видно бейджем на вкладке — здесь дублировать незачем. -->
+                <UButton
+                  v-if="current.text"
+                  class="ml-auto"
+                  size="sm"
+                  variant="ghost"
+                  color="neutral"
+                  icon="i-lucide-copy"
+                  @click="copySource"
+                >
+                  {{ copied ? 'Скопировано' : 'Скопировать mermaid' }}
+                </UButton>
               </div>
-              <!-- Число уже видно бейджем на вкладке — здесь дублировать незачем. -->
+            </template>
+
+            <!-- Слои — только у кодовой базы: у остальных видов узел не несёт слоя. -->
+            <div v-if="shown === 'codemap' && allLayers.length > 1" class="mb-3 flex flex-wrap gap-1">
               <UButton
-                v-if="current.text"
-                class="ml-auto"
-                size="sm"
-                variant="ghost"
-                color="neutral"
-                icon="i-lucide-copy"
-                @click="copySource"
+                v-for="layer in allLayers"
+                :key="layer"
+                size="xs"
+                :color="hiddenLayers.has(layer) ? 'neutral' : 'primary'"
+                :variant="hiddenLayers.has(layer) ? 'outline' : 'subtle'"
+                @click="toggleLayer(layer)"
               >
-                {{ copied ? 'Скопировано' : 'Скопировать mermaid' }}
+                {{ layer }}
               </UButton>
             </div>
-          </template>
 
-          <!-- Слои — только у кодовой базы: у остальных видов узел не несёт слоя. -->
-          <div v-if="shown === 'codemap' && allLayers.length > 1" class="mb-3 flex flex-wrap gap-1">
-            <UButton
-              v-for="layer in allLayers"
-              :key="layer"
-              size="xs"
-              :color="hiddenLayers.has(layer) ? 'neutral' : 'primary'"
-              :variant="hiddenLayers.has(layer) ? 'outline' : 'subtle'"
-              @click="toggleLayer(layer)"
-            >
-              {{ layer }}
-            </UButton>
-          </div>
+            <p v-if="!current.text" class="text-sm text-muted">
+              В подтверждённых картах эта структура не описана.
+            </p>
+            <MermaidDiagram
+              v-else
+              :source="current.text"
+              :details="current.details"
+              :paths="current.paths"
+              :edges="current.edges"
+              :neighbors="current.neighbors"
+              :fullscreen-target="stage"
+              :id="`map-${current.key}`"
+              @node-click="onNodeClick"
+              @edge-click="onEdgeClick"
+            />
+          </UCard>
 
-          <p v-if="!current.text" class="text-sm text-muted">
-            В подтверждённых картах эта структура не описана.
-          </p>
-          <MermaidDiagram
-            v-else
-            :source="current.text"
-            :details="current.details"
-            :paths="current.paths"
-            :edges="current.edges"
-            :neighbors="current.neighbors"
-            :id="`map-${current.key}`"
-            @node-click="onNodeClick"
-            @edge-click="onEdgeClick"
-          />
-        </UCard>
-
-        <MapInspector :project-id="projectId" :selection="selection" @close="selection = null" />
+          <MapInspector :project-id="projectId" :selection="selection" :to="stage" @close="selection = null" />
+        </div>
       </template>
     </template>
   </div>
