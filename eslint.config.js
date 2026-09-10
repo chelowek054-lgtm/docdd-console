@@ -1,7 +1,11 @@
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['node_modules', 'dist', '.nuxt', '.output'] },
+  // `.claude` — рабочие деревья задач (`.claude/worktrees/*`) и прочее хозяйство
+  // Клода: это копии репозитория, а не его код. Без этого `eslint .` из главного
+  // чекаута лезет в сборочный мусор чужой ветки (её `.nuxt` паттерном выше не
+  // накрыт — он на один уровень, а не вглубь).
+  { ignores: ['node_modules', 'dist', '.nuxt', '.output', '.claude'] },
   ...tseslint.configs.recommended,
   {
     rules: {
