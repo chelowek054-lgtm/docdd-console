@@ -161,8 +161,20 @@ const views = computed(() => {
 const shown = ref<'codemap' | 'dataflow' | 'userflow' | 'functional'>('codemap');
 const current = computed(() => views.value.find((view) => view.key === shown.value));
 
-/** Общий контейнер диаграммы и карточки — цель разворота на весь экран. */
+/**
+ * Общий контейнер диаграммы и карточки — цель разворота на весь экран.
+ * Карточку телепортируем в него ТОЛЬКО в полноэкранном режиме: иначе её
+ * лучше держать в `<body>` — поверх всей страницы, выше панелей диаграммы,
+ * а не в общем потоке с ними (docs/04-ui.md, «Карты»).
+ */
 const stage = ref<HTMLElement | null>(null);
+const staged = ref(false);
+function onFullscreenChange() {
+  const el = document.fullscreenElement;
+  staged.value = !!el && (el === stage.value || !!stage.value?.contains(el));
+}
+onMounted(() => document.addEventListener('fullscreenchange', onFullscreenChange));
+onUnmounted(() => document.removeEventListener('fullscreenchange', onFullscreenChange));
 
 const copied = ref(false);
 async function copySource() {
@@ -366,7 +378,12 @@ function onEdgeClick(edge: MermaidEdge) {
             />
           </UCard>
 
-          <MapInspector :project-id="projectId" :selection="selection" :to="stage" @close="selection = null" />
+          <MapInspector
+            :project-id="projectId"
+            :selection="selection"
+            :to="staged ? stage : null"
+            @close="selection = null"
+          />
         </div>
       </template>
     </template>
