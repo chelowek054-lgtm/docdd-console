@@ -1,4 +1,4 @@
-import type { Evidence, EvidenceVerdict, ProjectMap } from '../../server/lib/maps';
+import type { ApiItem, Evidence, EvidenceVerdict, ProjectMap } from '../../server/lib/maps';
 
 /**
  * Карты в текст mermaid. Тот же текст показывается на экране и выгружается,
@@ -33,6 +33,10 @@ export interface MermaidNode {
   title?: string;
   layer?: string;
   path?: string;
+  /** Что делает модуль — из карты (docs/07-maps.md). */
+  summary?: string;
+  /** Публичный интерфейс модуля — из карты. */
+  api?: ApiItem[];
   declaredBy?: string;
 }
 
@@ -158,7 +162,10 @@ export function codemapMermaid(map: ProjectMap): MermaidOutput {
       lines.push(`        ${node}["${label(module.title ?? module.id)}"]:::${nodeId('layer', layer)}`);
       details[node] = [module.id, module.title, `слой: ${layer}`].filter(Boolean).join(LF);
       if (module.path) paths[node] = module.path;
-      nodes[node] = { id: module.id, title: module.title, layer, path: module.path, declaredBy: module.declaredBy };
+      nodes[node] = {
+        id: module.id, title: module.title, layer, path: module.path,
+        summary: module.summary, api: module.api, declaredBy: module.declaredBy
+      };
     }
     lines.push('    end');
   }

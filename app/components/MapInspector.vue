@@ -7,9 +7,10 @@ import type { EvidenceVerdict } from '~~/server/lib/maps';
 
 /**
  * Клик по узлу или ребру карты открывает эту карточку сбоку — не уводя с
- * диаграммы (docs/04-ui.md, «Карты»). Узел ведёт к своему файлу через тот же
- * `GET /file`, что и ссылка из тела записи; ребро — к своему свидетельству, с
- * тем же файлом, прокрученным к нужной строке.
+ * диаграммы (docs/04-ui.md, «Карты»). У узла: что модуль делает (`summary`
+ * карты), его публичный интерфейс (`api` карты) и содержимое файла — тем же
+ * `GET /file`, что и ссылка из тела записи. У ребра: свидетельство и файл,
+ * прокрученный к нужной строке.
  */
 
 const props = defineProps<{
@@ -23,6 +24,9 @@ const open = computed({
   set: (value: boolean) => { if (!value) emit('close'); }
 });
 
+/** В узкой колонке код не читается — на весь экран по кнопке в шапке. */
+const wide = ref(false);
+
 const STATUS_LABEL: Record<EvidenceVerdict, string> = {
   ok: 'сходится с файлом',
   stale: 'не сходится: строка уехала или текста больше нет',
@@ -30,10 +34,19 @@ const STATUS_LABEL: Record<EvidenceVerdict, string> = {
   still_present: 'заявлено убранным, а текст на месте'
 };
 
+/**
+ * Что за файл открывать. У ребра — путь свидетельства. У узла — `path`, а
+ * если его нет, но сам `id` — путь к файлу (есть `/` и расширение), то `id`:
+ * его написала модель, сервер подтвердит или честно откажет. Догадки из
+ * dotted-имени не строятся (04-ui.md, «Карты»).
+ */
+const LOOKS_LIKE_PATH = /\/[^/]+\.[A-Za-z0-9]+$/;
 const path = computed(() => {
   const sel = props.selection;
   if (!sel) return null;
-  return sel.kind === 'node' ? (sel.path ?? null) : sel.evidence.path;
+  if (sel.kind === 'edge') return sel.evidence.path;
+  if (sel.path) return sel.path;
+  return LOOKS_LIKE_PATH.test(sel.id) ? sel.id : null;
 });
 const highlightLine = computed(() => (props.selection?.kind === 'edge' ? props.selection.evidence.line : null));
 
@@ -74,15 +87,30 @@ watch([lines, highlightLine], async () => {
 function setLineRef(el: Element | ComponentPublicInstance | null, line: number) {
   if (el instanceof HTMLElement) lineRefs.value[line] = el;
 }
+
+const nodeApi = computed(() => (props.selection?.kind === 'node' ? props.selection.api ?? [] : []));
+const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.selection.summary : undefined));
 </script>
 
 <template>
-  <USlideover v-model:open="open" :ui="{ content: 'max-w-xl' }">
+  <USlideover v-model:open="open" :ui="{ content: wide ? 'max-w-[92vw]' : 'max-w-xl' }">
     <template #header>
-      <div v-if="selection">
-        <h2 v-if="selection.kind === 'node'" class="font-medium">{{ selection.title ?? selection.id }}</h2>
-        <h2 v-else class="font-medium">Свидетельство связи</h2>
-        <p v-if="selection.kind === 'node' && selection.layer" class="text-sm text-muted">слой: {{ selection.layer }}</p>
+      <div v-if="selection" class="flex w-full items-start gap-2">
+        <div class="min-w-0 flex-1">
+          <h2 v-if="selection.kind === 'node'" class="truncate font-medium">{{ selection.title ?? selection.id }}</h2>
+          <h2 v-else class="font-medium">Свидетельство связи</h2>
+          <p v-if="selection.kind === 'node' && selection.layer" class="text-sm text-muted">
+            слой: {{ selection.layer }}
+          </p>
+        </div>
+        <UButton
+          :icon="wide ? 'i-lucide-minimize-2' : 'i-lucide-maximize-2'"
+          size="xs"
+          color="neutral"
+          variant="ghost"
+          :title="wide ? 'Свернуть' : 'Развернуть'"
+          @click="wide = !wide"
+        />
       </div>
     </template>
 
@@ -111,6 +139,25 @@ function setLineRef(el: Element | ComponentPublicInstance | null, line: number) 
           </NuxtLink>
         </p>
 
+        <p v-if="nodeSummary" class="leading-relaxed">{{ nodeSummary }}</p>
+
+        <template v-if="nodeApi.length">
+          <h3 class="font-medium">Интерфейс</h3>
+          <ul class="space-y-2">
+            <li v-for="item in nodeApi" :key="item.name" class="rounded border border-default p-2">
+              <div class="flex flex-wrap items-baseline gap-2">
+                <code class="text-xs font-semibold">{{ item.name }}</code>
+                <UBadge v-if="item.kind" size="xs" color="neutral" variant="subtle">{{ item.kind }}</UBadge>
+              </div>
+              <p v-if="item.summary" class="mt-1 text-xs text-muted">{{ item.summary }}</p>
+              <pre
+                v-if="item.signature"
+                class="mt-1 overflow-x-auto rounded bg-elevated p-1.5 text-xs"
+              >{{ item.signature }}</pre>
+            </li>
+          </ul>
+        </template>
+
         <template v-if="path">
           <h3 class="font-medium">Файл</h3>
           <p class="font-mono text-xs text-muted">{{ path }}</p>
@@ -122,7 +169,7 @@ function setLineRef(el: Element | ComponentPublicInstance | null, line: number) 
             variant="subtle"
             :title="fileFailure.message"
           />
-          <div v-else-if="file" class="max-h-[60vh] overflow-auto rounded border border-default">
+          <div v-else-if="file" class="max-h-[70vh] overflow-auto rounded border border-default">
             <pre class="text-xs leading-5"><div
               v-for="(line, index) in lines"
               :key="index"
@@ -132,8 +179,10 @@ function setLineRef(el: Element | ComponentPublicInstance | null, line: number) 
             ><span class="w-10 shrink-0 select-none text-right text-dimmed">{{ index + 1 }}</span><span class="pl-3 whitespace-pre">{{ line }}</span></div></pre>
           </div>
         </template>
-        <p v-else-if="selection.kind === 'node'" class="text-muted">
-          Карта не назвала файл этого узла — открыть нечего.
+
+        <p v-if="!path && !nodeSummary && !nodeApi.length && selection.kind === 'node'" class="text-muted">
+          Карта пока не описала этот узел — ни что он делает, ни его интерфейс, ни файл.
+          Это появится после «Обновить карты».
         </p>
       </div>
     </template>

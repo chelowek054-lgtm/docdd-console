@@ -86,6 +86,23 @@ describe('codemapMermaid', () => {
     expect(paths['m_gastrograf_domain']).toBeUndefined();
   });
 
+  it('nodes несёт summary и api модуля — для карточки при клике', () => {
+    const { nodes } = codemapMermaid(mapWith({
+      codemap: {
+        modules: [{
+          id: 'server/lib/parse.ts',
+          title: 'Разбор',
+          layer: 'ядро',
+          summary: 'Читает файл записи и делит его на front matter и тело.',
+          api: [{ name: 'parseRecord', kind: 'function', signature: '(text: string) => ParsedRecord' }]
+        }],
+        imports: []
+      }
+    }));
+    expect(nodes['m_server_lib_parse_ts']?.summary).toContain('front matter');
+    expect(nodes['m_server_lib_parse_ts']?.api?.[0]?.name).toBe('parseRecord');
+  });
+
   it('edges несёт свидетельство и статус связи в порядке появления в тексте', () => {
     const { edges } = codemapMermaid(mapWith({
       codemap: {
