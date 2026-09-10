@@ -28,13 +28,19 @@ describe('карта этого репозитория', () => {
   for (const name of records) {
     const text = readFileSync(join(mapsDir, name), 'utf8');
     const parsed = parseMapRecord(text);
+    // Карта может нести только `docdd-skipped` — список не-модулей, без
+    // структур и свидетельств (docs/07-maps.md, «Не всё попадает в карту»).
+    const structural = parsed.present.length > 0;
 
-    it(`${name}: три структуры проходят свои схемы`, () => {
+    it(`${name}: разбирается без претензий схемы`, () => {
       expect(parsed.problems).toEqual([]);
+    });
+
+    it.skipIf(!structural)(`${name}: три структуры проходят свои схемы`, () => {
       expect(parsed.present).toEqual(['codemap', 'dataflow', 'userflow']);
     });
 
-    it(`${name}: каждое свидетельство сходится с файлом`, () => {
+    it.skipIf(!structural)(`${name}: каждое свидетельство сходится с файлом`, () => {
       const claims = evidenceClaims(parsed.change);
       expect(claims.length).toBeGreaterThan(0);
 
