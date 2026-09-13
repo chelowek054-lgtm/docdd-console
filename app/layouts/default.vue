@@ -113,6 +113,29 @@ function menuItems(links: NavLink[]) {
   return links.map((link) => ({ label: withCount(link), to: link.to }));
 }
 
+/**
+ * Три положения, а не два: из «светлая/тёмная» к системной уже не вернуться
+ * (docs/04-ui.md, «Тема»). Подписи свои — готовый переключатель Nuxt UI берёт
+ * их из локали библиотеки, а она в приложении английская.
+ */
+const colorMode = useColorMode();
+
+const THEMES = [
+  { value: 'system', label: 'Как в системе', icon: 'i-lucide-monitor' },
+  { value: 'light', label: 'Светлая', icon: 'i-lucide-sun' },
+  { value: 'dark', label: 'Тёмная', icon: 'i-lucide-moon' }
+] as const;
+
+const currentTheme = computed(() => THEMES.find((theme) => theme.value === colorMode.preference) ?? THEMES[0]);
+
+const themeItems = computed(() => THEMES.map((theme) => ({
+  label: theme.label,
+  icon: theme.icon,
+  type: 'checkbox' as const,
+  checked: colorMode.preference === theme.value,
+  onSelect: () => { colorMode.preference = theme.value; }
+})));
+
 /** Вкладка документов различается запросом, а подсветка — по пути экрана. */
 function isActive(to: string): boolean {
   return to.split('?')[0] === route.path;
@@ -173,6 +196,23 @@ function isActive(to: string): boolean {
           >
             Все проекты
           </UButton>
+
+          <!-- Выбор хранится в браузере: на сервере он неизвестен, поэтому
+               кнопка рисуется только на клиенте — без мигания чужой темы. -->
+          <ClientOnly>
+            <UDropdownMenu :items="themeItems" :content="{ align: 'end' }">
+              <UButton
+                :icon="currentTheme.icon"
+                :aria-label="`Тема: ${currentTheme.label}`"
+                variant="ghost"
+                color="neutral"
+                size="sm"
+              />
+            </UDropdownMenu>
+            <template #fallback>
+              <UButton icon="i-lucide-monitor" aria-label="Тема" variant="ghost" color="neutral" size="sm" disabled />
+            </template>
+          </ClientOnly>
         </div>
       </div>
     </header>
