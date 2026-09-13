@@ -8,14 +8,19 @@ const projectId = computed(() => (typeof route.params['id'] === 'string' ? route
 // в шапке и на самой вкладке всегда об одном и том же (docs/03-server-api.md).
 const { records, index, errors, warnings } = useProjectIndex(projectId);
 
+/** Неподтверждённых записей типа — черновик или на подтверждении: одна мера для всех документов. */
+function unconfirmed(type: string): number {
+  return records.value.filter((record) => record.type === type && ['draft', 'review'].includes(record.status)).length;
+}
+
 /** Открытых задач: не «закрыта» и не «отменена». */
 const openTasks = computed(() => records.value.filter(
   (record) => record.type === 'task' && !['done', 'dropped'].includes(record.status)
 ).length);
 
-/** Неподтверждённых требований: черновик или на подтверждении. */
-const openRequirements = computed(() => records.value.filter(
-  (record) => record.type === 'requirement' && ['draft', 'review'].includes(record.status)
+/** Незакрытых фаз — по посчитанному статусу, а не по записанному в файле. */
+const openPhases = computed(() => records.value.filter(
+  (record) => record.type === 'phase' && phaseProgress(record, records.value).state !== 'done'
 ).length);
 
 /** Проверок без пройденного прогона — не запускалась или последний прогон не `passed`. */
@@ -28,67 +33,89 @@ const openChecks = computed(() => {
 
 const openIssues = computed(() => errors.value.length + warnings.value.length);
 
+interface NavLink {
+  label: string;
+  to: string;
+  count?: number;
+}
+
+type NavEntry = ({ kind: 'link' } & NavLink) | { kind: 'group'; label: string; links: NavLink[] };
+
 /**
- * Вкладок много, и они не равны друг другу (docs/04-ui.md, «Навигация»):
- * «Работа» — что происходит с процессом сейчас, «Наполнение» — как в проект
- * попадают новые записи. Обзор, Карты и Практики — вне групп: у каждой ровно
- * одна прямая кнопка не нуждается в выпадающем списке ради самой себя.
+ * Шапка идёт по цепочке проекта — документ → работа → сверка
+ * (docs/04-ui.md, «Навигация»), и у каждого типа записи из контракта есть
+ * свой список, до которого из неё можно дойти. Раньше проектных документов,
+ * решений, контрактов, фаз и записей карт в шапке не было вовсе — как раз
+ * того, без подтверждения чего задача не уходит в работу.
  *
- * Практики — не в «Наполнении», хотя это тоже взгляд наружу: Входящее и
- * Импорт заводят записи в этом проекте, а Практики ничего не заводит — это
- * чужие decision/design, показанные для чтения (docs/11-shared-sources.md).
- * Разное действие — разное место, не общая тема «внешнее».
+ * «Документы» — то, что человек подтверждает до кода: у всех четырёх одна
+ * схема статусов. «Работа» — сам код. «Сверка» — всё, что отвечает на
+ * «сходится ли»; Нарушения и Граф в ней рядом — список и картинка одного
+ * состояния. Карты, Наполнение и Практики — после цепочки: не шаги, а опора.
  *
- * Внутри «Работы» вкладки идут в порядке заполнения: сперва требование,
- * потом задача, которая его выполняет, потом проверка и её результат.
- * «Нарушения» и «Граф» — не шаги заполнения, а два взгляда на состояние
- * процесса разом (список и картинка того же самого — что не связано, что
- * забыто), поэтому стоят последними, не в середине цепочки.
- *
- * Граф записей — не то же самое, что Карты: Граф про требования, задачи и
- * связи между ними (процесс), Карты — про модули, потоки данных,
- * пользовательские пути (устройство кода). Оба рисуют узлы и рёбра, но не
- * про одно и то же — раньше Граф лежал рядом с Картами именно по внешнему
- * сходству, а не по смыслу, и это было ошибкой.
+ * Прямая кнопка — там, где назначение одно: выпадающий список ради одного
+ * пункта ничего не добавляет. Практики — не в «Наполнении»: Входящее и Импорт
+ * заводят записи в этом проекте, а Практики только показывает чужие
+ * decision/design (docs/11-shared-sources.md).
  */
-const groups = computed(() => {
+const entries = computed<NavEntry[]>(() => {
   if (!projectId.value) return [];
   const base = `/projects/${projectId.value}`;
   return [
+    { kind: 'link', label: 'Обзор', to: base },
     {
+      kind: 'group',
+      label: 'Документы',
+      links: [
+        { label: 'Требования', to: `${base}/requirements`, count: unconfirmed('requirement') },
+        { label: 'Проектные документы', to: `${base}/documents?type=design`, count: unconfirmed('design') },
+        { label: 'Решения', to: `${base}/documents?type=decision`, count: unconfirmed('decision') },
+        { label: 'Контракты', to: `${base}/documents?type=contract`, count: unconfirmed('contract') }
+      ]
+    },
+    {
+      kind: 'group',
       label: 'Работа',
       links: [
-        { label: 'Требования', to: `${base}/requirements`, count: openRequirements.value },
         { label: 'Задачи', to: `${base}/tasks`, count: openTasks.value },
+        { label: 'Фазы', to: `${base}/phases`, count: openPhases.value }
+      ]
+    },
+    {
+      kind: 'group',
+      label: 'Сверка',
+      links: [
         { label: 'Проверки', to: `${base}/checks`, count: openChecks.value },
         { label: 'Результат', to: `${base}/results` },
         { label: 'Нарушения', to: `${base}/issues`, count: openIssues.value },
         { label: 'Граф', to: `${base}/graph` }
       ]
     },
+    { kind: 'link', label: 'Карты', to: `${base}/maps`, count: unconfirmed('map') },
     {
+      kind: 'group',
       label: 'Наполнение',
       links: [
         { label: 'Входящее', to: `${base}/inbox` },
         { label: 'Импорт', to: `${base}/import` }
       ]
-    }
+    },
+    { kind: 'link', label: 'Практики', to: `${base}/shared` }
   ];
 });
 
-/** Пункт меню с числом рядом, если для вкладки есть что считать (docs/04-ui.md). */
-function menuItems(group: (typeof groups.value)[number]) {
-  return group.links.map((link) => ({
-    label: 'count' in link ? `${link.label} · ${link.count}` : link.label,
-    to: link.to
-  }));
+/** Подпись с числом рядом, если для пункта есть что считать (docs/04-ui.md). */
+function withCount(link: NavLink): string {
+  return link.count === undefined ? link.label : `${link.label} · ${link.count}`;
 }
 
-const overviewPath = computed(() => (projectId.value ? `/projects/${projectId.value}` : ''));
+function menuItems(links: NavLink[]) {
+  return links.map((link) => ({ label: withCount(link), to: link.to }));
+}
 
-/** Кнопка группы подсвечена, если текущая страница — одна из вкладок внутри. */
-function isActiveGroup(group: (typeof groups.value)[number]): boolean {
-  return group.links.some((link) => link.to === route.path);
+/** Вкладка документов различается запросом, а подсветка — по пути экрана. */
+function isActive(to: string): boolean {
+  return to.split('?')[0] === route.path;
 }
 </script>
 
@@ -98,47 +125,33 @@ function isActiveGroup(group: (typeof groups.value)[number]): boolean {
       <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-6 py-3">
         <NuxtLink to="/" class="font-semibold">DocDD Console</NuxtLink>
 
-        <nav v-if="overviewPath" class="flex flex-wrap items-center gap-1">
-          <UButton
-            :to="overviewPath"
-            :variant="route.path === overviewPath ? 'soft' : 'ghost'"
-            color="neutral"
-            size="sm"
-          >
-            Обзор
-          </UButton>
-          <UButton
-            :to="`${overviewPath}/maps`"
-            :variant="route.path === `${overviewPath}/maps` ? 'soft' : 'ghost'"
-            color="neutral"
-            size="sm"
-          >
-            Карты
-          </UButton>
-          <UButton
-            :to="`${overviewPath}/shared`"
-            :variant="route.path === `${overviewPath}/shared` ? 'soft' : 'ghost'"
-            color="neutral"
-            size="sm"
-          >
-            Практики
-          </UButton>
-
-          <UDropdownMenu
-            v-for="group in groups"
-            :key="group.label"
-            :items="menuItems(group)"
-            :content="{ align: 'start' }"
-          >
+        <nav v-if="entries.length" class="flex flex-wrap items-center gap-1">
+          <template v-for="entry in entries" :key="entry.label">
             <UButton
-              :variant="isActiveGroup(group) ? 'soft' : 'ghost'"
+              v-if="entry.kind === 'link'"
+              :to="entry.to"
+              :variant="isActive(entry.to) ? 'soft' : 'ghost'"
               color="neutral"
               size="sm"
-              trailing-icon="i-lucide-chevron-down"
             >
-              {{ group.label }}
+              {{ withCount(entry) }}
             </UButton>
-          </UDropdownMenu>
+
+            <UDropdownMenu
+              v-else
+              :items="menuItems(entry.links)"
+              :content="{ align: 'start' }"
+            >
+              <UButton
+                :variant="entry.links.some((link) => isActive(link.to)) ? 'soft' : 'ghost'"
+                color="neutral"
+                size="sm"
+                trailing-icon="i-lucide-chevron-down"
+              >
+                {{ entry.label }}
+              </UButton>
+            </UDropdownMenu>
+          </template>
         </nav>
 
         <div class="ml-auto flex items-center gap-1">
