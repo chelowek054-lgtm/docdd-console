@@ -93,6 +93,23 @@ const failure = computed(() => failureOf(data.value));
 const map = computed(() => (failure.value ? null : (data.value as MapResponse | null)));
 
 /**
+ * Записи карт видны всегда, а не только когда картина пуста (docs/04-ui.md,
+ * «Карты»): черновик от «Обновить карты» не должен находиться только по
+ * номеру, мелькнувшему в ответе. Пустая строка не показывается.
+ */
+const mapRecords = computed(() => {
+  const all = (index.value?.records ?? [])
+    .filter((record) => record.type === 'map')
+    .sort((a, b) => a.id.localeCompare(b.id));
+  const waiting = (status: string) => status === 'draft' || status === 'review';
+  return [
+    { label: 'Подтверждены', records: all.filter((record) => record.status === 'approved') },
+    { label: 'Ждут подтверждения', records: all.filter((record) => waiting(record.status)) },
+    { label: 'Вне суммы', records: all.filter((record) => record.status !== 'approved' && !waiting(record.status)) }
+  ].filter((group) => group.records.length > 0);
+});
+
+/**
  * Слои кодовой базы — чекбоксы «скрыть», а не «показать»: по умолчанию видно
  * всё, скрытые запоминаются по имени слоя, а не по индексу — переживают
  * «Обновить карты» и новые слои сами не пропадают из списка.
@@ -224,6 +241,19 @@ function onEdgeClick(edge: MermaidEdge) {
         >
           Перечитать
         </UButton>
+      </div>
+
+      <div v-if="mapRecords.length" class="space-y-1 text-sm">
+        <p v-for="group in mapRecords" :key="group.label" class="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <span class="text-muted">{{ group.label }}:</span>
+          <RecordLink
+            v-for="record in group.records"
+            :key="record.path"
+            :project-id="projectId"
+            :record-id="record.id"
+            :record="record"
+          />
+        </p>
       </div>
 
       <MapInventory :project-id="projectId" />
