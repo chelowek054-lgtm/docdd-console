@@ -27,6 +27,7 @@ const emit = defineEmits<{
   'edge-click': [edge: MermaidEdge];
 }>();
 
+const colorMode = useColorMode();
 const wrapper = ref<HTMLElement | null>(null);
 const viewport = ref<HTMLElement | null>(null);
 const container = ref<HTMLElement | null>(null);
@@ -52,7 +53,7 @@ async function draw() {
     mermaid.initialize({
       startOnLoad: false,
       securityLevel: 'strict',
-      theme: document.documentElement.classList.contains('dark') ? 'dark' : 'default',
+      theme: colorMode.value === 'dark' ? 'dark' : 'default',
       // Пересечений линий на плотном графе (десятки модулей, импорты крест-накрест)
       // меньше, если узлам и рангам просторнее — по умолчанию dagre экономит место
       // там, где для читаемости лучше не экономить.
@@ -71,6 +72,9 @@ async function draw() {
 
 onMounted(draw);
 watch(() => props.source, draw);
+// Тема mermaid задаётся при отрисовке, поэтому смена темы — это перерисовка
+// (docs/04-ui.md, «Тема»).
+watch(() => colorMode.value, draw);
 
 /**
  * Ключ узла (как в `details`/`paths`) по элементу SVG. Mermaid называет узел

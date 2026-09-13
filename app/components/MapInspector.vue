@@ -95,11 +95,15 @@ const plainLines = computed<CodeToken[][]>(() =>
 );
 const codeLines = computed(() => (highlighted.value.length ? highlighted.value : plainLines.value));
 
-watch([() => file.value?.content, path], async () => {
+// Смена темы пересчитывает подсветку: иначе код остался бы раскрашен в старой
+// (docs/04-ui.md, «Тема»).
+const colorMode = useColorMode();
+
+watch([() => file.value?.content, path, () => colorMode.value], async () => {
   highlighted.value = [];
   const content = file.value?.content;
   if (!content) return;
-  const dark = import.meta.client && document.documentElement.classList.contains('dark');
+  const dark = import.meta.client && colorMode.value === 'dark';
   highlighted.value = await highlightCode(content, path.value ?? '', dark);
 });
 
