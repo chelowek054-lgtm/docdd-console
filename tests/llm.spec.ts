@@ -234,6 +234,14 @@ describe('availability', () => {
     expect(found.command).toContain('Anthropic.ClaudeCode');
   });
 
+  it('находит Claude Code десктопного приложения из Store: его %APPDATA% лежит внутри пакета', () => {
+    const local = fileURLToPath(new URL('./fixtures/fake-msix/', import.meta.url));
+    const found = inEnvironment({ PATH: empty, APPDATA: empty, LOCALAPPDATA: local, USERPROFILE: empty }, availability);
+    expect(found.available).toBe(true);
+    expect(found.command).toContain('LocalCache');
+    expect(found.command).toContain('2.1.10');
+  });
+
   it('не найден — это состояние с объяснением, а не пустой отказ', () => {
     const found = inEnvironment({ PATH: empty, APPDATA: empty, LOCALAPPDATA: empty, USERPROFILE: empty }, availability);
     expect(found.available).toBe(false);

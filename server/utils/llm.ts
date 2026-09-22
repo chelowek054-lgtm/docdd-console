@@ -43,8 +43,22 @@ function candidates(): string[] {
     '/usr/local/bin/claude',
     '/opt/homebrew/bin/claude',
     ...wingetInstalls(local),
-    ...versionedInstalls(appData)
+    ...versionedInstalls(join(appData, 'Claude', 'claude-code')),
+    ...packagedInstalls(local)
   ].filter((path) => path !== '');
+}
+
+/**
+ * Десктопное приложение из Microsoft Store — пакет MSIX, и его запись в
+ * %APPDATA% Windows перенаправляет в LocalCache пакета. Изнутри пакета файл
+ * виден по обычному пути, а сервер, запущенный из Проводника, видит только
+ * настоящий — поэтому смотрим туда напрямую.
+ */
+function packagedInstalls(local: string): string[] {
+  const packages = join(local, 'Packages');
+  return entries(packages)
+    .filter((name) => name.startsWith('Claude_'))
+    .flatMap((name) => versionedInstalls(join(packages, name, 'LocalCache', 'Roaming', 'Claude', 'claude-code')));
 }
 
 /**
@@ -60,8 +74,7 @@ function wingetInstalls(local: string): string[] {
 }
 
 /** Установка десктопного приложения: версия в имени папки, берём свежую. */
-function versionedInstalls(appData: string): string[] {
-  const versions = join(appData, 'Claude', 'claude-code');
+function versionedInstalls(versions: string): string[] {
   return entries(versions)
     .sort((a, b) => compareVersions(b, a))
     .map((name) => join(versions, name, platform === 'win32' ? 'claude.exe' : 'claude'));
