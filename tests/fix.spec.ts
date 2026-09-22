@@ -1,7 +1,8 @@
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { platform, tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -58,7 +59,17 @@ function record(id: string, type: string, title: string, status: string): string
 const BROKEN = join('docs', 'development', 'design', 'D-0009-status.md');
 const OTHER = join('src', 'main.ts');
 
+/**
+ * Настоящий Claude Code на машине — не наша забота: не выполнен вход — починка
+ * упирается в отказ, выполнен — тест тратит настоящий вызов. Модель
+ * подменяется программой, которая отвечает без сети.
+ */
+const STUB = fileURLToPath(new URL(`./fixtures/fake-bin/${platform() === 'win32' ? 'claude.cmd' : 'claude'}`, import.meta.url));
+let savedClaude: string | undefined;
+
 beforeAll(async () => {
+  savedClaude = process.env['DOCDD_CLAUDE_PATH'];
+  process.env['DOCDD_CLAUDE_PATH'] = STUB;
   root = mkdtempSync(join(tmpdir(), 'docdd-fix-'));
   mkdirSync(join(root, 'docs', 'development', 'design'), { recursive: true });
   mkdirSync(join(root, 'src'), { recursive: true });
@@ -89,6 +100,8 @@ beforeAll(async () => {
 });
 
 afterAll(() => {
+  if (savedClaude === undefined) delete process.env['DOCDD_CLAUDE_PATH'];
+  else process.env['DOCDD_CLAUDE_PATH'] = savedClaude;
   try {
     rmSync(root, { recursive: true, force: true });
   } catch {

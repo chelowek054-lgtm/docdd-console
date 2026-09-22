@@ -109,6 +109,13 @@ describe('ask', () => {
     expect(result.failure.code).toBe('unauthorized');
   });
 
+  it('«не выполнен вход» — тоже отказ, а не ответ, который потом не пройдёт схему', async () => {
+    const result = await ask('вопрос', { run: answering('Not logged in · Please run /login', 0) });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.failure.code).toBe('unauthorized');
+  });
+
   it('длинный ответ про 403 остаётся ответом: это разбор задачи, а не отказ', async () => {
     const text = 'Разбираем ошибку 403 Request not allowed: она означает отказ в доступе. ' + 'Проверьте вход и повторите. '.repeat(20);
     const result = await ask('вопрос', { run: answering(text, 0) });

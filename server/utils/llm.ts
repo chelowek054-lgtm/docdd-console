@@ -282,7 +282,7 @@ const STREAM_ARGS = ['--output-format', 'stream-json', '--verbose', '--include-p
  * Во втором случае отказ приезжал в приложение как ответ модели — поэтому
  * смотрим на сам текст, а не только на код возврата.
  */
-const REFUSAL = /Failed to authenticate|API Error: 40[13]|Request not allowed|Invalid API key|OAuth token has expired/i;
+const REFUSAL = /Failed to authenticate|API Error: 40[13]|Request not allowed|Invalid API key|OAuth token has expired|Not logged in|Please run \/login/i;
 
 /**
  * Отказ — это короткая строка вместо ответа. Длину проверяем, чтобы не принять
