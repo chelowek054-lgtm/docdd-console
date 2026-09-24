@@ -93,9 +93,10 @@ const failure = computed(() => failureOf(data.value));
 const map = computed(() => (failure.value ? null : (data.value as MapResponse | null)));
 
 /**
- * Слои кодовой базы — чекбоксы «скрыть», а не «показать»: по умолчанию видно
- * всё, скрытые запоминаются по имени слоя, а не по индексу — переживают
- * «Обновить карты» и новые слои сами не пропадают из списка.
+ * Слои кодовой базы — чипы над диаграммой. Клик изолирует: остаётся виден
+ * только этот слой, повторный клик по нему же возвращает все. Скрытые
+ * запоминаются по имени слоя, а не по индексу — переживают «Обновить карты»
+ * и новые слои сами не пропадают из списка.
  */
 const allLayers = computed(() => {
   const set = new Set<string>();
@@ -104,23 +105,25 @@ const allLayers = computed(() => {
 });
 const hiddenLayers = ref<Set<string>>(new Set());
 function toggleLayer(layer: string) {
-  const next = new Set(hiddenLayers.value);
-  if (next.has(layer)) next.delete(layer);
-  else next.add(layer);
-  hiddenLayers.value = next;
+  const isolated = hiddenLayers.value.size === allLayers.value.length - 1 && !hiddenLayers.value.has(layer);
+  hiddenLayers.value = isolated ? new Set() : new Set(allLayers.value.filter((item) => item !== layer));
 }
 
-/** Кодовая база с вычетом скрытых слоёв — рёбра к спрятанному модулю тоже прячутся. */
-const filteredCodemap = computed(() => {
-  const value = map.value;
-  if (!value || hiddenLayers.value.size === 0) return value?.codemap;
-  const visible = new Set(
-    value.codemap.modules.filter((item) => !hiddenLayers.value.has(item.layer ?? 'без слоя')).map((item) => item.id)
-  );
-  return {
-    modules: value.codemap.modules.filter((item) => visible.has(item.id)),
-    imports: value.codemap.imports.filter((edge) => visible.has(edge.from) && visible.has(edge.to))
-  };
+/**
+ * Узлы, спрятанные текущими слоями — по id диаграммы (`current.nodes`), не
+ * по исходному id модуля: диаграмма (`MermaidDiagram.vue`) знает узлы только
+ * в своей, mermaid-безопасной адресации (`app/utils/map-mermaid.ts`).
+ * Строится один раз по полной картине (см. `views` ниже) и только
+ * прячет/показывает уже отрисованное — пересборка mermaid на каждый клик по
+ * чипу на плотном графе подвешивала интерфейс (docs/04-ui.md, «Карты»).
+ */
+const hiddenNodeIds = computed(() => {
+  if (hiddenLayers.value.size === 0) return new Set<string>();
+  const set = new Set<string>();
+  for (const [key, node] of Object.entries(current.value?.nodes ?? {})) {
+    if (hiddenLayers.value.has(node.layer ?? 'без слоя')) set.add(key);
+  }
+  return set;
 });
 
 const views = computed(() => {
@@ -132,7 +135,7 @@ const views = computed(() => {
       title: 'Кодовая база',
       question: 'Из чего состоит проект и что на что опирается',
       count: `${value.codemap.modules.length} модулей, ${value.codemap.imports.length} связей`,
-      ...codemapMermaid({ ...value, codemap: filteredCodemap.value ?? value.codemap })
+      ...codemapMermaid(value)
     },
     {
       key: 'dataflow',
@@ -160,6 +163,14 @@ const views = computed(() => {
 
 const shown = ref<'codemap' | 'dataflow' | 'userflow' | 'functional'>('codemap');
 const current = computed(() => views.value.find((view) => view.key === shown.value));
+
+/**
+ * 2D — основной режим: детерминированная раскладка по слоям, читаемая без
+ * привыкания. 3D — переключатель поверх неё же для обзора плотной картины
+ * (`MermaidDiagram3D.vue`); функциональной карте (дерево, не граф связей) он
+ * не идёт — у неё режим всегда 2D, кнопка переключения для неё не показана.
+ */
+const viewMode = ref<'2d' | '3d'>('2d');
 
 /**
  * Общий контейнер диаграммы и карточки — цель разворота на весь экран.
@@ -332,10 +343,18 @@ function onEdgeClick(edge: MermaidEdge) {
                   <h2 class="font-medium">{{ current.title }}</h2>
                   <p class="text-sm text-muted">{{ current.question }}</p>
                 </div>
+                <!-- У функциональной карты режим всегда 2D — у дерева возможностей нет силовой раскладки. -->
+                <UTabs
+                  v-if="current.key !== 'functional'"
+                  v-model="viewMode"
+                  class="ml-auto w-40"
+                  size="xs"
+                  :items="[{ label: '2D', value: '2d' }, { label: '3D', value: '3d' }]"
+                />
                 <!-- Число уже видно бейджем на вкладке — здесь дублировать незачем. -->
                 <UButton
-                  v-if="current.text"
-                  class="ml-auto"
+                  v-if="current.text && viewMode === '2d'"
+                  :class="current.key === 'functional' ? 'ml-auto' : ''"
                   size="sm"
                   variant="ghost"
                   color="neutral"
@@ -364,6 +383,16 @@ function onEdgeClick(edge: MermaidEdge) {
             <p v-if="!current.text" class="text-sm text-muted">
               В подтверждённых картах эта структура не описана.
             </p>
+            <MermaidDiagram3D
+              v-else-if="viewMode === '3d' && current.key !== 'functional'"
+              :nodes="current.nodes"
+              :edges="current.edges"
+              :hidden-ids="shown === 'codemap' ? hiddenNodeIds : undefined"
+              :fullscreen-target="stage"
+              :id="`map-${current.key}-3d`"
+              @node-click="onNodeClick"
+              @edge-click="onEdgeClick"
+            />
             <MermaidDiagram
               v-else
               :source="current.text"
@@ -371,6 +400,7 @@ function onEdgeClick(edge: MermaidEdge) {
               :paths="current.paths"
               :edges="current.edges"
               :neighbors="current.neighbors"
+              :hidden-ids="shown === 'codemap' ? hiddenNodeIds : undefined"
               :fullscreen-target="stage"
               :id="`map-${current.key}`"
               @node-click="onNodeClick"

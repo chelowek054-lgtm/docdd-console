@@ -13,6 +13,13 @@ const props = defineProps<{
   /** id узла → id соседей — для подсветки при клике (app/utils/map-mermaid.ts). */
   neighbors?: Record<string, string[]>;
   /**
+   * id узлов, спрятанных фильтром слоёв (`maps.vue`). Меняется чаще, чем
+   * `source`, — прячем/показываем уже отрисованные узлы и рёбра стилем, а не
+   * перерисовываем диаграмму заново: на плотном графе повторная раскладка
+   * dagre на каждый клик по чипу подвешивала интерфейс (docs/04-ui.md).
+   */
+  hiddenIds?: Set<string>;
+  /**
    * Разворачивать на весь экран этот элемент вместо самой диаграммы. Родитель
    * передаёт общий контейнер, в который телепортирует и карточку узла, —
    * иначе Fullscreen API показывает только поддерево полноэкранного элемента,
@@ -62,6 +69,7 @@ async function draw() {
     container.value.innerHTML = svg;
     annotateTitles();
     attachInteractions();
+    applyHidden();
     resetView();
   } catch (cause) {
     container.value.innerHTML = '';
@@ -71,6 +79,7 @@ async function draw() {
 
 onMounted(draw);
 watch(() => props.source, draw);
+watch(() => props.hiddenIds, applyHidden);
 
 /**
  * Ключ узла (как в `details`/`paths`) по элементу SVG. Mermaid называет узел
@@ -164,6 +173,23 @@ function applyFocus() {
   }
   for (const { edge, el } of edgeElements) {
     el.style.opacity = !active || edge.from === active || edge.to === active ? '1' : '0.15';
+  }
+}
+
+/**
+ * Слои прячутся стилем, не перерисовкой: узел — `display:none`, ребро —
+ * туда же, как только один из его концов спрятан. `applyFocus()` работает
+ * поверх этого же состояния — приглушение не включает спрятанное обратно.
+ */
+function applyHidden() {
+  if (!container.value) return;
+  const hidden = props.hiddenIds;
+  for (const node of container.value.querySelectorAll<SVGGElement>('.node, .mindmap-node')) {
+    const key = keyOfNode(node);
+    node.style.display = hidden && key !== null && hidden.has(key) ? 'none' : '';
+  }
+  for (const { edge, el } of edgeElements) {
+    el.style.display = hidden && (hidden.has(edge.from) || hidden.has(edge.to)) ? 'none' : '';
   }
 }
 
