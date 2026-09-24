@@ -113,7 +113,8 @@ const PALETTE = [
   '#DBEAFE', '#DCFCE7', '#FEF3C7', '#FCE7F3', '#E0E7FF', '#FFEDD5', '#CCFBF1', '#F3E8FF'
 ];
 
-function colorOf(key: string): string {
+/** Тот же цвет по слою/категории для 3D-режима (`MermaidDiagram3D.vue`) — одна палитра на оба вида. */
+export function colorOf(key: string): string {
   let hash = 0;
   for (let at = 0; at < key.length; at += 1) hash = (hash * 31 + key.charCodeAt(at)) >>> 0;
   return PALETTE[hash % PALETTE.length] ?? '#E5E7EB';

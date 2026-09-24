@@ -1,11 +1,8 @@
 import { analyze } from '../lib/analyze';
 import {
   annotateEvidenceStatus,
-  checkEvidence,
-  evidenceClaims,
   foldMaps,
   parseMapRecord,
-  type EvidenceVerdict,
   type MapChange,
   type ProjectMap
 } from '../lib/maps';
@@ -30,7 +27,7 @@ export function buildProjectMap(root: string): ProjectMapResult {
     reports: workspace.reports,
     codeFiles: workspace.codeFiles
   });
-  const read = sourceReader(root);
+  const read = memoizedReader(root);
 
   const approved = result.records
     .filter((record) => record.type === 'map' && record.status === 'approved' && record.id)
@@ -39,20 +36,32 @@ export function buildProjectMap(root: string): ProjectMapResult {
     .sort((a, b) => String(a.data['updated'] ?? '').localeCompare(String(b.data['updated'] ?? ''))
       || a.id.localeCompare(b.id));
 
-  const changes: { id: string; change: MapChange }[] = [];
-  let unverified = 0;
-
-  for (const record of approved) {
-    const parsed = parseMapRecord(record.body);
-    changes.push({ id: record.id, change: parsed.change });
-
-    for (const claim of evidenceClaims(parsed.change)) {
-      const verdict: EvidenceVerdict = checkEvidence(claim.evidence, read(claim.evidence.path), claim.side);
-      if (verdict !== 'ok') unverified += 1;
-    }
-  }
+  const changes: { id: string; change: MapChange }[] = approved
+    .map((record) => ({ id: record.id, change: parseMapRecord(record.body).change }));
 
   const folded = foldMaps(changes);
+  // Сверяем только то, что дожило до сложенной картины: ребро, которое
+  // позже перекрыто более новой картой, в счётчик уже не попадает — это то
+  // же самое ребро, что видит экран, а не история черновиков поверх него.
   annotateEvidenceStatus(folded, read);
-  return { ...folded, unverified };
+  return { ...folded, unverified: countUnverified(folded) };
+}
+
+/** Одно чтение файла на путь за вызов: одно свидетельство читают несколько рёбер. */
+function memoizedReader(root: string): (path: string) => string | null {
+  const raw = sourceReader(root);
+  const cache = new Map<string, string | null>();
+  return (path: string) => {
+    if (!cache.has(path)) cache.set(path, raw(path));
+    return cache.get(path) ?? null;
+  };
+}
+
+function countUnverified(map: ProjectMap): number {
+  let count = 0;
+  for (const item of map.codemap.imports) if (item.status !== 'ok') count += 1;
+  for (const item of map.dataflow.flows) if (item.status !== 'ok') count += 1;
+  for (const item of map.userflow.transitions) if (item.status !== 'ok') count += 1;
+  for (const item of map.userflow.calls) if (item.status !== 'ok') count += 1;
+  return count;
 }
