@@ -20,6 +20,14 @@ const props = defineProps<{
    */
   hiddenIds?: Set<string>;
   /**
+   * id узлов, объявленных картой, которая ещё не устоялась — архитектор
+   * описал намерение, кода может не быть (`server/lib/maps.ts`, `pending`).
+   * Рисуются полупрозрачными: видно, что есть на карте, но не спутать с уже
+   * состоявшимся устройством (docs/07-maps.md). У рёбер то же самое несёт
+   * собственное поле `MermaidEdge.pending` — не нуждается в отдельном id.
+   */
+  pendingIds?: Set<string>;
+  /**
    * Разворачивать на весь экран этот элемент вместо самой диаграммы. Родитель
    * передаёт общий контейнер, в который телепортирует и карточку узла, —
    * иначе Fullscreen API показывает только поддерево полноэкранного элемента,
@@ -78,6 +86,7 @@ async function draw() {
     annotateTitles();
     attachInteractions();
     applyHidden();
+    applyFocus();
     resetView();
   } catch (cause) {
     container.value.innerHTML = '';
@@ -91,6 +100,7 @@ watch(() => props.source, draw);
 // (docs/04-ui.md, «Тема»).
 watch(() => colorMode.value, draw);
 watch(() => props.hiddenIds, applyHidden);
+watch(() => props.pendingIds, applyFocus);
 
 /**
  * Ключ узла (как в `details`/`paths`) по элементу SVG. Mermaid называет узел
@@ -170,6 +180,18 @@ function onNodeClick(key: string) {
 }
 
 /**
+ * Прозрачность узла или ребра — из двух независимых причин разом, не одна
+ * перезаписывая другую: фокус на соседях приглушает **временно**, `pending`
+ * помечает **постоянно**, пока карта не устоялась. Приглушение фокусом ниже
+ * (0.15 < 0.5) — оно сильнее и держит верх, когда действуют оба разом.
+ */
+function opacityOf(key: string | null, keep: ReadonlySet<string> | null, pending?: Set<string>): string {
+  if (keep && (key === null || !keep.has(key))) return '0.15';
+  if (pending && key !== null && pending.has(key)) return '0.5';
+  return '1';
+}
+
+/**
  * Фокус на соседях — приглушает всё остальное, не перерисовывая диаграмму:
  * плотный граф иначе не разглядеть, какая связь чья (docs/04-ui.md, «Карты»).
  */
@@ -180,10 +202,11 @@ function applyFocus() {
 
   for (const node of container.value.querySelectorAll<SVGGElement>('.node, .mindmap-node')) {
     const key = keyOfNode(node);
-    node.style.opacity = !keep || (key !== null && keep.has(key)) ? '1' : '0.15';
+    node.style.opacity = opacityOf(key, keep, props.pendingIds);
   }
   for (const { edge, el } of edgeElements) {
-    el.style.opacity = !active || edge.from === active || edge.to === active ? '1' : '0.15';
+    const kept = !keep || keep.has(edge.from) || keep.has(edge.to);
+    el.style.opacity = !kept ? '0.15' : edge.pending ? '0.5' : '1';
   }
 }
 

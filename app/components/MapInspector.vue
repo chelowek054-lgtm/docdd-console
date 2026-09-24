@@ -41,7 +41,8 @@ const STATUS_LABEL: Record<EvidenceVerdict, string> = {
   ok: 'сходится с файлом',
   stale: 'не сходится: строка уехала или текста больше нет',
   missing: 'файла нет',
-  still_present: 'заявлено убранным, а текст на месте'
+  still_present: 'заявлено убранным, а текст на месте',
+  pending: 'сверка не запущена: карта ещё не устоялась'
 };
 
 /**
@@ -164,12 +165,16 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
           <pre class="overflow-x-auto rounded bg-elevated p-2 text-xs">{{ selection.evidence.fragment }}</pre>
           <UBadge
             v-if="selection.status"
-            :color="selection.status === 'ok' ? 'success' : 'error'"
+            :color="selection.status === 'ok' ? 'success' : selection.status === 'pending' ? 'neutral' : 'error'"
             variant="subtle"
           >
             {{ STATUS_LABEL[selection.status] }}
           </UBadge>
         </div>
+
+        <UBadge v-if="selection.kind === 'node' && selection.pending" color="neutral" variant="subtle">
+          не совпадает с кодовой базой — карта ещё не устоялась
+        </UBadge>
 
         <p v-if="selection.declaredBy" class="text-xs text-muted">
           Объявлено картой

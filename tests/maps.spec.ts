@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   annotateEvidenceStatus,
+  annotatePending,
   checkEvidence,
   collapse,
   evidenceClaims,
@@ -435,6 +436,37 @@ describe('annotateEvidenceStatus', () => {
     expect(map.dataflow.flows[0]?.status).toBe('ok');
     expect(map.userflow.transitions[0]?.status).toBe('ok');
     expect(map.userflow.calls[0]?.status).toBe('ok');
+  });
+});
+
+describe('annotatePending', () => {
+  const map = () => foldMaps([{
+    id: 'M-0001',
+    change: {
+      codemap: {
+        added: {
+          modules: [{ id: 'a.ts' }],
+          imports: [{ from: 'a.ts', to: 'b.ts', evidence: { path: 'a.ts', line: 1, fragment: 'import b' } }]
+        }
+      }
+    }
+  }]);
+
+  it('карта из pendingMaps помечает и узел, и ребро — статус ребра понижается до pending', () => {
+    const folded = map();
+    annotateEvidenceStatus(folded, () => 'import b'); // сначала обычная сверка — ok
+    annotatePending(folded, new Set(['M-0001']));
+    expect(folded.codemap.modules[0]?.pending).toBe(true);
+    expect(folded.codemap.imports[0]?.pending).toBe(true);
+    expect(folded.codemap.imports[0]?.status).toBe('pending');
+  });
+
+  it('карта не в pendingMaps — ничего не меняет', () => {
+    const folded = map();
+    annotateEvidenceStatus(folded, () => 'import b');
+    annotatePending(folded, new Set());
+    expect(folded.codemap.modules[0]?.pending).toBe(false);
+    expect(folded.codemap.imports[0]?.status).toBe('ok');
   });
 });
 
