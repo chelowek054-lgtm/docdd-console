@@ -3,7 +3,15 @@ import { defineEventHandler, getRouterParam, readBody } from 'h3';
 import { useStorage } from 'nitropack/runtime';
 
 import { checkEvidence, evidenceClaims, parseMapRecord } from '../../../../lib/maps';
-import { fixPrompt, inboxPrompt, mapFixPrompt, mapsPrompt, verifyPrompt, type MapsState } from '../../../../lib/prompt';
+import {
+  fixPrompt,
+  functionalCheckPrompt,
+  inboxPrompt,
+  mapFixPrompt,
+  mapsPrompt,
+  verifyPrompt,
+  type MapsState
+} from '../../../../lib/prompt';
 import { connectedPractices } from '../../../../utils/shared-service';
 import { inboxNotes } from '../../../../utils/inbox-service';
 import { mapSchemas } from '../../../../lib/map-schemas';
@@ -149,7 +157,18 @@ export default defineEventHandler(async (event) => {
       return { prompt: verifyPrompt(await template('verify-plan.md'), practices), count: practices.length };
     }
 
-    return fail(event, 400, 'kind_invalid', 'Известны запросы: `fix`, `maps`, `map-fix`, `inbox`, `verify`');
+    if (kind === 'functional-check') {
+      const capabilities = buildProjectMap(project.root).functional.capabilities;
+      if (capabilities.length === 0) {
+        return fail(event, 422, 'functional_empty', 'В функциональной карте нет ни одной возможности: сверять нечего');
+      }
+      return {
+        prompt: functionalCheckPrompt(await template('functional-check.md'), capabilities),
+        count: capabilities.length
+      };
+    }
+
+    return fail(event, 400, 'kind_invalid', 'Известны запросы: `fix`, `maps`, `map-fix`, `inbox`, `verify`, `functional-check`');
   } catch (error) {
     if (error instanceof WorkspaceError) {
       return fail(event, 422, error.code, error.message, error.detail);

@@ -449,8 +449,7 @@ function onEdgeClick(edge: MermaidEdge) {
                 />
                 <!-- Число уже видно бейджем на вкладке — здесь дублировать незачем. -->
                 <UButton
-                  v-if="current.text && viewMode === '2d'"
-                  :class="current.key === 'functional' ? 'ml-auto' : ''"
+                  v-if="current.text && viewMode === '2d' && current.key !== 'functional'"
                   size="sm"
                   variant="ghost"
                   color="neutral"
@@ -476,33 +475,51 @@ function onEdgeClick(edge: MermaidEdge) {
               </UButton>
             </div>
 
-            <p v-if="!current.text" class="text-sm text-muted">
-              В подтверждённых картах эта структура не описана.
-            </p>
-            <MermaidDiagram3D
-              v-else-if="viewMode === '3d' && current.key !== 'functional'"
-              :nodes="current.nodes"
-              :edges="current.edges"
-              :hidden-ids="shown === 'codemap' ? hiddenNodeIds : undefined"
-              :fullscreen-target="stage"
-              :id="`map-${current.key}-3d`"
-              @node-click="onNodeClick"
-              @edge-click="onEdgeClick"
-            />
-            <MermaidDiagram
-              v-else
-              :source="current.text"
-              :details="current.details"
-              :paths="current.paths"
-              :edges="current.edges"
-              :neighbors="current.neighbors"
-              :hidden-ids="shown === 'codemap' ? hiddenNodeIds : undefined"
-              :pending-ids="pendingNodeIds"
-              :fullscreen-target="stage"
-              :id="`map-${current.key}`"
-              @node-click="onNodeClick"
-              @edge-click="onEdgeClick"
-            />
+            <template v-if="shown === 'functional'">
+              <PromptPanel
+                class="mb-3"
+                :project-id="projectId"
+                kind="functional-check"
+                label="Проверить по коду"
+                hint="Модель сама читает код — ответ ничего не подтверждает, это её мнение"
+              />
+              <FunctionalTree
+                :project-id="projectId"
+                :capabilities="map.functional.capabilities"
+                @select="(value) => (selection = value)"
+                @changed="() => refresh()"
+              />
+            </template>
+
+            <template v-else>
+              <p v-if="!current.text" class="text-sm text-muted">
+                В подтверждённых картах эта структура не описана.
+              </p>
+              <MermaidDiagram3D
+                v-else-if="viewMode === '3d'"
+                :nodes="current.nodes"
+                :edges="current.edges"
+                :hidden-ids="shown === 'codemap' ? hiddenNodeIds : undefined"
+                :fullscreen-target="stage"
+                :id="`map-${current.key}-3d`"
+                @node-click="onNodeClick"
+                @edge-click="onEdgeClick"
+              />
+              <MermaidDiagram
+                v-else
+                :source="current.text"
+                :details="current.details"
+                :paths="current.paths"
+                :edges="current.edges"
+                :neighbors="current.neighbors"
+                :hidden-ids="shown === 'codemap' ? hiddenNodeIds : undefined"
+                :pending-ids="pendingNodeIds"
+                :fullscreen-target="stage"
+                :id="`map-${current.key}`"
+                @node-click="onNodeClick"
+                @edge-click="onEdgeClick"
+              />
+            </template>
           </UCard>
 
           <MapInspector
