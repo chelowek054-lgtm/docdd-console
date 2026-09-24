@@ -35,26 +35,32 @@ export interface ApiItem {
 export interface CodemapPart {
   modules?: {
     id: string; title?: string; layer?: string; path?: string;
-    summary?: string; api?: ApiItem[]; declaredBy?: string;
+    summary?: string; api?: ApiItem[]; declaredBy?: string; pending?: boolean;
   }[];
-  imports?: { from: string; to: string; evidence: Evidence; status?: EvidenceVerdict; declaredBy?: string }[];
+  imports?: {
+    from: string; to: string; evidence: Evidence;
+    status?: EvidenceVerdict; declaredBy?: string; pending?: boolean;
+  }[];
 }
 
 export interface DataflowPart {
-  sources?: { id: string; kind: string; where?: string; title?: string; declaredBy?: string }[];
+  sources?: { id: string; kind: string; where?: string; title?: string; declaredBy?: string; pending?: boolean }[];
   flows?: {
     from: string; to: string; direction: string; evidence: Evidence;
-    status?: EvidenceVerdict; declaredBy?: string;
+    status?: EvidenceVerdict; declaredBy?: string; pending?: boolean;
   }[];
 }
 
 export interface UserflowPart {
-  screens?: { id: string; title?: string; file?: string; declaredBy?: string }[];
+  screens?: { id: string; title?: string; file?: string; declaredBy?: string; pending?: boolean }[];
   transitions?: {
     from: string; to: string; trigger?: string; evidence: Evidence;
-    status?: EvidenceVerdict; declaredBy?: string;
+    status?: EvidenceVerdict; declaredBy?: string; pending?: boolean;
   }[];
-  calls?: { from: string; to: string; evidence: Evidence; status?: EvidenceVerdict; declaredBy?: string }[];
+  calls?: {
+    from: string; to: string; evidence: Evidence;
+    status?: EvidenceVerdict; declaredBy?: string; pending?: boolean;
+  }[];
 }
 
 /**
@@ -63,7 +69,7 @@ export interface UserflowPart {
  * запись, а не построчной сверкой с файлом (docs/07-maps.md).
  */
 export interface FunctionalPart {
-  capabilities?: { id: string; title?: string; parent?: string; declaredBy?: string }[];
+  capabilities?: { id: string; title?: string; parent?: string; declaredBy?: string; pending?: boolean }[];
 }
 
 /** Файл, который модель посмотрела и в карту не положила. */
@@ -303,7 +309,7 @@ export function evidenceClaims(change: MapChange): EvidenceClaim[] {
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
-export type EvidenceVerdict = 'ok' | 'missing' | 'stale' | 'still_present';
+export type EvidenceVerdict = 'ok' | 'missing' | 'stale' | 'still_present' | 'pending';
 
 /** Насколько строка могла уехать, чтобы свидетельство всё ещё считалось живым. */
 const DRIFT_LINES = 3;
@@ -349,6 +355,36 @@ export function annotateEvidenceStatus(map: ProjectMap, read: (path: string) => 
   for (const item of map.dataflow.flows) mark(item);
   for (const item of map.userflow.transitions) mark(item);
   for (const item of map.userflow.calls) mark(item);
+}
+
+/**
+ * Отмечает узлы и рёбра, объявленные картой, которая ещё не «устоялась»
+ * (`pendingMaps` — id таких карт, `server/utils/map-service.ts`): архитектор
+ * описал намерение (`intent: true`) или код ещё пишется (задача с `affects`
+ * на эту карту не закрыта) — то же понятие, что уже используют одиночный
+ * экран записи (`records/[recordId].get.ts`) и правило `task_maps_unapproved`
+ * (`server/lib/rules.ts`), только применённое к сложенной картине, а не к
+ * одной карте. У ребра `pending` понижает `status` до `'pending'` — сверка с
+ * кодом для него не запущена, а не провалена (docs/07-maps.md).
+ */
+export function annotatePending(map: ProjectMap, pendingMaps: ReadonlySet<string>): void {
+  const mark = (item: { declaredBy?: string; pending?: boolean }): boolean => {
+    const value = !!item.declaredBy && pendingMaps.has(item.declaredBy);
+    item.pending = value;
+    return value;
+  };
+  const markEdge = (item: { declaredBy?: string; pending?: boolean; status?: EvidenceVerdict }) => {
+    if (mark(item)) item.status = 'pending';
+  };
+
+  for (const item of map.codemap.modules) mark(item);
+  for (const item of map.codemap.imports) markEdge(item);
+  for (const item of map.dataflow.sources) mark(item);
+  for (const item of map.dataflow.flows) markEdge(item);
+  for (const item of map.userflow.screens) mark(item);
+  for (const item of map.userflow.transitions) markEdge(item);
+  for (const item of map.userflow.calls) markEdge(item);
+  for (const item of map.functional.capabilities) mark(item);
 }
 
 /** Сложенная картина проекта: производное от подтверждённых карт. */

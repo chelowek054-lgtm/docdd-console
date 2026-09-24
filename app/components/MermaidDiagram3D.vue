@@ -8,6 +8,13 @@ import { colorOf, type MermaidEdge, type MermaidNode } from '../utils/map-mermai
  * (docs/04-ui.md, «Карты»). Раскладка не детерминирована и не показывает
  * слои колонками, поэтому это переключатель поверх основного 2D-вида, а не
  * замена ему.
+ *
+ * Узел — не точка, а подписанная сфера (`nodeThreeObject`): без подписи 3D
+ * выглядело картинкой, а не картой — цвет по слою ничего не говорит, пока
+ * не видно, какой слой каким цветом (легенда ниже решает то же самое).
+ * Материал — `MeshBasicMaterial` (без реакции на свет): сфера по умолчанию
+ * у библиотеки тускнеет без своего источника света, а цвет здесь несёт
+ * смысл (слой), а не объём.
  */
 
 const props = defineProps<{
@@ -28,12 +35,14 @@ const viewport = ref<HTMLElement | null>(null);
 const fullscreen = ref(false);
 const error = ref('');
 
-// Библиотека без своих типов и без смысла тянуть её на сервер: граф живёт
-// только в браузере, поэтому instance типизирован как unknown-объект с тем
-// малым набором методов (chainable API), который здесь действительно нужен.
+// Библиотеки без типов, живущие только в браузере (граф на сервер не едет),
+// типизированы как unknown-объекты с тем малым набором chainable-методов,
+// который здесь нужен — тянуть на сервер их незачем.
 /* eslint-disable @typescript-eslint/no-explicit-any */
 let graph: any = null;
 let resizeObserver: ResizeObserver | null = null;
+/** Автоподгонка вида — один раз при первой раскладке, не при каждом обновлении фильтра. */
+let fitted = false;
 
 /**
  * Узел графа адресуется ключом из `nodes` (mermaid-безопасный id, тот же,
@@ -48,8 +57,31 @@ function graphData() {
   const links = props.edges
     .filter((edge) => visible.has(edge.from) && visible.has(edge.to))
     .map((edge) => ({ source: edge.from, target: edge.to, edge }));
-  return { nodes: entries.map(([key, node]) => ({ id: key, node })), links };
+
+  // Число связей узла — сфера крупнее у более связного модуля: издалека
+  // видно, что здесь узел архитектуры, а не проходная деталь.
+  const degree = new Map<string, number>();
+  for (const link of links) {
+    degree.set(link.source, (degree.get(link.source) ?? 0) + 1);
+    degree.set(link.target, (degree.get(link.target) ?? 0) + 1);
+  }
+
+  return {
+    nodes: entries.map(([key, node]) => ({ id: key, node, degree: degree.get(key) ?? 0 })),
+    links
+  };
 }
+
+/** Цвет и подпись каждого встреченного слоя — то же соответствие, что красит сферы. */
+const legend = computed(() => {
+  const hidden = props.hiddenIds;
+  const seen = new Set<string>();
+  for (const [key, node] of Object.entries(props.nodes)) {
+    if (hidden?.has(key)) continue;
+    if (node.layer) seen.add(node.layer);
+  }
+  return [...seen].sort().map((layer) => ({ layer, color: colorOf(layer) }));
+});
 
 function resize() {
   if (!graph || !viewport.value) return;
@@ -60,17 +92,52 @@ async function init() {
   if (!import.meta.client || !viewport.value) return;
   error.value = '';
   try {
-    const ForceGraph3D = (await import('3d-force-graph')).default;
+    const [{ default: ForceGraph3D }, THREE, { default: SpriteText }] = await Promise.all([
+      import('3d-force-graph'),
+      import('three'),
+      import('three-spritetext')
+    ]);
     const dark = document.documentElement.classList.contains('dark');
+    const linkBase = dark ? '#4B5563' : '#9CA3AF';
+
     graph = new ForceGraph3D(viewport.value)
       .backgroundColor(dark ? '#111827' : '#FFFFFF')
       .nodeLabel((entry: any) => entry.node.title ?? entry.node.id)
-      .nodeColor((entry: any) => colorOf(entry.node.layer ?? entry.node.id))
-      .linkColor(() => (dark ? '#4B5563' : '#9CA3AF'))
+      .nodeThreeObject((entry: any) => {
+        const group = new THREE.Group();
+        const radius = 2.2 + Math.min(entry.degree, 12) * 0.5;
+        const mesh = new THREE.Mesh(
+          new THREE.SphereGeometry(radius, 12, 12),
+          new THREE.MeshBasicMaterial({
+            color: colorOf(entry.node.layer ?? entry.node.id),
+            transparent: true,
+            opacity: entry.node.pending ? 0.45 : 1
+          })
+        );
+        group.add(mesh);
+
+        const text = new SpriteText(entry.node.title ?? entry.node.id);
+        text.textHeight = 3.2;
+        text.color = dark ? '#E5E7EB' : '#1F2937';
+        text.backgroundColor = dark ? 'rgba(17,24,39,0.7)' : 'rgba(255,255,255,0.7)';
+        text.padding = 1;
+        text.borderRadius = 1;
+        text.position.set(0, radius + 3, 0);
+        group.add(text);
+
+        return group;
+      })
+      .linkColor(() => linkBase)
+      .linkOpacity((entry: any) => (entry.edge?.pending ? 0.25 : 0.55))
       .linkDirectionalArrowLength(4)
       .linkDirectionalArrowRelPos(1)
       .onNodeClick((entry: any) => emit('node-click', entry.id))
       .onLinkClick((entry: any) => emit('edge-click', entry.edge))
+      .onEngineStop(() => {
+        if (fitted) return;
+        fitted = true;
+        graph.zoomToFit(400, 60);
+      })
       .graphData(graphData());
     resize();
     resizeObserver = new ResizeObserver(resize);
@@ -125,6 +192,16 @@ onUnmounted(() => document.removeEventListener('fullscreenchange', onFullscreenC
           :title="fullscreen ? 'Выйти из полного экрана' : 'На весь экран'"
           @click="toggleFullscreen"
         />
+      </div>
+      <div v-if="legend.length" class="absolute left-2 top-2 z-10 flex max-w-[60%] flex-wrap gap-1">
+        <span
+          v-for="item in legend"
+          :key="item.layer"
+          class="flex items-center gap-1 rounded bg-default/80 px-1.5 py-0.5 text-xs text-muted"
+        >
+          <span class="h-2 w-2 rounded-full" :style="{ backgroundColor: item.color }" />
+          {{ item.layer }}
+        </span>
       </div>
       <p class="absolute bottom-2 left-2 z-10 text-xs text-muted">
         Перетаскивание вращает, колесо — масштаб, правая кнопка — панорама

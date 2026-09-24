@@ -1,11 +1,13 @@
 import { analyze } from '../lib/analyze';
 import {
   annotateEvidenceStatus,
+  annotatePending,
   foldMaps,
   parseMapRecord,
   type MapChange,
   type ProjectMap
 } from '../lib/maps';
+import type { WorkRecord } from '../lib/types';
 import { readWorkspace, sourceReader } from '../lib/workspace';
 
 /**
@@ -44,7 +46,31 @@ export function buildProjectMap(root: string): ProjectMapResult {
   // позже перекрыто более новой картой, в счётчик уже не попадает — это то
   // же самое ребро, что видит экран, а не история черновиков поверх него.
   annotateEvidenceStatus(folded, read);
+  annotatePending(folded, pendingMapIds(approved, result.records));
   return { ...folded, unverified: countUnverified(folded) };
+}
+
+/**
+ * Карты, которые ещё не «устоялись»: намерение (`intent: true`) или задача,
+ * что их меняет (`affects`), не закрыта. Пустой список задач — не блокирует:
+ * так же трактует состояние экран одной записи (`records/[recordId].get.ts`)
+ * и правило `task_maps_unapproved` (`server/lib/rules.ts`) — карта без единой
+ * связанной задачи никогда не заводилась как «код ещё не готов».
+ */
+export function pendingMapIds(approved: readonly WorkRecord[], allRecords: readonly WorkRecord[]): Set<string> {
+  const pending = new Set<string>();
+  for (const record of approved) {
+    if (record.data['intent'] === true) {
+      pending.add(record.id);
+      continue;
+    }
+    const affecting = allRecords.filter(
+      (item) => item.type === 'task' && (item.links.affects ?? []).includes(record.id)
+    );
+    const settled = affecting.every((task) => task.status === 'done' || task.status === 'dropped');
+    if (!settled) pending.add(record.id);
+  }
+  return pending;
 }
 
 /** Одно чтение файла на путь за вызов: одно свидетельство читают несколько рёбер. */
@@ -57,11 +83,13 @@ function memoizedReader(root: string): (path: string) => string | null {
   };
 }
 
+/** `pending` — сверка ещё не запущена, не провалена: в счётчик не идёт (docs/07-maps.md). */
 function countUnverified(map: ProjectMap): number {
+  const bad = (item: { status?: string }) => item.status !== 'ok' && item.status !== 'pending';
   let count = 0;
-  for (const item of map.codemap.imports) if (item.status !== 'ok') count += 1;
-  for (const item of map.dataflow.flows) if (item.status !== 'ok') count += 1;
-  for (const item of map.userflow.transitions) if (item.status !== 'ok') count += 1;
-  for (const item of map.userflow.calls) if (item.status !== 'ok') count += 1;
+  for (const item of map.codemap.imports) if (bad(item)) count += 1;
+  for (const item of map.dataflow.flows) if (bad(item)) count += 1;
+  for (const item of map.userflow.transitions) if (bad(item)) count += 1;
+  for (const item of map.userflow.calls) if (bad(item)) count += 1;
   return count;
 }

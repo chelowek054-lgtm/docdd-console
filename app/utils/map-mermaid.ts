@@ -26,6 +26,8 @@ export interface MermaidEdge {
   status?: EvidenceVerdict;
   /** Какая карта последней объявила эту связь (`server/lib/maps.ts`, `declaredBy`). */
   declaredBy?: string;
+  /** Карта-источник ещё не устоялась — архитектор описал намерение, кода может не быть (`server/lib/maps.ts`). */
+  pending?: boolean;
 }
 
 export interface MermaidNode {
@@ -38,6 +40,8 @@ export interface MermaidNode {
   /** Публичный интерфейс модуля — из карты. */
   api?: ApiItem[];
   declaredBy?: string;
+  /** См. `MermaidEdge.pending` — то же самое, но у узла. */
+  pending?: boolean;
 }
 
 /** Что показывает `MapInspector.vue` — узел (по `MermaidNode`) или ребро (по `MermaidEdge`). */
@@ -165,7 +169,7 @@ export function codemapMermaid(map: ProjectMap): MermaidOutput {
       if (module.path) paths[node] = module.path;
       nodes[node] = {
         id: module.id, title: module.title, layer, path: module.path,
-        summary: module.summary, api: module.api, declaredBy: module.declaredBy
+        summary: module.summary, api: module.api, declaredBy: module.declaredBy, pending: module.pending
       };
     }
     lines.push('    end');
@@ -184,7 +188,9 @@ export function codemapMermaid(map: ProjectMap): MermaidOutput {
     const from = nodeId('m', edge.from);
     const to = nodeId('m', edge.to);
     lines.push(`    ${from} --> ${to}`);
-    edges.push({ from, to, evidence: edge.evidence, status: edge.status, declaredBy: edge.declaredBy });
+    edges.push({
+      from, to, evidence: edge.evidence, status: edge.status, declaredBy: edge.declaredBy, pending: edge.pending
+    });
   }
   styleUnverified(lines, edges);
   return { text: lines.join(LF), details, paths, nodes, edges, neighbors: neighborsOf(edges) };
@@ -232,7 +238,8 @@ export function dataflowMermaid(map: ProjectMap): MermaidOutput {
       title: source.title,
       layer: SOURCE_KIND_LABEL[source.kind] ?? source.kind,
       path: filePath,
-      declaredBy: source.declaredBy
+      declaredBy: source.declaredBy,
+      pending: source.pending
     };
   }
 
@@ -251,7 +258,9 @@ export function dataflowMermaid(map: ProjectMap): MermaidOutput {
     const from = flow.direction === 'read' ? nodeId('s', flow.to) : nodeId('f', flow.from);
     const to = flow.direction === 'read' ? nodeId('f', flow.from) : nodeId('s', flow.to);
     lines.push(`    ${from} ${arrow}|${flow.direction}| ${to}`);
-    edges.push({ from, to, evidence: flow.evidence, status: flow.status, declaredBy: flow.declaredBy });
+    edges.push({
+      from, to, evidence: flow.evidence, status: flow.status, declaredBy: flow.declaredBy, pending: flow.pending
+    });
   }
   styleUnverified(lines, edges);
   return { text: lines.join(LF), details, paths, nodes, edges, neighbors: neighborsOf(edges) };
@@ -273,7 +282,9 @@ export function userflowMermaid(map: ProjectMap): MermaidOutput {
     lines.push(`    ${node}["${label(screen.title ?? screen.id)}"]:::screen`);
     details[node] = [screen.id, screen.title, screen.file ? `файл: ${screen.file}` : ''].filter(Boolean).join(LF);
     if (screen.file) paths[node] = screen.file;
-    nodes[node] = { id: screen.id, title: screen.title, path: screen.file, declaredBy: screen.declaredBy };
+    nodes[node] = {
+      id: screen.id, title: screen.title, path: screen.file, declaredBy: screen.declaredBy, pending: screen.pending
+    };
   }
   declareImplicit(
     lines,
@@ -294,7 +305,9 @@ export function userflowMermaid(map: ProjectMap): MermaidOutput {
     const from = nodeId('u', step.from);
     const to = nodeId('u', step.to);
     lines.push(`    ${from} ${arrow}${via} ${to}`);
-    edges.push({ from, to, evidence: step.evidence, status: step.status, declaredBy: step.declaredBy });
+    edges.push({
+      from, to, evidence: step.evidence, status: step.status, declaredBy: step.declaredBy, pending: step.pending
+    });
   }
   for (const call of calls) {
     const node = nodeId('api', call.to);
@@ -303,7 +316,9 @@ export function userflowMermaid(map: ProjectMap): MermaidOutput {
     nodes[node] = { id: call.to };
     const from = nodeId('u', call.from);
     lines.push(`    ${from} -.-> ${node}`);
-    edges.push({ from, to: node, evidence: call.evidence, status: call.status, declaredBy: call.declaredBy });
+    edges.push({
+      from, to: node, evidence: call.evidence, status: call.status, declaredBy: call.declaredBy, pending: call.pending
+    });
   }
   styleUnverified(lines, edges);
   return { text: lines.join(LF), details, paths, nodes, edges, neighbors: neighborsOf(edges) };
@@ -322,6 +337,7 @@ export function functionalMermaid(map: ProjectMap): MermaidOutput {
   if (capabilities.length === 0) return EMPTY;
 
   const details: Record<string, string> = {};
+  const nodes: Record<string, MermaidNode> = {};
   // Скобки ломают синтаксис узла mindmap (`id(текст)`) — в flowchart их
   // прятала кавычка вокруг подписи, здесь кавычки нет.
   const safe = (text: string) => label(text).replace(/[()]/g, ' ');
@@ -346,6 +362,7 @@ export function functionalMermaid(map: ProjectMap): MermaidOutput {
     const node = nodeId('f', item.id);
     lines.push(`${'  '.repeat(depth)}${node}(${safe(item.title ?? item.id)})`);
     details[node] = [item.id, item.title].filter(Boolean).join(LF);
+    nodes[node] = { id: item.id, title: item.title, declaredBy: item.declaredBy, pending: item.pending };
     for (const child of childrenOf.get(item.id) ?? []) render(child, depth + 1);
   }
 
@@ -359,5 +376,5 @@ export function functionalMermaid(map: ProjectMap): MermaidOutput {
     for (const top of tops) render(top, 2);
   }
 
-  return { text: lines.join(LF), details, paths: {}, nodes: {}, edges: [], neighbors: {} };
+  return { text: lines.join(LF), details, paths: {}, nodes, edges: [], neighbors: {} };
 }

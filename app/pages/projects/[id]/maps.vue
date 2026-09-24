@@ -16,6 +16,8 @@ const { data, refresh, status } = useFetch<MapResponse | { error: ApiFailure }>(
 const saving = ref(false);
 const draftId = ref('');
 const draftFailure = ref<ApiFailure | null>(null);
+const creatingTask = ref(false);
+const taskId = ref('');
 /** Ответ, поправленный моделью: заменяет прошлый, пока его не сохранили. */
 const fixed = ref('');
 
@@ -66,9 +68,43 @@ async function saveDraft(answer: string) {
       return;
     }
     draftId.value = (response as { record?: { id: string } }).record?.id ?? '';
+    taskId.value = '';
     await refresh();
   } finally {
     saving.value = false;
+  }
+}
+
+/**
+ * Пока карта-черновик не подтверждена, а связанная задача не закрыта, узлы и
+ * рёбра, которые она объявила, помечаются на диаграмме как не совпадающие с
+ * кодовой базой (`server/lib/maps.ts`, `pending`) — тот же смысл, что несёт
+ * `affects`/`change: feature` в правиле `task_maps_unapproved`
+ * (`server/lib/rules.ts`), просто заведённый одной кнопкой, а не руками
+ * через «Новая запись» на экране задач.
+ */
+async function createImplementingTask() {
+  if (!draftId.value) return;
+  creatingTask.value = true;
+  try {
+    const response = await $fetch(`/api/projects/${projectId.value}/records`, {
+      method: 'POST',
+      body: {
+        type: 'task',
+        title: `Реализовать карту ${draftId.value}`,
+        change: 'feature',
+        links: { affects: [draftId.value] }
+      },
+      ignoreResponseError: true
+    });
+    const problem = failureOf(response);
+    if (problem) {
+      draftFailure.value = problem;
+      return;
+    }
+    taskId.value = (response as { record?: { id: string } }).record?.id ?? '';
+  } finally {
+    creatingTask.value = false;
   }
 }
 
@@ -76,6 +112,7 @@ function onAnswer() {
   draftId.value = '';
   draftFailure.value = null;
   fixed.value = '';
+  taskId.value = '';
 }
 
 const { index } = useProjectIndex(projectId);
@@ -139,6 +176,20 @@ const hiddenNodeIds = computed(() => {
   const set = new Set<string>();
   for (const [key, node] of Object.entries(current.value?.nodes ?? {})) {
     if (hiddenLayers.value.has(node.layer ?? 'без слоя')) set.add(key);
+  }
+  return set;
+});
+
+/**
+ * Узлы, объявленные картой, которая ещё не устоялась (`server/lib/maps.ts`,
+ * `pending`) — рисуются полупрозрачными во всех видах (2D и 3D читают то же
+ * поле каждый по-своему, MermaidDiagram.vue берёт его отдельным id-списком,
+ * т.к. не получает полный `nodes`).
+ */
+const pendingNodeIds = computed(() => {
+  const set = new Set<string>();
+  for (const [key, node] of Object.entries(current.value?.nodes ?? {})) {
+    if (node.pending) set.add(key);
   }
   return set;
 });
@@ -297,6 +348,21 @@ function onEdgeClick(edge: MermaidEdge) {
               :to="`/projects/${projectId}/records/${draftId}`"
               class="text-sm hover:underline"
             >Черновик {{ draftId }} создан — открыть</NuxtLink>
+            <UButton
+              v-if="draftId && !taskId"
+              size="sm"
+              variant="soft"
+              icon="i-lucide-list-plus"
+              :loading="creatingTask"
+              @click="createImplementingTask"
+            >
+              Завести задачу-реализацию
+            </UButton>
+            <NuxtLink
+              v-if="taskId"
+              :to="`/projects/${projectId}/records/${taskId}`"
+              class="text-sm hover:underline"
+            >Задача {{ taskId }} заведена — открыть</NuxtLink>
             <UAlert
               v-if="draftFailure"
               color="error"
@@ -431,6 +497,7 @@ function onEdgeClick(edge: MermaidEdge) {
               :edges="current.edges"
               :neighbors="current.neighbors"
               :hidden-ids="shown === 'codemap' ? hiddenNodeIds : undefined"
+              :pending-ids="pendingNodeIds"
               :fullscreen-target="stage"
               :id="`map-${current.key}`"
               @node-click="onNodeClick"
