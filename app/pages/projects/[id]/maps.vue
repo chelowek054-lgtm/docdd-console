@@ -276,9 +276,18 @@ const current = computed(() => views.value.find((view) => view.key === shown.val
  * 2D — основной режим: детерминированная раскладка по слоям, читаемая без
  * привыкания. 3D — переключатель поверх неё же для обзора плотной картины
  * (`MermaidDiagram3D.vue`); функциональной карте (дерево, не граф связей) он
- * не идёт — у неё режим всегда 2D, кнопка переключения для неё не показана.
+ * не идёт — у неё связей вообще нет (docs/07-maps.md), 3D нечего раскладывать.
  */
 const viewMode = ref<'2d' | '3d'>('2d');
+
+/**
+ * У функциональной карты свой переключатель — дерево (читает доменный
+ * специалист, docs/07-maps.md, «Экран: дерево, а не mindmap») или тот же
+ * mermaid-граф (`mindmap`), что рисуют и остальные виды карт, для тех, кому
+ * привычнее диаграмма. Тексты и узлы уже посчитаны (`functionalMermaid` в
+ * `views` выше) — включение режима ничего не пересчитывает.
+ */
+const functionalView = ref<'tree' | 'graph'>('tree');
 
 /**
  * Общий контейнер диаграммы и карточки — цель разворота на весь экран.
@@ -479,9 +488,16 @@ function onEdgeClick(edge: MermaidEdge) {
                   <h2 class="font-medium">{{ current.title }}</h2>
                   <p class="text-sm text-muted">{{ current.question }}</p>
                 </div>
-                <!-- У функциональной карты режим всегда 2D — у дерева возможностей нет силовой раскладки. -->
+                <!-- У функциональной карты свой переключатель режима — дерево или тот же mermaid-граф, что у остальных видов. -->
                 <UTabs
-                  v-if="current.key !== 'functional'"
+                  v-if="current.key === 'functional'"
+                  v-model="functionalView"
+                  class="ml-auto w-40"
+                  size="xs"
+                  :items="[{ label: 'Дерево', value: 'tree' }, { label: 'Граф', value: 'graph' }]"
+                />
+                <UTabs
+                  v-else
                   v-model="viewMode"
                   class="ml-auto w-40"
                   size="xs"
@@ -489,7 +505,7 @@ function onEdgeClick(edge: MermaidEdge) {
                 />
                 <!-- Число уже видно бейджем на вкладке — здесь дублировать незачем. -->
                 <UButton
-                  v-if="current.text && viewMode === '2d' && current.key !== 'functional'"
+                  v-if="current.text && (current.key === 'functional' ? functionalView === 'graph' : viewMode === '2d')"
                   size="sm"
                   variant="ghost"
                   color="neutral"
@@ -530,11 +546,31 @@ function onEdgeClick(edge: MermaidEdge) {
                 hint="Модель сама читает код — ответ ничего не подтверждает, это её мнение"
               />
               <FunctionalTree
+                v-if="functionalView === 'tree'"
                 :project-id="projectId"
                 :capabilities="map.functional.capabilities"
                 @select="(value) => (selection = value)"
                 @changed="() => refresh()"
               />
+              <template v-else>
+                <p v-if="!current.text" class="text-sm text-muted">
+                  В подтверждённых картах эта структура не описана.
+                </p>
+                <MermaidDiagram
+                  v-else
+                  :source="current.text"
+                  :details="current.details"
+                  :paths="current.paths"
+                  :edges="current.edges"
+                  :neighbors="current.neighbors"
+                  :pending-ids="pendingNodeIds"
+                  :order="current.order"
+                  :fullscreen-target="stage"
+                  :id="`map-${current.key}`"
+                  @node-click="onNodeClick"
+                  @edge-click="onEdgeClick"
+                />
+              </template>
             </template>
 
             <template v-else>

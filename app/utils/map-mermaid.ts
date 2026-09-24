@@ -61,6 +61,14 @@ export interface MermaidOutput {
   edges: MermaidEdge[];
   /** id узла → id узлов, с которыми он соединён связью (в любую сторону). */
   neighbors: Record<string, string[]>;
+  /**
+   * id узлов в порядке, в котором они встречаются в тексте диаграммы —
+   * только у `mindmap` (`functionalMermaid`). В отличие от `flowchart`,
+   * mindmap не кладёт наш id в svg-id узла вовсе, нумеруя их вслепую
+   * (`node_0`, `node_1`, …) — `MermaidDiagram.vue` находит узел по этому
+   * порядку, а не по вхождению id в строку, как у остальных трёх видов.
+   */
+  order?: string[];
 }
 
 const LF = String.fromCharCode(10);
@@ -352,6 +360,9 @@ export function functionalMermaid(map: ProjectMap): MermaidOutput {
 
   const lines = ['mindmap'];
   const placed = new Set<string>();
+  // Тот же порядок, каким mermaid слепо нумерует узлы mindmap (node_0, node_1, …
+  // без разбора вложенности) — синтетический корень тоже строка, пустой ключ.
+  const order: string[] = [];
 
   function render(item: (typeof capabilities)[number], depth: number): void {
     // Схема не требует уникальности id: два элемента с одним и тем же id в
@@ -363,6 +374,7 @@ export function functionalMermaid(map: ProjectMap): MermaidOutput {
     lines.push(`${'  '.repeat(depth)}${node}(${safe(item.title ?? item.id)})`);
     details[node] = [item.id, item.title].filter(Boolean).join(LF);
     nodes[node] = { id: item.id, title: item.title, declaredBy: item.declaredBy, pending: item.pending };
+    order.push(node);
     for (const child of childrenOf.get(item.id) ?? []) render(child, depth + 1);
   }
 
@@ -373,8 +385,9 @@ export function functionalMermaid(map: ProjectMap): MermaidOutput {
     // Mindmap — дерево с одним корнем; несколько верхних возможностей разом
     // собираем под общим узлом, а не молча теряем часть картины.
     lines.push('  root((Проект))');
+    order.push(''); // синтетический узел без своих данных — но свою позицию в счёте занимает.
     for (const top of tops) render(top, 2);
   }
 
-  return { text: lines.join(LF), details, paths: {}, nodes, edges: [], neighbors: {} };
+  return { text: lines.join(LF), details, paths: {}, nodes, edges: [], neighbors: {}, order };
 }
