@@ -157,27 +157,67 @@ const allLayers = computed(() => {
   for (const item of map.value?.codemap.modules ?? []) set.add(item.layer ?? 'без слоя');
   return [...set].sort();
 });
-const hiddenLayers = ref<Set<string>>(new Set());
+
+/**
+ * Крупная кодовая база — та, что при полной раскладке mermaid ощутимо
+ * подвешивает вкладку (сотни модулей, тысячи пересечений линий). Порог
+ * приблизительный: важно не точное число, а сам факт, что рисовать всё
+ * разом больше не бесплатно (docs/07-maps.md, «Крупная кодовая база»).
+ */
+const LARGE_CODEMAP = 150;
+const isLargeCodemap = computed(() => (map.value?.codemap.modules.length ?? 0) > LARGE_CODEMAP);
+
+/** Самый маленький по числу модулей слой — с него начинают знакомство с крупной базой. */
+const smallestLayer = computed(() => {
+  const sizes = new Map<string, number>();
+  for (const item of map.value?.codemap.modules ?? []) {
+    const layer = item.layer ?? 'без слоя';
+    sizes.set(layer, (sizes.get(layer) ?? 0) + 1);
+  }
+  return [...allLayers.value].sort((a, b) => (sizes.get(a) ?? 0) - (sizes.get(b) ?? 0))[0] ?? null;
+});
+
+/**
+ * Чипы, скрытые явным кликом человека. Пусто — значит человек ещё не решал
+ * сам: тогда решает `hiddenLayers` (ниже) — производное, не хранимое
+ * состояние, чтобы отрисовка на сервере и на клиенте при гидратации совпала
+ * до последнего байта (ref, наполненный сайд-эффектом в watch, до первой
+ * отрисовки на клиенте успевал разойтись с тем, что уже отдал сервер).
+ */
+const chosenHiddenLayers = ref<Set<string> | null>(null);
+
+/**
+ * Слои кодовой базы — чипы над диаграммой. Клик изолирует: остаётся виден
+ * только этот слой, повторный клик по нему же возвращает все. На крупной
+ * базе, пока человек ни разу не тронул чипы, изолирован сам маленький слой
+ * — не все сотни модулей разом (docs/07-maps.md, «Крупная кодовая база»).
+ */
+const hiddenLayers = computed(() => {
+  if (chosenHiddenLayers.value) return chosenHiddenLayers.value;
+  if (!isLargeCodemap.value || !smallestLayer.value) return new Set<string>();
+  return new Set(allLayers.value.filter((layer) => layer !== smallestLayer.value));
+});
 function toggleLayer(layer: string) {
   const isolated = hiddenLayers.value.size === allLayers.value.length - 1 && !hiddenLayers.value.has(layer);
-  hiddenLayers.value = isolated ? new Set() : new Set(allLayers.value.filter((item) => item !== layer));
+  chosenHiddenLayers.value = isolated ? new Set() : new Set(allLayers.value.filter((item) => item !== layer));
 }
 
 /**
- * Узлы, спрятанные текущими слоями — по id диаграммы (`current.nodes`), не
- * по исходному id модуля: диаграмма (`MermaidDiagram.vue`) знает узлы только
- * в своей, mermaid-безопасной адресации (`app/utils/map-mermaid.ts`).
- * Строится один раз по полной картине (см. `views` ниже) и только
- * прячет/показывает уже отрисованное — пересборка mermaid на каждый клик по
- * чипу на плотном графе подвешивала интерфейс (docs/04-ui.md, «Карты»).
+ * Кодовая база с вычетом скрытых слоёв — рёбра к спрятанному модулю тоже
+ * прячутся. Диаграмма строится заново на каждый клик по чипу (mermaid не
+ * умеет иначе), но раз слоёв на экране всегда один-два, а не все разом,
+ * пересборка остаётся дешёвой даже на крупной базе (docs/04-ui.md, «Карты»).
  */
-const hiddenNodeIds = computed(() => {
-  if (hiddenLayers.value.size === 0) return new Set<string>();
-  const set = new Set<string>();
-  for (const [key, node] of Object.entries(current.value?.nodes ?? {})) {
-    if (hiddenLayers.value.has(node.layer ?? 'без слоя')) set.add(key);
-  }
-  return set;
+const filteredCodemap = computed(() => {
+  const value = map.value;
+  if (!value || hiddenLayers.value.size === 0) return value?.codemap;
+  const visible = new Set(
+    value.codemap.modules.filter((item) => !hiddenLayers.value.has(item.layer ?? 'без слоя')).map((item) => item.id)
+  );
+  return {
+    modules: value.codemap.modules.filter((item) => visible.has(item.id)),
+    imports: value.codemap.imports.filter((edge) => visible.has(edge.from) && visible.has(edge.to))
+  };
 });
 
 /**
@@ -203,7 +243,7 @@ const views = computed(() => {
       title: 'Кодовая база',
       question: 'Из чего состоит проект и что на что опирается',
       count: `${value.codemap.modules.length} модулей, ${value.codemap.imports.length} связей`,
-      ...codemapMermaid(value)
+      ...codemapMermaid({ ...value, codemap: filteredCodemap.value ?? value.codemap })
     },
     {
       key: 'dataflow',
@@ -462,18 +502,24 @@ function onEdgeClick(edge: MermaidEdge) {
             </template>
 
             <!-- Слои — только у кодовой базы: у остальных видов узел не несёт слоя. -->
-            <div v-if="shown === 'codemap' && allLayers.length > 1" class="mb-3 flex flex-wrap gap-1">
-              <UButton
-                v-for="layer in allLayers"
-                :key="layer"
-                size="xs"
-                :color="hiddenLayers.has(layer) ? 'neutral' : 'primary'"
-                :variant="hiddenLayers.has(layer) ? 'outline' : 'subtle'"
-                @click="toggleLayer(layer)"
-              >
-                {{ layer }}
-              </UButton>
-            </div>
+            <template v-if="shown === 'codemap' && allLayers.length > 1">
+              <p v-if="isLargeCodemap && hiddenLayers.size > 0" class="mb-2 text-sm text-muted">
+                Крупная кодовая база ({{ map.codemap.modules.length }} модулей) — чтобы не перегружать диаграмму,
+                сначала показан один слой. Выберите другой чипом; чтобы увидеть все разом, кликните по выбранному ещё раз.
+              </p>
+              <div class="mb-3 flex flex-wrap gap-1">
+                <UButton
+                  v-for="layer in allLayers"
+                  :key="layer"
+                  size="xs"
+                  :color="hiddenLayers.has(layer) ? 'neutral' : 'primary'"
+                  :variant="hiddenLayers.has(layer) ? 'outline' : 'subtle'"
+                  @click="toggleLayer(layer)"
+                >
+                  {{ layer }}
+                </UButton>
+              </div>
+            </template>
 
             <template v-if="shown === 'functional'">
               <PromptPanel
@@ -499,7 +545,6 @@ function onEdgeClick(edge: MermaidEdge) {
                 v-else-if="viewMode === '3d'"
                 :nodes="current.nodes"
                 :edges="current.edges"
-                :hidden-ids="shown === 'codemap' ? hiddenNodeIds : undefined"
                 :fullscreen-target="stage"
                 :id="`map-${current.key}-3d`"
                 @node-click="onNodeClick"
@@ -512,7 +557,6 @@ function onEdgeClick(edge: MermaidEdge) {
                 :paths="current.paths"
                 :edges="current.edges"
                 :neighbors="current.neighbors"
-                :hidden-ids="shown === 'codemap' ? hiddenNodeIds : undefined"
                 :pending-ids="pendingNodeIds"
                 :fullscreen-target="stage"
                 :id="`map-${current.key}`"
