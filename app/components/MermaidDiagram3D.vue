@@ -21,7 +21,6 @@ const props = defineProps<{
   id: string;
   nodes: Record<string, MermaidNode>;
   edges: MermaidEdge[];
-  hiddenIds?: Set<string>;
   fullscreenTarget?: HTMLElement | null;
 }>();
 
@@ -51,8 +50,7 @@ let fitted = false;
  * (`app/utils/map-mermaid.ts`). Спутать их — клик находит не тот узел молча.
  */
 function graphData() {
-  const hidden = props.hiddenIds;
-  const entries = Object.entries(props.nodes).filter(([key]) => !hidden?.has(key));
+  const entries = Object.entries(props.nodes);
   const visible = new Set(entries.map(([key]) => key));
   const links = props.edges
     .filter((edge) => visible.has(edge.from) && visible.has(edge.to))
@@ -74,10 +72,8 @@ function graphData() {
 
 /** Цвет и подпись каждого встреченного слоя — то же соответствие, что красит сферы. */
 const legend = computed(() => {
-  const hidden = props.hiddenIds;
   const seen = new Set<string>();
-  for (const [key, node] of Object.entries(props.nodes)) {
-    if (hidden?.has(key)) continue;
+  for (const node of Object.values(props.nodes)) {
     if (node.layer) seen.add(node.layer);
   }
   return [...seen].sort().map((layer) => ({ layer, color: colorOf(layer) }));
@@ -150,7 +146,7 @@ async function init() {
 onMounted(init);
 onUnmounted(() => resizeObserver?.disconnect());
 
-watch([() => props.nodes, () => props.edges, () => props.hiddenIds], () => {
+watch([() => props.nodes, () => props.edges], () => {
   graph?.graphData(graphData());
 });
 

@@ -13,13 +13,6 @@ const props = defineProps<{
   /** id узла → id соседей — для подсветки при клике (app/utils/map-mermaid.ts). */
   neighbors?: Record<string, string[]>;
   /**
-   * id узлов, спрятанных фильтром слоёв (`maps.vue`). Меняется чаще, чем
-   * `source`, — прячем/показываем уже отрисованные узлы и рёбра стилем, а не
-   * перерисовываем диаграмму заново: на плотном графе повторная раскладка
-   * dagre на каждый клик по чипу подвешивала интерфейс (docs/04-ui.md).
-   */
-  hiddenIds?: Set<string>;
-  /**
    * id узлов, объявленных картой, которая ещё не устоялась — архитектор
    * описал намерение, кода может не быть (`server/lib/maps.ts`, `pending`).
    * Рисуются полупрозрачными: видно, что есть на карте, но не спутать с уже
@@ -85,7 +78,6 @@ async function draw() {
     container.value.innerHTML = svg;
     annotateTitles();
     attachInteractions();
-    applyHidden();
     applyFocus();
     resetView();
   } catch (cause) {
@@ -99,7 +91,6 @@ watch(() => props.source, draw);
 // Тема mermaid задаётся при отрисовке, поэтому смена темы — это перерисовка
 // (docs/04-ui.md, «Тема»).
 watch(() => colorMode.value, draw);
-watch(() => props.hiddenIds, applyHidden);
 watch(() => props.pendingIds, applyFocus);
 
 /**
@@ -207,23 +198,6 @@ function applyFocus() {
   for (const { edge, el } of edgeElements) {
     const kept = !keep || keep.has(edge.from) || keep.has(edge.to);
     el.style.opacity = !kept ? '0.15' : edge.pending ? '0.5' : '1';
-  }
-}
-
-/**
- * Слои прячутся стилем, не перерисовкой: узел — `display:none`, ребро —
- * туда же, как только один из его концов спрятан. `applyFocus()` работает
- * поверх этого же состояния — приглушение не включает спрятанное обратно.
- */
-function applyHidden() {
-  if (!container.value) return;
-  const hidden = props.hiddenIds;
-  for (const node of container.value.querySelectorAll<SVGGElement>('.node, .mindmap-node')) {
-    const key = keyOfNode(node);
-    node.style.display = hidden && key !== null && hidden.has(key) ? 'none' : '';
-  }
-  for (const { edge, el } of edgeElements) {
-    el.style.display = hidden && (hidden.has(edge.from) || hidden.has(edge.to)) ? 'none' : '';
   }
 }
 
