@@ -151,6 +151,14 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
           :title="wide ? 'Свернуть' : 'Развернуть'"
           @click="wide = !wide"
         />
+        <UButton
+          icon="i-lucide-x"
+          size="xs"
+          color="neutral"
+          variant="ghost"
+          title="Закрыть"
+          @click="open = false"
+        />
       </div>
     </template>
 
