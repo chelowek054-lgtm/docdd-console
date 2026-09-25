@@ -84,12 +84,13 @@ export default defineEventHandler(async (event) => {
   }
 });
 
-function asCapability(value: unknown): { id: string; title?: string; parent?: string } | null {
+function asCapability(value: unknown): { id: string; title?: string; parent?: string; summary?: string } | null {
   if (!value || typeof value !== 'object') return null;
   const raw = value as Record<string, unknown>;
   const id = typeof raw['id'] === 'string' ? (raw['id'] as string).trim() : '';
   if (!id) return null;
   const title = typeof raw['title'] === 'string' && (raw['title'] as string).trim() ? (raw['title'] as string).trim() : undefined;
   const parent = typeof raw['parent'] === 'string' && (raw['parent'] as string).trim() ? (raw['parent'] as string).trim() : undefined;
-  return { id, title, parent };
+  const summary = typeof raw['summary'] === 'string' && (raw['summary'] as string).trim() ? (raw['summary'] as string).trim() : undefined;
+  return { id, title, parent, summary };
 }

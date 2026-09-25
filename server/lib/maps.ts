@@ -69,7 +69,9 @@ export interface UserflowPart {
  * запись, а не построчной сверкой с файлом (docs/07-maps.md).
  */
 export interface FunctionalPart {
-  capabilities?: { id: string; title?: string; parent?: string; declaredBy?: string; pending?: boolean }[];
+  capabilities?: {
+    id: string; title?: string; parent?: string; summary?: string; declaredBy?: string; pending?: boolean;
+  }[];
 }
 
 /** Файл, который модель посмотрела и в карту не положила. */

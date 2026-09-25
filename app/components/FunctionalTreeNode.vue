@@ -3,6 +3,7 @@ export interface Capability {
   id: string;
   title?: string;
   parent?: string;
+  summary?: string;
   declaredBy?: string;
   pending?: boolean;
 }

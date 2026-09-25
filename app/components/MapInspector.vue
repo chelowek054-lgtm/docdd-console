@@ -247,7 +247,17 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
           </div>
         </template>
 
-        <p v-if="!path && !nodeSummary && !nodeApi.length && selection.kind === 'node'" class="text-muted">
+        <p
+          v-if="!path && !nodeSummary && !nodeApi.length && selection.kind === 'node' && selection.capability"
+          class="text-muted"
+        >
+          У этой возможности пока нет описания. Его добавляют кнопкой «Переименовать»
+          в режиме «Дерево» — вместе с названием откроется поле описания.
+        </p>
+        <p
+          v-else-if="!path && !nodeSummary && !nodeApi.length && selection.kind === 'node'"
+          class="text-muted"
+        >
           Карта пока не описала этот узел — ни что он делает, ни его интерфейс, ни файл.
           Это появится после «Обновить карты».
         </p>

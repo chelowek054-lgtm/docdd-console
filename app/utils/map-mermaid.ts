@@ -42,6 +42,8 @@ export interface MermaidNode {
   declaredBy?: string;
   /** См. `MermaidEdge.pending` — то же самое, но у узла. */
   pending?: boolean;
+  /** Возможность функциональной карты: у неё нет ни файла, ни интерфейса, только название и описание. */
+  capability?: boolean;
 }
 
 /** Что показывает `MapInspector.vue` — узел (по `MermaidNode`) или ребро (по `MermaidEdge`). */
@@ -373,7 +375,10 @@ export function functionalMermaid(map: ProjectMap): MermaidOutput {
     const node = nodeId('f', item.id);
     lines.push(`${'  '.repeat(depth)}${node}(${safe(item.title ?? item.id)})`);
     details[node] = [item.id, item.title].filter(Boolean).join(LF);
-    nodes[node] = { id: item.id, title: item.title, declaredBy: item.declaredBy, pending: item.pending };
+    nodes[node] = {
+      id: item.id, title: item.title, summary: item.summary, declaredBy: item.declaredBy, pending: item.pending,
+      capability: true
+    };
     order.push(node);
     for (const child of childrenOf.get(item.id) ?? []) render(child, depth + 1);
   }

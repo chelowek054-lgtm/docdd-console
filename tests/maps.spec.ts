@@ -92,6 +92,23 @@ describe('parseMapRecord', () => {
     expect(parsed.change.functional?.added?.capabilities).toEqual([{ id: 'orders', title: 'Заказы' }]);
   });
 
+  it('возможность несёт summary — описание для читателя не из IT', () => {
+    const parsed = parseMapRecord(body('functional', {
+      added: { capabilities: [{ id: 'orders', title: 'Заказы', summary: 'Покупатель оформляет заказ и видит его статус.' }] }
+    }));
+    expect(parsed.problems).toEqual([]);
+    expect(parsed.change.functional?.added?.capabilities?.[0]?.summary).toBe('Покупатель оформляет заказ и видит его статус.');
+  });
+
+  it('повторное объявление возможности с summary уточняет прежнюю, не задваивая', () => {
+    const map = foldMaps([
+      { id: 'M-0001', change: { functional: { added: { capabilities: [{ id: 'orders', title: 'Заказы' }] } } } },
+      { id: 'M-0002', change: { functional: { added: { capabilities: [{ id: 'orders', title: 'Заказы', summary: 'Оформление и статус.' }] } } } }
+    ]);
+    expect(map.functional.capabilities).toHaveLength(1);
+    expect(map.functional.capabilities[0]?.summary).toBe('Оформление и статус.');
+  });
+
   it('разбирает блок `docdd-skipped» — файл, который в карту не идёт, и причина', () => {
     const text = [
       body('codemap', { added: { imports: [import1] } }),

@@ -56,7 +56,10 @@ function toggle(id: string) {
 }
 
 function onSelect(item: Capability) {
-  emit('select', { kind: 'node', id: item.id, title: item.title, declaredBy: item.declaredBy, pending: item.pending });
+  emit('select', {
+    kind: 'node', id: item.id, title: item.title, summary: item.summary,
+    declaredBy: item.declaredBy, pending: item.pending, capability: true
+  });
 }
 
 // --- форма: добавить (себе или подпункт) / переименовать ---
@@ -64,6 +67,7 @@ const formParent = ref<string | null>(null);
 const formOpen = ref(false);
 const editingId = ref<string | null>(null);
 const formTitle = ref('');
+const formSummary = ref('');
 const saving = ref(false);
 const failure = ref<ApiFailure | null>(null);
 
@@ -72,6 +76,7 @@ function openAdd(parentId: string | null) {
   formParent.value = parentId;
   editingId.value = null;
   formTitle.value = '';
+  formSummary.value = '';
   failure.value = null;
 }
 function openEdit(item: Capability) {
@@ -79,12 +84,14 @@ function openEdit(item: Capability) {
   formParent.value = item.parent ?? null;
   editingId.value = item.id;
   formTitle.value = item.title ?? '';
+  formSummary.value = item.summary ?? '';
   failure.value = null;
 }
 function closeForm() {
   formOpen.value = false;
   editingId.value = null;
   formTitle.value = '';
+  formSummary.value = '';
 }
 
 /** id из названия — доменный специалист не должен придумывать идентификатор сам. */
@@ -121,14 +128,17 @@ async function saveCapability(capability: Capability, label: string) {
 function onSubmit() {
   if (!formTitle.value.trim()) return;
   const title = formTitle.value.trim();
+  const summary = formSummary.value.trim() || undefined;
   if (editingId.value) {
     const current = props.capabilities.find((item) => item.id === editingId.value);
     if (!current) return;
-    void saveCapability({ id: current.id, title, parent: current.parent }, `переименована в «${title}»`);
+    // Повторное объявление — уточнение, побеждает последнее: поля, которых здесь
+    // нет, из возможности пропали бы, поэтому parent и summary едут вместе.
+    void saveCapability({ id: current.id, title, parent: current.parent, summary }, `изменена «${title}»`);
   } else {
     const id = slugify(title);
     void saveCapability(
-      { id, title, parent: formParent.value ?? undefined },
+      { id, title, parent: formParent.value ?? undefined, summary },
       `добавлена «${title}»`
     );
   }
@@ -208,7 +218,7 @@ async function confirmDraft() {
 
     <UCard v-if="formOpen" class="mb-3">
       <p class="mb-2 text-sm text-muted">
-        {{ editingId ? 'Новое название' : 'Название возможности' }}
+        {{ editingId ? 'Название и описание' : 'Название возможности' }}
       </p>
       <div class="flex flex-wrap items-center gap-3">
         <UInput
@@ -220,6 +230,13 @@ async function confirmDraft() {
         <UButton :loading="saving" :disabled="!formTitle.trim()" @click="onSubmit">Сохранить</UButton>
         <UButton variant="ghost" color="neutral" @click="closeForm">Отмена</UButton>
       </div>
+      <UTextarea
+        v-model="formSummary"
+        class="mt-3 w-full"
+        :rows="3"
+        autoresize
+        placeholder="Описание — необязательно: зачем это в системе и что даёт пользователю, простыми словами"
+      />
       <UAlert
         v-if="failure"
         class="mt-3"
