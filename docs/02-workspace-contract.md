@@ -262,7 +262,7 @@ stateDiagram-v2
 
 | Переход | Условие |
 |---|---|
-| `backlog → ready` | Все записи из `documents` и `refines` в статусе `approved`; есть хотя бы одна `implements` |
+| `backlog → ready` | Все записи из `documents` и `refines` в статусе `approved`; есть хотя бы одна `implements`; указано `change`; у `feature` — подтверждённая карта ([07-maps.md](07-maps.md)) |
 | `ready → in_progress` | Ручное действие человека — это и есть «запустить в разработку» |
 | `in_review → done` | Все `verified_by` имеют `passed` в последнем отчёте, если включена политика |
 
