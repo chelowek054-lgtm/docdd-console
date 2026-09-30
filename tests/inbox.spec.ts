@@ -201,12 +201,20 @@ describe('заведение записей', () => {
     expect(outcome.ok, outcome.ok ? '' : outcome.message).toBe(true);
     if (!outcome.ok) return;
 
-    expect(outcome.created.map((record) => record.id)).toEqual(['R-0001', 'T-0001']);
+    // `feature`-задача без карты получает общую карту-намерение (docs/07-maps.md).
+    expect(outcome.created.map((record) => record.id)).toEqual(['R-0001', 'T-0001', 'M-0001']);
 
     // Связь ведёт на настоящий номер, а не на ключ из ответа модели.
     const task = readFileSync(join(root, outcome.created[1]?.path as string), 'utf8');
     expect(task).toContain('implements: [R-0001]');
+    expect(task).toContain('affects: [M-0001]');
     expect(task).toContain('change: feature');
+
+    // Карта — черновик: подтверждает человек, а сверка с кодом не запускается.
+    const map = readFileSync(join(root, outcome.created[2]?.path as string), 'utf8');
+    expect(map).toContain('status: draft');
+    expect(map).toContain('intent: true');
+    expect(map).toContain('Форма оплаты');
 
     // Тело записи взято из предложения, а не заменено заготовкой.
     const requirement = readFileSync(join(root, outcome.created[0]?.path as string), 'utf8');

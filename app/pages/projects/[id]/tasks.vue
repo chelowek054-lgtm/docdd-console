@@ -2,16 +2,16 @@
 const route = useRoute();
 const projectId = computed(() => String(route.params['id'] ?? ''));
 
-const { index, failure, records, refresh } = useProjectIndex(projectId);
+const { index, failure, records, byId, refresh } = useProjectIndex(projectId);
 
 const tasks = computed(() => records.value.filter((record) => record.type === 'task'));
 
-const status = ref<string>('');
+const statuses = computed(() => tasks.value.map((task) => task.status));
+const status = useStatusFilter(statuses);
 const phase = ref<string>('');
 const owner = ref<string>('');
 const tag = ref<string>('');
 
-const statuses = computed(() => unique(tasks.value.map((task) => task.status)));
 const phases = computed(() => unique(tasks.value.map((task) => task.phase ?? '')));
 const owners = computed(() => unique(tasks.value.map((task) => task.owner ?? '')));
 const tags = computed(() => unique(tasks.value.flatMap((task) => task.tags)));
@@ -30,6 +30,23 @@ const results = computed(() => index.value?.verificationResults ?? {});
 function unique(values: string[]): string[] {
   return [...new Set(values.filter(Boolean))].sort();
 }
+
+/**
+ * Задачи очереди, чья опора ещё не подтверждена: в `ready` они не уйдут, и
+ * «Вперёд» их пропустит. Работа идёт сверху вниз — сначала требования и
+ * документы (docs/04-ui.md, «Массовые действия»).
+ */
+const waiting = computed(() => shown.value
+  .filter((task) => task.status === 'backlog')
+  .map((task) => ({
+    task,
+    needs: [...(task.links.implements ?? []), ...(task.links.documents ?? []), ...(task.links.refines ?? [])]
+      .filter((id) => {
+        const target = byId.value.get(id);
+        return target !== undefined && target.status !== 'approved';
+      })
+  }))
+  .filter((entry) => entry.needs.length > 0));
 
 function reset() {
   status.value = '';
@@ -50,10 +67,11 @@ function reset() {
         <NewRecord class="ml-auto" :project-id="projectId" type="task" :records="records" @created="refresh" />
       </div>
 
+      <StatusTabs v-model="status" :statuses="statuses" :order="TASK_STATUS_ORDER" />
+
       <div class="flex flex-wrap gap-2">
         <!-- Пустое значение в списке библиотека запрещает: «ничего не выбрано»
              показывается подсказкой, а снимается кнопкой «Сбросить». -->
-        <USelect v-model="status" placeholder="Любой статус" :items="statuses.map((s) => ({ label: statusLabel(s), value: s }))" class="w-48" />
         <USelect v-model="phase" placeholder="Любая фаза" :items="phases.map((p) => ({ label: p, value: p }))" class="w-40" />
         <USelect v-model="owner" placeholder="Любой исполнитель" :items="owners.map((o) => ({ label: o, value: o }))" class="w-48" />
         <USelect v-model="tag" placeholder="Любой тег" :items="tags.map((t) => ({ label: t, value: t }))" class="w-40" />
@@ -67,6 +85,15 @@ function reset() {
         :records="records"
         :picked="selection.selected.value.map((task) => task.id)"
         @changed="refresh"
+      />
+
+      <UAlert
+        v-if="waiting.length"
+        color="info"
+        variant="subtle"
+        icon="i-lucide-info"
+        :title="`У ${waiting.length} задач из очереди опора ещё не подтверждена`"
+        description="Сначала подтвердите требования и документы, на которые они опираются, — иначе «Вперёд» эти задачи пропустит и назовёт причину."
       />
 
       <BulkBar

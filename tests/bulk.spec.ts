@@ -108,7 +108,7 @@ beforeAll(() => {
   put('design', 'D-0002-b.md', record('D-0002', 'design', 'review'));
   put('design', 'D-0003-c.md', record('D-0003', 'design', 'approved'));
   put('requirements', 'R-0001-a.md', record('R-0001', 'requirement', 'approved'));
-  put('tasks', 'T-0001-a.md', record('T-0001', 'task', 'backlog', ['links:', '  implements: [R-0001]']));
+  put('tasks', 'T-0001-a.md', record('T-0001', 'task', 'backlog', ['change: fix', 'links:', '  implements: [R-0001]']));
   put('tasks', 'T-0002-b.md', record('T-0002', 'task', 'backlog'));
 });
 
@@ -163,5 +163,21 @@ describe('bulkStatus', () => {
   it('«подтвердить» у задачи — отказ этой записи с причиной', () => {
     const outcome = bulkStatus(root, ['T-0001'], 'approve', 'architect');
     expect(outcome.results[0]).toMatchObject({ ok: false, code: 'transition_forbidden' });
+  });
+});
+
+describe('bulkStatus — не сломали ли', () => {
+  it('«назад» на опоре задачи называет новое нарушение, а обычный шаг — ничего нового', () => {
+    put('design', 'D-0010-opora.md', record('D-0010', 'design', 'approved'));
+    put('tasks', 'T-0010-opirayetsya.md', record('T-0010', 'task', 'ready', [
+      'change: fix', 'links:', '  implements: [R-0001]', '  documents: [D-0010]'
+    ]));
+
+    const quiet = bulkStatus(root, ['D-0002'], 'back', 'architect');
+    expect(quiet.newIssues).toEqual([]);
+
+    const broken = bulkStatus(root, ['D-0010'], 'back', 'architect');
+    expect(broken.moved).toBe(1);
+    expect(broken.newIssues.map((issue) => [issue.code, issue.recordId])).toEqual([['task_not_ready_docs', 'T-0010']]);
   });
 });

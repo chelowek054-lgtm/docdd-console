@@ -28,7 +28,9 @@ const type = computed({
   },
   set: (value: string | number) => {
     const next = String(value);
-    router.replace({ query: next === 'all' ? {} : { type: next } });
+    // Статус живёт рядом с типом и переживает смену вкладки типа, если он там есть.
+    const { type: _dropped, ...rest } = route.query;
+    router.replace({ query: next === 'all' ? rest : { ...rest, type: next } });
   }
 });
 
@@ -47,9 +49,14 @@ function rank(status: string): number {
   return at === -1 ? STATUS_ORDER.length : at;
 }
 
-const documents = computed(() => records.value
+const listed = computed(() => records.value
   .filter((record) => (type.value === 'all' ? DOCUMENT_TYPES.includes(record.type) : record.type === type.value))
   .sort((a, b) => rank(a.status) - rank(b.status) || a.id.localeCompare(b.id)));
+
+/** Вторая ось после типа: статус (docs/04-ui.md, «Списки по статусам»). */
+const statuses = computed(() => listed.value.map((record) => record.status));
+const status = useStatusFilter(statuses);
+const documents = computed(() => (status.value ? listed.value.filter((record) => record.status === status.value) : listed.value));
 
 const selection = useSelection(documents);
 
@@ -77,7 +84,7 @@ const EMPTY: Record<string, string> = {
     <template v-else>
       <div class="flex flex-wrap items-center gap-3">
         <h1 class="text-xl font-semibold">{{ heading }}</h1>
-        <p class="text-sm text-muted">{{ documents.length }}</p>
+        <p class="text-sm text-muted">{{ documents.length }}<template v-if="status"> из {{ listed.length }}</template></p>
         <!-- Тип выбирается вкладкой, а не полем формы: на «Все» кнопки нет. -->
         <NewRecord
           v-if="type !== 'all'"
@@ -92,6 +99,8 @@ const EMPTY: Record<string, string> = {
 
       <UTabs v-model="type" :items="TABS" :content="false" />
 
+      <StatusTabs v-model="status" :statuses="statuses" :order="DOCUMENT_STATUS_ORDER" />
+
       <BulkBar
         :project-id="projectId"
         :selected="selection.selected.value"
@@ -101,7 +110,7 @@ const EMPTY: Record<string, string> = {
         @done="selection.clear(); refresh()"
       />
 
-      <div v-if="documents.length === 0" class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted">
+      <div v-if="listed.length === 0" class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted">
         {{ EMPTY[type] }}
         <template v-if="type !== 'all'">Завести — кнопкой «Новая запись» выше или через Входящее.</template>
         <template v-else>Выберите тип на вкладке, чтобы завести запись.</template>

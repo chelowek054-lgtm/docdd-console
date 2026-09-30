@@ -19,14 +19,15 @@ describe('availableActions', () => {
     const task = rec('T-0007', 'task', 'backlog');
     const ready = availableActions(task, context([task])).find((action) => action.status === 'ready');
     expect(ready?.allowed).toBe(false);
-    expect(ready?.blockers.map((blocker) => blocker.code)).toEqual(['task_no_requirement']);
+    expect(ready?.blockers.map((blocker) => blocker.code)).toEqual(['task_no_requirement', 'change_missing']);
   });
 
   it('разрешает переход, когда условия выполнены', () => {
     const doc = rec('D-0004', 'design', 'approved');
     const requirement = rec('R-0004', 'requirement', 'approved');
     const task = rec('T-0007', 'task', 'backlog', {
-      links: { implements: ['R-0004'], documents: ['D-0004'] }
+      links: { implements: ['R-0004'], documents: ['D-0004'] },
+      extra: { change: 'fix' }
     });
     const ready = availableActions(task, context([doc, requirement, task]))
       .find((action) => action.status === 'ready');

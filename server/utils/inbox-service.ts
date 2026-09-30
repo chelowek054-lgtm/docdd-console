@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
+import { withIntentMap } from '../lib/intent-map';
 import { parseProposal, resolveLinks, titleOf, type Note, type ProposedRecord } from '../lib/inbox';
 import { parseRecord } from '../lib/parse';
 import { normalizeRoot, resolveInside, toProjectPath } from '../lib/paths';
@@ -180,8 +181,11 @@ export type InboxOutcome =
  * Завести записи по подтверждённому человеком списку. Номера раздаются здесь и
  * только здесь: модель их не знает и знать не может.
  */
-export function createRecords(root: string, proposed: readonly ProposedRecord[], notes: readonly string[]): InboxOutcome {
+export function createRecords(root: string, original: readonly ProposedRecord[], notes: readonly string[]): InboxOutcome {
   const normalized = normalizeRoot(root);
+  // `feature`-задачам без карты достраивается одна общая карта-намерение
+  // (docs/07-maps.md): иначе каждая упрётся в одно и то же правило по отдельности.
+  const proposed = withIntentMap(original, today());
   if (proposed.length === 0) {
     return { ok: false, code: 'nothing_to_create', message: 'Список пуст: заводить нечего' };
   }
@@ -239,6 +243,7 @@ export function createRecords(root: string, proposed: readonly ProposedRecord[],
       ...(sources.length ? { sources } : {}),
       ...(record.body ? { body: record.body } : {}),
       ...(capabilities?.length ? { capabilities } : {}),
+      ...(record.type === 'map' && record.intent ? { intent: true } : {}),
       ...(record.type === 'task' && record.change ? { change: record.change } : {})
     });
 

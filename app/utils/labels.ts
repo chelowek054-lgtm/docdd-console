@@ -110,3 +110,23 @@ export function daysSince(isoDate: string | null, now = new Date()): number | nu
 export function issueKey(issue: { code: string; path?: string | null; recordId?: string | null }): string {
   return [issue.code, issue.path ?? '', issue.recordId ?? ''].join('|');
 }
+
+/**
+ * Порядок вкладок статусов в списках: по ходу процесса, а не по алфавиту
+ * (docs/04-ui.md, «Списки по статусам»). Незнакомый статус — в конец.
+ */
+export const DOCUMENT_STATUS_ORDER = ['draft', 'review', 'approved', 'superseded', 'dropped', 'rejected'];
+export const TASK_STATUS_ORDER = ['backlog', 'ready', 'in_progress', 'in_review', 'done', 'dropped'];
+
+/** «1 задачу, 2 задачи, 5 задач»: число в подписи кнопки не должно читаться криво. */
+export function plural(count: number, one: string, few: string, many: string): string {
+  const tail = count % 100;
+  if (tail >= 11 && tail <= 14) return many;
+  switch (count % 10) {
+    case 1: return one;
+    case 2:
+    case 3:
+    case 4: return few;
+    default: return many;
+  }
+}
