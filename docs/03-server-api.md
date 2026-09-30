@@ -209,6 +209,26 @@
 у задачи — не отказ всему запросу, а `ok: false` с `transition_forbidden` у
 этой записи. Дубли в `ids` схлопываются.
 
+### `POST /api/projects/:id/records/:recordId/verified`
+
+Отметка «Проверено» на ручной проверке ([02-workspace-contract.md](02-workspace-contract.md),
+«Ручная отметка „Проверено“»):
+
+```json
+{ "verified": true, "actor": "architect" }
+```
+
+`verified: true` кладёт отчёт `passed`, `false` — отчёт `skipped`; оба с
+`runner: manual:<actor>` (нет роли — `manual`). В журнал записи проверки
+добавляется строка. Ответ — `{ "result": { "state": "passed", "at": "…", "runner": "manual:architect" } }`.
+
+`404 record_not_found` — записи нет; `409 not_a_verification` — это не
+проверка; `409 tests_not_configured` — в манифесте не назван `paths.tests`, отчёту некуда
+лечь; `409 not_manual` — у проверки `kind` не `manual` и не `review`:
+факт приходит от сборки, и отметить его руками нельзя. Отметка не зависит от
+статуса самой проверки: результат, как и любой другой, засчитывается независимо
+от того, подтверждена ли проверка ([04-ui.md](04-ui.md), «Решение и факт»).
+
 ### `POST /api/projects/:id/records/bulk/link-map`
 
 Общая карта-намерение на пачку задач ([07-maps.md](07-maps.md), «Карта-намерение

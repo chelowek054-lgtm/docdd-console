@@ -102,6 +102,16 @@ function verifiesOf(check: (typeof checks.value)[number]): string[] {
                   size="sm"
                   class="ml-1"
                 >{{ checkNote(check.status, !!results[check.id]) }}</UBadge>
+                <!-- Ручную проверку некому прогнать, кроме человека (docs/04-ui.md). -->
+                <VerifiedCheck
+                  class="mt-1"
+                  compact
+                  :project-id="projectId"
+                  :record="check"
+                  :result="results[check.id]"
+                  :roles="index?.project.roles ?? []"
+                  @changed="refresh"
+                />
               </td>
             </tr>
           </tbody>

@@ -101,6 +101,20 @@ function entries(
         @changed="reload"
       />
 
+      <!-- Ручная проверка: флажок «Проверено» фиксирует прогон (docs/04-ui.md). -->
+      <UCard v-if="detail.record.type === 'verification'">
+        <template #header>
+          <h2 class="font-medium">Проверено ли</h2>
+        </template>
+        <VerifiedCheck
+          :project-id="projectId"
+          :record="detail.record"
+          :result="index?.verificationResults[detail.record.id]"
+          :roles="index?.project.roles ?? []"
+          @changed="reload"
+        />
+      </UCard>
+
       <UCard v-if="detail.map">
         <template #header>
           <div class="flex flex-wrap items-center gap-3">
