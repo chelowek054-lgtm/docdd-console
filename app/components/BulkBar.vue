@@ -213,7 +213,7 @@ async function run(direction: string) {
                 :loading="linking"
                 @click="linkMap(group.unmapped)"
               >
-                Завести карту и привязать {{ group.unmapped.length }} {{ plural(group.unmapped.length, "задачу", "задачи", "задач") }}
+                Завести карту и привязать {{ plural(group.unmapped.length, 'задачу', 'задачи', 'задач') }}
               </UButton>
               <p v-if="linkFailure" class="mt-1 text-xs">{{ linkFailure.message }}</p>
             </div>
