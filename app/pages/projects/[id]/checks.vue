@@ -55,9 +55,9 @@ function verifiesOf(check: (typeof checks.value)[number]): string[] {
                 />
               </th>
               <th class="p-3 font-medium">Проверка</th>
-              <th class="p-3 font-medium">Статус</th>
+              <th class="p-3 font-medium">Решение</th>
               <th class="p-3 font-medium">Что проверяет</th>
-              <th class="p-3 font-medium">Последний результат</th>
+              <th class="p-3 font-medium">Факт: последний прогон</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-default">
@@ -94,6 +94,14 @@ function verifiesOf(check: (typeof checks.value)[number]): string[] {
                   size="sm"
                 >{{ RESULT_LABELS[results[check.id]!.state] }} · {{ results[check.id]!.at.slice(0, 10) }}</UBadge>
                 <UBadge v-else color="neutral" variant="subtle" size="sm">не запускалась</UBadge>
+                <!-- Результат засчитывается как есть, но под ним — неподтверждённый способ. -->
+                <UBadge
+                  v-if="checkNote(check.status, !!results[check.id])"
+                  color="warning"
+                  variant="subtle"
+                  size="sm"
+                  class="ml-1"
+                >{{ checkNote(check.status, !!results[check.id]) }}</UBadge>
               </td>
             </tr>
           </tbody>

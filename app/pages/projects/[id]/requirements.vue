@@ -28,15 +28,9 @@ function tasksOf(requirement: IndexRecord): string[] {
   return requirement.backlinks.implements ?? [];
 }
 
-/** Факт сильнее объявления: подтверждено то, что прошло прогон. */
-function outcome(requirement: IndexRecord): { label: string; color: BadgeColor } {
-  const ids = verificationsOf(requirement);
-  if (ids.length === 0) return { label: 'не проверяется', color: 'warning' };
-
-  const states = ids.map((id) => results.value[id]?.state);
-  if (states.some((state) => state === 'failed')) return { label: 'не прошла', color: 'error' };
-  if (states.every((state) => state === 'passed')) return { label: 'подтверждено прогоном', color: 'success' };
-  return { label: 'только объявлено', color: 'neutral' };
+/** Факт — результат прогонов; «подтверждён» в колонке решения — другое (docs/04-ui.md). */
+function outcome(requirement: IndexRecord) {
+  return requirementFact(verificationsOf(requirement), results.value, requirement.status);
 }
 </script>
 
@@ -78,10 +72,10 @@ function outcome(requirement: IndexRecord): { label: string; color: BadgeColor }
                 />
               </th>
               <th class="p-3 font-medium">Требование</th>
-              <th class="p-3 font-medium">Статус</th>
+              <th class="p-3 font-medium">Решение</th>
               <th class="p-3 font-medium">Задачи</th>
               <th class="p-3 font-medium">Проверки</th>
-              <th class="p-3 font-medium">Результат</th>
+              <th class="p-3 font-medium">Факт</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-default">
