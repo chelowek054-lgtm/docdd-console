@@ -130,6 +130,9 @@ function reset() {
           <div class="flex flex-wrap items-center gap-3">
             <RecordLink :project-id="projectId" :record-id="task.id" :record="task" />
             <StatusBadge :status="task.status" />
+            <UBadge v-if="taskFact(task, results)" :color="taskFact(task, results)!.color" variant="subtle" size="sm">
+              {{ taskFact(task, results)!.label }}
+            </UBadge>
             <UBadge v-if="task.phase" color="neutral" variant="subtle" size="sm">{{ task.phase }}</UBadge>
             <UBadge v-for="name in task.tags" :key="name" color="neutral" variant="outline" size="sm">{{ name }}</UBadge>
             <span v-if="task.owner" class="text-sm text-muted">{{ task.owner }}</span>
