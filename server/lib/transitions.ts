@@ -50,3 +50,61 @@ export function availableActions(record: WorkRecord, ctx: RuleContext): RecordAc
     })
     .filter((action): action is RecordAction => action !== null);
 }
+
+/**
+ * Массовая смена статуса (docs/04-ui.md, «Массовые действия»): у каждой записи
+ * свой путь из её нынешнего статуса. Считает сервер — экран процесса не знает.
+ */
+export type BulkDirection = 'forward' | 'back' | 'approve';
+
+export const BULK_DIRECTIONS: readonly BulkDirection[] = ['forward', 'back', 'approve'];
+
+const DOC_FORWARD: Readonly<Record<string, readonly string[]>> = {
+  draft: ['review'],
+  review: ['approved']
+};
+
+const DOC_APPROVE: Readonly<Record<string, readonly string[]>> = {
+  draft: ['review', 'approved'],
+  review: ['approved']
+};
+
+// Назад из любого статуса, кроме начального, — в черновик (adr/0012).
+const DOC_BACK: Readonly<Record<string, readonly string[]>> = {
+  review: ['draft'],
+  approved: ['draft'],
+  superseded: ['draft'],
+  dropped: ['draft'],
+  rejected: ['draft']
+};
+
+const TASK_FORWARD: Readonly<Record<string, readonly string[]>> = {
+  backlog: ['ready'],
+  ready: ['in_progress'],
+  in_progress: ['in_review'],
+  in_review: ['done']
+};
+
+const TASK_BACK: Readonly<Record<string, readonly string[]>> = {
+  ready: ['backlog'],
+  in_progress: ['ready'],
+  in_review: ['in_progress'],
+  done: ['in_review'],
+  dropped: ['backlog']
+};
+
+/**
+ * Статусы, через которые запись пройдёт по порядку. Пусто — шага нет: из
+ * `approved` вперёд не идут, заменить запись — решение, а не шаг.
+ */
+export function bulkPath(record: Pick<WorkRecord, 'type' | 'status'>, direction: BulkDirection): string[] {
+  const isTask = record.type === 'task';
+  if (!isTask && !(record.type in NEXT_STATUSES)) return [];
+
+  const table = direction === 'approve'
+    ? (isTask ? {} : DOC_APPROVE)
+    : direction === 'forward'
+      ? (isTask ? TASK_FORWARD : DOC_FORWARD)
+      : (isTask ? TASK_BACK : DOC_BACK);
+  return [...(table[record.status] ?? [])];
+}

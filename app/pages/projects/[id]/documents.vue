@@ -5,7 +5,7 @@ const route = useRoute();
 const router = useRouter();
 const projectId = computed(() => String(route.params['id'] ?? ''));
 
-const { failure, records, byId, refresh } = useProjectIndex(projectId);
+const { index, failure, records, byId, refresh } = useProjectIndex(projectId);
 
 /**
  * Проектные документы, решения и контракты — один экран, а не три: вопрос к
@@ -51,6 +51,8 @@ const documents = computed(() => records.value
   .filter((record) => (type.value === 'all' ? DOCUMENT_TYPES.includes(record.type) : record.type === type.value))
   .sort((a, b) => rank(a.status) - rank(b.status) || a.id.localeCompare(b.id)));
 
+const selection = useSelection(documents);
+
 /** Кто опирается: задачи, которые документ правят, и записи, что его уточняют или стоят на решении. */
 function reliedOnBy(document: IndexRecord): string[] {
   return [...new Set([
@@ -90,6 +92,15 @@ const EMPTY: Record<string, string> = {
 
       <UTabs v-model="type" :items="TABS" :content="false" />
 
+      <BulkBar
+        :project-id="projectId"
+        :selected="selection.selected.value"
+        :total="documents.length"
+        :roles="index?.project.roles ?? []"
+        kind="document"
+        @done="selection.clear(); refresh()"
+      />
+
       <div v-if="documents.length === 0" class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted">
         {{ EMPTY[type] }}
         <template v-if="type !== 'all'">Завести — кнопкой «Новая запись» выше или через Входящее.</template>
@@ -100,6 +111,13 @@ const EMPTY: Record<string, string> = {
         <table class="w-full text-sm">
           <thead class="border-b border-default text-left text-muted">
             <tr>
+              <th class="w-10 p-3">
+                <UCheckbox
+                  :model-value="selection.state.value"
+                  aria-label="Выбрать всё"
+                  @update:model-value="selection.toggleAll()"
+                />
+              </th>
               <th class="p-3 font-medium">Документ</th>
               <th v-if="type === 'all'" class="p-3 font-medium">Тип</th>
               <th class="p-3 font-medium">Статус</th>
@@ -109,6 +127,13 @@ const EMPTY: Record<string, string> = {
           </thead>
           <tbody class="divide-y divide-default">
             <tr v-for="document in documents" :key="document.path">
+              <td class="p-3">
+                <UCheckbox
+                  :model-value="selection.has(document.id)"
+                  :aria-label="`Отметить ${document.id}`"
+                  @update:model-value="selection.set(document.id, $event)"
+                />
+              </td>
               <td class="p-3">
                 <RecordLink :project-id="projectId" :record-id="document.id" :record="document" />
               </td>

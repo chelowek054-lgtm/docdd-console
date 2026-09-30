@@ -81,6 +81,27 @@ function toggleNote(path: string) {
     : [...chosen.value, path];
 }
 
+/** Выбрать всё / снять всё над списком заметок: отмечается ровно то, что в списке. */
+const allNotes = computed(() => (inbox.value?.notes ?? []).map((note) => note.path));
+const notesState = computed<boolean | 'indeterminate'>(() => {
+  if (chosen.value.length === 0) return false;
+  return chosen.value.length === allNotes.value.length ? true : 'indeterminate';
+});
+
+function toggleAllNotes() {
+  chosen.value = notesState.value === true ? [] : [...allNotes.value];
+}
+
+/** То же над предложенными записями: выключенные лежат в `dropped`. */
+const recordsState = computed<boolean | 'indeterminate'>(() => {
+  if (dropped.value.length === 0) return true;
+  return dropped.value.length >= proposed.value.length ? false : 'indeterminate';
+});
+
+function toggleAllRecords() {
+  dropped.value = recordsState.value === true ? proposed.value.map((record) => record.key) : [];
+}
+
 function toggleRecord(key: string) {
   dropped.value = dropped.value.includes(key)
     ? dropped.value.filter((item) => item !== key)
@@ -209,6 +230,13 @@ async function create() {
         </div>
 
         <template v-else>
+          <UCheckbox
+            class="px-2"
+            :model-value="notesState"
+            label="Выбрать всё"
+            @update:model-value="toggleAllNotes"
+          />
+
           <ul class="space-y-1">
             <li v-for="note in inbox.notes" :key="note.path">
               <button
@@ -258,6 +286,12 @@ async function create() {
             <h2 class="font-medium">Предложено записей: {{ proposed.length }}</h2>
             <UBadge v-if="dropped.length" color="neutral" variant="subtle">выключено {{ dropped.length }}</UBadge>
           </div>
+
+          <UCheckbox
+            :model-value="recordsState"
+            label="Выбрать всё"
+            @update:model-value="toggleAllRecords"
+          />
 
           <ul class="space-y-2">
             <li

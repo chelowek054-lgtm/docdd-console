@@ -49,6 +49,19 @@ const TYPES = [
   { label: 'Проверка', value: 'verification' }
 ];
 
+/** «Выбрать всё» трогает только то, что можно перенести: файл с front matter — запись, а не импорт. */
+const tickable = computed(() => plan.value.filter((entry) => !entry.hasFrontMatter));
+const allState = computed<boolean | 'indeterminate'>(() => {
+  const on = tickable.value.filter((entry) => entry.include).length;
+  if (on === 0) return false;
+  return on === tickable.value.length ? true : 'indeterminate';
+});
+
+function toggleAll() {
+  const next = allState.value !== true;
+  for (const entry of tickable.value) entry.include = next;
+}
+
 const chosen = computed(() => plan.value.filter((entry) => entry.include && entry.type !== ''));
 
 const applying = ref(false);
@@ -120,7 +133,15 @@ function size(bytes: number): string {
         <table class="w-full text-sm">
           <thead class="border-b border-default text-left text-muted">
             <tr>
-              <th class="p-3 font-medium">Брать</th>
+              <th class="p-3 font-medium">
+                <UCheckbox
+                  :model-value="allState"
+                  :disabled="tickable.length === 0"
+                  aria-label="Выбрать всё"
+                  @update:model-value="toggleAll"
+                />
+                <span class="sr-only">Брать</span>
+              </th>
               <th class="p-3 font-medium">Файл</th>
               <th class="p-3 font-medium">Заголовок</th>
               <th class="p-3 font-medium">Тип</th>

@@ -2,7 +2,7 @@
 const route = useRoute();
 const projectId = computed(() => String(route.params['id'] ?? ''));
 
-const { failure, records } = useProjectIndex(projectId);
+const { failure, records, refresh } = useProjectIndex(projectId);
 
 /** Статус фазы — посчитанный по задачам, а не из файла (docs/04-ui.md, «Фазы»). */
 const phases = computed(() => records.value
@@ -24,6 +24,8 @@ function percent(done: number, total: number): number {
         <h1 class="text-xl font-semibold">Фазы</h1>
         <p class="text-sm text-muted">{{ phases.length }}</p>
       </div>
+
+      <PhasePlanner :project-id="projectId" :records="records" @changed="refresh" />
 
       <div v-if="phases.length === 0" class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted">
         Фаз в проекте нет. Фаза — запись типа <code>phase</code>; задачи входят в неё
