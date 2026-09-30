@@ -6,7 +6,10 @@ const projectId = computed(() => String(route.params['id'] ?? ''));
 
 const { index, failure, records, refresh } = useProjectIndex(projectId);
 
-const requirements = computed(() => records.value.filter((record) => record.type === 'requirement'));
+const listed = computed(() => records.value.filter((record) => record.type === 'requirement'));
+const statuses = computed(() => listed.value.map((record) => record.status));
+const status = useStatusFilter(statuses);
+const requirements = computed(() => (status.value ? listed.value.filter((record) => record.status === status.value) : listed.value));
 const results = computed(() => index.value?.verificationResults ?? {});
 const selection = useSelection(requirements);
 
@@ -44,9 +47,11 @@ function outcome(requirement: IndexRecord): { label: string; color: BadgeColor }
     <template v-else>
       <div class="flex flex-wrap items-center gap-3">
         <h1 class="text-xl font-semibold">Требования</h1>
-        <p class="text-sm text-muted">{{ requirements.length }}</p>
+        <p class="text-sm text-muted">{{ requirements.length }}<template v-if="status"> из {{ listed.length }}</template></p>
         <NewRecord class="ml-auto" :project-id="projectId" type="requirement" :records="records" @created="refresh" />
       </div>
+
+      <StatusTabs v-model="status" :statuses="statuses" :order="DOCUMENT_STATUS_ORDER" />
 
       <BulkBar
         :project-id="projectId"
@@ -57,7 +62,7 @@ function outcome(requirement: IndexRecord): { label: string; color: BadgeColor }
         @done="selection.clear(); refresh()"
       />
 
-      <div v-if="requirements.length === 0" class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted">
+      <div v-if="listed.length === 0" class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted">
         Требований в проекте нет. Заводятся они в файлах — приложение записей не создаёт.
       </div>
 

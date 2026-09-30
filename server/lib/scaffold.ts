@@ -97,6 +97,11 @@ export interface TemplateInput {
    * блоком ```docdd-functional под текстом тела (docs/06-phases.md, фаза 12).
    */
   capabilities?: { id: string; title?: string; parent?: string }[];
+  /**
+   * Только для карт: `intent: true` — карта намерения, сверка с кодом не
+   * запускается (docs/07-maps.md, «Карта-намерение на пачку задач»).
+   */
+  intent?: boolean;
 }
 
 /** Начальный статус: всё заводится черновиком, задача — очередью. */
@@ -132,6 +137,7 @@ export function recordTemplate(input: TemplateInput, eol = '\n'): string {
   if (input.owner) lines.push(`owner: ${yamlSafe(input.owner)}`);
   if (input.type === 'task' && input.change) lines.push(`change: ${input.change}`);
   lines.push(`created: ${input.today}`, `updated: ${input.today}`);
+  if (input.type === 'map' && input.intent) lines.push('intent: true');
   if (input.type === 'verification') lines.push(`kind: ${yamlSafe(input.kind ?? 'manual')}`);
 
   const links = input.links ?? {};

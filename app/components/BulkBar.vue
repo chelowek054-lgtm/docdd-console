@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ApiFailure } from '~/composables/useProjectIndex';
-import type { IndexRecord } from '~~/server/lib/types';
+import type { IndexRecord, IssueDto } from '~~/server/lib/types';
 
 /**
  * Панель массовых действий над отмеченными записями (docs/04-ui.md,
@@ -25,11 +25,13 @@ interface BulkResult {
   to: string;
   code?: string;
   message?: string;
+  hint?: 'link_map';
 }
 
 interface BulkReport {
   moved: number;
   skipped: number;
+  newIssues: IssueDto[];
   results: BulkResult[];
 }
 
@@ -39,7 +41,58 @@ const failure = ref<ApiFailure | null>(null);
 const report = ref<BulkReport | null>(null);
 
 const empty = computed(() => props.selected.length === 0);
+
+/**
+ * Двигать можно только записи одного статуса: «вперёд» на смеси черновиков и
+ * подтверждённого — это «двинуть лишнее» (docs/04-ui.md, «Списки по статусам»).
+ */
+const statuses = computed(() => [...new Set(props.selected.map((record) => record.status))]);
+const mixed = computed(() => statuses.value.length > 1);
+const blocked = computed(() => empty.value || mixed.value);
 const skipped = computed(() => report.value?.results.filter((result) => !result.ok) ?? []);
+
+/**
+ * Пропущенные группируются по причине: сорок девять одинаковых строк «feature
+ * без карты» не читаются, а одна группа с номерами — читается (docs/04-ui.md).
+ */
+const linking = ref(false);
+const linked = ref<{ map: { id: string; title: string }; linked: string[] } | null>(null);
+const linkFailure = ref<ApiFailure | null>(null);
+
+/** Задачи, которым не хватает именно карты: общая карта заводится одной кнопкой (docs/04-ui.md). */
+async function linkMap(ids: string[]) {
+  linking.value = true;
+  linkFailure.value = null;
+  try {
+    const response = await $fetch<{ map: { id: string; title: string }; linked: string[] } | { error: ApiFailure }>(
+      `/api/projects/${props.projectId}/records/bulk/link-map`,
+      { method: 'POST', body: { ids }, ignoreResponseError: true }
+    );
+    const problem = failureOf(response);
+    if (problem) {
+      linkFailure.value = problem;
+      return;
+    }
+    linked.value = response as { map: { id: string; title: string }; linked: string[] };
+    emit('done');
+  } finally {
+    linking.value = false;
+  }
+}
+
+const groups = computed(() => {
+  const byCode = new Map<string, BulkResult[]>();
+  for (const result of skipped.value) {
+    const code = result.code ?? 'unknown';
+    byCode.set(code, [...(byCode.get(code) ?? []), result]);
+  }
+  return [...byCode.entries()].map(([code, items]) => ({
+    code,
+    items,
+    example: items[0]?.message ?? '',
+    unmapped: items.filter((item) => item.hint === 'link_map').map((item) => item.id)
+  }));
+});
 
 const ACTIONS = computed(() => [
   { direction: 'forward', label: 'Вперёд', icon: 'i-lucide-arrow-right', title: 'Каждую отмеченную запись — на один шаг вперёд' },
@@ -53,6 +106,8 @@ async function run(direction: string) {
   busy.value = direction;
   failure.value = null;
   report.value = null;
+  linked.value = null;
+  linkFailure.value = null;
   try {
     const response = await $fetch<BulkReport | { error: ApiFailure }>(
       `/api/projects/${props.projectId}/records/bulk/status`,
@@ -91,7 +146,7 @@ async function run(direction: string) {
         variant="soft"
         :icon="action.icon"
         :title="action.title"
-        :disabled="empty || busy !== ''"
+        :disabled="blocked || busy !== ''"
         :loading="busy === action.direction"
         @click="run(action.direction)"
       >
@@ -100,6 +155,13 @@ async function run(direction: string) {
 
       <!-- Неактивная кнопка обязана назвать причину (docs/04-ui.md). -->
       <p v-if="empty" class="min-w-0 flex-1 text-sm text-muted">Отметьте записи флажками.</p>
+      <p v-else-if="mixed" class="min-w-0 flex-1 text-sm text-warning">
+        Отмечены записи в разных статусах ({{ statuses.map(statusLabel).join(', ') }}) —
+        откройте вкладку одного статуса или снимите отметку с лишнего.
+      </p>
+      <p v-else class="min-w-0 flex-1 text-sm text-muted">
+        все {{ statusLabel(statuses[0] ?? '') }}
+      </p>
 
       <USelect
         v-if="props.roles.length"
@@ -120,7 +182,7 @@ async function run(direction: string) {
     />
 
     <UAlert
-      v-else-if="report"
+      v-if="report && !failure"
       :color="report.skipped ? 'warning' : 'success'"
       variant="subtle"
       :icon="report.skipped ? 'i-lucide-triangle-alert' : 'i-lucide-check'"
@@ -130,10 +192,67 @@ async function run(direction: string) {
     >
       <template v-if="skipped.length" #description>
         <p class="mb-1">Пропущено {{ skipped.length }}:</p>
+        <ul class="space-y-2">
+          <li v-for="group in groups" :key="group.code">
+            <p><span class="font-medium">{{ group.items.length }} — <code>{{ group.code }}</code></span></p>
+            <p class="text-xs">{{ group.items.length > 1 ? 'Например: ' : '' }}{{ group.example }}</p>
+            <p class="mt-0.5">
+              <NuxtLink
+                v-for="result in group.items"
+                :key="result.id"
+                :to="`/projects/${props.projectId}/records/${result.id}`"
+                class="mr-2 font-mono text-xs hover:underline"
+              >{{ result.id }}</NuxtLink>
+            </p>
+            <!-- Нет карты вовсе — заводится одна общая на пачку; подтверждает её человек. -->
+            <div v-if="group.unmapped.length && !linked" class="mt-2">
+              <UButton
+                size="xs"
+                variant="soft"
+                icon="i-lucide-map-plus"
+                :loading="linking"
+                @click="linkMap(group.unmapped)"
+              >
+                Завести карту и привязать {{ group.unmapped.length }} {{ plural(group.unmapped.length, "задачу", "задачи", "задач") }}
+              </UButton>
+              <p v-if="linkFailure" class="mt-1 text-xs">{{ linkFailure.message }}</p>
+            </div>
+          </li>
+        </ul>
+      </template>
+    </UAlert>
+
+    <UAlert
+      v-if="linked"
+      color="success"
+      variant="subtle"
+      icon="i-lucide-map-pin-check"
+      :title="`Заведена карта ${linked.map.id}, привязано задач: ${linked.linked.length}`"
+    >
+      <template #description>
+        Это черновик: карту подтверждает человек —
+        <NuxtLink :to="`/projects/${props.projectId}/records/${linked.map.id}`" class="font-mono hover:underline">{{ linked.map.id }}</NuxtLink>.
+        После подтверждения нажмите «Вперёд» на вкладке «В очереди».
+      </template>
+    </UAlert>
+
+    <UAlert
+      v-if="report && !failure"
+      :color="report.newIssues.length ? 'error' : 'success'"
+      variant="subtle"
+      :icon="report.newIssues.length ? 'i-lucide-octagon-alert' : 'i-lucide-shield-check'"
+      :title="report.newIssues.length ? `Появилось нарушений: ${report.newIssues.length}` : 'Новых нарушений нет'"
+    >
+      <template v-if="report.newIssues.length" #description>
+        <p class="mb-1">Откат — обратная кнопка по тем же записям.</p>
         <ul class="space-y-1">
-          <li v-for="result in skipped" :key="result.id">
-            <NuxtLink :to="`/projects/${props.projectId}/records/${result.id}`" class="font-mono hover:underline">{{ result.id }}</NuxtLink>
-            — {{ result.message }}
+          <li v-for="(issue, at) in report.newIssues" :key="at">
+            <NuxtLink
+              v-if="issue.recordId"
+              :to="`/projects/${props.projectId}/records/${issue.recordId}`"
+              class="font-mono hover:underline"
+            >{{ issue.recordId }}</NuxtLink>
+            <span class="font-mono text-xs"> {{ issue.code }}</span> — {{ issue.message }}
           </li>
         </ul>
       </template>

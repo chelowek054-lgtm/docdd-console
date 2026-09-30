@@ -580,7 +580,7 @@ describe('transition_forbidden', () => {
 
     // in_progress → ready снова спрашивает условия перехода в ready — так же,
     // как и backlog → ready: назад не значит «в обход проверки».
-    const withRequirement = rec('T-0007', 'task', 'in_progress', { links: { implements: ['R-0001'] } });
+    const withRequirement = rec('T-0007', 'task', 'in_progress', { links: { implements: ['R-0001'] }, extra: { change: 'fix' } });
     expect(checkTransition(withRequirement, 'ready', ctx)).toEqual([]);
   });
 
@@ -595,13 +595,25 @@ describe('transition_forbidden', () => {
     const doc = rec('D-0004', 'design', 'review');
     const task = rec('T-0002', 'task', 'backlog', { links: { documents: ['D-0004'] } });
     const found = checkTransition(task, 'ready', context([doc, task]));
-    expect(codes(found)).toEqual(['task_no_requirement', 'task_not_ready_docs']);
+    expect(codes(found)).toEqual(['change_missing', 'task_no_requirement', 'task_not_ready_docs']);
+  });
+
+  it('задача без `change` в ready не уходит: иначе она тут же стала бы нарушителем', () => {
+    const requirement = rec('R-0004', 'requirement', 'approved');
+    const task = rec('T-0002', 'task', 'backlog', { links: { implements: ['R-0004'] } });
+    expect(codes(checkTransition(task, 'ready', context([requirement, task])))).toEqual(['change_missing']);
+
+    const named = rec('T-0002', 'task', 'backlog', { links: { implements: ['R-0004'] }, extra: { change: 'fix' } });
+    expect(checkTransition(named, 'ready', context([requirement, named]))).toEqual([]);
   });
 
   it('молчит, когда условия перехода в ready выполнены', () => {
     const doc = rec('D-0004', 'design', 'approved');
     const requirement = rec('R-0004', 'requirement', 'approved');
-    const task = rec('T-0002', 'task', 'backlog', { links: { documents: ['D-0004'], implements: ['R-0004'] } });
+    const task = rec('T-0002', 'task', 'backlog', {
+      links: { documents: ['D-0004'], implements: ['R-0004'] },
+      extra: { change: 'fix' }
+    });
     expect(checkTransition(task, 'ready', context([doc, requirement, task]))).toEqual([]);
   });
 

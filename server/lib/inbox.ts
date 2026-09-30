@@ -27,6 +27,11 @@ export interface ProposedRecord {
   /** Только у `type: map` — возможности для функциональной карты. */
   capabilities?: { id: string; title?: string; parent?: string }[];
   links?: Record<string, string[]>;
+  /**
+   * Заводит только приложение (карта-намерение на пачку задач): в схеме ответа
+   * модели этого поля нет, и из её ответа оно не приходит.
+   */
+  intent?: boolean;
 }
 
 export interface ParsedProposal {

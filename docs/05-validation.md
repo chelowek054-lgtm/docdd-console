@@ -82,7 +82,7 @@ flowchart LR
 | `map_evidence_stale` | error | Файл есть, а фрагмента в нём нет: код уехал из-под карты |
 | `map_drift` | error | Задача закрыта, но код разошёлся с утверждённой картой |
 | `task_maps_unapproved` | error | Задача с `change: feature` в `ready` и дальше, а её карта не подтверждена |
-| `change_missing` | warning | У задачи в `ready` и дальше не указано `change` |
+| `change_missing` | warning | У задачи в `ready` и дальше не указано `change`. Тем же условием держится переход в `ready`: задача без `change` дальше `backlog` не уходит, а не уходит и получает нарушение |
 
 ### Выполнение
 

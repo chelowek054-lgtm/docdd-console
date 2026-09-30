@@ -4,7 +4,10 @@ const projectId = computed(() => String(route.params['id'] ?? ''));
 
 const { index, failure, records, refresh } = useProjectIndex(projectId);
 
-const checks = computed(() => records.value.filter((record) => record.type === 'verification'));
+const listed = computed(() => records.value.filter((record) => record.type === 'verification'));
+const statuses = computed(() => listed.value.map((record) => record.status));
+const status = useStatusFilter(statuses);
+const checks = computed(() => (status.value ? listed.value.filter((record) => record.status === status.value) : listed.value));
 const results = computed(() => index.value?.verificationResults ?? {});
 const selection = useSelection(checks);
 
@@ -21,9 +24,11 @@ function verifiesOf(check: (typeof checks.value)[number]): string[] {
     <template v-else>
       <div class="flex flex-wrap items-center gap-3">
         <h1 class="text-xl font-semibold">Проверки</h1>
-        <p class="text-sm text-muted">{{ checks.length }}</p>
+        <p class="text-sm text-muted">{{ checks.length }}<template v-if="status"> из {{ listed.length }}</template></p>
         <NewRecord class="ml-auto" :project-id="projectId" type="verification" :records="records" @created="refresh" />
       </div>
+
+      <StatusTabs v-model="status" :statuses="statuses" :order="DOCUMENT_STATUS_ORDER" />
 
       <BulkBar
         :project-id="projectId"
@@ -34,7 +39,7 @@ function verifiesOf(check: (typeof checks.value)[number]): string[] {
         @done="selection.clear(); refresh()"
       />
 
-      <div v-if="checks.length === 0" class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted">
+      <div v-if="listed.length === 0" class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted">
         Проверок в проекте нет. Заводятся они в файлах — приложение записей не создаёт.
       </div>
 
