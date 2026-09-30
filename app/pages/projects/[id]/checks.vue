@@ -6,6 +6,7 @@ const { index, failure, records, refresh } = useProjectIndex(projectId);
 
 const checks = computed(() => records.value.filter((record) => record.type === 'verification'));
 const results = computed(() => index.value?.verificationResults ?? {});
+const selection = useSelection(checks);
 
 /** Что проверяет: связь ставится в обе стороны, показываем как одно множество. */
 function verifiesOf(check: (typeof checks.value)[number]): string[] {
@@ -24,6 +25,15 @@ function verifiesOf(check: (typeof checks.value)[number]): string[] {
         <NewRecord class="ml-auto" :project-id="projectId" type="verification" :records="records" @created="refresh" />
       </div>
 
+      <BulkBar
+        :project-id="projectId"
+        :selected="selection.selected.value"
+        :total="checks.length"
+        :roles="index?.project.roles ?? []"
+        kind="document"
+        @done="selection.clear(); refresh()"
+      />
+
       <div v-if="checks.length === 0" class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted">
         Проверок в проекте нет. Заводятся они в файлах — приложение записей не создаёт.
       </div>
@@ -32,6 +42,13 @@ function verifiesOf(check: (typeof checks.value)[number]): string[] {
         <table class="w-full text-sm">
           <thead class="border-b border-default text-left text-muted">
             <tr>
+              <th class="w-10 p-3">
+                <UCheckbox
+                  :model-value="selection.state.value"
+                  aria-label="Выбрать всё"
+                  @update:model-value="selection.toggleAll()"
+                />
+              </th>
               <th class="p-3 font-medium">Проверка</th>
               <th class="p-3 font-medium">Статус</th>
               <th class="p-3 font-medium">Что проверяет</th>
@@ -40,6 +57,13 @@ function verifiesOf(check: (typeof checks.value)[number]): string[] {
           </thead>
           <tbody class="divide-y divide-default">
             <tr v-for="check in checks" :key="check.path">
+              <td class="p-3">
+                <UCheckbox
+                  :model-value="selection.has(check.id)"
+                  :aria-label="`Отметить ${check.id}`"
+                  @update:model-value="selection.set(check.id, $event)"
+                />
+              </td>
               <td class="p-3">
                 <RecordLink :project-id="projectId" :record-id="check.id" :record="check" />
               </td>

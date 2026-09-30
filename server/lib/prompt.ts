@@ -287,6 +287,43 @@ export function verifyPrompt(
   return withoutFrontNote(template).replace(VERIFY_MARKER, lines.join(LF));
 }
 
+export const PHASE_TASKS_MARKER = '<!-- ЗАДАЧИ -->';
+export const PHASES_MARKER = '<!-- ФАЗЫ -->';
+
+/**
+ * Запрос «Разбить на фазы» (docs/04-ui.md). Задачи называются номером, как
+ * они стоят в файлах: по этим номерам модель и отвечает, а файлы читает сама.
+ */
+export function phasesPrompt(
+  template: string,
+  tasks: readonly {
+    id: string;
+    title: string;
+    status: string;
+    path: string;
+    implements: readonly string[];
+    dependsOn: readonly string[];
+    tags: readonly string[];
+  }[],
+  phases: readonly { id: string; title: string; covers: number }[]
+): string {
+  const list = tasks.map((task) => {
+    const facts = [
+      `статус: ${task.status}`,
+      task.implements.length ? `выполняет: ${task.implements.join(', ')}` : 'требования нет',
+      ...(task.dependsOn.length ? [`зависит от: ${task.dependsOn.join(', ')}`] : []),
+      ...(task.tags.length ? [`теги: ${task.tags.join(', ')}`] : [])
+    ];
+    return `- \`${task.id}\` — ${task.title} (${facts.join('; ')}). Файл: \`${task.path}\``;
+  }).join(LF);
+
+  const existing = phases.length
+    ? phases.map((phase) => `- \`${phase.id}\` — ${phase.title} (задач: ${phase.covers})`).join(LF)
+    : 'Фаз пока нет: это первое разбиение.';
+
+  return withoutFrontNote(template).replace(PHASES_MARKER, existing).replace(PHASE_TASKS_MARKER, list);
+}
+
 function listOf(values: readonly string[]): string {
   return values.length === 0 ? 'не объявлено в манифесте' : values.map((value) => `\`${value}\``).join(', ');
 }

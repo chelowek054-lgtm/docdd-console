@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { analyze } from '../lib/analyze';
 import { dropCache } from '../lib/cache';
 import { resolveInside } from '../lib/paths';
-import { checkTransition } from '../lib/rules';
+import { checkTransition, type RuleContext } from '../lib/rules';
 import { validateFrontMatter } from '../lib/schema';
 import { parseRecord } from '../lib/parse';
 import type { IndexRecord, Violation, WorkRecord } from '../lib/types';
@@ -21,6 +21,8 @@ export interface RecordContext {
   record: WorkRecord;
   absolute: string;
   original: string;
+  /** Контекст правил из того же разбора: массовому действию второй не нужен. */
+  rules: RuleContext;
 }
 
 export function openRecord(root: string, recordId: string): RecordContext | null {
@@ -36,7 +38,7 @@ export function openRecord(root: string, recordId: string): RecordContext | null
   if (!record) return null;
 
   const absolute = resolveInside(root, record.source.path);
-  return { workspace, record, absolute, original: readFileSync(absolute, 'utf8') };
+  return { workspace, record, absolute, original: readFileSync(absolute, 'utf8'), rules: result.context };
 }
 
 /** Переход спрашивается у тех же правил, что дают список нарушений на экране. */
@@ -69,6 +71,23 @@ export type SaveResult =
  * до правки, — по-прежнему отказ.
  */
 export function saveRecord(context: RecordContext, outcome: WriteOutcome, root: string): SaveResult {
+  const written = writeRecord(context, outcome, root);
+  if (!written.ok) return written;
+
+  const index = loadIndex(root, true);
+  const record = index.records.find((item) => item.id === context.record.id);
+  return record ? { ok: true, record } : { ok: false, problems: ['Запись не найдена после сохранения.'] };
+}
+
+/**
+ * Запись без пересборки индекса: массовое действие пишет десятки файлов и
+ * пересобирает индекс один раз в конце, а не после каждого.
+ */
+export function writeRecord(
+  context: RecordContext,
+  outcome: WriteOutcome,
+  root: string
+): { ok: true } | { ok: false; problems: string[] } {
   if (outcome.problems.length > 0) {
     return { ok: false, problems: outcome.problems };
   }
@@ -90,10 +109,7 @@ export function saveRecord(context: RecordContext, outcome: WriteOutcome, root: 
   writeFileSync(context.absolute, outcome.text, 'utf8');
   // Кэш производный, но устаревший кэш показал бы прежний статус: сбрасываем.
   dropCache(root);
-
-  const index = loadIndex(root, true);
-  const record = index.records.find((item) => item.id === context.record.id);
-  return record ? { ok: true, record } : { ok: false, problems: ['Запись не найдена после сохранения.'] };
+  return { ok: true };
 }
 
 /** Дата действия — сегодняшняя по календарю пользователя, без времени. */

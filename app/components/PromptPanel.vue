@@ -8,12 +8,14 @@ import type { ApiFailure } from '~/composables/useProjectIndex';
  */
 const props = defineProps<{
   projectId: string;
-  kind: 'fix' | 'maps' | 'functional-check';
+  kind: 'fix' | 'maps' | 'functional-check' | 'phases';
   /** Отбор для запроса `fix`: те же фильтры, что на экране. */
   codes?: string[];
   severity?: string;
   /** Отмеченные нарушения: чинится ровно они (docs/04-ui.md). */
   issues?: { code: string; path?: string | null; recordId?: string | null }[];
+  /** Отмеченные задачи для запроса `phases`; пусто — все подходящие. */
+  tasks?: string[];
   /** Кнопка неактивна — и обязана назвать причину. */
   disabled?: boolean;
   disabledReason?: string;
@@ -50,7 +52,8 @@ async function build() {
           kind: props.kind,
           codes: props.codes,
           severity: props.severity,
-          issues: props.issues
+          issues: props.issues,
+          tasks: props.tasks
         },
         ignoreResponseError: true
       }

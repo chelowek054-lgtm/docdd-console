@@ -8,6 +8,7 @@ const { index, failure, records, refresh } = useProjectIndex(projectId);
 
 const requirements = computed(() => records.value.filter((record) => record.type === 'requirement'));
 const results = computed(() => index.value?.verificationResults ?? {});
+const selection = useSelection(requirements);
 
 /**
  * Таблица покрытия: требование, статус, задачи, проверки, последний результат.
@@ -47,6 +48,15 @@ function outcome(requirement: IndexRecord): { label: string; color: BadgeColor }
         <NewRecord class="ml-auto" :project-id="projectId" type="requirement" :records="records" @created="refresh" />
       </div>
 
+      <BulkBar
+        :project-id="projectId"
+        :selected="selection.selected.value"
+        :total="requirements.length"
+        :roles="index?.project.roles ?? []"
+        kind="document"
+        @done="selection.clear(); refresh()"
+      />
+
       <div v-if="requirements.length === 0" class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted">
         Требований в проекте нет. Заводятся они в файлах — приложение записей не создаёт.
       </div>
@@ -55,6 +65,13 @@ function outcome(requirement: IndexRecord): { label: string; color: BadgeColor }
         <table class="w-full text-sm">
           <thead class="border-b border-default text-left text-muted">
             <tr>
+              <th class="w-10 p-3">
+                <UCheckbox
+                  :model-value="selection.state.value"
+                  aria-label="Выбрать всё"
+                  @update:model-value="selection.toggleAll()"
+                />
+              </th>
               <th class="p-3 font-medium">Требование</th>
               <th class="p-3 font-medium">Статус</th>
               <th class="p-3 font-medium">Задачи</th>
@@ -64,6 +81,13 @@ function outcome(requirement: IndexRecord): { label: string; color: BadgeColor }
           </thead>
           <tbody class="divide-y divide-default">
             <tr v-for="requirement in requirements" :key="requirement.path">
+              <td class="p-3">
+                <UCheckbox
+                  :model-value="selection.has(requirement.id)"
+                  :aria-label="`Отметить ${requirement.id}`"
+                  @update:model-value="selection.set(requirement.id, $event)"
+                />
+              </td>
               <td class="p-3">
                 <RecordLink :project-id="projectId" :record-id="requirement.id" :record="requirement" />
               </td>

@@ -469,7 +469,7 @@ updated: 2026-09-10
         {"from":"server/utils/record-write.ts","to":"server/lib/cache.ts","evidence":{"path":"server/utils/record-write.ts","line":4,"fragment":"import { dropCache } from '../lib/cache';"}},
         {"from":"server/utils/record-write.ts","to":"server/lib/parse.ts","evidence":{"path":"server/utils/record-write.ts","line":8,"fragment":"import { parseRecord } from '../lib/parse';"}},
         {"from":"server/utils/record-write.ts","to":"server/lib/paths.ts","evidence":{"path":"server/utils/record-write.ts","line":5,"fragment":"import { resolveInside } from '../lib/paths';"}},
-        {"from":"server/utils/record-write.ts","to":"server/lib/rules.ts","evidence":{"path":"server/utils/record-write.ts","line":6,"fragment":"import { checkTransition } from '../lib/rules';"}},
+        {"from":"server/utils/record-write.ts","to":"server/lib/rules.ts","evidence":{"path":"server/utils/record-write.ts","line":6,"fragment":"import { checkTransition, type RuleContext } from '../lib/rules';"}},
         {"from":"server/utils/record-write.ts","to":"server/lib/schema.ts","evidence":{"path":"server/utils/record-write.ts","line":7,"fragment":"import { validateFrontMatter } from '../lib/schema';"}},
         {"from":"server/utils/record-write.ts","to":"server/lib/types.ts","evidence":{"path":"server/utils/record-write.ts","line":9,"fragment":"import type { IndexRecord, Violation, WorkRecord } from '../"}},
         {"from":"server/utils/record-write.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/utils/record-write.ts","line":10,"fragment":"import { readWorkspace, type Workspace } from '../lib/worksp"}},
@@ -537,7 +537,7 @@ updated: 2026-09-10
         {"from":"server/utils/inventory-service.ts","to":"project-files","direction":"read","evidence":{"path":"server/utils/inventory-service.ts","line":147,"fragment":"      hash = fingerprint(readFileSync(absolute, 'utf8'));"}},
         {"from":"server/utils/projects.ts","to":"projects-list","direction":"both","evidence":{"path":"server/utils/projects.ts","line":12,"fragment":"return useStorage('data');"}},
         {"from":"server/utils/record-write.ts","to":"project-files","direction":"read","evidence":{"path":"server/utils/record-write.ts","line":1,"fragment":"import { readFileSync, writeFileSync } from 'node:fs';"}},
-        {"from":"server/utils/record-write.ts","to":"project-files","direction":"write","evidence":{"path":"server/utils/record-write.ts","line":90,"fragment":"writeFileSync(context.absolute, outcome.text, 'utf8');"}},
+        {"from":"server/utils/record-write.ts","to":"project-files","direction":"write","evidence":{"path":"server/utils/record-write.ts","line":109,"fragment":"writeFileSync(context.absolute, outcome.text, 'utf8');"}},
         {"from":"server/utils/sessions.ts","to":"session-memory","direction":"both","evidence":{"path":"server/utils/sessions.ts","line":15,"fragment":"const FILE = '.docdd/sessions.json';"}},
         {"from":"server/utils/work-service.ts","to":"git-repo","direction":"both","evidence":{"path":"server/utils/work-service.ts","line":114,"fragment":"  const created = await ensureWorktree(normalized, branch, r"}},
         {"from":"server/utils/work-service.ts","to":"project-files","direction":"write","evidence":{"path":"server/utils/work-service.ts","line":298,"fragment":"  const saved = saveRecord(context, outcome, root);"}}
@@ -570,8 +570,8 @@ updated: 2026-09-10
         {"from":"/projects/:id","to":"/projects/:id/issues","trigger":"ссылка","evidence":{"path":"app/pages/projects/[id]/index.vue","line":67,"fragment":"<NuxtLink :to=\"`/projects/${projectId}/issues`\" class=\"block"}},
         {"from":"/projects/:id","to":"/projects/:id/tasks","trigger":"ссылка","evidence":{"path":"app/pages/projects/[id]/index.vue","line":83,"fragment":"<NuxtLink :to=\"`/projects/${projectId}/tasks`\" class=\"block\""}},
         {"from":"/projects/:id","to":"/projects/:id/records/:recordId","trigger":"ссылка","evidence":{"path":"app/pages/projects/[id]/index.vue","line":138,"fragment":":to=\"`/projects/${projectId}/records/${issue.recordId}`\""}},
-        {"from":"/projects/:id/requirements","to":"/projects/:id/records/:id","trigger":"ссылка","evidence":{"path":"app/pages/projects/[id]/requirements.vue","line":78,"fragment":":to=\"`/projects/${projectId}/records/${id}`\""}},
-        {"from":"/projects/:id/tasks","to":"/projects/:id/records/:id","trigger":"ссылка","evidence":{"path":"app/pages/projects/[id]/tasks.vue","line":81,"fragment":":to=\"`/projects/${projectId}/records/${id}`\""}}
+        {"from":"/projects/:id/requirements","to":"/projects/:id/records/:id","trigger":"ссылка","evidence":{"path":"app/pages/projects/[id]/requirements.vue","line":102,"fragment":":to=\"`/projects/${projectId}/records/${id}`\""}},
+        {"from":"/projects/:id/tasks","to":"/projects/:id/records/:id","trigger":"ссылка","evidence":{"path":"app/pages/projects/[id]/tasks.vue","line":117,"fragment":":to=\"`/projects/${projectId}/records/${id}`\""}}
       ],
       "calls": [
         {"from":"/","to":"DELETE /api/projects/:id","evidence":{"path":"app/pages/index.vue","line":79,"fragment":"await $fetch(`/api/projects/${id}`, { method: 'DELETE', igno"}},

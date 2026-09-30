@@ -22,6 +22,8 @@ const shown = computed(() => tasks.value.filter((task) =>
   && (!owner.value || task.owner === owner.value)
   && (!tag.value || task.tags.includes(tag.value))));
 
+const selection = useSelection(shown);
+
 /** Результаты проверок нужны, чтобы не выдавать объявленное за подтверждённое. */
 const results = computed(() => index.value?.verificationResults ?? {});
 
@@ -58,12 +60,46 @@ function reset() {
         <UButton variant="ghost" color="neutral" @click="reset">Сбросить</UButton>
       </div>
 
+      <!-- Отмечено — разбиваются отмеченные, не отмечено ничего — все, что ещё
+           ни в какой фазе (docs/04-ui.md, «Разбить на фазы»). -->
+      <PhasePlanner
+        :project-id="projectId"
+        :records="records"
+        :picked="selection.selected.value.map((task) => task.id)"
+        @changed="refresh"
+      />
+
+      <BulkBar
+        :project-id="projectId"
+        :selected="selection.selected.value"
+        :total="shown.length"
+        :roles="index?.project.roles ?? []"
+        kind="task"
+        @done="selection.clear(); refresh()"
+      />
+
       <div v-if="shown.length === 0" class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted">
         Под фильтры не попала ни одна задача. Снимите фильтры или заведите задачу в проекте — приложение записей не создаёт.
       </div>
 
-      <ul v-else class="divide-y divide-default rounded-lg border border-default">
-        <li v-for="task in shown" :key="task.path" class="p-4">
+      <div v-else class="rounded-lg border border-default">
+        <div class="border-b border-default px-4 py-2">
+          <UCheckbox
+            :model-value="selection.state.value"
+            label="Выбрать всё"
+            @update:model-value="selection.toggleAll()"
+          />
+        </div>
+
+        <ul class="divide-y divide-default">
+        <li v-for="task in shown" :key="task.path" class="flex gap-3 p-4">
+          <UCheckbox
+            class="pt-0.5"
+            :model-value="selection.has(task.id)"
+            :aria-label="`Отметить ${task.id}`"
+            @update:model-value="selection.set(task.id, $event)"
+          />
+          <div class="min-w-0 flex-1">
           <div class="flex flex-wrap items-center gap-3">
             <RecordLink :project-id="projectId" :record-id="task.id" :record="task" />
             <StatusBadge :status="task.status" />
@@ -102,8 +138,10 @@ function reset() {
             </span>
             <span v-else>без проверки</span>
           </div>
+          </div>
         </li>
-      </ul>
+        </ul>
+      </div>
     </template>
   </div>
 </template>

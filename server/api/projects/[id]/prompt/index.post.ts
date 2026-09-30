@@ -9,12 +9,14 @@ import {
   inboxPrompt,
   mapFixPrompt,
   mapsPrompt,
+  phasesPrompt,
   verifyPrompt,
   type MapsState
 } from '../../../../lib/prompt';
 import { connectedPractices } from '../../../../utils/shared-service';
 import { inboxNotes } from '../../../../utils/inbox-service';
 import { mapSchemas } from '../../../../lib/map-schemas';
+import { phaseCandidates } from '../../../../lib/phase-plan';
 import { worthAsking } from '../../../../lib/inventory';
 import { chosenIssues } from '../../../../utils/fix-service';
 import { pickedIssues } from '../../../../utils/chosen';
@@ -45,6 +47,7 @@ export default defineEventHandler(async (event) => {
     answer?: unknown;
     problems?: unknown;
     notes?: unknown;
+    tasks?: unknown;
   }>(event);
   const kind = typeof body?.kind === 'string' ? body.kind : '';
 
@@ -132,6 +135,36 @@ export default defineEventHandler(async (event) => {
       };
     }
 
+    if (kind === 'phases') {
+      const picked = Array.isArray(body?.tasks)
+        ? body.tasks.filter((task): task is string => typeof task === 'string')
+        : [];
+      const records = loadIndex(project.root).records;
+      const tasks = phaseCandidates(records, picked);
+      if (tasks.length === 0) {
+        return fail(event, 422, 'phases_nothing_to_split', 'Все задачи уже в фазах или отменены — разбивать нечего');
+      }
+
+      return {
+        prompt: phasesPrompt(
+          await template('phases.md'),
+          tasks.map((task) => ({
+            id: task.id,
+            title: task.title,
+            status: task.status,
+            path: task.path,
+            implements: task.links.implements ?? [],
+            dependsOn: task.links.depends_on ?? [],
+            tags: task.tags
+          })),
+          records
+            .filter((record) => record.type === 'phase')
+            .map((phase) => ({ id: phase.id, title: phase.title, covers: phase.links.covers?.length ?? 0 }))
+        ),
+        count: tasks.length
+      };
+    }
+
     if (kind === 'map-fix') {
       // Форма не сошлась — но разбор файлов в силе, и переделывать его незачем.
       const answer = typeof body?.answer === 'string' ? body.answer : '';
@@ -168,7 +201,7 @@ export default defineEventHandler(async (event) => {
       };
     }
 
-    return fail(event, 400, 'kind_invalid', 'Известны запросы: `fix`, `maps`, `map-fix`, `inbox`, `verify`, `functional-check`');
+    return fail(event, 400, 'kind_invalid', 'Известны запросы: `fix`, `maps`, `map-fix`, `inbox`, `verify`, `functional-check`, `phases`');
   } catch (error) {
     if (error instanceof WorkspaceError) {
       return fail(event, 422, error.code, error.message, error.detail);
