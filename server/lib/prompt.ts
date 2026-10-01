@@ -1,4 +1,5 @@
 import { contractDigest } from './contract-digest';
+import { isCapabilityStatus, STATE_LABEL } from './functional';
 import type { IssueDto } from './types';
 
 /**
@@ -337,9 +338,18 @@ export const CAPABILITIES_TREE_MARKER = '<!-- ВОЗМОЖНОСТИ -->';
  */
 export function functionalCheckPrompt(
   template: string,
-  capabilities: readonly { id: string; title?: string; parent?: string }[]
+  capabilities: readonly { id: string; title?: string; parent?: string; status?: string; note?: string }[]
 ): string {
   const byId = new Map(capabilities.map((item) => [item.id, item]));
+  // Отметка есть только у нижней возможности: у родителя состояние считается
+  // по подпунктам, и показывать его модели значило бы подсказать ей ответ.
+  const parents = new Set(capabilities.map((item) => item.parent).filter((parent) => parent && byId.has(parent)));
+  const current = (item: { id: string; status?: string; note?: string }): string => {
+    if (parents.has(item.id)) return '';
+    if (!isCapabilityStatus(item.status)) return ' [сейчас: не оценена]';
+    const label = STATE_LABEL[item.status].toLowerCase();
+    return item.note ? ` [сейчас: ${label} — ${item.note}]` : ` [сейчас: ${label}]`;
+  };
   const depthOf = (id: string, seen: ReadonlySet<string> = new Set()): number => {
     const item = byId.get(id);
     // Цикл в `parent` — та же защита, что и у отрисовки дерева на экране
@@ -350,7 +360,7 @@ export function functionalCheckPrompt(
 
   const lines = capabilities.length > 0
     ? capabilities
-      .map((item) => `${'  '.repeat(depthOf(item.id))}- \`${item.id}\`${item.title ? ` — ${item.title}` : ''}`)
+      .map((item) => `${'  '.repeat(depthOf(item.id))}- \`${item.id}\`${item.title ? ` — ${item.title}` : ''}${current(item)}`)
       .join(LF)
     : 'Возможностей в карте пока нет.';
 

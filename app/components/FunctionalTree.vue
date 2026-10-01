@@ -2,7 +2,10 @@
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import type { Capability } from './FunctionalTreeNode.vue';
 import type { MapSelection } from '~/utils/map-mermaid';
-import { summarize, tallyText, visibleUnder, type CapabilityState, type MarkPatch } from '~~/server/lib/functional';
+import {
+  summarize, tallyText, visibleUnder,
+  type CapabilityState, type CapabilityStatus, type MarkPatch
+} from '~~/server/lib/functional';
 
 /**
  * Функциональная карта — дерево, а не диаграмма: читает её часто не
@@ -71,6 +74,18 @@ function onMark(id: string, patch: MarkPatch) {
 function discardMarks() {
   marks.value = {};
 }
+
+/**
+ * Отметки снаружи — из таблицы «Проверить по коду». Ложатся несохранёнными,
+ * как если бы человек поставил их сам: черновик карты по ним не заводится
+ * (docs/07-maps.md, «“Проверить по коду” — мнение, не свидетельство»).
+ */
+function addMarks(list: { id: string; status: CapabilityStatus; note?: string }[]) {
+  for (const entry of list) {
+    onMark(entry.id, entry.note === undefined ? { status: entry.status } : { status: entry.status, note: entry.note });
+  }
+}
+defineExpose({ addMarks });
 
 async function saveMarks() {
   const body = Object.entries(marks.value).map(([id, mark]) => {

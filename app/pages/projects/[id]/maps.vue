@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import type { MapSelection, MermaidEdge } from '~/utils/map-mermaid';
+import type { CapabilityStatus } from '~~/server/lib/functional';
 import type { ProjectMap } from '~~/server/lib/maps';
 
 const route = useRoute();
@@ -290,6 +291,19 @@ const viewMode = ref<'2d' | '3d'>('2d');
 const functionalView = ref<'tree' | 'graph'>('tree');
 
 /**
+ * Отметки из «Проверить по коду» ложатся на дерево несохранёнными. Если читали
+ * граф, возвращаем дерево: отметки живут там, и человеку надо их увидеть.
+ */
+const tree = ref<{ addMarks: (marks: { id: string; status: CapabilityStatus; note?: string }[]) => void } | null>(null);
+async function applyChecked(marks: { id: string; status: CapabilityStatus; note?: string }[]) {
+  if (functionalView.value !== 'tree') {
+    functionalView.value = 'tree';
+    await nextTick();
+  }
+  tree.value?.addMarks(marks);
+}
+
+/**
  * Общий контейнер диаграммы и карточки — цель разворота на весь экран.
  * Карточку телепортируем в него ТОЛЬКО в полноэкранном режиме: иначе её
  * лучше держать в `<body>` — поверх всей страницы, выше панелей диаграммы,
@@ -544,9 +558,15 @@ function onEdgeClick(edge: MermaidEdge) {
                 kind="functional-check"
                 label="Проверить по коду"
                 hint="Модель сама читает код — ответ ничего не подтверждает, это её мнение"
-              />
+              >
+                <!-- Ответ разбирается в таблицу «сейчас → по мнению модели»; применяет её человек. -->
+                <template #answer="{ answer }">
+                  <FunctionalCheck :project-id="projectId" :answer="answer" @apply="applyChecked" />
+                </template>
+              </PromptPanel>
               <FunctionalTree
                 v-if="functionalView === 'tree'"
+                ref="tree"
                 :project-id="projectId"
                 :capabilities="map.functional.capabilities"
                 @select="(value) => (selection = value)"
