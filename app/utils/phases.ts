@@ -45,6 +45,40 @@ export function phaseProgress(phase: IndexRecord, records: readonly IndexRecord[
   };
 }
 
+/** Доля сделанного: `done` из `total`, где `total` уже без отменённого. */
+export interface Share {
+  done: number;
+  total: number;
+}
+
+export interface OverallProgress {
+  tasks: Share;
+  phases: Share;
+}
+
+/**
+ * Две общие шкалы проекта (docs/04-ui.md, «Общие шкалы»): закрытые задачи из
+ * всех неотменённых и закрытые фазы из всех. Считаются по всем записям, а не
+ * по тому, что показано, — иначе фильтр экрана задач превратил бы готовность
+ * проекта в долю выбранного.
+ */
+export function overallProgress(records: readonly IndexRecord[]): OverallProgress {
+  const tasks = records.filter((record) => record.type === 'task' && record.status !== 'dropped');
+  const phases = records.filter((record) => record.type === 'phase');
+  return {
+    tasks: { done: tasks.filter((task) => task.status === 'done').length, total: tasks.length },
+    // Статус фазы расчётный: тот, что стоит в её файле, мнение, а не факт.
+    phases: {
+      done: phases.filter((phase) => phaseProgress(phase, records).state === 'done').length,
+      total: phases.length
+    }
+  };
+}
+
+export function percent(done: number, total: number): number {
+  return total === 0 ? 0 : Math.round((done / total) * 100);
+}
+
 /**
  * `done` — всё закрыто или отменено и хотя бы одна закрыта: фаза, где всё
  * отменили, ничего не сделала. `active` — хоть одна начата. Иначе `planned`,

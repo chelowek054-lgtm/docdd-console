@@ -67,6 +67,9 @@ function reset() {
         <NewRecord class="ml-auto" :project-id="projectId" type="task" :records="records" @created="refresh" />
       </div>
 
+      <!-- Общие: фильтры ниже на них не влияют (docs/04-ui.md, «Общие шкалы»). -->
+      <OverallProgress :records="records" />
+
       <StatusTabs v-model="status" :statuses="statuses" :order="TASK_STATUS_ORDER" />
 
       <div class="flex flex-wrap gap-2">
