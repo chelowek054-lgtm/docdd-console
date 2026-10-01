@@ -1,4 +1,4 @@
-import type { CapabilityStatus, RelationKind } from './functional';
+import type { ImplStatus, RelationType } from './functional';
 import { validateCodemap, validateDataflow, validateFunctional, validateSkipped, validateUserflow } from './schema';
 import { yamlSafe } from './write';
 
@@ -42,22 +42,18 @@ export interface CodemapPart {
     from: string; to: string; evidence: Evidence;
     status?: EvidenceVerdict; declaredBy?: string; pending?: boolean;
   }[];
-  /** Объявленные группы — подсистемы над модулями; без свидетельства (docs/07-maps.md). */
+  /**
+   * Группы модулей — уровень над модулем (docs/07-maps.md, «Группы: уровень
+   * над модулями»). Суждение, как `layer`: свидетельства нет, подтверждает человек.
+   */
   groups?: {
     id: string; title?: string; summary?: string; parent?: string;
-    paths?: string[]; modules?: string[]; capability?: string;
-    links?: { to: string; summary?: string }[];
-    declaredBy?: string; pending?: boolean;
+    paths?: string[]; modules?: string[]; capability?: string; declaredBy?: string;
   }[];
 }
 
 export interface DataflowPart {
-  sources?: {
-    id: string; kind: string; where?: string; title?: string;
-    /** Свёртка на обзоре потоков; нет — сворачивается по `kind`. */
-    group?: string;
-    declaredBy?: string; pending?: boolean;
-  }[];
+  sources?: { id: string; kind: string; where?: string; title?: string; declaredBy?: string; pending?: boolean }[];
   flows?: {
     from: string; to: string; direction: string; evidence: Evidence;
     status?: EvidenceVerdict; declaredBy?: string; pending?: boolean;
@@ -85,14 +81,11 @@ export interface FunctionalPart {
   capabilities?: {
     id: string; title?: string; parent?: string; summary?: string;
     /** Состояние реализации; нет поля — «не оценено» (docs/07-maps.md). */
-    status?: CapabilityStatus;
-    note?: string;
+    status?: ImplStatus; note?: string;
     declaredBy?: string; pending?: boolean;
   }[];
-  /** Связи между возможностями: depends, uses, feeds. Без свидетельства, как и всё в этом виде. */
-  relations?: {
-    from: string; to: string; kind: RelationKind; summary?: string; declaredBy?: string; pending?: boolean;
-  }[];
+  /** Связи между возможностями: depends / uses / feeds. Свидетельства нет, как у всей карты. */
+  relations?: { from: string; to: string; type: RelationType; summary?: string; declaredBy?: string }[];
 }
 
 /** Файл, который модель посмотрела и в карту не положила. */
@@ -155,7 +148,7 @@ const MAP_KINDS: readonly MapKind[] = [
         keyOf: (item) => `${item.from}>${item.to}`,
         evidence: (item) => ({ label: `${item.from} → ${item.to}`, evidence: item.evidence })
       },
-      // Группа — суждение, а не вывод из строки кода: evidence у неё нет, сверка её обходит.
+      // Без evidence: группа — суждение о том, зачем модули вместе, сверять нечем.
       { name: 'groups', keyOf: (item) => item.id }
     ]
   },
@@ -195,8 +188,8 @@ const MAP_KINDS: readonly MapKind[] = [
     // evidenceClaims не даст по этому виду ни одного утверждения для сверки.
     fields: [
       { name: 'capabilities', keyOf: (item) => item.id },
-      // Ключ — тройка: между двумя возможностями бывает и «пользуется», и «передаёт данные».
-      { name: 'relations', keyOf: (item) => `${item.from}>${item.kind}>${item.to}` }
+      // Тип входит в ключ: между двумя возможностями бывает и зависимость, и передача данных.
+      { name: 'relations', keyOf: (item) => `${item.from}>${item.to}:${item.type}` }
     ]
   }
 ];
@@ -405,7 +398,6 @@ export function annotatePending(map: ProjectMap, pendingMaps: ReadonlySet<string
   };
 
   for (const item of map.codemap.modules) mark(item);
-  for (const item of map.codemap.groups) mark(item);
   for (const item of map.codemap.imports) markEdge(item);
   for (const item of map.dataflow.sources) mark(item);
   for (const item of map.dataflow.flows) markEdge(item);
@@ -413,7 +405,6 @@ export function annotatePending(map: ProjectMap, pendingMaps: ReadonlySet<string
   for (const item of map.userflow.transitions) markEdge(item);
   for (const item of map.userflow.calls) markEdge(item);
   for (const item of map.functional.capabilities) mark(item);
-  for (const item of map.functional.relations) mark(item);
 }
 
 /** Сложенная картина проекта: производное от подтверждённых карт. */

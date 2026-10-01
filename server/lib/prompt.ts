@@ -1,5 +1,5 @@
 import { contractDigest } from './contract-digest';
-import { isCapabilityStatus, STATE_LABEL } from './functional';
+import { capabilityLines, type CapabilityLike } from './functional';
 import type { IssueDto } from './types';
 
 /**
@@ -338,62 +338,48 @@ export const CAPABILITIES_TREE_MARKER = '<!-- ВОЗМОЖНОСТИ -->';
  */
 export function functionalCheckPrompt(
   template: string,
-  capabilities: readonly { id: string; title?: string; parent?: string; status?: string; note?: string }[]
+  capabilities: readonly CapabilityLike[]
 ): string {
-  const byId = new Map(capabilities.map((item) => [item.id, item]));
-  // Отметка есть только у нижней возможности: у родителя состояние считается
-  // по подпунктам, и показывать его модели значило бы подсказать ей ответ.
-  const parents = new Set(capabilities.map((item) => item.parent).filter((parent) => parent && byId.has(parent)));
-  const current = (item: { id: string; status?: string; note?: string }): string => {
-    if (parents.has(item.id)) return '';
-    if (!isCapabilityStatus(item.status)) return ' [сейчас: не оценена]';
-    const label = STATE_LABEL[item.status].toLowerCase();
-    return item.note ? ` [сейчас: ${label} — ${item.note}]` : ` [сейчас: ${label}]`;
-  };
-  const depthOf = (id: string, seen: ReadonlySet<string> = new Set()): number => {
-    const item = byId.get(id);
-    // Цикл в `parent` — та же защита, что и у отрисовки дерева на экране
-    // (`functionalMermaid`): глубина считается, а не зависает.
-    if (!item?.parent || seen.has(id)) return 0;
-    return 1 + depthOf(item.parent, new Set([...seen, id]));
-  };
-
-  const lines = capabilities.length > 0
-    ? capabilities
-      .map((item) => `${'  '.repeat(depthOf(item.id))}- \`${item.id}\`${item.title ? ` — ${item.title}` : ''}${current(item)}`)
-      .join(LF)
-    : 'Возможностей в карте пока нет.';
-
-  return withoutFrontNote(template).replace(CAPABILITIES_TREE_MARKER, lines);
+  return withoutFrontNote(template).replace(CAPABILITIES_TREE_MARKER, capabilityLines(capabilities));
 }
 
 export const GROUPS_MARKER = '<!-- ГРУППЫ -->';
 export const GROUP_MODULES_MARKER = '<!-- МОДУЛИ -->';
 
+/** Дальше этого описание в запросе не читают: на сотнях модулей оно и так длинное. */
+const SUMMARY_LIMIT = 160;
+
 /**
  * Запрос «Сгруппировать модули» (docs/07-maps.md, «Группы: уровень над
- * модулями»; docs/prompts/groups.md). В запрос уходят модули, которые ещё не
- * попали ни в одну объявленная группа, и сами объявленные группы — чтобы модель
- * не предлагала второй раз то, что есть. Тем же способом, что у `phasesPrompt`.
+ * модулями»). Модели уходят модули общей картины и уже объявленные группы — то,
+ * что человек подтвердил, ей повторять не нужно. Ответ — блок `docdd-codemap`
+ * только с `groups`, он ложится черновиком карты и ждёт подтверждения.
  */
 export function groupsPrompt(
   template: string,
-  modules: readonly { id: string; title?: string; layer?: string; path?: string }[],
-  declared: readonly { id: string; title?: string; paths?: readonly string[]; modules?: readonly string[] }[]
+  modules: readonly { id: string; path?: string | undefined; layer?: string | undefined; summary?: string | undefined }[],
+  groups: readonly { id: string; title?: string | undefined; summary?: string | undefined; paths?: readonly string[] | undefined }[]
 ): string {
-  const groupLines = declared.length > 0
-    ? declared.map((group) => {
-      const paths = group.paths?.length ? `, paths: ${group.paths.map((path) => `\`${path}\``).join(', ')}` : '';
-      const named = group.modules?.length ? `, modules: ${group.modules.length}` : '';
-      return `- \`${group.id}\`${group.title ? ` — ${group.title}` : ''}${paths}${named}`;
-    }).join(LF)
-    : 'Объявленных групп пока нет.';
-
-  const moduleLines = modules.map((module) => {
-    // Путь называем, только когда он не совпадает с id: иначе это повтор.
-    const path = module.path && module.path !== module.id ? ` (\`${module.path}\`)` : '';
-    return `- \`${module.id}\`${path}${module.layer ? ` [${module.layer}]` : ''}${module.title ? ` — ${module.title}` : ''}`;
+  const modulesText = modules.map((module) => {
+    const facts = [
+      module.path && module.path !== module.id ? `путь: ${module.path}` : '',
+      module.layer ? `слой: ${module.layer}` : '',
+      module.summary ? module.summary.replace(/\s+/g, ' ').slice(0, SUMMARY_LIMIT) : ''
+    ].filter(Boolean);
+    return `- \`${module.id}\`${facts.length ? ` — ${facts.join('; ')}` : ''}`;
   }).join(LF);
 
-  return withoutFrontNote(template).replace(GROUPS_MARKER, groupLines).replace(GROUP_MODULES_MARKER, moduleLines);
+  const groupsText = groups.length
+    ? groups.map((group) => {
+      const facts = [
+        group.title ?? '',
+        group.paths?.length ? `каталоги: ${group.paths.join(', ')}` : ''
+      ].filter(Boolean);
+      return `- \`${group.id}\`${facts.length ? ` — ${facts.join('; ')}` : ''}`;
+    }).join(LF)
+    : 'Групп пока не объявлено: это первое разбиение.';
+
+  return withoutFrontNote(template)
+    .replace(GROUPS_MARKER, () => groupsText)
+    .replace(GROUP_MODULES_MARKER, () => modulesText);
 }

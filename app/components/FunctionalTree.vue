@@ -2,123 +2,184 @@
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import type { Capability } from './FunctionalTreeNode.vue';
 import type { MapSelection } from '~/utils/map-mermaid';
+import { capabilityViews } from '~/utils/functional-view';
 import {
-  RELATION_KINDS, RELATION_LABEL, relationHints, relationsOf, summarize, tallyText, visibleUnder,
-  type CapabilityState, type CapabilityStatus, type MarkPatch, type Relation, type RelationKind
-} from '~~/server/lib/functional';
+  IMPL_LABEL,
+  RELATION_LABEL,
+  RELATION_TYPES,
+  filterByStatus,
+  isTreeLink,
+  type ImplStatus,
+  type Mark,
+  type RelationLike,
+  type RelationType,
+  type StatusFilter
+} from '../../server/lib/functional';
 
 /**
  * Функциональная карта — дерево, а не диаграмма: читает её часто не
- * разработчик, а доменный специалист (docs/07-maps.md, «Экран: дерево, а не
- * mindmap»). У вида нет свидетельства, поэтому правка обходится без похода к
+ * разработчик, а доменный специалист (docs/07-maps.md, «Экран: дерево, граф
+ * состояния»). У вида нет свидетельства, поэтому правка обходится без похода к
  * модели — форма пишет напрямую через `POST /map/capability`, каждое
  * действие черновиком, который тут же можно подтвердить одной кнопкой.
+ * Отметки состояния — иначе, пачкой: клик откладывает отметку на экране, а
+ * «Сохранить отметки» заводит одну запись на все.
  */
 
 const props = defineProps<{
   projectId: string;
-  /** Как в подтверждённой карте — без несохранённых отметок. */
+  /** С уже наложенными несохранёнными отметками (`withMarks`). */
   capabilities: Capability[];
-  /** Связи между возможностями (docs/07-maps.md): от них зависят подсказки «ждёт» и «круг». */
-  relations?: Relation[];
+  /** Те же возможности без отметок — то, что сейчас записано в карте. */
+  saved: Capability[];
+  relations: RelationLike[];
+  filter: StatusFilter | null;
 }>();
+
+/** Несохранённые отметки живут у родителя: их же кладёт «Проверить по коду» и рисует граф. */
+const marks = defineModel<Record<string, Mark>>('marks', { required: true });
 
 const emit = defineEmits<{
   select: [selection: MapSelection];
   changed: [];
 }>();
 
-// --- состояние реализации: отметки откладываются, пока их не сохранили ---
-// Клик по значку не заводит запись: иначе каждый клик создавал бы отдельный
-// черновик карты (docs/04-ui.md, «Функциональная карта»).
-const marks = ref<Record<string, MarkPatch>>({});
-const filter = ref<CapabilityState | null>(null);
+const views = computed(() => capabilityViews(props.capabilities, props.relations));
+const visible = computed(() => filterByStatus(props.capabilities, props.filter) as Capability[]);
 
-/** Возможности с учётом несохранённых отметок: то, что человек видит прямо сейчас. */
-const effective = computed<Capability[]>(() => props.capabilities.map((item) => {
-  const mark = marks.value[item.id];
-  if (!mark) return item;
-  const next: Capability = { ...item };
-  if (mark.status !== undefined) {
-    if (mark.status === null) delete next.status;
-    else next.status = mark.status;
+function childrenOf(id: string): Capability[] {
+  return visible.value.filter((item) => item.parent === id);
+}
+
+function depthOf(item: Capability, seen: ReadonlySet<string> = new Set()): number {
+  if (!item.parent || seen.has(item.id)) return 0;
+  const parent = props.capabilities.find((candidate) => candidate.id === item.parent);
+  if (!parent) return 0;
+  return 1 + depthOf(parent, new Set([...seen, item.id]));
+}
+
+// Возможность без родителя, найденного в этом же списке, — тоже корень:
+// у осиротевшей ветки (родителя убрали) дерево не должно молча теряться.
+const roots = computed(() => visible.value.filter(
+  (item) => !item.parent || !visible.value.some((candidate) => candidate.id === item.parent)
+));
+
+/** Раскрыто по умолчанию — первые два уровня; глубже читатель разворачивает сам. */
+const expanded = ref<Set<string>>(new Set());
+// Смотрим на состав, а не на сам список: отметка состояния пересобирает массив,
+// и раскрытые ветки не должны схлопываться от каждого клика.
+watch(() => props.capabilities.map((item) => `${item.id}>${item.parent ?? ''}`).join('|'), () => {
+  const next = new Set<string>();
+  for (const item of props.capabilities) {
+    if (depthOf(item) < 2) next.add(item.id);
   }
-  if (mark.note !== undefined) {
-    if (mark.note.trim()) next.note = mark.note.trim();
-    else delete next.note;
-  }
-  return next;
-}));
+  expanded.value = next;
+}, { immediate: true });
 
-const summary = computed(() => summarize(effective.value));
-const hints = computed(() => relationHints(effective.value, props.relations ?? [], summary.value));
-const visible = computed(() => visibleUnder(effective.value, summary.value, filter.value));
-const marked = computed(() => new Set(Object.keys(marks.value)));
-const markCount = computed(() => marked.value.size);
+// Под фильтром открыто всё, что осталось: смысл фильтра — увидеть найденное, а не искать его по веткам.
+const shownExpanded = computed<ReadonlySet<string>>(() => (
+  props.filter ? new Set(visible.value.map((item) => item.id)) : expanded.value
+));
 
-/**
- * Если пометка «ещё не устоялось» стоит у всех строк, она ничего не отличает —
- * одна строка над деревом вместо бейджа на каждой (docs/04-ui.md).
- */
+function toggle(id: string) {
+  const next = new Set(expanded.value);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  expanded.value = next;
+}
+
+/** Бейдж «ещё не устоялось» на каждой строке перестаёт что-либо отличать, когда стоит у всех. */
 const allPending = computed(() => props.capabilities.length > 0 && props.capabilities.every((item) => item.pending));
 
-function onMark(id: string, patch: MarkPatch) {
-  const saved = props.capabilities.find((item) => item.id === id);
-  const merged: MarkPatch = { ...marks.value[id], ...patch };
-  // Вернули всё как в карте — отметки больше нет: считать её несохранённой незачем.
-  const sameStatus = merged.status === undefined || (merged.status ?? undefined) === saved?.status;
-  const sameNote = merged.note === undefined || (merged.note.trim() || undefined) === saved?.note;
+function onSelect(item: Capability) {
+  const view = views.value.get(item.id);
+  emit('select', {
+    kind: 'node', id: item.id, title: item.title, summary: item.summary, note: item.note,
+    declaredBy: item.declaredBy, pending: item.pending, capability: true,
+    ...(view ? { capabilityView: view } : {})
+  });
+}
+
+// --- отметки пачкой ---
+function mark(id: string, status: ImplStatus | null) {
   const next = { ...marks.value };
-  if (sameStatus && sameNote) delete next[id];
-  else next[id] = merged;
+  const note = marks.value[id]?.note;
+  // Вернули ровно то, что уже в карте, — это не отметка, а её отмена.
+  if ((props.saved.find((item) => item.id === id)?.status ?? null) === status && note === undefined) {
+    delete next[id];
+  } else {
+    next[id] = { status, ...(note !== undefined ? { note } : {}) };
+  }
   marks.value = next;
 }
 
-function discardMarks() {
-  marks.value = {};
+const markCount = computed(() => Object.keys(marks.value).length);
+
+// --- форма: добавить (себе или подпункт) / переименовать ---
+const formParent = ref<string | null>(null);
+const formOpen = ref(false);
+const editingId = ref<string | null>(null);
+const formTitle = ref('');
+const formSummary = ref('');
+const formStatus = ref<ImplStatus | 'unrated'>('unrated');
+const formNote = ref('');
+const saving = ref(false);
+const failure = ref<ApiFailure | null>(null);
+
+const statusItems = (['unrated', 'implemented', 'partial', 'not_implemented'] as const)
+  .map((value) => ({ label: IMPL_LABEL[value], value }));
+
+function resetForm() {
+  formTitle.value = '';
+  formSummary.value = '';
+  formStatus.value = 'unrated';
+  formNote.value = '';
 }
 
-/**
- * Отметки снаружи — из таблицы «Проверить по коду». Ложатся несохранёнными,
- * как если бы человек поставил их сам: черновик карты по ним не заводится
- * (docs/07-maps.md, «“Проверить по коду” — мнение, не свидетельство»).
- */
-function addMarks(list: { id: string; status: CapabilityStatus; note?: string }[]) {
-  for (const entry of list) {
-    onMark(entry.id, entry.note === undefined ? { status: entry.status } : { status: entry.status, note: entry.note });
-  }
-}
-
-// --- связи между возможностями: добавить / убрать, каждое действие — черновик ---
-const relateFrom = ref<string | null>(null);
-const relationKind = ref<RelationKind>('depends');
-const relationTo = ref<string | undefined>(undefined);
-const relationSummary = ref('');
-
-const kindItems = RELATION_KINDS.map((kind) => ({ label: RELATION_LABEL[kind], value: kind }));
-const targetItems = computed(() => props.capabilities
-  .filter((item) => item.id !== relateFrom.value)
-  .map((item) => ({ label: item.title ?? item.id, value: item.id })));
-
-function openRelate(id: string) {
-  relateFrom.value = id;
-  relationKind.value = 'depends';
-  relationTo.value = undefined;
-  relationSummary.value = '';
-  failure.value = null;
-  formOpen.value = false;
-}
-function closeRelate() {
+function openAdd(parentId: string | null) {
+  formOpen.value = true;
   relateFrom.value = null;
+  formParent.value = parentId;
+  editingId.value = null;
+  resetForm();
+  failure.value = null;
+}
+function openEdit(item: Capability) {
+  formOpen.value = true;
+  relateFrom.value = null;
+  formParent.value = item.parent ?? null;
+  editingId.value = item.id;
+  formTitle.value = item.title ?? '';
+  formSummary.value = item.summary ?? '';
+  formStatus.value = item.status ?? 'unrated';
+  formNote.value = item.note ?? '';
+  failure.value = null;
+}
+function closeForm() {
+  formOpen.value = false;
+  editingId.value = null;
+  resetForm();
 }
 
-async function postRelation(action: 'relate' | 'unrelate', relation: Relation, label: string): Promise<boolean> {
+const editingIsParent = computed(() => !!editingId.value && childrenOf(editingId.value).length > 0);
+
+/** id из названия — доменный специалист не должен придумывать идентификатор сам. */
+function slugify(text: string): string {
+  const base = text.trim().toLowerCase().replace(/[^a-zа-яё0-9]+/gi, '-').replace(/^-+|-+$/g, '');
+  return base || `vozmozhnost-${Date.now()}`;
+}
+
+const pendingDraft = ref<{ id: string; label: string } | null>(null);
+const confirming = ref(false);
+
+/** Один ход к серверу: черновик новой записи карты. Отдельное тело на действие — общий разбор ответа. */
+async function post(body: Record<string, unknown>, label: string): Promise<boolean> {
   saving.value = true;
   failure.value = null;
   try {
     const response = await $fetch(`/api/projects/${props.projectId}/map/capability`, {
       method: 'POST',
-      body: { action, relation },
+      body,
       ignoreResponseError: true
     });
     const problem = failureOf(response);
@@ -134,203 +195,29 @@ async function postRelation(action: 'relate' | 'unrelate', relation: Relation, l
   }
 }
 
-async function saveRelation() {
-  const from = relateFrom.value;
-  const to = relationTo.value;
-  if (!from || !to) return;
-  const summaryText = relationSummary.value.trim() || undefined;
-  const done = await postRelation(
-    'relate',
-    { from, to, kind: relationKind.value, summary: summaryText },
-    `связь «${titleOf(from)}» → «${titleOf(to)}»`
-  );
-  if (done) closeRelate();
-}
-
-async function removeRelation(relation: { from: string; to: string; kind: RelationKind }) {
-  // eslint-disable-next-line no-alert -- то же подтверждение, что и на убирание возможности выше.
-  if (!confirm(`Убрать связь «${titleOf(relation.from)}» ${RELATION_LABEL[relation.kind]} «${titleOf(relation.to)}»?`)) return;
-  await postRelation('unrelate', relation, `убрана связь «${titleOf(relation.from)}» → «${titleOf(relation.to)}»`);
-}
-
-defineExpose({ addMarks, openRelate, removeRelation });
-
-async function saveMarks() {
-  const body = Object.entries(marks.value).map(([id, mark]) => {
-    const saved = props.capabilities.find((item) => item.id === id);
-    // Отметка только с `note` не должна снимать состояние: сервер читает `null` как «снять».
-    const entry: { id: string; status: string | null; note?: string } = {
-      id,
-      status: mark.status === undefined ? (saved?.status ?? null) : mark.status
-    };
-    if (mark.note !== undefined) entry.note = mark.note;
-    return entry;
-  });
-  const count = body.length;
-
-  saving.value = true;
-  failure.value = null;
-  try {
-    const response = await $fetch(`/api/projects/${props.projectId}/map/capability`, {
-      method: 'POST',
-      body: { action: 'status', marks: body },
-      ignoreResponseError: true
-    });
-    const problem = failureOf(response);
-    if (problem) {
-      failure.value = problem;
-      return;
-    }
-    const record = (response as { record?: { id: string } }).record;
-    marks.value = {};
-    if (record) pendingDraft.value = { id: record.id, label: `отмечено возможностей: ${count}` };
-  } finally {
-    saving.value = false;
-  }
-}
-
-function childrenOf(id: string): Capability[] {
-  return effective.value.filter((item) => item.parent === id && (!visible.value || visible.value.has(item.id)));
-}
-
-function depthOf(item: Capability, seen: ReadonlySet<string> = new Set()): number {
-  if (!item.parent || seen.has(item.id)) return 0;
-  const parent = props.capabilities.find((candidate) => candidate.id === item.parent);
-  if (!parent) return 0;
-  return 1 + depthOf(parent, new Set([...seen, item.id]));
-}
-
-// Возможность без родителя, найденного в этом же списке, — тоже корень:
-// у осиротевшей ветки (родителя убрали) дерево не должно молча теряться.
-const roots = computed(() => effective.value.filter(
-  (item) => (!item.parent || !effective.value.some((candidate) => candidate.id === item.parent))
-    && (!visible.value || visible.value.has(item.id))
-));
-
-/** Раскрыто по умолчанию — первые два уровня; глубже читатель разворачивает сам. */
-const expanded = ref<Set<string>>(new Set());
-watch(() => props.capabilities, (list) => {
-  const next = new Set<string>();
-  for (const item of list) {
-    if (depthOf(item) < 2) next.add(item.id);
-  }
-  expanded.value = next;
-}, { immediate: true });
-
-/** Под фильтром раскрыто всё: найденное не должно прятаться под свёрнутым родителем. */
-const shownExpanded = computed(() => (filter.value ? new Set(props.capabilities.map((item) => item.id)) : expanded.value));
-
-function toggle(id: string) {
-  const next = new Set(expanded.value);
-  if (next.has(id)) next.delete(id);
-  else next.add(id);
-  expanded.value = next;
-}
-
-function titleOf(id: string): string {
-  return props.capabilities.find((candidate) => candidate.id === id)?.title ?? id;
-}
-
-function onSelect(item: Capability) {
-  const own = summary.value.byId.get(item.id);
-  const hint = hints.value.byId.get(item.id);
-  // У родителя состояние расчётное, а не из файла: карточка показывает то же,
-  // что значок в строке, и счёт нижних рядом (docs/07-maps.md).
-  const state = own?.state;
-  emit('select', {
-    kind: 'node', id: item.id, title: item.title, summary: item.summary,
-    status: state && state !== 'unassessed' ? state : undefined,
-    note: item.note,
-    progress: own && !own.leaf ? tallyText(own.tally) : undefined,
-    relations: relationsOf(item.id, props.relations ?? []).map((entry) => ({ ...entry, otherTitle: titleOf(entry.other) })),
-    waitsFor: hint?.waitsFor.length ? hint.waitsFor.map(titleOf) : undefined,
-    inCycle: hint?.inCycle || undefined,
-    declaredBy: item.declaredBy, pending: item.pending, capability: true
-  });
-}
-
-// --- форма: добавить (себе или подпункт) / переименовать ---
-const formParent = ref<string | null>(null);
-const formOpen = ref(false);
-const editingId = ref<string | null>(null);
-const formTitle = ref('');
-const formSummary = ref('');
-const saving = ref(false);
-const failure = ref<ApiFailure | null>(null);
-
-function openAdd(parentId: string | null) {
-  relateFrom.value = null;
-  formOpen.value = true;
-  formParent.value = parentId;
-  editingId.value = null;
-  formTitle.value = '';
-  formSummary.value = '';
-  failure.value = null;
-}
-function openEdit(item: Capability) {
-  formOpen.value = true;
-  formParent.value = item.parent ?? null;
-  editingId.value = item.id;
-  formTitle.value = item.title ?? '';
-  formSummary.value = item.summary ?? '';
-  failure.value = null;
-}
-function closeForm() {
-  formOpen.value = false;
-  editingId.value = null;
-  formTitle.value = '';
-  formSummary.value = '';
-}
-
-/** id из названия — доменный специалист не должен придумывать идентификатор сам. */
-function slugify(text: string): string {
-  const base = text.trim().toLowerCase().replace(/[^a-zа-яё0-9]+/gi, '-').replace(/^-+|-+$/g, '');
-  return base || `vozmozhnost-${Date.now()}`;
-}
-
-const pendingDraft = ref<{ id: string; label: string } | null>(null);
-const confirming = ref(false);
-
 async function saveCapability(capability: Capability, label: string) {
-  saving.value = true;
-  failure.value = null;
-  try {
-    const response = await $fetch(`/api/projects/${props.projectId}/map/capability`, {
-      method: 'POST',
-      body: { action: 'add', capability },
-      ignoreResponseError: true
-    });
-    const problem = failureOf(response);
-    if (problem) {
-      failure.value = problem;
-      return;
-    }
-    const record = (response as { record?: { id: string } }).record;
-    closeForm();
-    if (record) pendingDraft.value = { id: record.id, label };
-  } finally {
-    saving.value = false;
-  }
+  if (await post({ action: 'add', capability }, label)) closeForm();
 }
 
 function onSubmit() {
   if (!formTitle.value.trim()) return;
   const title = formTitle.value.trim();
-  const summaryText = formSummary.value.trim() || undefined;
+  const summary = formSummary.value.trim() || undefined;
   if (editingId.value) {
     const current = props.capabilities.find((item) => item.id === editingId.value);
     if (!current) return;
-    // Повторное объявление заменяет элемент целиком: поля, которых здесь нет,
-    // из возможности пропали бы, поэтому parent, status и note едут вместе — иначе
-    // переименование молча сняло бы отметку состояния (docs/07-maps.md).
+    // Повторное объявление — уточнение, побеждает последнее: поля, которых здесь
+    // нет, из возможности пропали бы, поэтому parent, summary и состояние едут вместе.
+    const own = editingIsParent.value ? current.status : (formStatus.value === 'unrated' ? undefined : formStatus.value);
+    const note = editingIsParent.value ? current.note : (formNote.value.trim() || undefined);
     void saveCapability(
-      { id: current.id, title, parent: current.parent, summary: summaryText, status: current.status, note: current.note },
+      { id: current.id, title, parent: current.parent, summary, ...(own ? { status: own } : {}), ...(own && note ? { note } : {}) },
       `изменена «${title}»`
     );
   } else {
     const id = slugify(title);
     void saveCapability(
-      { id, title, parent: formParent.value ?? undefined, summary: summaryText },
+      { id, title, parent: formParent.value ?? undefined, summary },
       `добавлена «${title}»`
     );
   }
@@ -343,26 +230,56 @@ async function removeCapability(item: Capability) {
     : `Убрать «${item.title ?? item.id}»?`;
   // eslint-disable-next-line no-alert -- то же подтверждение, что и на удаление где угодно в браузере; своё модальное окно ради одной кнопки не оправдано.
   if (!confirm(question)) return;
-
-  saving.value = true;
-  failure.value = null;
-  try {
-    const response = await $fetch(`/api/projects/${props.projectId}/map/capability`, {
-      method: 'POST',
-      body: { action: 'remove', capability: { id: item.id } },
-      ignoreResponseError: true
-    });
-    const problem = failureOf(response);
-    if (problem) {
-      failure.value = problem;
-      return;
-    }
-    const record = (response as { record?: { id: string } }).record;
-    if (record) pendingDraft.value = { id: record.id, label: `убрана «${item.title ?? item.id}»` };
-  } finally {
-    saving.value = false;
-  }
+  await post({ action: 'remove', capability: { id: item.id } }, `убрана «${item.title ?? item.id}»`);
 }
+
+async function saveMarks() {
+  const statuses = Object.entries(marks.value).map(([id, value]) => ({
+    id,
+    status: value.status,
+    ...(value.note !== undefined ? { note: value.note } : {})
+  }));
+  if (statuses.length === 0) return;
+  if (await post({ action: 'status', statuses }, `отметки состояния (${statuses.length})`)) marks.value = {};
+}
+
+// --- форма: связать ---
+const relateFrom = ref<Capability | null>(null);
+const relateTo = ref('');
+const relateType = ref<RelationType>('depends');
+const relateSummary = ref('');
+
+function openRelate(item: Capability) {
+  formOpen.value = false;
+  relateFrom.value = item;
+  relateTo.value = '';
+  relateType.value = 'depends';
+  relateSummary.value = '';
+  failure.value = null;
+}
+
+/** С предком и потомком связь не нужна — дерево уже сказало, что они вместе. */
+const relateTargets = computed(() => {
+  const from = relateFrom.value;
+  if (!from) return [];
+  return props.capabilities
+    .filter((item) => item.id !== from.id && !isTreeLink(from.id, item.id, props.capabilities))
+    .map((item) => ({ label: item.title ?? item.id, value: item.id }));
+});
+
+async function submitRelate() {
+  const from = relateFrom.value;
+  if (!from || !relateTo.value) return;
+  const summary = relateSummary.value.trim() || undefined;
+  const label = `связь «${from.title ?? from.id}» ${RELATION_LABEL[relateType.value]} «${relateTargets.value.find((item) => item.value === relateTo.value)?.label ?? relateTo.value}»`;
+  const ok = await post({
+    action: 'relate',
+    relation: { from: from.id, to: relateTo.value, type: relateType.value, ...(summary ? { summary } : {}) }
+  }, label);
+  if (ok) relateFrom.value = null;
+}
+
+const relationItems = RELATION_TYPES.map((value) => ({ label: RELATION_LABEL[value], value }));
 
 /**
  * Подтверждение прямо здесь, без похода на экран записи: `draft → review →
@@ -397,23 +314,10 @@ async function confirmDraft() {
 
 <template>
   <div>
-    <FunctionalSummary :tally="summary.overall" :filter="filter" @filter="(state) => (filter = state)" />
-
-    <p v-if="allPending" class="mb-3 text-sm text-muted">
-      Все эти возможности объявлены картой, которая ещё не устоялась.
-    </p>
-
     <div class="mb-3 flex flex-wrap items-center gap-3">
       <UButton size="xs" icon="i-lucide-plus" variant="soft" @click="openAdd(null)">
         Добавить возможность
       </UButton>
-
-      <!-- Пачка отметок: один черновик на все, а не по записи на клик. -->
-      <p v-if="markCount > 0" class="flex flex-wrap items-center gap-2 text-sm">
-        <span class="text-muted">Несохранённых отметок: {{ markCount }}</span>
-        <UButton size="xs" :loading="saving" @click="saveMarks">Сохранить отметки</UButton>
-        <UButton size="xs" variant="ghost" color="neutral" @click="discardMarks">Сбросить</UButton>
-      </p>
 
       <p v-if="pendingDraft" class="flex flex-wrap items-center gap-2 text-sm text-muted">
         Черновик {{ pendingDraft.id }} создан: {{ pendingDraft.label }}.
@@ -421,51 +325,19 @@ async function confirmDraft() {
       </p>
     </div>
 
-    <UAlert
-      v-if="failure && !formOpen && !relateFrom"
-      class="mb-3"
-      color="error"
-      variant="subtle"
-      :title="failure.message"
-      :description="failure.detail"
-    />
-
-    <!-- Связь: вид, вторая возможность и необязательная подпись — одним черновиком карты. -->
-    <UCard v-if="relateFrom" class="mb-3">
-      <p class="mb-2 text-sm text-muted">Связь от «{{ titleOf(relateFrom) }}»</p>
-      <div class="flex flex-wrap items-center gap-3">
-        <USelect v-model="relationKind" :items="kindItems" class="w-56" />
-        <USelectMenu
-          v-model="relationTo"
-          value-key="value"
-          :items="targetItems"
-          placeholder="С какой возможностью"
-          class="min-w-64 flex-1"
-        />
-      </div>
-      <UInput
-        v-model="relationSummary"
-        class="mt-3 w-full"
-        placeholder="Подпись — необязательно: например, «берёт цену из каталога»"
-        @keyup.enter="saveRelation"
-      />
-      <div class="mt-3 flex gap-2">
-        <UButton :loading="saving" :disabled="!relationTo" @click="saveRelation">Связать</UButton>
-        <UButton variant="ghost" color="neutral" @click="closeRelate">Отмена</UButton>
-      </div>
-      <UAlert
-        v-if="failure"
-        class="mt-3"
-        color="error"
-        variant="subtle"
-        :title="failure.message"
-        :description="failure.detail"
-      />
-    </UCard>
+    <!-- Отметки откладываются на экране — одна запись на все, а не черновик на каждый клик. -->
+    <div
+      v-if="markCount > 0"
+      class="sticky top-0 z-10 mb-3 flex flex-wrap items-center gap-3 rounded border border-warning bg-default p-2 text-sm"
+    >
+      <span>Отметок: {{ markCount }} — пока не сохранены</span>
+      <UButton size="xs" :loading="saving" @click="saveMarks">Сохранить отметки</UButton>
+      <UButton size="xs" variant="ghost" color="neutral" @click="marks = {}">Сбросить</UButton>
+    </div>
 
     <UCard v-if="formOpen" class="mb-3">
       <p class="mb-2 text-sm text-muted">
-        {{ editingId ? 'Название и описание' : 'Название возможности' }}
+        {{ editingId ? 'Название, описание и состояние' : 'Название возможности' }}
       </p>
       <div class="flex flex-wrap items-center gap-3">
         <UInput
@@ -484,6 +356,16 @@ async function confirmDraft() {
         autoresize
         placeholder="Описание — необязательно: зачем это в системе и что даёт пользователю, простыми словами"
       />
+      <!-- У родителя состояние производное — поле показывать нечем и незачем. -->
+      <div v-if="editingId && !editingIsParent" class="mt-3 flex flex-wrap items-start gap-3">
+        <USelect v-model="formStatus" class="w-48" :items="statusItems" />
+        <UInput
+          v-model="formNote"
+          class="min-w-64 flex-1"
+          :disabled="formStatus === 'unrated'"
+          placeholder="Что сделано и чего не хватает — одна-две фразы"
+        />
+      </div>
       <UAlert
         v-if="failure"
         class="mt-3"
@@ -494,11 +376,42 @@ async function confirmDraft() {
       />
     </UCard>
 
-    <p v-if="effective.length === 0" class="rounded border border-dashed border-default p-6 text-center text-sm text-muted">
-      Возможностей пока нет — добавьте первую.
+    <UCard v-if="relateFrom" class="mb-3">
+      <p class="mb-2 text-sm text-muted">
+        Связать «{{ relateFrom.title ?? relateFrom.id }}» с другой возможностью
+      </p>
+      <div class="flex flex-wrap items-center gap-3">
+        <USelect v-model="relateType" class="w-44" :items="relationItems" />
+        <USelect
+          v-model="relateTo"
+          class="min-w-64 flex-1"
+          :items="relateTargets"
+          placeholder="С какой возможностью"
+        />
+        <UButton :loading="saving" :disabled="!relateTo" @click="submitRelate">Связать</UButton>
+        <UButton variant="ghost" color="neutral" @click="relateFrom = null">Отмена</UButton>
+      </div>
+      <UInput
+        v-model="relateSummary"
+        class="mt-3 w-full"
+        placeholder="Чем именно связаны — одна фраза, необязательно"
+      />
+      <UAlert
+        v-if="failure"
+        class="mt-3"
+        color="error"
+        variant="subtle"
+        :title="failure.message"
+        :description="failure.detail"
+      />
+    </UCard>
+
+    <p v-if="allPending" class="mb-3 text-sm text-muted">
+      Карта ещё не подтверждена, поэтому всё на ней помечено как план.
     </p>
-    <p v-else-if="roots.length === 0" class="rounded border border-dashed border-default p-6 text-center text-sm text-muted">
-      Под этот фильтр не попала ни одна возможность.
+
+    <p v-if="roots.length === 0" class="rounded border border-dashed border-default p-6 text-center text-sm text-muted">
+      {{ capabilities.length === 0 ? 'Возможностей пока нет — добавьте первую.' : 'Под этот фильтр ничего не подошло.' }}
     </p>
     <ul v-else class="space-y-0.5">
       <FunctionalTreeNode
@@ -506,20 +419,18 @@ async function confirmDraft() {
         :key="item.id"
         :item="item"
         :children="childrenOf(item.id)"
-        :all-capabilities="effective"
+        :all-capabilities="visible"
+        :views="views"
+        :marks="marks"
+        :hide-pending="allPending"
         :expanded="shownExpanded"
-        :summary="summary.byId"
-        :visible="visible"
-        :marked="marked"
-        :quiet="allPending"
-        :hints="hints.byId"
         @toggle="toggle"
         @select="onSelect"
         @add-child="(id) => openAdd(id)"
         @edit="openEdit"
-        @remove="removeCapability"
-        @mark="onMark"
         @relate="openRelate"
+        @remove="removeCapability"
+        @mark="mark"
       />
     </ul>
   </div>

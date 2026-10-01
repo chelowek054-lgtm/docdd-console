@@ -25,36 +25,23 @@
       "type": "object",
       "required": ["id"],
       "additionalProperties": false,
-      "description": "Подсистема над модулями. Без свидетельства: «эти файлы — одна подсистема» — суждение, как layer и summary, и подтверждает его человек (docs/07-maps.md, «Группы: уровень над модулями»).",
+      "description": "Группа модулей — уровень над модулем, на который смотрит обзор. Суждение, как layer и summary: свидетельства нет, подтверждает человек. В removed нужен один id.",
       "properties": {
-        "id": { "type": "string", "minLength": 1, "description": "Уникальный идентификатор группы: короткое латинское имя." },
-        "title": { "type": "string", "description": "Как подсистему называют люди." },
-        "summary": { "type": "string", "description": "Зачем подсистема проекту — два-три предложения." },
-        "parent": { "type": "string", "description": "id группы-родителя. Формат допускает вложенность; на экране пока один уровень." },
+        "id": { "type": "string", "minLength": 1, "description": "Уникальное имя группы." },
+        "title": { "type": "string", "description": "Название на языке предметной области." },
+        "summary": { "type": "string", "description": "Зачем группа в проекте — 2–3 предложения, а не перечень файлов." },
+        "parent": { "type": "string", "description": "id группы-родителя. Формат допускает вложенность; экран пока рисует один уровень." },
         "paths": {
           "type": "array",
           "items": { "type": "string", "minLength": 1 },
-          "description": "Префиксы путей: в группу входят модули, чей путь с одного из них начинается. Новый файл в каталоге попадает в группу сам."
+          "description": "Префиксы путей от корня проекта: в группу входят модули, чей path лежит под ними (по границе сегмента)."
         },
         "modules": {
           "type": "array",
           "items": { "type": "string", "minLength": 1 },
-          "description": "id модулей поимённо — исключения и то, что префиксом не поймать."
+          "description": "id модулей, входящих в группу поимённо. Сильнее paths."
         },
-        "capability": { "type": "string", "description": "id возможности функциональной карты, которую группа реализует." },
-        "links": {
-          "type": "array",
-          "description": "Подписи к связям с другими группами; число импортов приложение считает само.",
-          "items": {
-            "type": "object",
-            "required": ["to"],
-            "additionalProperties": false,
-            "properties": {
-              "to": { "type": "string", "minLength": 1, "description": "id группы, к которой идёт связь." },
-              "summary": { "type": "string", "description": "Понятная подпись: «читает граф знаний»." }
-            }
-          }
-        }
+        "capability": { "type": "string", "description": "id возможности функциональной карты, которую группа реализует." }
       }
     },
     "module": {

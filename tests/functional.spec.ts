@@ -1,312 +1,276 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  applyMarks, cleanRelation, relationHints, relationKey, relationsOf, stateOfTally, summarize, tallyText, visibleUnder,
-  type CapabilityItem
+  capabilityLines,
+  dependsCycle,
+  derivedStatus,
+  drawableRelations,
+  filterByStatus,
+  overallProgress,
+  parseFunctionalCheck,
+  statesOf,
+  statusDeclarations,
+  waitingOn,
+  withMarks,
+  type CapabilityLike
 } from '../server/lib/functional';
 import { foldMaps, parseMapRecord } from '../server/lib/maps';
-import { validateFunctional } from '../server/lib/schema';
 
 /**
- * Состояние реализации возможностей (docs/07-maps.md, «Состояние реализации»).
+ * Состояние реализации и связи функциональной карты (docs/07-maps.md,
+ * «Состояние реализации», «Связи между возможностями»).
  */
 
-function cap(id: string, parent?: string, status?: string): CapabilityItem & { status?: never } & Record<string, unknown> {
-  return { id, parent, status } as never;
-}
-
-const TREE = [
-  cap('orders'),
-  cap('orders.pay', 'orders', 'implemented'),
-  cap('orders.refund', 'orders', 'not_implemented'),
-  cap('orders.cancel', 'orders', 'partial'),
-  cap('orders.export', 'orders'),
-  cap('login', undefined, 'implemented')
+const tree: CapabilityLike[] = [
+  { id: 'orders', title: 'Заказы' },
+  { id: 'orders.pay', title: 'Оплата', parent: 'orders', status: 'implemented' },
+  { id: 'orders.cancel', title: 'Отмена', parent: 'orders', status: 'partial', note: 'нет возвратов' },
+  { id: 'orders.track', title: 'Статус', parent: 'orders' },
+  { id: 'account', title: 'Аккаунт', status: 'not_implemented' }
 ];
 
-describe('summarize', () => {
-  it('нижняя возможность несёт своё состояние, а «не оценено» — отсутствие поля', () => {
-    const { byId } = summarize(TREE);
-    expect(byId.get('orders.pay')).toMatchObject({ leaf: true, state: 'implemented' });
-    expect(byId.get('orders.refund')).toMatchObject({ leaf: true, state: 'not_implemented' });
-    expect(byId.get('orders.export')).toMatchObject({ leaf: true, state: 'unassessed' });
+describe('состояние родителя — производное', () => {
+  it('все реализованы — реализовано, ни одного — не реализовано, смесь — частично', () => {
+    expect(derivedStatus({ implemented: 2, partial: 0, not_implemented: 0, unrated: 0, total: 2 })).toBe('implemented');
+    expect(derivedStatus({ implemented: 0, partial: 0, not_implemented: 3, unrated: 0, total: 3 })).toBe('not_implemented');
+    expect(derivedStatus({ implemented: 1, partial: 0, not_implemented: 1, unrated: 0, total: 2 })).toBe('partial');
+    expect(derivedStatus({ implemented: 0, partial: 1, not_implemented: 0, unrated: 0, total: 1 })).toBe('partial');
   });
 
-  it('родитель считается по нижним, а не по своему полю', () => {
-    const { byId } = summarize([
-      cap('a', undefined, 'implemented'),
-      cap('a.1', 'a', 'not_implemented'),
-      cap('a.2', 'a')
+  it('не оценённые листья в расчёт не идут, но считаются отдельно', () => {
+    const states = statesOf(tree);
+    // implemented + partial, один лист не оценён → частично; счёт называет всех.
+    expect(states.get('orders')).toEqual({
+      status: 'partial',
+      progress: { implemented: 1, partial: 1, not_implemented: 0, unrated: 1, total: 3 }
+    });
+    expect(states.get('orders.pay')).toEqual({ status: 'implemented', progress: null });
+  });
+
+  it('ни одного оценённого листа — не оценено, а не «не реализовано»', () => {
+    const states = statesOf([{ id: 'a' }, { id: 'b', parent: 'a' }]);
+    expect(states.get('a')?.status).toBeNull();
+  });
+
+  it('собственное состояние родителя экран не показывает', () => {
+    const states = statesOf([
+      { id: 'a', status: 'implemented' },
+      { id: 'b', parent: 'a', status: 'not_implemented' }
     ]);
-    const parent = byId.get('a');
-    expect(parent?.leaf).toBe(false);
-    // Собственный `implemented` у родителя не читается: возможность могла быть нижней, когда её отметили.
-    expect(parent?.state).toBe('partial');
-    expect(parent?.tally).toEqual({ implemented: 0, partial: 0, not_implemented: 1, unassessed: 1, total: 2 });
+    expect(states.get('a')?.status).toBe('not_implemented');
   });
 
-  it('вложенность любой глубины считает только нижние', () => {
-    const { byId, overall } = summarize([
-      cap('a'), cap('a.1', 'a'), cap('a.1.x', 'a.1', 'implemented'), cap('a.1.y', 'a.1', 'implemented'), cap('a.2', 'a', 'implemented')
-    ]);
-    expect(byId.get('a')?.tally.total).toBe(3);
-    expect(byId.get('a')?.state).toBe('implemented');
-    expect(overall.total).toBe(3);
+  it('общий счёт — по нижним возможностям', () => {
+    expect(overallProgress(tree)).toEqual({ implemented: 1, partial: 1, not_implemented: 1, unrated: 1, total: 4 });
   });
 
-  it('общий счёт — по всем нижним возможностям карты разом', () => {
-    expect(summarize(TREE).overall).toEqual({ implemented: 2, partial: 1, not_implemented: 1, unassessed: 1, total: 5 });
-  });
-
-  it('родитель, которого в списке нет, и круг из parent читаются как верхний уровень', () => {
-    const orphan = summarize([cap('x', 'нет-такого', 'partial')]);
-    expect(orphan.byId.get('x')).toMatchObject({ leaf: true, state: 'partial' });
-
-    const circle = summarize([cap('a', 'b', 'implemented'), cap('b', 'a', 'implemented')]);
-    // Нижних в круге нет — и считать нечего, но и зависнуть нельзя.
-    expect(circle.overall.total).toBe(0);
-    expect(circle.byId.get('a')?.state).toBe('unassessed');
-  });
-
-  it('несохранённая отметка подменяет состояние без правки данных', () => {
-    const { overall } = summarize(TREE, (item) => (item.id === 'orders.export' ? 'implemented' : item.status));
-    expect(overall.implemented).toBe(3);
-    expect(overall.unassessed).toBe(0);
+  it('цикл в parent не зависает', () => {
+    expect(() => statesOf([{ id: 'a', parent: 'b' }, { id: 'b', parent: 'a' }])).not.toThrow();
   });
 });
 
-describe('stateOfTally', () => {
-  const tally = (implemented: number, partial: number, not_implemented: number, unassessed: number) => ({
-    implemented, partial, not_implemented, unassessed, total: implemented + partial + not_implemented + unassessed
+describe('фильтр по состоянию', () => {
+  it('оставляет подходящие листья и их предков', () => {
+    const ids = filterByStatus(tree, 'partial').map((item) => item.id);
+    expect(ids).toEqual(['orders', 'orders.cancel']);
   });
 
-  it('все реализованы — реализовано, все нереализованы — не реализовано', () => {
-    expect(stateOfTally(tally(3, 0, 0, 0))).toBe('implemented');
-    expect(stateOfTally(tally(0, 0, 2, 0))).toBe('not_implemented');
+  it('«не оценено» — тоже фильтр', () => {
+    const ids = filterByStatus(tree, 'unrated').map((item) => item.id);
+    expect(ids).toEqual(['orders', 'orders.track']);
   });
 
-  it('ни одна не оценена или нижних нет — не оценено', () => {
-    expect(stateOfTally(tally(0, 0, 0, 4))).toBe('unassessed');
-    expect(stateOfTally(tally(0, 0, 0, 0))).toBe('unassessed');
-  });
-
-  it('всё прочее — частично: и реализованное с неоценённым', () => {
-    expect(stateOfTally(tally(2, 0, 0, 1))).toBe('partial');
-    expect(stateOfTally(tally(1, 0, 1, 0))).toBe('partial');
-    expect(stateOfTally(tally(0, 2, 0, 0))).toBe('partial');
+  it('без фильтра — всё', () => {
+    expect(filterByStatus(tree, null)).toHaveLength(tree.length);
   });
 });
 
-describe('tallyText', () => {
-  it('нулевые доли молчат', () => {
-    expect(tallyText({ implemented: 5, partial: 0, not_implemented: 1, unassessed: 2, total: 8 }))
-      .toBe('5 из 8 реализовано, 1 не реализовано, 2 не оценено');
-    expect(tallyText({ implemented: 0, partial: 0, not_implemented: 0, unassessed: 0, total: 0 }))
-      .toBe('нижних возможностей нет');
+describe('несохранённые отметки поверх картины', () => {
+  it('меняют состояние и note, не трогая остальное', () => {
+    const next = withMarks(tree, { 'orders.track': { status: 'implemented', note: 'готово' } });
+    expect(next.find((item) => item.id === 'orders.track')).toMatchObject({
+      status: 'implemented', note: 'готово', title: 'Статус', parent: 'orders'
+    });
+    expect(tree.find((item) => item.id === 'orders.track')?.status).toBeUndefined();
+  });
+
+  it('null снимает отметку вместе с note', () => {
+    const next = withMarks(tree, { 'orders.cancel': { status: null } });
+    const item = next.find((candidate) => candidate.id === 'orders.cancel');
+    expect(item?.status).toBeUndefined();
+    expect(item?.note).toBeUndefined();
+  });
+
+  it('note, которого в отметке нет, остаётся прежним', () => {
+    const next = withMarks(tree, { 'orders.cancel': { status: 'implemented' } });
+    expect(next.find((item) => item.id === 'orders.cancel')?.note).toBe('нет возвратов');
   });
 });
 
-describe('visibleUnder', () => {
-  it('под фильтром видны нижние этого состояния и все их предки', () => {
-    const visible = visibleUnder(TREE, summarize(TREE), 'not_implemented');
-    expect([...(visible ?? [])].sort()).toEqual(['orders', 'orders.refund']);
+describe('связи', () => {
+  it('«ждёт»: не реализована сама, а зависимость тоже', () => {
+    const caps: CapabilityLike[] = [
+      { id: 'a', status: 'partial' }, { id: 'b', status: 'not_implemented' },
+      { id: 'c', status: 'implemented' }, { id: 'd', status: 'not_implemented' }
+    ];
+    const waiting = waitingOn(caps, [
+      { from: 'a', to: 'b', type: 'depends' },
+      // Зависимость реализована — ждать нечего.
+      { from: 'd', to: 'c', type: 'depends' },
+      // `uses` не блокирует.
+      { from: 'a', to: 'd', type: 'uses' }
+    ]);
+    expect([...waiting]).toEqual([['a', ['b']]]);
   });
 
-  it('без фильтра видно всё — null, а не пустое множество', () => {
-    expect(visibleUnder(TREE, summarize(TREE), null)).toBeNull();
+  it('реализованная возможность не ждёт, даже если зависимость отстала', () => {
+    const waiting = waitingOn(
+      [{ id: 'a', status: 'implemented' }, { id: 'b', status: 'not_implemented' }],
+      [{ from: 'a', to: 'b', type: 'depends' }]
+    );
+    expect(waiting.size).toBe(0);
   });
 
-  it('родитель в фильтр не попадает сам по себе, только как предок найденного', () => {
-    const visible = visibleUnder(TREE, summarize(TREE), 'unassessed');
-    expect(visible?.has('login')).toBe(false);
-    expect(visible?.has('orders')).toBe(true);
+  it('цикл по depends находит обе стороны; цепочка — нет', () => {
+    expect([...dependsCycle([
+      { from: 'a', to: 'b', type: 'depends' },
+      { from: 'b', to: 'a', type: 'depends' },
+      { from: 'b', to: 'c', type: 'depends' }
+    ])].sort()).toEqual(['a', 'b']);
+    expect(dependsCycle([{ from: 'a', to: 'b', type: 'depends' }]).size).toBe(0);
+  });
+
+  it('цикл по uses циклом не считается', () => {
+    expect(dependsCycle([{ from: 'a', to: 'b', type: 'uses' }, { from: 'b', to: 'a', type: 'uses' }]).size).toBe(0);
+  });
+
+  it('нерисуемые: нет конца, связь с самой собой, с предком, незнакомый вид', () => {
+    const { drawn, skipped } = drawableRelations([
+      { from: 'orders', to: 'account', type: 'uses' },
+      { from: 'orders', to: 'нет', type: 'uses' },
+      { from: 'orders.pay', to: 'orders', type: 'depends' },
+      { from: 'account', to: 'account', type: 'depends' },
+      { from: 'orders', to: 'account', type: 'replaces' }
+    ], tree);
+    expect(drawn).toHaveLength(1);
+    expect(skipped).toBe(4);
   });
 });
 
-describe('applyMarks', () => {
-  const current = [
-    { id: 'orders.pay', title: 'Оплата', parent: 'orders', summary: 'Платёж картой', note: 'старое', declaredBy: 'M-0001', pending: false },
-    { id: 'orders.refund', title: 'Возврат', parent: 'orders', declaredBy: 'M-0001' }
-  ];
+describe('карта: состояние и связи проходят схему и складываются', () => {
+  const body = (change: unknown) => ['```docdd-functional', JSON.stringify(change), '```'].join('\n');
 
-  it('отметка несёт все поля возможности: повторное объявление заменяет элемент целиком', () => {
-    const { items } = applyMarks(current, [{ id: 'orders.pay', status: 'partial' }]);
-    expect(items).toEqual([
-      { id: 'orders.pay', title: 'Оплата', parent: 'orders', summary: 'Платёж картой', status: 'partial', note: 'старое' }
-    ]);
+  it('status, note и relations читаются', () => {
+    const parsed = parseMapRecord(body({
+      added: {
+        capabilities: [{ id: 'a', status: 'partial', note: 'нет возвратов' }],
+        relations: [{ from: 'a', to: 'b', type: 'depends', summary: 'нужен вход' }]
+      }
+    }));
+    expect(parsed.problems).toEqual([]);
+    expect(parsed.change.functional?.added?.relations).toHaveLength(1);
   });
 
-  it('declaredBy и pending в черновик не попадают: схема их не знает', () => {
-    const { items } = applyMarks(current, [{ id: 'orders.refund', status: 'implemented' }]);
-    expect(items[0]).not.toHaveProperty('declaredBy');
-    expect(items[0]).not.toHaveProperty('pending');
-    expect(validateFunctional({ added: { capabilities: items } })).toEqual([]);
+  it('незнакомое состояние и вид связи схема отвергает', () => {
+    expect(parseMapRecord(body({ added: { capabilities: [{ id: 'a', status: 'almost' }] } })).problems).toHaveLength(1);
+    expect(parseMapRecord(body({ added: { relations: [{ from: 'a', to: 'b', type: 'replaces' }] } })).problems).toHaveLength(1);
   });
 
-  it('note: нет в отметке — прежняя; текст — заменяет; пустая строка — снимает', () => {
-    expect(applyMarks(current, [{ id: 'orders.pay', status: 'implemented' }]).items[0]?.note).toBe('старое');
-    expect(applyMarks(current, [{ id: 'orders.pay', status: 'implemented', note: ' готово ' }]).items[0]?.note).toBe('готово');
-    expect(applyMarks(current, [{ id: 'orders.pay', status: 'implemented', note: '  ' }]).items[0]).not.toHaveProperty('note');
-  });
-
-  it('status: null снимает отметку', () => {
-    const marked = [{ id: 'a', status: 'partial' }];
-    const { items } = applyMarks(marked as never, [{ id: 'a', status: null }]);
-    expect(items[0]).not.toHaveProperty('status');
-  });
-
-  it('неизвестный id возвращается отдельно, пачка не принимается наполовину', () => {
-    const { items, unknown } = applyMarks(current, [
-      { id: 'orders.pay', status: 'implemented' },
-      { id: 'нет-такой', status: 'partial' }
-    ]);
-    expect(unknown).toEqual(['нет-такой']);
-    expect(items.map((item) => item.id)).toEqual(['orders.pay']);
-  });
-
-  it('дубль в пачке — уточнение: побеждает последняя отметка', () => {
-    const { items } = applyMarks(current, [
-      { id: 'orders.pay', status: 'partial' },
-      { id: 'orders.pay', status: 'implemented' }
-    ]);
-    expect(items).toHaveLength(1);
-    expect(items[0]?.status).toBe('implemented');
-  });
-});
-
-describe('схема и свёртка', () => {
-  it('status и note проходят схему, чужое значение — нет', () => {
-    expect(validateFunctional({ added: { capabilities: [{ id: 'a', status: 'partial', note: 'есть половина' }] } })).toEqual([]);
-    const issues = validateFunctional({ added: { capabilities: [{ id: 'a', status: 'done' }] } });
-    expect(issues.map((issue) => issue.message).join(' ')).toContain('implemented');
-  });
-
-  it('отметка в блоке карты разбирается, а новая карта с тем же id уточняет прежнюю', () => {
-    const block = (payload: unknown) => ['```docdd-functional', JSON.stringify(payload), '```'].join('\n');
-    const first = parseMapRecord(block({ added: { capabilities: [{ id: 'a', title: 'Оплата', summary: 'описание' }] } }));
-    const second = parseMapRecord(block({ added: { capabilities: [{ id: 'a', title: 'Оплата', summary: 'описание', status: 'partial', note: 'половина' }] } }));
-    expect(first.problems).toEqual([]);
-    expect(second.problems).toEqual([]);
-
-    const folded = foldMaps([{ id: 'M-0001', change: first.change }, { id: 'M-0002', change: second.change }]);
-    expect(folded.functional.capabilities).toEqual([
-      { id: 'a', title: 'Оплата', summary: 'описание', status: 'partial', note: 'половина', declaredBy: 'M-0002' }
-    ]);
-  });
-
-  it('отметка без остальных полей стирает описание — поэтому они едут вместе', () => {
-    const block = (payload: unknown) => ['```docdd-functional', JSON.stringify(payload), '```'].join('\n');
-    const first = parseMapRecord(block({ added: { capabilities: [{ id: 'a', title: 'Оплата', summary: 'описание' }] } }));
-    const bare = parseMapRecord(block({ added: { capabilities: [{ id: 'a', status: 'partial' }] } }));
-    const folded = foldMaps([{ id: 'M-0001', change: first.change }, { id: 'M-0002', change: bare.change }]);
-    expect(folded.functional.capabilities[0]?.summary).toBeUndefined();
-  });
-});
-
-describe('relationHints', () => {
-  const caps = [
-    cap('pay', undefined, 'partial'),
-    cap('catalog', undefined, 'not_implemented'),
-    cap('ship', undefined, 'implemented'),
-    cap('unknown'),
-    cap('done', undefined, 'implemented')
-  ];
-
-  it('«ждёт»: зависимость реализована не целиком; реализованная и неоценённая подсказки не дают', () => {
-    const hints = relationHints(caps, [
-      { from: 'pay', to: 'catalog', kind: 'depends' },
-      { from: 'ship', to: 'done', kind: 'depends' },
-      { from: 'ship', to: 'unknown', kind: 'depends' }
-    ]);
-    expect(hints.byId.get('pay')?.waitsFor).toEqual(['catalog']);
-    expect(hints.byId.get('ship')).toBeUndefined();
-  });
-
-  it('«ждёт» только у depends: «пользуется» и «передаёт данные» не блокируют', () => {
-    const hints = relationHints(caps, [
-      { from: 'pay', to: 'catalog', kind: 'uses' },
-      { from: 'ship', to: 'catalog', kind: 'feeds' }
-    ]);
-    expect(hints.byId.size).toBe(0);
-  });
-
-  it('«круг»: пара и цепочка длиннее, ребро вне круга не красится', () => {
-    const hints = relationHints(caps, [
-      { from: 'pay', to: 'catalog', kind: 'depends' },
-      { from: 'catalog', to: 'ship', kind: 'depends' },
-      { from: 'ship', to: 'pay', kind: 'depends' },
-      { from: 'unknown', to: 'pay', kind: 'depends' }
-    ]);
-    expect([...hints.cycleEdges].sort()).toEqual(['catalog>ship', 'pay>catalog', 'ship>pay']);
-    expect(hints.byId.get('pay')?.inCycle).toBe(true);
-    expect(hints.byId.get('unknown')?.inCycle).toBe(false);
-  });
-
-  it('связь с неизвестной возможностью и связь с собой подсказок не дают', () => {
-    const hints = relationHints(caps, [
-      { from: 'pay', to: 'нет-такой', kind: 'depends' },
-      { from: 'pay', to: 'pay', kind: 'depends' }
-    ]);
-    expect(hints.byId.size).toBe(0);
-    expect(hints.cycleEdges.size).toBe(0);
-  });
-
-  it('родитель с нереализованными подпунктами тоже заставляет ждать', () => {
-    const tree = [cap('a', undefined, 'implemented'), cap('b'), cap('b.1', 'b', 'not_implemented'), cap('b.2', 'b', 'implemented')];
-    expect(relationHints(tree, [{ from: 'a', to: 'b', kind: 'depends' }]).byId.get('a')?.waitsFor).toEqual(['b']);
-  });
-});
-
-describe('relationsOf и ключ связи', () => {
-  const relations = [
-    { from: 'a', to: 'b', kind: 'depends' as const, summary: 'берёт цену' },
-    { from: 'c', to: 'a', kind: 'feeds' as const }
-  ];
-
-  it('входящие и исходящие связи возможности', () => {
-    expect(relationsOf('a', relations)).toEqual([
-      { direction: 'out', kind: 'depends', other: 'b', summary: 'берёт цену' },
-      { direction: 'in', kind: 'feeds', other: 'c', summary: undefined }
-    ]);
-  });
-
-  it('ключ — тройка: между двумя возможностями бывает и «пользуется», и «передаёт данные»', () => {
-    expect(relationKey({ from: 'a', kind: 'uses', to: 'b' })).not.toBe(relationKey({ from: 'a', kind: 'feeds', to: 'b' }));
-  });
-
-  it('cleanRelation оставляет только поля карты', () => {
-    expect(cleanRelation({ from: 'a', to: 'b', kind: 'uses', summary: '', declaredBy: 'M-0001', pending: true } as never))
-      .toEqual({ from: 'a', to: 'b', kind: 'uses' });
-  });
-});
-
-describe('связи: схема и свёртка', () => {
-  const block = (payload: unknown) => ['```docdd-functional', JSON.stringify(payload), '```'].join('\n');
-
-  it('три вида проходят схему, четвёртого нет, из и в обязательны', () => {
-    const ok = (kind: string) => validateFunctional({ added: { relations: [{ from: 'a', to: 'b', kind }] } });
-    expect(ok('depends')).toEqual([]);
-    expect(ok('uses')).toEqual([]);
-    expect(ok('feeds')).toEqual([]);
-    expect(ok('replaces').map((issue) => issue.message).join(' ')).toContain('depends');
-    expect(validateFunctional({ added: { relations: [{ from: 'a', kind: 'uses' }] } })).not.toEqual([]);
-  });
-
-  it('связь складывается по тройке; повторное объявление уточняет подпись, removed убирает', () => {
-    const first = parseMapRecord(block({ added: { relations: [
-      { from: 'a', to: 'b', kind: 'depends' }, { from: 'a', to: 'b', kind: 'uses' }
-    ] } }));
-    const second = parseMapRecord(block({ added: { relations: [{ from: 'a', to: 'b', kind: 'depends', summary: 'берёт цену' }] } }));
-    const third = parseMapRecord(block({ removed: { relations: [{ from: 'a', to: 'b', kind: 'uses' }] } }));
-    expect([first, second, third].flatMap((item) => item.problems)).toEqual([]);
-
+  it('повторное объявление — уточнение: состояние побеждает последнее, связь с другим типом — другая связь', () => {
     const folded = foldMaps([
-      { id: 'M-0001', change: first.change },
-      { id: 'M-0002', change: second.change },
-      { id: 'M-0003', change: third.change }
+      { id: 'M-0001', change: { functional: { added: {
+        capabilities: [{ id: 'a', title: 'А' }],
+        relations: [{ from: 'a', to: 'b', type: 'depends' }]
+      } } } },
+      { id: 'M-0002', change: { functional: { added: {
+        capabilities: [{ id: 'a', title: 'А', status: 'implemented' }],
+        relations: [{ from: 'a', to: 'b', type: 'feeds' }]
+      } } } }
     ]);
-    expect(folded.functional.relations).toEqual([
-      { from: 'a', to: 'b', kind: 'depends', summary: 'берёт цену', declaredBy: 'M-0002' }
+    expect(folded.functional.capabilities).toHaveLength(1);
+    expect(folded.functional.capabilities[0]).toMatchObject({ status: 'implemented', declaredBy: 'M-0002' });
+    expect(folded.functional.relations.map((relation) => relation.type)).toEqual(['depends', 'feeds']);
+  });
+
+  it('removed убирает связь по тройке', () => {
+    const folded = foldMaps([
+      { id: 'M-0001', change: { functional: { added: { relations: [{ from: 'a', to: 'b', type: 'depends' }] } } } },
+      { id: 'M-0002', change: { functional: { removed: { relations: [{ from: 'a', to: 'b', type: 'depends' }] } } } }
     ]);
+    expect(folded.functional.relations).toEqual([]);
+  });
+});
+
+describe('statusDeclarations — пачка отметок', () => {
+  it('объявляет возможность целиком, меняя только состояние и note', () => {
+    const { declarations, unknown } = statusDeclarations(tree, [
+      { id: 'orders.cancel', status: 'implemented' },
+      { id: 'orders.track', status: 'partial', note: ' ждёт сроков ' }
+    ]);
+    expect(unknown).toEqual([]);
+    expect(declarations).toEqual([
+      { id: 'orders.cancel', title: 'Отмена', parent: 'orders', status: 'implemented', note: 'нет возвратов' },
+      { id: 'orders.track', title: 'Статус', parent: 'orders', status: 'partial', note: 'ждёт сроков' }
+    ]);
+  });
+
+  it('null снимает состояние и note, остальные поля остаются', () => {
+    const { declarations } = statusDeclarations(tree, [{ id: 'orders.cancel', status: null }]);
+    expect(declarations).toEqual([{ id: 'orders.cancel', title: 'Отмена', parent: 'orders' }]);
+  });
+
+  it('возможности нет в картине — в unknown, а не молча', () => {
+    expect(statusDeclarations(tree, [{ id: 'нет', status: 'partial' }]).unknown).toEqual(['нет']);
+  });
+
+  it('повтор id — первое слово, один раз', () => {
+    const { declarations } = statusDeclarations(tree, [
+      { id: 'account', status: 'partial' },
+      { id: 'account', status: 'implemented' }
+    ]);
+    expect(declarations).toHaveLength(1);
+    expect(declarations[0]?.status).toBe('partial');
+  });
+});
+
+describe('parseFunctionalCheck — ответ «Проверить по коду»', () => {
+  const answer = (checks: unknown) => ['Вот.', '```docdd-functional-check', JSON.stringify({ checks }), '```'].join('\n');
+
+  it('сопоставляет предложение с тем, что в картине сейчас', () => {
+    const result = parseFunctionalCheck(answer([
+      { id: 'orders.cancel', status: 'implemented', note: ' возвраты есть ' },
+      { id: 'orders.track', status: 'not_implemented', note: '' }
+    ]), tree);
+    expect(result?.checks).toEqual([
+      { id: 'orders.cancel', title: 'Отмена', current: 'partial', proposed: 'implemented', note: 'возвраты есть' },
+      { id: 'orders.track', title: 'Статус', current: null, proposed: 'not_implemented', note: '' }
+    ]);
+    expect(result?.skipped).toEqual([]);
+  });
+
+  it('родитель, чужой id и незнакомое состояние — в skipped с причиной', () => {
+    const result = parseFunctionalCheck(answer([
+      { id: 'orders', status: 'implemented' },
+      { id: 'нет', status: 'implemented' },
+      { id: 'account', status: 'maybe' }
+    ]), tree);
+    expect(result?.checks).toEqual([]);
+    expect(result?.skipped.map((row) => row.id)).toEqual(['orders', 'нет', 'account']);
+    expect(result?.skipped[0]?.reason).toContain('производное');
+  });
+
+  it('блока нет или он не JSON — null: экран покажет текст', () => {
+    expect(parseFunctionalCheck('просто текст', tree)).toBeNull();
+    expect(parseFunctionalCheck('```docdd-functional-check\n{не json\n```', tree)).toBeNull();
+    expect(parseFunctionalCheck('```docdd-functional-check\n{"x":1}\n```', tree)).toBeNull();
+  });
+});
+
+describe('capabilityLines — дерево для запроса', () => {
+  it('рядом с каждой возможностью её отметка, глубина — отступом', () => {
+    const text = capabilityLines(tree);
+    expect(text).toContain('- `orders` — Заказы (не оценено)');
+    expect(text).toContain('  - `orders.cancel` — Отмена (partial; нет возвратов)');
+    expect(text).toContain('- `account` — Аккаунт (not_implemented)');
   });
 });

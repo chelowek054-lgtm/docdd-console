@@ -1,8 +1,28 @@
 <script setup lang="ts">
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import type { MapSelection, MermaidEdge } from '~/utils/map-mermaid';
-import { summarize, visibleUnder, type CapabilityState, type CapabilityStatus, type RelationKind } from '~~/server/lib/functional';
+import {
+  IMPL_LABEL,
+  RELATION_LABEL,
+  overallProgress,
+  withMarks,
+  type ImplStatus,
+  type Mark,
+  type StatusFilter
+} from '~~/server/lib/functional';
+import {
+  codeGroupScope,
+  flowContext,
+  flowGhosts,
+  groupFlows,
+  codeGroupOf,
+  kindScope,
+  type FlowItem
+} from '~~/server/lib/flow-groups';
+import { ghostNeighbors, groupCard, groupModules, groupScope, portsOf } from '~~/server/lib/groups';
+import { layerOf } from '~~/server/lib/layers';
 import type { ProjectMap } from '~~/server/lib/maps';
+import { STATUS_STYLE } from '~/utils/functional-view';
 
 const route = useRoute();
 const projectId = computed(() => String(route.params['id'] ?? ''));
@@ -53,14 +73,14 @@ async function askToFix(answer: string) {
 }
 
 /** Ответ модели сохраняется черновиком: подтверждает человек, а не приложение. */
-async function saveDraft(answer: string) {
+async function saveDraft(answer: string, title?: string) {
   saving.value = true;
   draftFailure.value = null;
   draftId.value = '';
   try {
     const response = await $fetch(`/api/projects/${projectId.value}/map/draft`, {
       method: 'POST',
-      body: { answer },
+      body: { answer, ...(title ? { title } : {}) },
       ignoreResponseError: true
     });
     const problem = failureOf(response);
@@ -148,69 +168,308 @@ const mapRecords = computed(() => {
 });
 
 /**
- * Кодовая база показывается тремя уровнями: обзор групп, группа, выбранный
- * модуль (docs/04-ui.md, «Группы кодовой карты»). Состояние — в композабле:
- * режим, открытая группа (она же в адресе), выбранный модуль и слои. Слои и
- * порог крупной базы работают как прежде, но на том, что сейчас в области
- * просмотра: на группе, а не на всём проекте.
+ * Группы кодовой карты — уровень над модулями (docs/07-maps.md, «Группы:
+ * уровень над модулями»; docs/04-ui.md, «Группы кодовой карты»). Три уровня
+ * экрана: обзор групп, одна группа целиком, выбранный модуль с соседями из
+ * других групп. Режим и открытая группа живут в адресе — ссылкой можно
+ * поделиться.
  */
-const codeGroups = useCodeGroups(map);
-const {
-  model: groupModel, modulesById, capabilities, ungrouped, mode: codeMode, groupsAvailable, openGroup, focus,
-  chooseMode, setOpenGroup, allLayers, isLarge: isLargeCodemap, hiddenLayers, toggleLayer,
-  filteredCodemap, scopeCount
-} = codeGroups;
+const router = useRouter();
+
+/** Больше стольких модулей (и хотя бы две группы) — экран открывается обзором групп, а не всеми модулями разом. */
+const GROUPED_CODEMAP = 40;
+
+const grouping = computed(() => {
+  const value = map.value;
+  // Объявленные картой группы сильнее автоматических (docs/07-maps.md).
+  return value ? groupModules(value.codemap.modules, value.codemap.imports, value.codemap.groups) : null;
+});
+
+const codemapMode = computed<'groups' | 'group' | 'all'>(() => {
+  const found = grouping.value;
+  if (!found) return 'all';
+  if (found.byId.has(String(route.query['group'] ?? ''))) return 'group';
+  const wanted = String(route.query['view'] ?? '');
+  if (wanted === 'all' || found.groups.length < 2) return 'all';
+  if (wanted === 'groups') return 'groups';
+  return (map.value?.codemap.modules.length ?? 0) > GROUPED_CODEMAP ? 'groups' : 'all';
+});
+const openGroupId = computed(() => (codemapMode.value === 'group' ? String(route.query['group']) : ''));
+const openGroupInfo = computed(() => (openGroupId.value && grouping.value ? groupCard(grouping.value, openGroupId.value) : null));
+
+/** id → название возможности функциональной карты: карточка группы называет, какую возможность она реализует. */
+const capabilityTitles = computed(() => Object.fromEntries(
+  (map.value?.functional.capabilities ?? []).map((item) => [item.id, item.title ?? item.id])
+));
+
+/** Выбранный модуль открытой группы — его соседи из других групп показываются «призраками». */
+const ghostFor = ref<string | null>(null);
+
+function goTo(query: { view?: string; group?: string }) {
+  selection.value = null;
+  ghostFor.value = null;
+  void router.push({ query: { ...route.query, view: undefined, group: undefined, ...query } });
+}
+const showGroups = () => goTo({ view: 'groups' });
+const showAllModules = () => goTo({ view: 'all' });
+const enterGroup = (groupId: string) => goTo({ group: groupId });
 
 /**
- * Потоки данных строятся по тем же группам: обзор «группы ↔ хранилища и внешние
- * системы», а внутри группы или свёртки источников — нынешняя детализация.
+ * Группы на потоках данных (docs/07-maps.md, «Потоки данных», «Группы и
+ * здесь»): группы кода те же, что у кодовой карты, источники — по `kind`.
+ * Те же три уровня экрана: обзор «группы кода ↔ виды источников», группа кода
+ * или вид источников целиком, выбранный узел с соседями из других групп.
+ * В адресе — `fview`, `fgroup` (группа кода), `fkind` (вид источников).
  */
-const {
-  mode: flowMode, openBucket, open: openFlow, chooseMode: chooseFlowMode, view: flowView
-} = useFlowGroups(map, codeGroups);
+const flowCtx = computed(() => {
+  const value = map.value;
+  return value && grouping.value ? flowContext(grouping.value, value.userflow.screens, value.dataflow.sources) : null;
+});
+const flowGrouping = computed(() => (flowCtx.value && map.value ? groupFlows(map.value.dataflow.flows, flowCtx.value) : null));
 
-function onFlowMode(value: unknown) {
-  void chooseFlowMode(value === 'flows' ? 'flows' : 'groups');
+/** Больше стольких узлов (модули «откуда» и источники) — обзор, а не всё разом; хватает двух групп кода. */
+const flowMode = computed<'groups' | 'code' | 'kind' | 'all'>(() => {
+  const found = flowGrouping.value;
+  if (!found || found.links.length === 0) return 'all';
+  if (found.codeGroups.some((group) => group.id === String(route.query['fgroup'] ?? ''))) return 'code';
+  if (found.kinds.some((item) => item.kind === String(route.query['fkind'] ?? ''))) return 'kind';
+  const wanted = String(route.query['fview'] ?? '');
+  if (wanted === 'all' || found.codeGroups.length < 2) return 'all';
+  if (wanted === 'groups') return 'groups';
+  const value = map.value;
+  const nodes = new Set([...(value?.dataflow.flows ?? []).map((flow) => flow.from), ...(value?.dataflow.sources ?? []).map((source) => source.id)]);
+  return nodes.size > GROUPED_CODEMAP ? 'groups' : 'all';
+});
+const flowGroupId = computed(() => (flowMode.value === 'code' ? String(route.query['fgroup']) : ''));
+const flowKindId = computed(() => (flowMode.value === 'kind' ? String(route.query['fkind']) : ''));
+const flowScopeKey = computed(() => `${flowMode.value}:${flowGroupId.value}:${flowKindId.value}`);
+const flowCanSwitch = computed(() => (flowGrouping.value?.codeGroups.length ?? 0) >= 2);
+const flowGroupTitle = computed(() => flowGrouping.value?.codeGroups.find((group) => group.id === flowGroupId.value)?.title ?? flowGroupId.value);
+
+function goFlow(query: { fview?: string; fgroup?: string; fkind?: string }) {
+  selection.value = null;
+  ghostFor.value = null;
+  void router.push({ query: { ...route.query, fview: undefined, fgroup: undefined, fkind: undefined, ...query } });
+}
+const showFlowGroups = () => goFlow({ fview: 'groups' });
+const showAllFlows = () => goFlow({ fview: 'all' });
+function enterFlow(target: { type: 'code' | 'kind'; id: string }) {
+  goFlow(target.type === 'code' ? { fgroup: target.id } : { fkind: target.id });
 }
 
-function onMode(value: unknown) {
-  void chooseMode(value === 'modules' ? 'modules' : 'groups');
-}
-
-function codemapView(value: MapResponse) {
-  if (codeMode.value === 'modules') {
-    return codemapMermaid({ ...value, codemap: filteredCodemap.value ?? value.codemap });
-  }
-  if (!openGroup.value) return groupsOverviewMermaid(groupModel.value, modulesById.value, capabilities.value);
-  return groupMermaid(value.codemap, groupModel.value, openGroup.value, {
-    hiddenLayers: hiddenLayers.value,
-    focus: focus.value,
-    capabilities: capabilities.value
-  });
-}
-
-const openGroupInfo = computed(() => groupModel.value.groups.find((group) => group.id === openGroup.value));
-
-/** Обзор потоков (а не детализация внутри группы или свёртки и не «все потоки разом»). */
-const flowOverview = computed(() => flowMode.value === 'groups' && !openGroup.value && !openBucket.value);
-
-/** Узлы обзора потоков списком: рядом с диаграммой, чтобы открыть группу или посмотреть её карточку без клика по узлу. */
-const flowOverviewItems = computed(() => (shown.value === 'dataflow' && flowOverview.value
-  ? Object.values(current.value?.nodes ?? {}).filter((node) => node.group || node.bucket)
-  : []));
-
-/** Название того, что открыто на экране потоков: группа кода или свёртка источников. */
-const flowScopeTitle = computed(() => openBucket.value ?? openGroupInfo.value?.title ?? null);
-
-/** Карточка группы: «О группе» на экране группы и список групп под обзором. */
-function showGroupCard(id: string) {
-  const group = groupModel.value.groups.find((item) => item.id === id);
-  if (!group) return;
-  selection.value = {
-    kind: 'node', id: group.id, title: group.title, summary: group.summary,
-    group: groupCardOf(groupModel.value, group, modulesById.value, capabilities.value)
+/** Что рисует кодовая карта сейчас: все модули или модули одной группы с импортами между ними. */
+const scopeCodemap = computed(() => {
+  const value = map.value;
+  if (!value) return null;
+  if (codemapMode.value !== 'group' || !grouping.value) return value.codemap;
+  // Модуль, названный только в импорте, — тоже участник группы: со слоем по папке он входит в чипы слоёв наравне с описанными.
+  const declared = new Map(value.codemap.modules.map((item) => [item.id, item]));
+  const members = grouping.value.byId.get(openGroupId.value)?.members ?? [];
+  return {
+    modules: members.map((member) => declared.get(member.id) ?? { id: member.id }),
+    imports: groupScope(grouping.value, openGroupId.value, value.codemap.imports).imports as typeof value.codemap.imports
   };
+});
+
+/** Смена области — повод забыть выбор слоёв: у другой группы свои слои. */
+const scopeKey = computed(() => `${codemapMode.value}:${openGroupId.value}`);
+watch([scopeKey, flowScopeKey], () => {
+  chosenHiddenLayers.value = null;
+  selection.value = null;
+  ghostFor.value = null;
+});
+
+/**
+ * Слои кодовой базы — чипы над диаграммой. Клик изолирует: остаётся виден
+ * только этот слой, повторный клик по нему же возвращает все. Скрытые
+ * запоминаются по имени слоя, а не по индексу — переживают «Обновить карты»
+ * и новые слои сами не пропадают из списка.
+ */
+const allLayers = computed(() => {
+  const set = new Set<string>();
+  for (const item of scopeCodemap.value?.modules ?? []) set.add(layerOf(item));
+  return [...set].sort();
+});
+
+/**
+ * Крупная кодовая база — та, что при полной раскладке mermaid ощутимо
+ * подвешивает вкладку (сотни модулей, тысячи пересечений линий). Порог
+ * приблизительный: важно не точное число, а сам факт, что рисовать всё
+ * разом больше не бесплатно (docs/07-maps.md, «Крупная кодовая база»).
+ */
+const LARGE_CODEMAP = 150;
+const isLargeCodemap = computed(() => (scopeCodemap.value?.modules.length ?? 0) > LARGE_CODEMAP);
+
+/** Самый маленький по числу модулей слой — с него начинают знакомство с крупной базой. */
+const smallestLayer = computed(() => {
+  const sizes = new Map<string, number>();
+  for (const item of scopeCodemap.value?.modules ?? []) {
+    const layer = layerOf(item);
+    sizes.set(layer, (sizes.get(layer) ?? 0) + 1);
+  }
+  return [...allLayers.value].sort((a, b) => (sizes.get(a) ?? 0) - (sizes.get(b) ?? 0))[0] ?? null;
+});
+
+/**
+ * Чипы, скрытые явным кликом человека. Пусто — значит человек ещё не решал
+ * сам: тогда решает `hiddenLayers` (ниже) — производное, не хранимое
+ * состояние, чтобы отрисовка на сервере и на клиенте при гидратации совпала
+ * до последнего байта (ref, наполненный сайд-эффектом в watch, до первой
+ * отрисовки на клиенте успевал разойтись с тем, что уже отдал сервер).
+ */
+const chosenHiddenLayers = ref<Set<string> | null>(null);
+
+/**
+ * Слои кодовой базы — чипы над диаграммой. Клик изолирует: остаётся виден
+ * только этот слой, повторный клик по нему же возвращает все. На крупной
+ * базе, пока человек ни разу не тронул чипы, изолирован сам маленький слой
+ * — не все сотни модулей разом (docs/07-maps.md, «Крупная кодовая база»).
+ */
+const hiddenLayers = computed(() => {
+  if (chosenHiddenLayers.value) return chosenHiddenLayers.value;
+  if (!isLargeCodemap.value || !smallestLayer.value) return new Set<string>();
+  return new Set(allLayers.value.filter((layer) => layer !== smallestLayer.value));
+});
+function toggleLayer(layer: string) {
+  const isolated = hiddenLayers.value.size === allLayers.value.length - 1 && !hiddenLayers.value.has(layer);
+  chosenHiddenLayers.value = isolated ? new Set() : new Set(allLayers.value.filter((item) => item !== layer));
 }
+
+/**
+ * Кодовая база с вычетом скрытых слоёв — рёбра к спрятанному модулю тоже
+ * прячутся. Диаграмма строится заново на каждый клик по чипу (mermaid не
+ * умеет иначе), но раз слоёв на экране всегда один-два, а не все разом,
+ * пересборка остаётся дешёвой даже на крупной базе (docs/04-ui.md, «Карты»).
+ */
+const filteredCodemap = computed(() => {
+  const value = scopeCodemap.value;
+  if (!value || hiddenLayers.value.size === 0) return value;
+  const visible = new Set(
+    value.modules.filter((item) => !hiddenLayers.value.has(layerOf(item))).map((item) => item.id)
+  );
+  return {
+    modules: value.modules.filter((item) => visible.has(item.id)),
+    imports: value.imports.filter((edge) => visible.has(edge.from) && visible.has(edge.to))
+  };
+});
+
+/**
+ * Кодовая карта в открытой группе: порты обведены, а у выбранного модуля
+ * появляются соседи из других групп. Обзор групп — отдельная диаграмма.
+ */
+const codemapView = computed(() => {
+  const value = map.value;
+  const found = grouping.value;
+  if (!value || !found) return null;
+  if (codemapMode.value === 'groups') return groupOverviewMermaid(found);
+
+  const base = filteredCodemap.value ?? value.codemap;
+  if (codemapMode.value === 'all') return codemapMermaid({ ...value, codemap: base });
+
+  const selected = ghostFor.value && base.modules.some((item) => item.id === ghostFor.value) ? ghostFor.value : null;
+  const near = selected
+    ? ghostNeighbors(found, openGroupId.value, selected, value.codemap.modules, value.codemap.imports)
+    : { ghosts: [], imports: [] };
+  return codemapMermaid({ ...value, codemap: base }, {
+    ports: portsOf(found, openGroupId.value, value.codemap.imports),
+    ghosts: near.ghosts,
+    ghostImports: near.imports,
+    ghostCards: new Map(near.ghosts.flatMap((ghost) => {
+      const card = ghost.collapsed ? groupCard(found, ghost.groupId) : null;
+      return card ? [[ghost.groupId, card] as const] : [];
+    }))
+  });
+});
+
+/** Источники и потоки открытой группы кода или вида источников. */
+const flowScopeValue = computed(() => {
+  const value = map.value;
+  const ctx = flowCtx.value;
+  if (!value || !ctx) return null;
+  if (flowMode.value === 'code') return codeGroupScope(ctx, flowGroupId.value, value.dataflow.flows);
+  if (flowMode.value === 'kind') return kindScope(ctx, flowKindId.value, value.dataflow.flows);
+  return null;
+});
+
+const dataflowView = computed(() => {
+  const value = map.value;
+  const ctx = flowCtx.value;
+  const found = flowGrouping.value;
+  if (!value || !ctx || !found || flowMode.value === 'all') return null;
+
+  if (flowMode.value === 'groups') {
+    const cards = new Map(found.codeGroups.flatMap((group) => {
+      const card = grouping.value ? groupCard(grouping.value, group.id) : null;
+      return card ? [[group.id, card] as const] : [];
+    }));
+    return flowOverviewMermaid(found, cards);
+  }
+
+  const scope = flowScopeValue.value;
+  if (!scope) return null;
+  const restricted = (flows: FlowItem[]) => ({ ...value, dataflow: { sources: scope.sources as typeof value.dataflow.sources, flows: flows as typeof value.dataflow.flows } });
+
+  if (flowMode.value === 'kind') {
+    // Группы кода, что трогают источники этого вида: по одному узлу и одному потоку на источник, а не каждый модуль.
+    const seen = new Set<string>();
+    const rewritten = scope.flows.flatMap((flow) => {
+      const groupId = codeGroupOf(flow.from, ctx);
+      const title = found.codeGroups.find((group) => group.id === groupId)?.title ?? groupId;
+      const key = `${title}>${flow.to}>${flow.direction}`;
+      if (seen.has(key)) return [];
+      seen.add(key);
+      return [{ ...flow, from: title }];
+    });
+    return dataflowMermaid(restricted(rewritten));
+  }
+
+  const selected = ghostFor.value
+    && (scope.flows.some((flow) => flow.from === ghostFor.value) || scope.sources.some((source) => source.id === ghostFor.value))
+    ? ghostFor.value
+    : null;
+  const near = selected
+    ? flowGhosts(ctx, flowGroupId.value, selected, value.dataflow.flows)
+    : { ghosts: [], flows: [] };
+  return dataflowMermaid(restricted(scope.flows), {
+    selectableFrom: true,
+    ghosts: near.ghosts,
+    ghostFlows: near.flows,
+    ghostCards: new Map(near.ghosts.flatMap((ghost) => {
+      const card = ghost.collapsed && grouping.value ? groupCard(grouping.value, ghost.groupId) : null;
+      return card ? [[ghost.groupId, card] as const] : [];
+    }))
+  });
+});
+
+/** Выбранный узел группы кода — по нему диаграмма держит фокус. */
+const flowFocusKey = computed(() => {
+  const id = ghostFor.value;
+  if (!id || flowMode.value !== 'code' || !map.value) return null;
+  return map.value.dataflow.sources.some((source) => source.id === id) ? sourceNodeId(id) : fromNodeId(id);
+});
+
+/** Переключатель «Группы» / «Все …» — у кодовой карты и у потоков данных, когда есть из чего выбирать. */
+const hasGroupSwitch = computed(() => {
+  if (shown.value === 'codemap') return !!grouping.value && grouping.value.groups.length >= 2;
+  if (shown.value === 'dataflow') return flowCanSwitch.value;
+  return false;
+});
+const allShown = computed(() => (shown.value === 'dataflow' ? flowMode.value === 'all' : codemapMode.value === 'all'));
+const flowKindLabel = computed(() => {
+  const labels: Record<string, string> = {
+    file: 'файлы', http: 'http', db: 'базы данных', queue: 'очереди', env: 'переменные окружения', memory: 'память процесса'
+  };
+  return labels[flowKindId.value] ?? (flowKindId.value === 'unknown' ? 'не опознаны' : flowKindId.value);
+});
+
+/** Узлы-призраки: полупрозрачные (0.65), а не 0.5 — это другое, чем «карта не устоялась». */
+const ghostNodeIds = computed(() => {
+  const set = new Set<string>();
+  for (const [key, node] of Object.entries(current.value?.nodes ?? {})) {
+    if (node.ghost) set.add(key);
+  }
+  return set;
+});
 
 /**
  * Узлы, объявленные картой, которая ещё не устоялась (`server/lib/maps.ts`,
@@ -227,15 +486,38 @@ const pendingNodeIds = computed(() => {
 });
 
 /**
- * Фильтр по состоянию у графа: свой, у дерева — свой (внутри `FunctionalTree`).
- * Рисуются только найденные возможности и их предки, а счёт считается по всей
- * карте (docs/04-ui.md, «Функциональная карта»).
+ * Состояние реализации функциональной карты: отметки, ещё не сохранённые в
+ * карту, лежат здесь и накладываются поверх картины — их видят и дерево, и
+ * граф, и «Проверить по коду» кладёт сюда же (docs/04-ui.md, «Функциональная
+ * карта»). Фильтр по состоянию — тоже общий.
  */
-const graphFilter = ref<CapabilityState | null>(null);
-const functionalSummary = computed(() => summarize(map.value?.functional.capabilities ?? []));
-const graphVisible = computed(
-  () => visibleUnder(map.value?.functional.capabilities ?? [], functionalSummary.value, graphFilter.value)
-);
+const marks = ref<Record<string, Mark>>({});
+const statusFilter = ref<StatusFilter | null>(null);
+const functionalEffective = computed(() => {
+  const source = map.value?.functional;
+  return {
+    capabilities: withMarks(source?.capabilities ?? [], marks.value),
+    relations: source?.relations ?? []
+  };
+});
+const functionalProgress = computed(() => overallProgress(functionalEffective.value.capabilities));
+
+const legendKeys = ['implemented', 'partial', 'not_implemented', 'unrated'] as const;
+
+/** «Занести отметки» из «Проверить по коду»: в несохранённые отметки, не в карту. */
+function applyChecks(rows: { id: string; status: ImplStatus; note: string }[]) {
+  const next = { ...marks.value };
+  for (const row of rows) next[row.id] = { status: row.status, note: row.note };
+  marks.value = next;
+}
+
+/** Закрыть вкладку с несохранёнными отметками — браузер предупредит о потере. */
+function warnUnsaved(event: BeforeUnloadEvent) {
+  if (Object.keys(marks.value).length === 0) return;
+  event.preventDefault();
+}
+onMounted(() => window.addEventListener('beforeunload', warnUnsaved));
+onUnmounted(() => window.removeEventListener('beforeunload', warnUnsaved));
 
 const views = computed(() => {
   const value = map.value;
@@ -246,14 +528,14 @@ const views = computed(() => {
       title: 'Кодовая база',
       question: 'Из чего состоит проект и что на что опирается',
       count: `${value.codemap.modules.length} модулей, ${value.codemap.imports.length} связей`,
-      ...codemapView(value)
+      ...(codemapView.value ?? codemapMermaid(value))
     },
     {
       key: 'dataflow',
       title: 'Потоки данных',
       question: 'Откуда данные приходят, где лежат и куда уходят',
       count: `${value.dataflow.sources.length} источников, ${value.dataflow.flows.length} потоков`,
-      ...flowView(value)
+      ...(dataflowView.value ?? dataflowMermaid(value))
     },
     {
       key: 'userflow',
@@ -267,7 +549,7 @@ const views = computed(() => {
       title: 'Функциональная карта',
       question: 'Что система умеет на языке предметной области, не кода',
       count: `${value.functional.capabilities.length} возможностей`,
-      ...functionalMermaid(value, graphVisible.value)
+      ...functionalMermaid({ ...value, functional: functionalEffective.value }, statusFilter.value)
     }
   ];
 });
@@ -285,29 +567,12 @@ const viewMode = ref<'2d' | '3d'>('2d');
 
 /**
  * У функциональной карты свой переключатель — дерево (читает доменный
- * специалист, docs/07-maps.md, «Экран: дерево, а не mindmap») или тот же
- * mermaid-граф (`mindmap`), что рисуют и остальные виды карт, для тех, кому
- * привычнее диаграмма. Тексты и узлы уже посчитаны (`functionalMermaid` в
- * `views` выше) — включение режима ничего не пересчитывает.
+ * специалист, docs/07-maps.md, «Экран: дерево, граф состояния») или граф
+ * состояния — возможности цветом по состоянию и стрелки связей. Текст и узлы
+ * уже посчитаны (`functionalMermaid` в `views` выше) — включение режима
+ * ничего не пересчитывает.
  */
 const functionalView = ref<'tree' | 'graph'>('tree');
-
-/**
- * Отметки из «Проверить по коду» ложатся на дерево несохранёнными. Если читали
- * граф, возвращаем дерево: отметки живут там, и человеку надо их увидеть.
- */
-const tree = ref<{
-  addMarks: (marks: { id: string; status: CapabilityStatus; note?: string }[]) => void;
-  openRelate: (id: string) => void;
-  removeRelation: (relation: { from: string; to: string; kind: RelationKind }) => Promise<void>;
-} | null>(null);
-async function applyChecked(marks: { id: string; status: CapabilityStatus; note?: string }[]) {
-  if (functionalView.value !== 'tree') {
-    functionalView.value = 'tree';
-    await nextTick();
-  }
-  tree.value?.addMarks(marks);
-}
 
 /**
  * Общий контейнер диаграммы и карточки — цель разворота на весь экран.
@@ -341,79 +606,37 @@ const selection = ref<MapSelection | null>(null);
 function onNodeClick(id: string) {
   const node = current.value?.nodes?.[id];
   if (!node) return; // Нет метаданных — карте нечего показать (functional map, неизвестный узел).
-  if (shown.value === 'dataflow' && flowOverview.value) {
-    // Обзор потоков: узел-группа и узел-свёртка ведут внутрь, как на кодовой базе.
-    if (node.group) {
-      void openFlow({ group: node.group.id });
-      return;
-    }
-    if (node.bucket) {
-      void openFlow({ bucket: node.bucket.id });
-      return;
-    }
-  }
-  if (shown.value === 'codemap' && codeMode.value === 'groups') {
-    // Узел обзора и узел-группа по краям ведут внутрь группы; модуль группы
-    // становится выбранным, и его соседи из других групп показываются призраками.
-    if (node.group) {
-      void setOpenGroup(node.group.id);
-      return;
-    }
-    if (openGroup.value && !node.ghostOf) focus.value = node.id;
+  // На обзоре узел — группа: карточка группы, а не файла.
+  if ((shown.value === 'codemap' && codemapMode.value === 'groups' && node.group)
+    || (shown.value === 'dataflow' && flowMode.value === 'groups' && node.group)) {
+    selection.value = { kind: 'group', ...(node.group as NonNullable<typeof node.group>) };
+    return;
   }
   selection.value = { kind: 'node', ...node };
+  // Выбранный модуль открытой группы показывает соседей из других групп; призрак выбором не становится.
+  if (shown.value === 'codemap' && codemapMode.value === 'group' && !node.ghost) ghostFor.value = node.id;
+  if (shown.value === 'dataflow' && flowMode.value === 'code' && !node.ghost) ghostFor.value = node.id;
 }
-
-/** Клик мимо узлов снимает выбор модуля: призраки пропадают, внешние связи сворачиваются обратно. */
-function onBlankClick() {
-  if (focus.value !== null) focus.value = null;
+function onNodeDblClick(id: string) {
+  const node = current.value?.nodes?.[id];
+  if (shown.value === 'codemap' && codemapMode.value === 'groups' && node?.group) enterGroup(node.group.groupId);
+  if (shown.value === 'dataflow' && flowMode.value === 'groups' && node?.flowGroup) enterFlow(node.flowGroup);
+}
+/** «Открыть группу» из карточки: на потоках — группа кода, на кодовой карте — группа модулей. */
+function openGroupFromCard(groupId: string) {
+  if (shown.value === 'dataflow') enterFlow({ type: 'code', id: groupId });
+  else enterGroup(groupId);
+}
+function onBackgroundClick() {
+  selection.value = null;
+  ghostFor.value = null;
 }
 function onEdgeClick(edge: MermaidEdge) {
-  if (edge.groupLink) {
-    // Свёрнутая стрелка между группами: карточка раскрывает её в исходные импорты со свидетельствами.
-    selection.value = { kind: 'group-link', ...edge.groupLink, declaredBy: edge.declaredBy };
+  if (edge.link) {
+    selection.value = { kind: 'link', ...edge.link };
     return;
   }
-  if (edge.relation) {
-    // Связь возможностей — без свидетельства: карточка показывает смысл, а не строку кода.
-    const nodes = current.value?.nodes ?? {};
-    selection.value = {
-      kind: 'relation',
-      relationKind: edge.relation.kind,
-      summary: edge.relation.summary,
-      fromId: edge.relation.fromId,
-      toId: edge.relation.toId,
-      cycle: edge.relation.cycle,
-      fromTitle: nodes[edge.from]?.title,
-      toTitle: nodes[edge.to]?.title,
-      declaredBy: edge.declaredBy,
-      pending: edge.pending
-    };
-    return;
-  }
-  if (!edge.evidence) return;
   selection.value = { kind: 'edge', evidence: edge.evidence, status: edge.status, declaredBy: edge.declaredBy };
-}
-
-/**
- * «Связать» и «Убрать связь» в карточке: форма и черновик живут в дереве, как
- * и у любой другой правки функциональной карты, — карточка просит дерево их
- * открыть (docs/04-ui.md).
- */
-async function showTree() {
-  selection.value = null;
-  if (functionalView.value !== 'tree') {
-    functionalView.value = 'tree';
-    await nextTick();
-  }
-}
-async function onRelate(id: string) {
-  await showTree();
-  tree.value?.openRelate(id);
-}
-async function onUnrelate(relation: { from: string; to: string; kind: RelationKind }) {
-  await showTree();
-  await tree.value?.removeRelation(relation);
 }
 </script>
 
@@ -526,35 +749,6 @@ async function onUnrelate(relation: { from: string; to: string; kind: RelationKi
         </template>
       </PromptPanel>
 
-      <!-- Группировка — тем же путём, что «Разбить на фазы»: запрос показывается целиком, ответ ложится
-           черновиком карты и ждёт человека (docs/04-ui.md, «Группы кодовой карты»). -->
-      <PromptPanel
-        v-if="map && map.codemap.modules.length > 0"
-        :project-id="projectId"
-        kind="groups"
-        :label="`Сгруппировать модули: ${ungrouped}`"
-        :disabled="ungrouped === 0"
-        disabled-reason="Все модули уже в группах — группировать нечего"
-        hint="Ответ сохраняется черновиком карты и требует подтверждения"
-        @answered="onAnswer"
-      >
-        <template #answer="{ answer }">
-          <div class="mb-3 flex flex-wrap items-center gap-3">
-            <UButton size="sm" :loading="saving" @click="saveDraft(answer)">Сохранить черновиком</UButton>
-            <NuxtLink v-if="draftId" :to="`/projects/${projectId}/records/${draftId}`" class="text-sm hover:underline">
-              Черновик {{ draftId }} создан — открыть
-            </NuxtLink>
-            <UAlert
-              v-if="draftFailure"
-              color="error"
-              variant="subtle"
-              :title="draftFailure.message"
-              :description="problems.join(' ')"
-            />
-          </div>
-        </template>
-      </PromptPanel>
-
       <p class="text-sm text-muted">
         Картина складывается из подтверждённых карт изменений. Черновики сюда не
         входят: пока человек не подтвердил, это намерение, а не устройство проекта.
@@ -606,25 +800,7 @@ async function onUnrelate(relation: { from: string; to: string; kind: RelationKi
                   <h2 class="font-medium">{{ current.title }}</h2>
                   <p class="text-sm text-muted">{{ current.question }}</p>
                 </div>
-                <!-- Кодовая база: группы (обзор → группа → модуль) или все модули разом. -->
-                <UTabs
-                  v-if="current.key === 'codemap' && groupsAvailable"
-                  :model-value="codeMode"
-                  class="ml-auto w-56"
-                  size="xs"
-                  :items="[{ label: 'Группы', value: 'groups' }, { label: 'Все модули', value: 'modules' }]"
-                  @update:model-value="onMode"
-                />
-                <!-- Потоки данных: по группам (обзор → группа или свёртка источников) или все потоки разом. -->
-                <UTabs
-                  v-if="current.key === 'dataflow' && groupsAvailable"
-                  :model-value="flowMode"
-                  class="ml-auto w-56"
-                  size="xs"
-                  :items="[{ label: 'Группы', value: 'groups' }, { label: 'Все потоки', value: 'flows' }]"
-                  @update:model-value="onFlowMode"
-                />
-                <!-- У функциональной карты свой переключатель режима — дерево или граф состояния. -->
+                <!-- У функциональной карты свой переключатель режима — дерево или тот же mermaid-граф, что у остальных видов. -->
                 <UTabs
                   v-if="current.key === 'functional'"
                   v-model="functionalView"
@@ -632,13 +808,35 @@ async function onUnrelate(relation: { from: string; to: string; kind: RelationKi
                   size="xs"
                   :items="[{ label: 'Дерево', value: 'tree' }, { label: 'Граф', value: 'graph' }]"
                 />
-                <UTabs
-                  v-else
-                  v-model="viewMode"
-                  class="ml-auto w-40"
-                  size="xs"
-                  :items="[{ label: '2D', value: '2d' }, { label: '3D', value: '3d' }]"
-                />
+                <template v-else>
+                  <!-- Группы или все модули разом — у кодовой базы (docs/04-ui.md, «Группы кодовой карты»). -->
+                  <div v-if="hasGroupSwitch" class="ml-auto flex gap-1">
+                    <UButton
+                      size="xs"
+                      :variant="allShown ? 'outline' : 'solid'"
+                      color="neutral"
+                      icon="i-lucide-boxes"
+                      @click="current.key === 'dataflow' ? showFlowGroups() : showGroups()"
+                    >
+                      Группы
+                    </UButton>
+                    <UButton
+                      size="xs"
+                      :variant="allShown ? 'solid' : 'outline'"
+                      color="neutral"
+                      icon="i-lucide-network"
+                      @click="current.key === 'dataflow' ? showAllFlows() : showAllModules()"
+                    >
+                      {{ current.key === 'dataflow' ? 'Все потоки' : 'Все модули' }}
+                    </UButton>
+                  </div>
+                  <UTabs
+                    v-model="viewMode"
+                    :class="hasGroupSwitch ? 'w-40' : 'ml-auto w-40'"
+                    size="xs"
+                    :items="[{ label: '2D', value: '2d' }, { label: '3D', value: '3d' }]"
+                  />
+                </template>
                 <!-- Число уже видно бейджем на вкладке — здесь дублировать незачем. -->
                 <UButton
                   v-if="current.text && (current.key === 'functional' ? functionalView === 'graph' : viewMode === '2d')"
@@ -653,93 +851,111 @@ async function onUnrelate(relation: { from: string; to: string; kind: RelationKi
               </div>
             </template>
 
-            <!-- Кодовая база по группам: обзор → группа → выбранный модуль (docs/04-ui.md, «Группы кодовой карты»). -->
-            <template v-if="shown === 'codemap' && codeMode === 'groups'">
-              <div v-if="openGroupInfo" class="mb-3 flex flex-wrap items-center gap-2">
-                <UButton size="xs" variant="soft" color="neutral" icon="i-lucide-arrow-left" @click="setOpenGroup(null)">
-                  Все группы
-                </UButton>
-                <span class="font-medium">{{ openGroupInfo.title }}</span>
-                <UBadge v-if="openGroupInfo.auto" size="xs" color="neutral" variant="subtle">авто</UBadge>
-                <span class="text-sm text-muted">{{ plural(openGroupInfo.modules.length, 'модуль', 'модуля', 'модулей') }}</span>
-                <UButton size="xs" variant="ghost" color="neutral" icon="i-lucide-info" @click="showGroupCard(openGroupInfo.id)">
-                  О группе
-                </UButton>
-                <span v-if="focus" class="text-sm text-muted">
-                  Выбран модуль — соседи из других групп показаны призраками. Клик в пустое место снимает выбор.
-                </span>
-              </div>
-              <div v-else class="mb-3 space-y-2">
-                <p class="text-sm text-muted">
-                  Обзор: {{ plural(groupModel.groups.length, 'группа', 'группы', 'групп') }}. Клик по группе открывает её,
-                  клик по стрелке показывает свёрнутые импорты со свидетельствами.
-                </p>
-                <ul class="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                  <li v-for="group in groupModel.groups" :key="group.id" class="inline-flex items-center gap-1">
-                    <button type="button" class="hover:underline" @click="setOpenGroup(group.id)">{{ group.title }}</button>
-                    <span class="text-muted">{{ group.modules.length }}</span>
-                    <UButton
-                      size="xs"
-                      variant="ghost"
-                      color="neutral"
-                      icon="i-lucide-info"
-                      :aria-label="`О группе ${group.title}`"
-                      @click="showGroupCard(group.id)"
-                    />
-                  </li>
-                </ul>
-              </div>
-            </template>
-
-            <!-- Потоки по группам: обзор → группа кода или свёртка источников (docs/04-ui.md). -->
             <template v-if="shown === 'dataflow' && flowMode === 'groups'">
-              <div v-if="flowScopeTitle" class="mb-3 flex flex-wrap items-center gap-2">
-                <UButton size="xs" variant="soft" color="neutral" icon="i-lucide-arrow-left" @click="openFlow()">
-                  Все группы
-                </UButton>
-                <span class="font-medium">{{ flowScopeTitle }}</span>
-                <UBadge size="xs" color="neutral" variant="subtle">{{ openBucket ? 'свёртка источников' : 'группа кода' }}</UBadge>
-                <UButton
-                  v-if="openGroupInfo"
-                  size="xs"
-                  variant="ghost"
-                  color="neutral"
-                  icon="i-lucide-info"
-                  @click="showGroupCard(openGroupInfo.id)"
-                >
-                  О группе
-                </UButton>
-              </div>
-              <div v-else class="mb-3 space-y-2">
-                <p class="text-sm text-muted">
-                  Обзор: кто читает и пишет где. Клик по группе или по свёртке источников открывает её детали,
-                  клик по стрелке показывает свёрнутые потоки со свидетельствами.
+              <p class="mb-3 text-sm text-muted">
+                Кто читает и пишет где: группы кода слева, виды источников справа; стрелка идёт по направлению
+                данных, подпись — число потоков. Клик — карточка, двойной клик — открыть.
+              </p>
+            </template>
+
+            <template v-if="shown === 'dataflow' && (flowMode === 'code' || flowMode === 'kind')">
+              <div class="mb-3 space-y-1 text-sm">
+                <p class="flex flex-wrap items-center gap-1">
+                  <UButton size="xs" variant="link" color="neutral" icon="i-lucide-chevron-left" @click="showFlowGroups">
+                    Все группы
+                  </UButton>
+                  <span class="text-muted">›</span>
+                  <span class="font-medium">{{ flowMode === 'code' ? flowGroupTitle : flowKindLabel }}</span>
+                  <span class="text-muted">
+                    · {{ flowMode === 'code' ? 'группа кода' : 'вид источников' }},
+                    {{ plural(flowScopeValue?.sources.length ?? 0, 'источник', 'источника', 'источников') }}
+                  </span>
                 </p>
-                <ul class="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                  <li v-for="item in flowOverviewItems" :key="item.id + (item.bucket ? 'b' : 'g')" class="inline-flex items-center gap-1">
-                    <button
-                      type="button"
-                      class="hover:underline"
-                      @click="openFlow(item.bucket ? { bucket: item.id } : { group: item.id })"
-                    >{{ item.title ?? item.id }}</button>
-                    <UBadge size="xs" color="neutral" variant="subtle">{{ item.bucket ? 'источники' : 'код' }}</UBadge>
-                    <UButton
-                      size="xs"
-                      variant="ghost"
-                      color="neutral"
-                      icon="i-lucide-info"
-                      :aria-label="`О ${item.title ?? item.id}`"
-                      @click="selection = { kind: 'node', ...item }"
-                    />
-                  </li>
-                </ul>
+                <p v-if="flowMode === 'code'" class="text-xs text-muted">
+                  Выберите модуль или источник — другие группы, которые трогают те же источники, появятся призраками.
+                </p>
               </div>
             </template>
 
-            <!-- Слои — только у кодовой базы: у остальных видов узел не несёт слоя. -->
-            <template v-if="shown === 'codemap' && allLayers.length > 1">
+            <template v-if="shown === 'codemap' && codemapMode === 'groups'">
+              <p class="mb-3 text-sm text-muted">
+                Группы выведены из путей к файлам; стрелка — сколько импортов идёт из одной группы в другую.
+                Клик — карточка группы, двойной клик — открыть её целиком.
+              </p>
+            </template>
+
+            <template v-if="shown === 'codemap' && codemapMode === 'group' && openGroupInfo">
+              <div class="mb-3 space-y-1 text-sm">
+                <p class="flex flex-wrap items-center gap-1">
+                  <UButton size="xs" variant="link" color="neutral" icon="i-lucide-chevron-left" @click="showGroups">
+                    Все группы
+                  </UButton>
+                  <span class="text-muted">›</span>
+                  <span class="font-medium">{{ openGroupInfo.title }}</span>
+                  <UBadge v-if="openGroupInfo.auto" size="xs" color="neutral" variant="subtle">авто</UBadge>
+                  <span class="text-muted">· {{ plural(openGroupInfo.moduleCount, 'модуль', 'модуля', 'модулей') }}</span>
+                </p>
+                <p v-if="openGroupInfo.dependsOn.length || openGroupInfo.usedBy.length" class="flex flex-wrap items-center gap-x-1 text-xs text-muted">
+                  <template v-if="openGroupInfo.dependsOn.length">
+                    Зависит от:
+                    <button
+                      v-for="item in openGroupInfo.dependsOn"
+                      :key="item.groupId"
+                      type="button"
+                      class="mr-1 text-default hover:underline"
+                      @click="enterGroup(item.groupId)"
+                    >{{ item.title }}</button>
+                  </template>
+                  <template v-if="openGroupInfo.usedBy.length">
+                    · Используют:
+                    <button
+                      v-for="item in openGroupInfo.usedBy"
+                      :key="item.groupId"
+                      type="button"
+                      class="mr-1 text-default hover:underline"
+                      @click="enterGroup(item.groupId)"
+                    >{{ item.title }}</button>
+                  </template>
+                </p>
+                <p class="text-xs text-muted">
+                  Толстая рамка — порт: у модуля есть связи за пределами группы. Выберите модуль, чтобы увидеть, куда они ведут.
+                </p>
+              </div>
+            </template>
+
+            <!-- Модель предлагает границы, человек их утверждает (docs/07-maps.md, «Группы: уровень над модулями»). -->
+            <PromptPanel
+              v-if="shown === 'codemap' && map.codemap.modules.length > 0"
+              class="mb-3"
+              :project-id="projectId"
+              kind="groups"
+              label="Сгруппировать модули"
+              hint="Ответ сохраняется черновиком карты и требует подтверждения"
+              @answered="onAnswer"
+            >
+              <template #answer="{ answer }">
+                <div class="mb-3 flex flex-wrap items-center gap-3">
+                  <UButton size="sm" :loading="saving" @click="saveDraft(answer, 'Группы модулей')">Сохранить черновиком</UButton>
+                  <NuxtLink
+                    v-if="draftId"
+                    :to="`/projects/${projectId}/records/${draftId}`"
+                    class="text-sm hover:underline"
+                  >Черновик {{ draftId }} создан — подтвердите его, и группы вступят в силу</NuxtLink>
+                  <UAlert
+                    v-if="draftFailure"
+                    color="error"
+                    variant="subtle"
+                    :title="draftFailure.message"
+                    :description="problems.join(' ')"
+                  />
+                </div>
+              </template>
+            </PromptPanel>
+
+            <!-- Слои — только у кодовой базы: у остальных видов узел не несёт слоя. На обзоре групп их нет. -->
+            <template v-if="shown === 'codemap' && codemapMode !== 'groups' && allLayers.length > 1">
               <p v-if="isLargeCodemap && hiddenLayers.size > 0" class="mb-2 text-sm text-muted">
-                Крупная кодовая база ({{ scopeCount }} модулей) — чтобы не перегружать диаграмму,
+                {{ codemapMode === 'group' ? 'Крупная группа' : 'Крупная кодовая база' }} ({{ scopeCodemap?.modules.length }} модулей) — чтобы не перегружать диаграмму,
                 сначала показан один слой. Выберите другой чипом; чтобы увидеть все разом, кликните по выбранному ещё раз.
               </p>
               <div class="mb-3 flex flex-wrap gap-1">
@@ -762,57 +978,78 @@ async function onUnrelate(relation: { from: string; to: string; kind: RelationKi
                 :project-id="projectId"
                 kind="functional-check"
                 label="Проверить по коду"
-                hint="Модель сама читает код — ответ ничего не подтверждает, это её мнение"
+                hint="Модель сама читает код и предлагает состояние — это её мнение, подтверждает человек"
               >
-                <!-- Ответ разбирается в таблицу «сейчас → по мнению модели»; применяет её человек. -->
                 <template #answer="{ answer }">
-                  <FunctionalCheck :project-id="projectId" :answer="answer" @apply="applyChecked" />
+                  <FunctionalCheck
+                    :project-id="projectId"
+                    :answer="answer"
+                    @apply="applyChecks"
+                  />
                 </template>
               </PromptPanel>
+
+              <FunctionalSummary
+                v-if="functionalProgress.total > 0"
+                v-model:filter="statusFilter"
+                :progress="functionalProgress"
+              />
+
               <FunctionalTree
                 v-if="functionalView === 'tree'"
-                ref="tree"
+                v-model:marks="marks"
                 :project-id="projectId"
-                :capabilities="map.functional.capabilities"
-                :relations="map.functional.relations"
+                :capabilities="functionalEffective.capabilities"
+                :saved="map.functional.capabilities"
+                :relations="functionalEffective.relations"
+                :filter="statusFilter"
                 @select="(value) => (selection = value)"
                 @changed="() => refresh()"
               />
               <template v-else>
-                <FunctionalSummary
-                  :tally="functionalSummary.overall"
-                  :filter="graphFilter"
-                  @filter="(state) => (graphFilter = state)"
-                />
-                <FunctionalLegend class="mb-3" />
                 <p v-if="!current.text" class="text-sm text-muted">
-                  В подтверждённых картах эта структура не описана.
+                  {{ map.functional.capabilities.length ? 'Под этот фильтр ничего не подошло.' : 'В подтверждённых картах эта структура не описана.' }}
                 </p>
-                <MermaidDiagram
-                  v-else
-                  :source="current.text"
-                  :details="current.details"
-                  :paths="current.paths"
-                  :edges="current.edges"
-                  :neighbors="current.neighbors"
-                  :pending-ids="pendingNodeIds"
-                  :fullscreen-target="stage"
-                  :id="`map-${current.key}`"
-                  @node-click="onNodeClick"
-                  @edge-click="onEdgeClick"
-                />
+                <template v-else>
+                  <!-- Легенда рядом, а не по памяти: цвет — состояние, вид стрелки — вид связи. -->
+                  <div class="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
+                    <span v-for="key in legendKeys" :key="key" class="flex items-center gap-1">
+                      <span
+                        class="inline-block h-3 w-5 rounded-sm border"
+                        :class="key === 'unrated' ? 'border-dashed' : ''"
+                        :style="{ backgroundColor: STATUS_STYLE[key].fill, borderColor: STATUS_STYLE[key].stroke }"
+                      />
+                      {{ IMPL_LABEL[key] }}
+                    </span>
+                    <span>──→ {{ RELATION_LABEL.depends }}</span>
+                    <span>╌╌→ {{ RELATION_LABEL.uses }}</span>
+                    <span>══→ {{ RELATION_LABEL.feeds }}</span>
+                    <span class="text-warning">жёлтая — ждёт зависимость</span>
+                    <span class="text-error">красная — ждут друг друга</span>
+                  </div>
+                  <MermaidDiagram
+                    :source="current.text"
+                    :details="current.details"
+                    :paths="current.paths"
+                    :edges="current.edges"
+                    :neighbors="current.neighbors"
+                    :pending-ids="pendingNodeIds"
+                    :fullscreen-target="stage"
+                    :id="`map-${current.key}`"
+                    @node-click="onNodeClick"
+                    @edge-click="onEdgeClick"
+                  />
+                </template>
               </template>
             </template>
 
             <template v-else>
-              <p v-if="!current.text && shown === 'dataflow' && flowScopeTitle" class="text-sm text-muted">
-                У «{{ flowScopeTitle }}» нет потоков данных в подтверждённых картах.
-              </p>
-              <p v-else-if="!current.text" class="text-sm text-muted">
+              <p v-if="!current.text" class="text-sm text-muted">
                 В подтверждённых картах эта структура не описана.
               </p>
               <MermaidDiagram3D
                 v-else-if="viewMode === '3d'"
+                :key="scopeKey"
                 :nodes="current.nodes"
                 :edges="current.edges"
                 :fullscreen-target="stage"
@@ -820,19 +1057,26 @@ async function onUnrelate(relation: { from: string; to: string; kind: RelationKi
                 @node-click="onNodeClick"
                 @edge-click="onEdgeClick"
               />
+              <!-- Ключ — область (все / группы / одна группа): другая область — новый вид, а выбор модуля внутри
+                   области перерисовывает диаграмму, не сбрасывая масштаб. -->
               <MermaidDiagram
                 v-else
+                :key="shown === 'codemap' ? scopeKey : shown === 'dataflow' ? flowScopeKey : shown"
                 :source="current.text"
                 :details="current.details"
                 :paths="current.paths"
                 :edges="current.edges"
                 :neighbors="current.neighbors"
                 :pending-ids="pendingNodeIds"
+                :ghost-ids="ghostNodeIds"
+                :focus-key="shown === 'codemap' && ghostFor ? moduleNodeId(ghostFor) : shown === 'dataflow' ? flowFocusKey : null"
+                :keep-view="true"
                 :fullscreen-target="stage"
                 :id="`map-${current.key}`"
                 @node-click="onNodeClick"
+                @node-dblclick="onNodeDblClick"
+                @background-click="onBackgroundClick"
                 @edge-click="onEdgeClick"
-                @blank-click="onBlankClick"
               />
             </template>
           </UCard>
@@ -840,10 +1084,11 @@ async function onUnrelate(relation: { from: string; to: string; kind: RelationKi
           <MapInspector
             :project-id="projectId"
             :selection="selection"
+            :capability-titles="capabilityTitles"
             :to="staged ? stage : null"
-            @close="selection = null"
-            @relate="onRelate"
-            @unrelate="onUnrelate"
+            @close="onBackgroundClick"
+            @open-group="openGroupFromCard"
+            @open-flow="enterFlow"
           />
         </div>
       </template>

@@ -1,10 +1,17 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
-import { defineEventHandler, getRouterParam, readBody, type H3Event } from 'h3';
+import { defineEventHandler, getRouterParam, readBody } from 'h3';
 
 import { analyze } from '../../../../lib/analyze';
 import { dropCache } from '../../../../lib/cache';
+import {
+  drawableRelations,
+  isImplStatus,
+  isRelationType,
+  statusDeclarations,
+  type StatusItem
+} from '../../../../lib/functional';
 import { targetPath } from '../../../../lib/import';
 import { mapDraftText, type MapChange } from '../../../../lib/maps';
 import { OutsideRootError, normalizeRoot, resolveInside } from '../../../../lib/paths';
@@ -13,25 +20,20 @@ import { validateFunctional } from '../../../../lib/schema';
 import { DEVELOPMENT_DIR, WorkspaceError, readWorkspace } from '../../../../lib/workspace';
 import { fail, failWith } from '../../../../utils/http';
 import { loadIndex } from '../../../../utils/index-service';
+import { buildProjectMap } from '../../../../utils/map-service';
 import { findProject } from '../../../../utils/projects';
 import { today } from '../../../../utils/record-write';
-// Ниже — импорты, которых карта M-0004 не называет: выше их строки названы в ней по номерам.
-import {
-  applyMarks, cleanItem, cleanRelation, isCapabilityStatus, isRelationKind, relationKey,
-  type CapabilityItem, type Mark, type Relation
-} from '../../../../lib/functional';
-import { buildProjectMap } from '../../../../utils/map-service';
 
 /**
- * Одна возможность функциональной карты — без похода к модели: у этого вида
- * нет `evidence`, значит нет и причины требовать модельный ответ ради одного
+ * Правка функциональной карты — без похода к модели: у этого вида нет
+ * `evidence`, значит нет и причины требовать модельный ответ ради одного
  * добавления (docs/07-maps.md, «Функциональная карта»). Каждое действие
  * заводит новый черновик карты тем же `mapDraftText`, что и черновик от
  * модели, — не правит тело уже подтверждённой записи в обход человека
  * (docs/adr/0011-body-editing.md).
  *
- * Действия: `add` и `remove` — одна возможность; `status` — состояние
- * реализации пачкой (docs/03-server-api.md, `map/capability`).
+ * Действия: `add`, `remove` — возможность; `status` — отметки состояния
+ * пачкой, в одну запись; `relate`, `unrelate` — связь между возможностями.
  */
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id') ?? '';
@@ -40,220 +42,163 @@ export default defineEventHandler(async (event) => {
     return fail(event, 404, 'project_not_found', `Проект \`${id}\` не найден в списке`);
   }
 
-  const body = await readBody<{ action?: unknown; capability?: unknown; marks?: unknown; relation?: unknown }>(event);
+  const body = await readBody<{ action?: unknown; capability?: unknown; statuses?: unknown; relation?: unknown }>(event);
+  const action = typeof body?.action === 'string' ? body.action : 'add';
 
-  if (body?.action === 'status') return saveMarks(event, project.root, body.marks);
-  if (body?.action === 'relate' || body?.action === 'unrelate') {
-    return saveRelation(event, project.root, body.action, body.relation);
-  }
+  let change: MapChange;
+  let title: string;
 
-  const remove = body?.action === 'remove';
-  const capability = asCapability(body?.capability);
-  if (!capability) {
-    return fail(event, 400, 'capability_invalid', 'Нужен `id` возможности — непустая строка');
-  }
-
-  const part = { capabilities: [remove ? { id: capability.id } : capability] };
-  const invalid = invalidPart(event, remove ? { removed: part } : { added: part });
-  if (invalid) return invalid;
-
-  const change: MapChange = remove ? { functional: { removed: part } } : { functional: { added: part } };
-  const title = remove
-    ? `Функциональная карта: убрана «${capability.id}»`
-    : `Функциональная карта: «${capability.title ?? capability.id}»`;
-
-  return writeDraft(event, project.root, change, title);
-});
-
-/**
- * Пачка отметок — один черновик на все. Отметка повторно объявляет
- * возможность, а повторное объявление заменяет элемент целиком, поэтому поля
- * берутся из сложенной карты (`applyMarks`). Неизвестный `id` — отказ всей
- * пачки: принимать половину значит оставить человека гадать, что из отмеченного
- * записалось.
- */
-async function saveMarks(event: H3Event, root: string, raw: unknown) {
-  const marks = asMarks(raw);
-  if (!marks) {
-    return fail(
-      event,
-      400,
-      'marks_invalid',
-      'Нужен непустой список `marks`: у каждой отметки `id`, а `status` — одно из implemented, partial, not_implemented или null'
-    );
-  }
-
-  let current;
-  try {
-    current = buildProjectMap(normalizeRoot(root)).functional.capabilities;
-  } catch (error) {
-    return failureOf(event, error);
-  }
-
-  const { items, unknown } = applyMarks(current, marks);
-  if (unknown.length > 0) {
-    return fail(
-      event,
-      422,
-      'capability_unknown',
-      `В подтверждённой функциональной карте нет возможностей: ${unknown.map((item) => `\`${item}\``).join(', ')}`,
-      unknown.join(', ')
-    );
-  }
-
-  const part = { capabilities: items };
-  const invalid = invalidPart(event, { added: part });
-  if (invalid) return invalid;
-
-  const title = `Функциональная карта: состояние реализации (${items.length})`;
-  return writeDraft(event, root, { functional: { added: part } }, title);
-}
-
-/**
- * Связь между возможностями — добавить или убрать (docs/07-maps.md, «Связи
- * между возможностями»). Концы связи должны быть в подтверждённой карте: связь
- * с несуществующей возможностью нарисовать нечем. Убрать можно и ту связь,
- * чей конец уже убран, — иначе висячая связь осталась бы навсегда.
- */
-async function saveRelation(event: H3Event, root: string, action: 'relate' | 'unrelate', raw: unknown) {
-  const relation = asRelation(raw);
-  if (!relation) {
-    return fail(
-      event,
-      400,
-      'relation_invalid',
-      'Нужна связь: `from` и `to` — разные непустые `id`, `kind` — одно из depends, uses, feeds'
-    );
-  }
-
-  let functional;
-  try {
-    functional = buildProjectMap(normalizeRoot(root)).functional;
-  } catch (error) {
-    return failureOf(event, error);
-  }
-
-  if (action === 'relate') {
-    const known = new Set(functional.capabilities.map((item) => item.id));
-    const unknown = [relation.from, relation.to].filter((item) => !known.has(item));
+  if (action === 'status') {
+    const items = asStatusItems(body?.statuses);
+    if (!items) {
+      return fail(event, 400, 'capability_invalid', 'Нужен непустой список `statuses`: у каждого `id`, `status` (или `null`) и необязательная `note`');
+    }
+    const current = buildProjectMap(normalizeRoot(project.root)).functional.capabilities;
+    const { declarations, unknown } = statusDeclarations(current, items);
     if (unknown.length > 0) {
-      return fail(
+      return failWith(
         event,
         422,
         'capability_unknown',
-        `В подтверждённой функциональной карте нет возможностей: ${unknown.map((item) => `\`${item}\``).join(', ')}`,
-        unknown.join(', ')
+        'В картине нет возможностей, которым ставят состояние; ничего не записано',
+        unknown.map((unknownId) => ({ code: 'capability_unknown', message: `Нет возможности \`${unknownId}\`` }))
       );
     }
-  } else if (!functional.relations.some((item) => relationKey(item) === relationKey(relation))) {
-    return fail(event, 422, 'relation_unknown', 'Такой связи в подтверждённой карте нет: убирать нечего');
+    change = { functional: { added: { capabilities: declarations } } };
+    title = `Функциональная карта: отметки состояния (${declarations.length})`;
+  } else if (action === 'relate' || action === 'unrelate') {
+    const relation = asRelation(body?.relation);
+    if (!relation) {
+      return fail(event, 400, 'relation_invalid', 'Нужна связь: `from`, `to` и `type` — `depends`, `uses` или `feeds`');
+    }
+    if (action === 'relate') {
+      const capabilities = buildProjectMap(normalizeRoot(project.root)).functional.capabilities;
+      if (drawableRelations([relation], capabilities).drawn.length === 0) {
+        return fail(
+          event,
+          422,
+          'relation_invalid',
+          'Концы связи — две разные существующие возможности, и не предок с потомком: это уже сказано деревом'
+        );
+      }
+    }
+    const part = { relations: [action === 'relate' ? relation : { from: relation.from, to: relation.to, type: relation.type }] };
+    const issues = validateFunctional(action === 'relate' ? { added: part } : { removed: part });
+    if (issues.length > 0) {
+      return failWith(
+        event,
+        422,
+        'relation_invalid',
+        'Связь не прошла схему',
+        issues.map((issue) => ({ code: 'functional', message: issue.message }))
+      );
+    }
+    change = { functional: action === 'relate' ? { added: part } : { removed: part } };
+    title = action === 'relate'
+      ? `Функциональная карта: «${relation.from}» → «${relation.to}» (${relation.type})`
+      : `Функциональная карта: убрана связь «${relation.from}» → «${relation.to}»`;
+  } else {
+    const remove = action === 'remove';
+    const capability = asCapability(body?.capability);
+    if (!capability) {
+      return fail(event, 400, 'capability_invalid', 'Нужен `id` возможности — непустая строка');
+    }
+
+    const part = { capabilities: [remove ? { id: capability.id } : capability] };
+    const issues = validateFunctional(remove ? { removed: part } : { added: part });
+    if (issues.length > 0) {
+      return failWith(
+        event,
+        422,
+        'capability_invalid',
+        'Возможность не прошла схему',
+        issues.map((issue) => ({ code: 'functional', message: issue.message }))
+      );
+    }
+    // Значение `status` схема уже проверила выше — приведение типа ничего не пропускает.
+    change = (remove ? { functional: { removed: part } } : { functional: { added: part } }) as MapChange;
+    title = remove
+      ? `Функциональная карта: убрана «${capability.id}»`
+      : `Функциональная карта: «${capability.title ?? capability.id}»`;
   }
 
-  const remove = action === 'unrelate';
-  // Убирается по ключу: подпись для этого не нужна, а в `removed` лишние поля только мешают.
-  const part = { relations: [remove ? { from: relation.from, to: relation.to, kind: relation.kind } : relation] };
-  const invalid = invalidPart(event, remove ? { removed: part } : { added: part });
-  if (invalid) return invalid;
-
-  const title = remove
-    ? `Функциональная карта: убрана связь «${relation.from}» → «${relation.to}»`
-    : `Функциональная карта: связь «${relation.from}» → «${relation.to}»`;
-  const change: MapChange = remove ? { functional: { removed: part } } : { functional: { added: part } };
-  return writeDraft(event, root, change, title);
-}
-
-function invalidPart(event: H3Event, data: unknown) {
-  const issues = validateFunctional(data);
-  if (issues.length === 0) return null;
-  return failWith(
-    event,
-    422,
-    'capability_invalid',
-    'Возможность не прошла схему',
-    issues.map((issue) => ({ code: 'functional', message: issue.message }))
-  );
-}
-
-function writeDraft(event: H3Event, root: string, change: MapChange, title: string) {
   try {
-    const normalized = normalizeRoot(root);
-    const workspace = readWorkspace(normalized);
+    const root = normalizeRoot(project.root);
+    const workspace = readWorkspace(root);
     const analysis = analyze({ files: workspace.files, manifest: workspace.manifest });
 
     const recordId = nextId('map', analysis.records.map((record) => record.id));
     const relative = targetPath(DEVELOPMENT_DIR, workspace.manifest.paths ?? {}, 'map', recordId, title);
-    const absolute = resolveInside(normalized, relative);
+    const absolute = resolveInside(root, relative);
     if (existsSync(absolute)) {
       return fail(event, 409, 'record_exists', `По пути \`${relative}\` уже есть файл`);
     }
 
     mkdirSync(dirname(absolute), { recursive: true });
     writeFileSync(absolute, mapDraftText(recordId, title, change, ['functional'], today()), 'utf8');
-    dropCache(normalized);
+    dropCache(root);
 
-    const index = loadIndex(normalized, true);
+    const index = loadIndex(root, true);
     return { record: index.records.find((item) => item.id === recordId), path: relative };
   } catch (error) {
-    return failureOf(event, error);
+    if (error instanceof OutsideRootError) {
+      return fail(event, 403, 'outside_root', error.message, error.requested);
+    }
+    if (error instanceof WorkspaceError) {
+      return fail(event, 422, error.code, error.message, error.detail);
+    }
+    return fail(event, 500, 'capability_failed', 'Не удалось сохранить возможность', String(error));
   }
-}
-
-function failureOf(event: H3Event, error: unknown) {
-  if (error instanceof OutsideRootError) {
-    return fail(event, 403, 'outside_root', error.message, error.requested);
-  }
-  if (error instanceof WorkspaceError) {
-    return fail(event, 422, error.code, error.message, error.detail);
-  }
-  return fail(event, 500, 'capability_failed', 'Не удалось сохранить возможность', String(error));
-}
+});
 
 function text(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 }
 
-/**
- * `status` и `note` едут вместе с названием: переименование — повторное
- * объявление, и без них оно молча сняло бы отметку.
- */
-function asCapability(value: unknown): CapabilityItem | null {
+function asCapability(value: unknown): {
+  id: string; title?: string; parent?: string; summary?: string; status?: string; note?: string;
+} | null {
   if (!value || typeof value !== 'object') return null;
   const raw = value as Record<string, unknown>;
   const id = text(raw['id']);
   if (!id) return null;
-  return cleanItem({
+  // Незнакомое значение состояния не отбрасываем молча: схема его отвергнет и назовёт причину.
+  const status = text(raw['status']);
+  return {
     id,
-    title: text(raw['title']),
-    parent: text(raw['parent']),
-    summary: text(raw['summary']),
-    status: isCapabilityStatus(raw['status']) ? raw['status'] : undefined,
-    note: text(raw['note'])
-  });
+    ...(text(raw['title']) ? { title: text(raw['title']) as string } : {}),
+    ...(text(raw['parent']) ? { parent: text(raw['parent']) as string } : {}),
+    ...(text(raw['summary']) ? { summary: text(raw['summary']) as string } : {}),
+    ...(status ? { status } : {}),
+    ...(text(raw['note']) ? { note: text(raw['note']) as string } : {})
+  };
 }
 
-function asRelation(value: unknown): Relation | null {
+function asStatusItems(value: unknown): StatusItem[] | null {
+  if (!Array.isArray(value) || value.length === 0) return null;
+  const items: StatusItem[] = [];
+  for (const raw of value) {
+    if (!raw || typeof raw !== 'object') return null;
+    const entry = raw as Record<string, unknown>;
+    const id = text(entry['id']);
+    const status = entry['status'];
+    if (!id || (status !== null && !isImplStatus(status))) return null;
+    items.push({
+      id,
+      status: status === null ? null : (status as StatusItem['status']),
+      ...(typeof entry['note'] === 'string' ? { note: entry['note'] } : {})
+    });
+  }
+  return items;
+}
+
+function asRelation(value: unknown): { from: string; to: string; type: 'depends' | 'uses' | 'feeds'; summary?: string } | null {
   if (!value || typeof value !== 'object') return null;
   const raw = value as Record<string, unknown>;
   const from = text(raw['from']);
   const to = text(raw['to']);
-  const kind = raw['kind'];
-  if (!from || !to || from === to || !isRelationKind(kind)) return null;
-  return cleanRelation({ from, to, kind, summary: text(raw['summary']) });
-}
-
-function asMarks(value: unknown): Mark[] | null {
-  if (!Array.isArray(value) || value.length === 0) return null;
-  const marks: Mark[] = [];
-  for (const entry of value) {
-    if (!entry || typeof entry !== 'object') return null;
-    const raw = entry as Record<string, unknown>;
-    const id = text(raw['id']);
-    if (!id) return null;
-    const status = raw['status'];
-    if (status !== null && !isCapabilityStatus(status)) return null;
-    const mark: Mark = { id, status };
-    if (typeof raw['note'] === 'string') mark.note = raw['note'];
-    marks.push(mark);
-  }
-  return marks;
+  const type = raw['type'];
+  if (!from || !to || !isRelationType(type)) return null;
+  const summary = text(raw['summary']);
+  return { from, to, type, ...(summary ? { summary } : {}) };
 }

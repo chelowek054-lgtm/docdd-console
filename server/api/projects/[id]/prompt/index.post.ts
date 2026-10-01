@@ -27,8 +27,6 @@ import { fail } from '../../../../utils/http';
 import { loadIndex } from '../../../../utils/index-service';
 import { buildProjectMap } from '../../../../utils/map-service';
 import { findProject } from '../../../../utils/projects';
-// Ниже — импорты, которых карты не называют по номерам строк.
-import { buildGroups, ungroupedModules } from '../../../../lib/groups';
 
 /**
  * Сборка запроса к модели по шаблону из репозитория. Приложение подставляет
@@ -193,25 +191,6 @@ export default defineEventHandler(async (event) => {
       return { prompt: verifyPrompt(await template('verify-plan.md'), practices), count: practices.length };
     }
 
-    if (kind === 'groups') {
-      // Группировать нечего — к модели не идём: запрос стоит времени и денег (docs/03-server-api.md).
-      const codemap = buildProjectMap(project.root).codemap;
-      const model = buildGroups(codemap.modules, codemap.imports, codemap.groups);
-      const ungrouped = new Set(ungroupedModules(model));
-      if (ungrouped.size === 0) {
-        return fail(event, 422, 'groups_nothing_to_group', 'Все модули уже в группах — группировать нечего');
-      }
-      const byId = new Map(codemap.modules.map((module) => [module.id, module]));
-      return {
-        prompt: groupsPrompt(
-          await template('groups.md'),
-          [...ungrouped].map((id) => byId.get(id) ?? { id }),
-          codemap.groups
-        ),
-        count: ungrouped.size
-      };
-    }
-
     if (kind === 'functional-check') {
       const capabilities = buildProjectMap(project.root).functional.capabilities;
       if (capabilities.length === 0) {
@@ -221,6 +200,14 @@ export default defineEventHandler(async (event) => {
         prompt: functionalCheckPrompt(await template('functional-check.md'), capabilities),
         count: capabilities.length
       };
+    }
+
+    if (kind === 'groups') {
+      const { modules, groups } = buildProjectMap(project.root).codemap;
+      if (modules.length === 0) {
+        return fail(event, 422, 'groups_nothing_to_group', 'В кодовой карте нет ни одного модуля: группировать нечего');
+      }
+      return { prompt: groupsPrompt(await template('groups.md'), modules, groups), count: modules.length };
     }
 
     return fail(event, 400, 'kind_invalid', 'Известны запросы: `fix`, `maps`, `map-fix`, `inbox`, `verify`, `functional-check`, `phases`, `groups`');

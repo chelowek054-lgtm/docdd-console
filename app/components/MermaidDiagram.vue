@@ -21,6 +21,17 @@ const props = defineProps<{
    */
   pendingIds?: Set<string>;
   /**
+   * id узлов-«призраков»: соседи выбранного модуля из других групп. Рисуются
+   * полупрозрачными (0.65) — не то же самое, что `pending` (0.5): призрак не
+   * часть открытой группы, а не «карта не устоялась» (docs/04-ui.md, «Группы
+   * кодовой карты»).
+   */
+  ghostIds?: Set<string>;
+  /** Узел, который выбран снаружи (выбранный модуль): после перерисовки фокус остаётся на нём. */
+  focusKey?: string | null;
+  /** Перерисовка из-за выбора — не повод сбрасывать масштаб и сдвиг, которые человек уже выставил. */
+  keepView?: boolean;
+  /**
    * Разворачивать на весь экран этот элемент вместо самой диаграммы. Родитель
    * передаёт общий контейнер, в который телепортирует и карточку узла, —
    * иначе Fullscreen API показывает только поддерево полноэкранного элемента,
@@ -33,8 +44,10 @@ const emit = defineEmits<{
   /** Клик по узлу — id узла (ключ в `details`/`paths`/`neighbors`). */
   'node-click': [id: string];
   'edge-click': [edge: MermaidEdge];
-  /** Клик мимо узлов и рёбер — снять выбор (у кодовой карты по группам это выбранный модуль). */
-  'blank-click': [];
+  /** Двойной клик по узлу — на обзоре он открывает группу. */
+  'node-dblclick': [id: string];
+  /** Клик по пустому месту — снимает выбор. */
+  'background-click': [];
 }>();
 
 const colorMode = useColorMode();
@@ -53,10 +66,11 @@ let edgeElements: { edge: MermaidEdge; el: SVGPathElement }[] = [];
  * работает. Ошибка разбора диаграммы — предупреждение у документа, а не отказ
  * его показать (docs/02-workspace-contract.md).
  */
+let drawnOnce = false;
 async function draw() {
   if (!import.meta.client || !container.value) return;
   error.value = '';
-  focused.value = null;
+  focused.value = props.focusKey ?? null;
   edgeElements = [];
   try {
     const mermaid = (await import('mermaid')).default;
@@ -81,7 +95,8 @@ async function draw() {
     annotateTitles();
     attachInteractions();
     applyFocus();
-    resetView();
+    if (!(props.keepView && drawnOnce)) resetView();
+    drawnOnce = true;
   } catch (cause) {
     container.value.innerHTML = '';
     error.value = cause instanceof Error ? cause.message.split('\n')[0] ?? '' : String(cause);
@@ -94,13 +109,12 @@ watch(() => props.source, draw);
 // (docs/04-ui.md, «Тема»).
 watch(() => colorMode.value, draw);
 watch(() => props.pendingIds, applyFocus);
+watch(() => props.ghostIds, applyFocus);
 
 /**
  * Ключ узла (как в `details`/`paths`) по элементу SVG. Mermaid называет узел
  * по нашему id с добавками (`flowchart-m_xxx-3`), поэтому ищем по вхождению,
  * а не по точному совпадению — тем же способом, каким искали для title.
- * Рамка подграфа (`.cluster`) названа нашим id как есть, поэтому родитель
- * функциональной карты кликается так же, как узел.
  */
 function keyOfNode(node: Element): string | null {
   const entries = Object.keys(props.details ?? {});
@@ -113,7 +127,7 @@ function keyOfNode(node: Element): string | null {
  */
 function annotateTitles() {
   if (!container.value || !props.details) return;
-  for (const node of container.value.querySelectorAll<SVGGElement>('.node, .cluster')) {
+  for (const node of container.value.querySelectorAll<SVGGElement>('.node')) {
     const key = keyOfNode(node);
     const text = key ? props.details[key] : undefined;
     if (!text) continue;
@@ -133,13 +147,17 @@ function annotateTitles() {
 function attachInteractions() {
   if (!container.value) return;
 
-  for (const node of container.value.querySelectorAll<SVGGElement>('.node, .cluster')) {
+  for (const node of container.value.querySelectorAll<SVGGElement>('.node')) {
     const key = keyOfNode(node);
     if (!key) continue;
     (node.style as CSSStyleDeclaration).cursor = 'pointer';
     node.addEventListener('click', (event) => {
       event.stopPropagation();
       onNodeClick(key);
+    });
+    node.addEventListener('dblclick', (event) => {
+      event.stopPropagation();
+      emit('node-dblclick', key);
     });
   }
 
@@ -158,15 +176,21 @@ function attachInteractions() {
     edgeElements.push({ edge, el: path });
   }
 
-  // Клик по пустому месту диаграммы снимает фокус — узлы/рёбра сами
-  // останавливают всплытие, сюда доходит только клик мимо них.
-  viewport.value?.addEventListener('click', () => {
-    if (focused.value !== null) {
-      focused.value = null;
-      applyFocus();
-    }
-    emit('blank-click');
-  });
+}
+
+/**
+ * Клик по пустому месту диаграммы снимает фокус и выбор — узлы/рёбра сами
+ * останавливают всплытие, сюда доходит только клик мимо них. Повешен в шаблоне,
+ * а не при отрисовке: иначе слушатели копились бы на каждую перерисовку.
+ * Сдвиг руками (панорама) кликом не считается.
+ */
+function onBackgroundClick() {
+  if (dragMoved) return;
+  if (focused.value !== null) {
+    focused.value = null;
+    applyFocus();
+  }
+  emit('background-click');
 }
 
 function onNodeClick(key: string) {
@@ -181,9 +205,15 @@ function onNodeClick(key: string) {
  * помечает **постоянно**, пока карта не устоялась. Приглушение фокусом ниже
  * (0.15 < 0.5) — оно сильнее и держит верх, когда действуют оба разом.
  */
-function opacityOf(key: string | null, keep: ReadonlySet<string> | null, pending?: Set<string>): string {
+function opacityOf(
+  key: string | null,
+  keep: ReadonlySet<string> | null,
+  pending?: Set<string>,
+  ghosts?: Set<string>
+): string {
   if (keep && (key === null || !keep.has(key))) return '0.15';
   if (pending && key !== null && pending.has(key)) return '0.5';
+  if (ghosts && key !== null && ghosts.has(key)) return '0.65';
   return '1';
 }
 
@@ -196,9 +226,9 @@ function applyFocus() {
   const active = focused.value;
   const keep = active ? new Set([active, ...(props.neighbors?.[active] ?? [])]) : null;
 
-  for (const node of container.value.querySelectorAll<SVGGElement>('.node, .cluster')) {
+  for (const node of container.value.querySelectorAll<SVGGElement>('.node')) {
     const key = keyOfNode(node);
-    node.style.opacity = opacityOf(key, keep, props.pendingIds);
+    node.style.opacity = opacityOf(key, keep, props.pendingIds, props.ghostIds);
   }
   for (const { edge, el } of edgeElements) {
     const kept = !keep || keep.has(edge.from) || keep.has(edge.to);
@@ -258,9 +288,11 @@ let dragStartX = 0;
 let dragStartY = 0;
 let originX = 0;
 let originY = 0;
+let dragMoved = false;
 
 function onPointerDown(event: PointerEvent) {
   dragging.value = true;
+  dragMoved = false;
   dragStartX = event.clientX;
   dragStartY = event.clientY;
   originX = x.value;
@@ -270,6 +302,7 @@ function onPointerDown(event: PointerEvent) {
 
 function onPointerMove(event: PointerEvent) {
   if (!dragging.value) return;
+  if (Math.abs(event.clientX - dragStartX) + Math.abs(event.clientY - dragStartY) > 4) dragMoved = true;
   x.value = originX + (event.clientX - dragStartX);
   y.value = originY + (event.clientY - dragStartY);
 }
@@ -373,6 +406,7 @@ function exportSvg() {
         ref="viewport"
         class="h-[70vh] cursor-grab touch-none select-none active:cursor-grabbing"
         :class="fullscreen ? 'h-full' : ''"
+        @click="onBackgroundClick"
         @wheel="onWheel"
         @pointerdown="onPointerDown"
         @pointermove="onPointerMove"

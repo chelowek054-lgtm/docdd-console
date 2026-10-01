@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  CAPABILITIES_TREE_MARKER, GROUPS_MARKER, GROUP_MODULES_MARKER, functionalCheckPrompt, groupsPrompt
+  CAPABILITIES_TREE_MARKER,
+  GROUPS_MARKER,
+  GROUP_MODULES_MARKER,
+  functionalCheckPrompt,
+  groupsPrompt
 } from '../server/lib/prompt';
 
 const LF = String.fromCharCode(10);
@@ -44,28 +48,36 @@ describe('functionalCheckPrompt', () => {
 });
 
 describe('groupsPrompt', () => {
-  const marked = ['# Заголовок', 'Шапка для человека.', '---', '## Группы', GROUPS_MARKER, '## Модули', GROUP_MODULES_MARKER].join(LF);
+  const groupsTemplate = ['# Заголовок', 'Шапка для человека.', '---', '## Группы', GROUPS_MARKER, '## Модули', GROUP_MODULES_MARKER].join(LF);
 
-  it('модули — списком с путём (если он не равен id), слоем и названием', () => {
-    const prompt = groupsPrompt(marked, [
-      { id: 'server/lib/a.ts', title: 'Разбор', layer: 'ядро' },
-      { id: 'maps-core', path: 'server/lib/maps.ts', title: 'Карты' }
+  it('подставляет модули с путём, слоем и описанием; путь, равный id, не повторяет', () => {
+    const prompt = groupsPrompt(groupsTemplate, [
+      { id: 'server/lib/maps.ts', path: 'server/lib/maps.ts', layer: 'ядро', summary: 'Сверка\nкарт.' },
+      { id: 'gastro.catalog', path: 'gastro/catalog/__init__.py' },
+      { id: 'pandas' }
     ], []);
-    expect(prompt).toContain('- `server/lib/a.ts` [ядро] — Разбор');
-    expect(prompt).toContain('- `maps-core` (`server/lib/maps.ts`) — Карты');
-    expect(prompt).not.toContain('Шапка для человека');
-    expect(prompt).not.toContain(GROUP_MODULES_MARKER);
-  });
-
-  it('объявленные группы называются, чтобы модель не предлагала их второй раз', () => {
-    const prompt = groupsPrompt(marked, [{ id: 'x' }], [
-      { id: 'graph', title: 'Граф знаний', paths: ['server/lib/graph/'], modules: ['a', 'b'] }
-    ]);
-    expect(prompt).toContain('- `graph` — Граф знаний, paths: `server/lib/graph/`, modules: 2');
+    expect(prompt).toContain('- `server/lib/maps.ts` — слой: ядро; Сверка карт.');
+    expect(prompt).toContain('- `gastro.catalog` — путь: gastro/catalog/__init__.py');
+    expect(prompt).toContain('- `pandas`');
     expect(prompt).not.toContain(GROUPS_MARKER);
+    expect(prompt).not.toContain(GROUP_MODULES_MARKER);
+    expect(prompt).not.toContain('Шапка для человека');
   });
 
-  it('групп нет — говорит об этом словами, а не пустой строкой', () => {
-    expect(groupsPrompt(marked, [{ id: 'x' }], [])).toContain('Объявленных групп пока нет.');
+  it('уже объявленные группы названы, чтобы модель их не повторяла', () => {
+    const prompt = groupsPrompt(groupsTemplate, [{ id: 'a' }], [
+      { id: 'knowledge', title: 'Граф знаний', paths: ['server/lib/graph', 'server/lib/links'] }
+    ]);
+    expect(prompt).toContain('- `knowledge` — Граф знаний; каталоги: server/lib/graph, server/lib/links');
+  });
+
+  it('групп нет — так и сказано, а не пустая строка', () => {
+    expect(groupsPrompt(groupsTemplate, [{ id: 'a' }], [])).toContain('Групп пока не объявлено');
+  });
+
+  it('длинное описание обрезается, а «$&» в имени модуля не ломает подстановку', () => {
+    const prompt = groupsPrompt(groupsTemplate, [{ id: 'app/$&/x.vue', summary: 'Ж'.repeat(500) }], []);
+    expect(prompt).toContain('app/$&/x.vue');
+    expect((prompt.match(/Ж+/) ?? [''])[0]).toHaveLength(160);
   });
 });

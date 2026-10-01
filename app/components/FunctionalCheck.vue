@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import type { ApiFailure } from '~/composables/useProjectIndex';
-import { STATE_LABEL, type CapabilityStatus } from '~~/server/lib/functional';
-import type { CheckProposal } from '~~/server/lib/functional-check';
+import { IMPL_LABEL, type FunctionalCheckResult, type ImplStatus } from '../../server/lib/functional';
 
 /**
- * Ответ «Проверить по коду» как таблица «сейчас → по мнению модели»
- * (docs/04-ui.md, «Функциональная карта»). Разбор — на сервере, ничего не
- * пишется: «Занести отметки» лишь передаёт выбранные строки в несохранённые
- * отметки дерева, а черновик карты появится только по «Сохранить отметки».
+ * Ответ «Проверить по коду» таблицей: возможность, что в карте сейчас, что
+ * думает модель, её `note` (docs/04-ui.md, «Функциональная карта»). Это
+ * мнение, а не свидетельство: «Занести отметки» кладёт выбранное в
+ * несохранённые отметки дерева — не в карту. Дальше человек правит и
+ * сохраняет.
  */
 const props = defineProps<{
   projectId: string;
@@ -15,25 +15,20 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  apply: [marks: { id: string; status: CapabilityStatus; note?: string }[]];
+  apply: [rows: { id: string; status: ImplStatus; note: string }[]];
 }>();
 
-const proposals = ref<CheckProposal[]>([]);
-const problems = ref<string[]>([]);
+const result = ref<FunctionalCheckResult | null>(null);
 const failure = ref<ApiFailure | null>(null);
 const loading = ref(false);
 const picked = ref<Set<string>>(new Set());
-
-/** Строка, где мнение совпало с отметкой, ничего не меняет — приглушена и по умолчанию не отмечена. */
-function same(proposal: CheckProposal): boolean {
-  return proposal.current === proposal.proposed;
-}
+const applied = ref(false);
 
 async function parse() {
   loading.value = true;
   failure.value = null;
-  proposals.value = [];
-  problems.value = [];
+  result.value = null;
+  applied.value = false;
   try {
     const response = await $fetch(`/api/projects/${props.projectId}/map/functional-check`, {
       method: 'POST',
@@ -45,10 +40,10 @@ async function parse() {
       failure.value = problem;
       return;
     }
-    const parsed = response as { proposals: CheckProposal[]; problems: string[] };
-    proposals.value = parsed.proposals;
-    problems.value = parsed.problems;
-    picked.value = new Set(parsed.proposals.filter((item) => !same(item)).map((item) => item.id));
+    const parsed = response as FunctionalCheckResult;
+    result.value = parsed;
+    // Совпавшее с картой выбирать незачем: занести там нечего.
+    picked.value = new Set(parsed.checks.filter((row) => row.current !== row.proposed).map((row) => row.id));
   } finally {
     loading.value = false;
   }
@@ -64,94 +59,82 @@ function toggle(id: string, value: boolean | 'indeterminate') {
 }
 
 function apply() {
-  emit('apply', proposals.value
-    .filter((item) => picked.value.has(item.id))
-    .map((item) => ({ id: item.id, status: item.proposed, note: item.note })));
+  const rows = (result.value?.checks ?? [])
+    .filter((row) => picked.value.has(row.id))
+    .map((row) => ({ id: row.id, status: row.proposed, note: row.note }));
+  if (rows.length === 0) return;
+  emit('apply', rows);
+  applied.value = true;
 }
 
-function label(status: CapabilityStatus | null): string {
-  return STATE_LABEL[status ?? 'unassessed'];
-}
+const BADGE_COLOR = { implemented: 'success', partial: 'warning', not_implemented: 'error', unrated: 'neutral' } as const;
 </script>
 
 <template>
-  <div class="mb-3 space-y-3">
+  <div class="mb-3">
     <p v-if="loading" class="text-sm text-muted">Разбираю ответ…</p>
 
-    <!-- Нет блока — значит, разбирать нечего: ответ остаётся текстом ниже, ничего не теряется. -->
-    <UAlert
-      v-else-if="failure"
-      color="warning"
-      variant="subtle"
-      icon="i-lucide-triangle-alert"
-      :title="failure.message"
-      description="Ответ модели ниже остаётся текстом: прочитайте его и расставьте отметки руками."
-    />
+    <!-- Блока нет — это не отказ: ответ остаётся текстом ниже, как раньше. -->
+    <p v-else-if="failure" class="text-sm text-muted">{{ failure.message }}</p>
 
-    <template v-else>
-      <p v-if="proposals.length === 0" class="text-sm text-muted">
-        Модель не предложила ни одной отметки — каждую возможность она пропустила как неочевидную.
+    <template v-else-if="result">
+      <p v-if="result.checks.length === 0" class="text-sm text-muted">
+        Предложений по состоянию в ответе нет.
       </p>
 
-      <div v-else class="overflow-x-auto rounded border border-default">
-        <table class="w-full text-sm">
-          <thead class="bg-elevated text-left text-xs text-muted">
-            <tr>
-              <th class="w-8 p-2" />
-              <th class="p-2">Возможность</th>
-              <th class="p-2">Сейчас</th>
-              <th class="p-2">По мнению модели</th>
-              <th class="p-2">Что сделано и чего не хватает</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="item in proposals"
-              :key="item.id"
-              class="border-t border-default"
-              :class="same(item) ? 'text-muted' : ''"
-            >
-              <td class="p-2">
-                <UCheckbox
-                  :model-value="picked.has(item.id)"
-                  :aria-label="`Занести отметку: ${item.title ?? item.id}`"
-                  @update:model-value="(value) => toggle(item.id, value)"
-                />
-              </td>
-              <td class="p-2">{{ item.title ?? item.id }}</td>
-              <td class="p-2">
-                <UBadge
-                  :color="STATE_UI[item.current ?? 'unassessed'].color"
-                  variant="subtle"
-                  size="sm"
-                  :icon="STATE_UI[item.current ?? 'unassessed'].icon"
-                >{{ label(item.current) }}</UBadge>
-              </td>
-              <td class="p-2">
-                <UBadge
-                  :color="STATE_UI[item.proposed].color"
-                  variant="subtle"
-                  size="sm"
-                  :icon="STATE_UI[item.proposed].icon"
-                >{{ label(item.proposed) }}</UBadge>
-              </td>
-              <td class="p-2">{{ item.note }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <template v-else>
+        <div class="overflow-x-auto rounded border border-default">
+          <table class="w-full text-sm">
+            <thead class="bg-elevated text-left text-xs text-muted">
+              <tr>
+                <th class="w-8 p-2" />
+                <th class="p-2">Возможность</th>
+                <th class="p-2">Сейчас</th>
+                <th class="p-2">По мнению модели</th>
+                <th class="p-2">Что нашла</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in result.checks" :key="row.id" class="border-t border-default align-top">
+                <td class="p-2">
+                  <UCheckbox
+                    :model-value="picked.has(row.id)"
+                    :aria-label="`Занести отметку: ${row.title}`"
+                    @update:model-value="(value) => toggle(row.id, value)"
+                  />
+                </td>
+                <td class="p-2">{{ row.title }}</td>
+                <td class="p-2">
+                  <UBadge size="xs" variant="subtle" :color="BADGE_COLOR[row.current ?? 'unrated']">
+                    {{ IMPL_LABEL[row.current ?? 'unrated'] }}
+                  </UBadge>
+                </td>
+                <td class="p-2">
+                  <UBadge size="xs" variant="subtle" :color="BADGE_COLOR[row.proposed]">
+                    {{ IMPL_LABEL[row.proposed] }}
+                  </UBadge>
+                </td>
+                <td class="p-2 text-xs text-muted">{{ row.note }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-      <div v-if="proposals.length" class="flex flex-wrap items-center gap-3">
-        <UButton size="sm" :disabled="picked.size === 0" @click="apply">
-          Занести отметки: {{ picked.size }}
-        </UButton>
-        <p class="text-sm text-muted">
-          Отметки лягут на дерево несохранёнными — сохраните их кнопкой над деревом.
-        </p>
-      </div>
+        <div class="mt-2 flex flex-wrap items-center gap-3">
+          <UButton size="sm" :disabled="picked.size === 0" @click="apply">
+            Занести отметки ({{ picked.size }})
+          </UButton>
+          <p class="text-xs text-muted">
+            Они попадут в несохранённые отметки дерева, а не в карту: проверьте и сохраните.
+          </p>
+          <p v-if="applied" class="text-sm text-success">Занесено — смотрите дерево.</p>
+        </div>
+      </template>
 
-      <ul v-if="problems.length" class="space-y-0.5 text-sm text-muted">
-        <li v-for="problem in problems" :key="problem">· {{ problem }}</li>
+      <ul v-if="result.skipped.length" class="mt-2 space-y-0.5 text-xs text-muted">
+        <li v-for="row in result.skipped" :key="row.id">
+          <span class="font-mono">{{ row.id }}</span> — пропущено: {{ row.reason }}
+        </li>
       </ul>
     </template>
   </div>
