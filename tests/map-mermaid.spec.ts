@@ -3,11 +3,15 @@ import { describe, expect, it } from 'vitest';
 import {
   codemapMermaid,
   dataflowMermaid,
+  flowOverviewMermaid,
+  fromNodeId,
   functionalMermaid,
   groupOverviewMermaid,
   moduleNodeId,
+  sourceNodeId,
   userflowMermaid
 } from '../app/utils/map-mermaid';
+import { codeGroupScope, flowContext, flowGhosts, groupFlows } from '../server/lib/flow-groups';
 import { ghostNeighbors, groupCard, groupModules, portsOf } from '../server/lib/groups';
 import { emptyProjectMap, type ProjectMap } from '../server/lib/maps';
 
@@ -531,5 +535,68 @@ describe('группы кодовой карты на диаграмме', () =>
     const { text } = codemapMermaid(mapWith({ codemap: { modules: [{ id: 'a' }], imports: [] } }));
     expect(text).not.toContain('ghost');
     expect(text).not.toContain('classDef port');
+  });
+});
+
+describe('группы на потоках данных', () => {
+  const ev = (fragment: string) => ({ path: 'x.ts', line: 1, fragment });
+  const modules = [{ id: 'server/lib/a.ts' }, { id: 'server/lib/b.ts' }, { id: 'server/api/x.ts' }, { id: 'cli/check.ts' }];
+  const sources = [
+    { id: 'cache.db', kind: 'db' }, { id: 'index.json', kind: 'file', where: 'index.json' }, { id: 'mq', kind: 'queue' }
+  ];
+  const flows = [
+    { from: 'server/lib/a.ts', to: 'cache.db', direction: 'read', evidence: ev('a>db') },
+    { from: 'server/lib/b.ts', to: 'cache.db', direction: 'write', evidence: ev('b>db'), status: 'stale' as const },
+    { from: 'server/api/x.ts', to: 'cache.db', direction: 'read', evidence: ev('x>db') },
+    { from: 'cli/check.ts', to: 'index.json', direction: 'both', evidence: ev('c>f') },
+    { from: 'server/api/x.ts', to: 'mq', direction: 'write', evidence: ev('x>mq') }
+  ];
+  const codeGrouping = groupModules(modules, []);
+  const context = flowContext(codeGrouping, [], sources);
+  const grouping = groupFlows(flows, context);
+
+  it('обзор: группы кода и виды источников, стрелки по направлению данных, подпись — число потоков', () => {
+    const { text, nodes, edges } = flowOverviewMermaid(grouping, new Map());
+    expect(text).toContain('gf_server_lib["server/lib<br/>2 потоков"]');
+    expect(text).toContain('gk_db[("база данных<br/>1 источник")]');
+    // server/lib: чтение и запись к db — «оба», жирная; server/api только читает — от источника к коду.
+    expect(text).toContain('gf_server_lib ==>|2| gk_db');
+    expect(text).toContain('gk_db -->|1| gf_server_api');
+    expect(text).toContain('gf_server_api -.->|1| gk_queue');
+    expect(nodes['gf_server_lib']?.flowGroup).toEqual({ type: 'code', id: 'server/lib' });
+    expect(nodes['gk_db']?.flowGroup).toEqual({ type: 'kind', id: 'db' });
+    expect(edges.find((edge) => edge.link?.fromGroup === 'server/lib')?.link).toMatchObject({
+      toTitle: 'база данных', direction: 'both', directionText: 'читают и пишут', status: 'stale'
+    });
+  });
+
+  it('расхождение хоть в одном потоке краснит связь', () => {
+    const { text } = flowOverviewMermaid(grouping, new Map());
+    expect(text).toMatch(/linkStyle \d+ stroke:#DC2626/);
+  });
+
+  it('потоков нет — пустая строка', () => {
+    expect(flowOverviewMermaid(groupFlows([], context), new Map()).text).toBe('');
+  });
+
+  it('вид группы: модули кликабельны, призраки — отдельной рамкой с потоками к источнику', () => {
+    const scope = codeGroupScope(context, 'server/lib', flows);
+    const { ghosts, flows: ghostFlows } = flowGhosts(context, 'server/lib', 'server/lib/a.ts', flows);
+    const { text, nodes, edges, neighbors } = dataflowMermaid(
+      mapWith({ dataflow: { sources: scope.sources as never, flows: scope.flows as never } }),
+      { selectableFrom: true, ghosts, ghostFlows }
+    );
+    expect(nodes[fromNodeId('server/lib/a.ts')]).toEqual({ id: 'server/lib/a.ts', title: 'server/lib/a.ts' });
+    expect(text).toContain('subgraph ghosts["Из других групп"]');
+    expect(text).toContain('f_server_api_x_ts["server/api/x.ts<br/>из группы server/api"]:::ghost');
+    expect(nodes['f_server_api_x_ts']?.ghost).toEqual({ groupId: 'server/api', groupTitle: 'server/api' });
+    expect(edges).toHaveLength(scope.flows.length + ghostFlows.length);
+    expect(neighbors[sourceNodeId('cache.db')]).toContain('f_server_api_x_ts');
+  });
+
+  it('без параметров диаграмма потоков прежняя: узлы «откуда» не кликабельны, призраков нет', () => {
+    const { text, nodes } = dataflowMermaid(mapWith({ dataflow: { sources: sources as never, flows: flows as never } }));
+    expect(text).not.toContain('ghost');
+    expect(nodes[fromNodeId('server/lib/a.ts')]).toBeUndefined();
   });
 });
