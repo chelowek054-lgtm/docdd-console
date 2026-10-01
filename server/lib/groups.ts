@@ -5,14 +5,17 @@ import type { Evidence, EvidenceVerdict } from './maps';
  * уровень над модулями»). Чистые функции над списками: их считает экран, а не
  * сервер, и считает одним правилом, чтобы обзор и вид группы не разошлись.
  *
- * Шаг первый: только автоматические группы по путям. Объявленные группы
- * (`groups` в карте) добавляются поверх — членство сильнее автоматического.
+ * Автоматические группы выводятся из путей и работают на любой карте.
+ * Объявленные группы (`groups` в карте) добавляются поверх: членство в них
+ * сильнее автоматического (docs/07-maps.md).
  */
 
 /** Модули без пути, с `id` из одного слова. */
 export const OTHER_GROUP = 'Прочее';
 /** Файл лежит в корне проекта. */
 export const ROOT_GROUP = '(корень)';
+
+const PATH_LIKE = /\/[^/]+\.[A-Za-z0-9]+$/;
 
 export interface GroupModule {
   id: string;
@@ -31,9 +34,25 @@ export interface GroupImport {
   pending?: boolean | undefined;
 }
 
+/** Группа, объявленная картой (`groups` в `docdd-codemap`). */
+export interface DeclaredGroup {
+  id: string;
+  title?: string | undefined;
+  summary?: string | undefined;
+  /** id группы-родителя: формат допускает вложенность, экран рисует один уровень. */
+  parent?: string | undefined;
+  /** Префиксы путей: в группу входят модули под ними (по границе сегмента). */
+  paths?: readonly string[] | undefined;
+  /** Модули, входящие в группу поимённо — сильнее `paths`. */
+  modules?: readonly string[] | undefined;
+  capability?: string | undefined;
+  declaredBy?: string | undefined;
+}
+
 export interface Group {
   id: string;
   title: string;
+  declaredBy?: string | undefined;
   /** Выведена из путей, а не объявлена картой. */
   auto: boolean;
   summary?: string | undefined;
@@ -62,14 +81,12 @@ export interface Grouping {
   links: GroupLink[];
 }
 
-const PATH_LIKE = /\/[^/]+\.[A-Za-z0-9]+$/;
-
 /**
  * Автоматическая группа: первые два сегмента каталога файла; для dotted-имени
  * пакета — первые два сегмента без последнего; иначе `Прочее`.
  */
 export function autoGroupOf(module: Pick<GroupModule, 'id' | 'path'>): string {
-  const path = module.path ?? (PATH_LIKE.test(module.id) ? module.id : undefined);
+  const path = pathOf(module);
   if (path) {
     const directory = path.split('/').filter(Boolean).slice(0, -1);
     return directory.length === 0 ? ROOT_GROUP : directory.slice(0, 2).join('/');
@@ -91,10 +108,67 @@ export function worstStatus(imports: readonly GroupImport[]): EvidenceVerdict {
   return 'ok';
 }
 
+/** Путь под префиксом — по границе сегмента: `server/lib` не захватывает `server/library`. */
+function under(path: string, prefix: string): boolean {
+  const clean = prefix.replace(/\/+$/, '');
+  return clean !== '' && (path === clean || path.startsWith(`${clean}/`));
+}
+
+function pathOf(module: Pick<GroupModule, 'id' | 'path'>): string | undefined {
+  return module.path ?? (PATH_LIKE.test(module.id) ? module.id : undefined);
+}
+
+/**
+ * Чьё правило сильнее: поимённый `modules` → самый длинный подходящий префикс
+ * `paths` → ничьё (автоматическая группа). Два равных правила, называющих
+ * разные группы, разрешаются в пользу объявленного позже — порядок
+ * подтверждения карт (`foldMaps`), а не алфавит.
+ */
+export function declaredGroupOf(module: Pick<GroupModule, 'id' | 'path'>, declared: readonly DeclaredGroup[]): string | null {
+  let named: string | null = null;
+  for (const group of declared) {
+    if (group.modules?.includes(module.id)) named = group.id;
+  }
+  if (named) return named;
+
+  const path = pathOf(module);
+  if (!path) return null;
+  let best: string | null = null;
+  let length = -1;
+  for (const group of declared) {
+    for (const prefix of group.paths ?? []) {
+      const size = prefix.replace(/\/+$/, '').length;
+      if (under(path, prefix) && size >= length) {
+        best = group.id;
+        length = size;
+      }
+    }
+  }
+  return best;
+}
+
+/**
+ * Экран рисует один уровень: модули подгруппы относятся к самой верхней группе
+ * цепочки. `parent` на несуществующую группу — группа считается верхней.
+ */
+function topOf(id: string, byId: ReadonlyMap<string, DeclaredGroup>): string {
+  const seen = new Set<string>();
+  let at = id;
+  while (!seen.has(at)) {
+    seen.add(at);
+    const parent = byId.get(at)?.parent;
+    if (!parent || parent === at || !byId.has(parent)) return at;
+    at = parent;
+  }
+  return at;
+}
+
 export function groupModules(
   modules: readonly GroupModule[],
-  imports: readonly GroupImport[]
+  imports: readonly GroupImport[],
+  declared: readonly DeclaredGroup[] = []
 ): Grouping {
+  const declaredById = new Map(declared.map((group) => [group.id, group]));
   const known = new Map(modules.map((module) => [module.id, module]));
   // Конец импорта, которого карта не объявила, — тоже участник: иначе связь
   // повисла бы на группе, в которой нет ни одного модуля.
@@ -112,9 +186,14 @@ export function groupModules(
   const groupIdOf = new Map<string, string>();
   const groups = new Map<string, Group>();
   for (const module of everyone) {
-    const key = autoGroupOf(module);
+    const named = declaredGroupOf(module, declared);
+    const key = named ? topOf(named, declaredById) : autoGroupOf(module);
     groupIdOf.set(module.id, key);
-    const group = groups.get(key) ?? { id: key, title: key, auto: true, members: [] };
+    // Пустая группа не рисуется: группа создаётся, только когда в неё что-то попало.
+    const info = declaredById.get(key);
+    const group = groups.get(key) ?? (info
+      ? { id: key, title: info.title ?? key, auto: false, summary: info.summary, capability: info.capability, declaredBy: info.declaredBy, members: [] }
+      : { id: key, title: key, auto: true, members: [] });
     group.members.push(module);
     groups.set(key, group);
   }
@@ -163,6 +242,7 @@ export interface GroupCard {
   auto: boolean;
   summary?: string | undefined;
   capability?: string | undefined;
+  declaredBy?: string | undefined;
   moduleCount: number;
   layers: { layer: string; count: number }[];
   /** Модули, на которые ссылаются снаружи, и сколько групп-импортёров у каждого. */
@@ -199,6 +279,7 @@ export function groupCard(grouping: Grouping, groupId: string): GroupCard | null
     auto: group.auto,
     summary: group.summary,
     capability: group.capability,
+    declaredBy: group.declaredBy,
     moduleCount: group.members.length,
     layers: [...layers].map(([layer, count]) => ({ layer, count })).sort((a, b) => b.count - a.count || a.layer.localeCompare(b.layer)),
     surface,

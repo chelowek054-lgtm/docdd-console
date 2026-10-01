@@ -5,14 +5,17 @@ import {
   OTHER_GROUP,
   ROOT_GROUP,
   autoGroupOf,
+  declaredGroupOf,
   ghostNeighbors,
   groupCard,
   groupModules,
   groupScope,
   portsOf,
   worstStatus,
+  type DeclaredGroup,
   type GroupImport
 } from '../server/lib/groups';
+import { evidenceClaims, foldMaps, parseMapRecord } from '../server/lib/maps';
 
 /**
  * Автоматические группы кодовой карты (docs/07-maps.md, «Группы: уровень над
@@ -173,5 +176,146 @@ describe('ghostNeighbors — соседи выбранного модуля из
     expect(ghosts.map((ghost) => [ghost.id, ghost.collapsed])).toEqual([['group:ext0/dir', 8], ['group:ext1/dir', 7]]);
     expect(shown.every((item) => item.to.startsWith('group:'))).toBe(true);
     expect(shown).toHaveLength(GHOST_LIMIT + 3);
+  });
+});
+
+describe('объявленные группы', () => {
+  const modules = [
+    { id: 'server/lib/graph/a.ts', layer: 'ядро' },
+    { id: 'server/lib/graph/b.ts', layer: 'ядро' },
+    { id: 'server/lib/links.ts', layer: 'ядро' },
+    { id: 'server/lib/library/x.ts', layer: 'ядро' },
+    { id: 'server/lib/maps.ts', layer: 'ядро' },
+    { id: 'app/components/GraphView.vue', layer: 'экраны' },
+    { id: 'app/pages/index.vue', layer: 'экраны' }
+  ];
+  const knowledge: DeclaredGroup = {
+    id: 'knowledge',
+    title: 'Граф знаний',
+    summary: 'Хранит записи и связи.',
+    paths: ['server/lib/graph', 'server/lib/links.ts'],
+    modules: ['app/components/GraphView.vue'],
+    capability: 'knowledge-graph',
+    declaredBy: 'M-0010'
+  };
+  const idsOf = (grouping: ReturnType<typeof groupModules>, id: string) =>
+    grouping.byId.get(id)?.members.map((member) => member.id).sort();
+
+  it('paths собирает модули по префиксу — по границе сегмента, поимённый modules — поверх', () => {
+    const grouping = groupModules(modules, [], [knowledge]);
+    expect(idsOf(grouping, 'knowledge')).toEqual([
+      'app/components/GraphView.vue', 'server/lib/graph/a.ts', 'server/lib/graph/b.ts', 'server/lib/links.ts'
+    ]);
+    // `server/lib/library` не захвачен префиксом `server/lib/graph`, остальные — по автоправилу.
+    expect(grouping.groupOf('server/lib/library/x.ts')).toBe('server/lib');
+    expect(grouping.groupOf('app/pages/index.vue')).toBe('app/pages');
+  });
+
+  it('объявленная группа несёт название, описание, возможность и карту-автора; она не «авто»', () => {
+    const group = groupModules(modules, [], [knowledge]).byId.get('knowledge');
+    expect(group).toMatchObject({
+      title: 'Граф знаний', summary: 'Хранит записи и связи.', capability: 'knowledge-graph', declaredBy: 'M-0010', auto: false
+    });
+    const card = groupCard(groupModules(modules, [], [knowledge]), 'knowledge');
+    expect(card).toMatchObject({ auto: false, capability: 'knowledge-graph', declaredBy: 'M-0010', moduleCount: 4 });
+  });
+
+  it('сильнее всего поимённый modules, затем самый длинный префикс, затем автогруппа', () => {
+    const broad: DeclaredGroup = { id: 'broad', paths: ['server/lib'] };
+    const narrow: DeclaredGroup = { id: 'narrow', paths: ['server/lib/graph'] };
+    const named: DeclaredGroup = { id: 'named', modules: ['server/lib/graph/a.ts'] };
+    const grouping = groupModules(modules, [], [named, broad, narrow]);
+    expect(grouping.groupOf('server/lib/graph/a.ts')).toBe('named');
+    expect(grouping.groupOf('server/lib/graph/b.ts')).toBe('narrow');
+    expect(grouping.groupOf('server/lib/maps.ts')).toBe('broad');
+    expect(grouping.groupOf('app/pages/index.vue')).toBe('app/pages');
+  });
+
+  it('равные правила, называющие разные группы, — побеждает объявленное позже', () => {
+    const a: DeclaredGroup = { id: 'a', paths: ['server/lib'] };
+    const b: DeclaredGroup = { id: 'b', paths: ['server/lib'] };
+    expect(groupModules(modules, [], [a, b]).groupOf('server/lib/maps.ts')).toBe('b');
+    expect(groupModules(modules, [], [b, a]).groupOf('server/lib/maps.ts')).toBe('a');
+    const byName = groupModules(modules, [], [{ id: 'x', modules: ['server/lib/maps.ts'] }, { id: 'y', modules: ['server/lib/maps.ts'] }]);
+    expect(byName.groupOf('server/lib/maps.ts')).toBe('y');
+  });
+
+  it('пустая группа не рисуется', () => {
+    const grouping = groupModules(modules, [], [{ id: 'empty', paths: ['нет/такого'] }]);
+    expect(grouping.byId.has('empty')).toBe(false);
+  });
+
+  it('вложенность: модули подгруппы относятся к самой верхней группе; parent в никуда — группа верхняя', () => {
+    const grouping = groupModules(modules, [], [
+      { id: 'top', title: 'Верх' },
+      { id: 'mid', parent: 'top', paths: ['server/lib/graph'] },
+      { id: 'low', parent: 'mid', modules: ['server/lib/links.ts'] },
+      { id: 'lost', parent: 'нет', modules: ['server/lib/maps.ts'] }
+    ]);
+    expect(grouping.groupOf('server/lib/graph/a.ts')).toBe('top');
+    expect(grouping.groupOf('server/lib/links.ts')).toBe('top');
+    expect(grouping.groupOf('server/lib/maps.ts')).toBe('lost');
+    expect(grouping.byId.has('mid')).toBe(false);
+  });
+
+  it('цикл в parent не зависает', () => {
+    expect(() => groupModules(modules, [], [
+      { id: 'a', parent: 'b', paths: ['server/lib'] },
+      { id: 'b', parent: 'a' }
+    ])).not.toThrow();
+  });
+
+  it('связи считаются между объявленными группами так же, как между автоматическими', () => {
+    const grouping = groupModules(modules, [
+      edge('app/components/GraphView.vue', 'server/lib/graph/a.ts'),
+      edge('app/pages/index.vue', 'server/lib/graph/b.ts'),
+      edge('server/lib/graph/a.ts', 'server/lib/graph/b.ts')
+    ], [knowledge]);
+    expect(grouping.links).toEqual([
+      expect.objectContaining({ from: 'app/pages', to: 'knowledge' })
+    ]);
+  });
+
+  it('declaredGroupOf: id — путь, когда path не задан', () => {
+    expect(declaredGroupOf({ id: 'server/lib/graph/a.ts' }, [knowledge])).toBe('knowledge');
+    expect(declaredGroupOf({ id: 'plain-name' }, [knowledge])).toBeNull();
+  });
+});
+
+describe('groups в карте: разбор и сложение', () => {
+  const block = (change: unknown) => ['```docdd-codemap', JSON.stringify(change), '```'].join('\n');
+
+  it('блок только с groups проходит схему — так отвечает модель на «Сгруппировать модули»', () => {
+    const parsed = parseMapRecord(block({ added: { groups: [{ id: 'knowledge', title: 'Граф знаний', paths: ['server/lib/graph'] }] } }));
+    expect(parsed.problems).toEqual([]);
+    expect(parsed.change.codemap?.added?.groups).toHaveLength(1);
+  });
+
+  it('незнакомое поле и не-строка в paths схема отвергает', () => {
+    expect(parseMapRecord(block({ added: { groups: [{ id: 'a', colour: 'red' }] } })).problems).toHaveLength(1);
+    expect(parseMapRecord(block({ added: { groups: [{ id: 'a', paths: [1] }] } })).problems).toHaveLength(1);
+    expect(parseMapRecord(block({ added: { groups: [{ title: 'без id' }] } })).problems).toHaveLength(1);
+  });
+
+  it('повторное объявление — уточнение; removed убирает по id; declaredBy — карта-автор', () => {
+    const folded = foldMaps([
+      { id: 'M-0001', change: { codemap: { added: { groups: [{ id: 'a', title: 'Первое' }, { id: 'b' }] } } } },
+      { id: 'M-0002', change: { codemap: { added: { groups: [{ id: 'a', title: 'Второе' }] }, removed: { groups: [{ id: 'b' }] } } } }
+    ]);
+    expect(folded.codemap.groups).toEqual([{ id: 'a', title: 'Второе', declaredBy: 'M-0002' }]);
+  });
+
+  it('группы не участвуют в сверке: у них нет свидетельства', () => {
+    expect(evidenceClaims({ codemap: { added: { groups: [{ id: 'a' }] } } })).toEqual([]);
+  });
+
+  it('сложенные группы управляют обзором: объявленная получает название и автора', () => {
+    const folded = foldMaps([{ id: 'M-0010', change: { codemap: { added: {
+      modules: [{ id: 'server/lib/graph/a.ts' }, { id: 'app/pages/x.vue' }],
+      groups: [{ id: 'knowledge', title: 'Граф знаний', paths: ['server/lib/graph'] }]
+    } } } }]);
+    const grouping = groupModules(folded.codemap.modules, folded.codemap.imports, folded.codemap.groups);
+    expect(grouping.byId.get('knowledge')).toMatchObject({ title: 'Граф знаний', auto: false, declaredBy: 'M-0010' });
+    expect(grouping.byId.get('app/pages')?.auto).toBe(true);
   });
 });

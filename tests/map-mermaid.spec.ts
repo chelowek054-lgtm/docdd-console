@@ -18,8 +18,14 @@ import { emptyProjectMap, type ProjectMap } from '../server/lib/maps';
  * попадает в документ, только на экран.
  */
 
-function mapWith(part: Partial<ProjectMap>): ProjectMap {
-  return { ...emptyProjectMap(), ...part };
+/** `groups` у кодовой карты в тестах необязательны: большинство из них про модули и импорты. */
+type MapPart = Omit<Partial<ProjectMap>, 'codemap'> & {
+  codemap?: Omit<ProjectMap['codemap'], 'groups'> & { groups?: ProjectMap['codemap']['groups'] };
+};
+
+function mapWith(part: MapPart): ProjectMap {
+  const base = emptyProjectMap();
+  return { ...base, ...part, codemap: part.codemap ? { groups: [], ...part.codemap } : base.codemap };
 }
 
 describe('codemapMermaid', () => {
