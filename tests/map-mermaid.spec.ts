@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { codemapMermaid, dataflowMermaid, functionalMermaid, userflowMermaid } from '../app/utils/map-mermaid';
+import {
+  codemapMermaid,
+  dataflowMermaid,
+  functionalMermaid,
+  groupOverviewMermaid,
+  moduleNodeId,
+  userflowMermaid
+} from '../app/utils/map-mermaid';
+import { ghostNeighbors, groupCard, groupModules, portsOf } from '../server/lib/groups';
 import { emptyProjectMap, type ProjectMap } from '../server/lib/maps';
 
 /**
@@ -452,5 +460,70 @@ describe('functionalMermaid', () => {
 
   it('пустая структура даёт пустую строку, а не пустую диаграмму', () => {
     expect(functionalMermaid(emptyProjectMap())).toEqual({ text: '', details: {}, paths: {}, nodes: {}, edges: [], neighbors: {} });
+  });
+});
+
+describe('группы кодовой карты на диаграмме', () => {
+  const ev = (fragment: string) => ({ path: 'x.ts', line: 1, fragment });
+  const modules = [
+    { id: 'server/lib/a.ts', title: 'А', layer: 'ядро' },
+    { id: 'server/lib/b.ts', title: 'Б', layer: 'ядро' },
+    { id: 'app/pages/x.vue', title: 'Экран', layer: 'экраны' },
+    { id: 'cli/check.ts', title: 'Проверка', layer: 'cli' }
+  ];
+  const imports = [
+    { from: 'server/lib/a.ts', to: 'server/lib/b.ts', evidence: ev('a>b') },
+    { from: 'app/pages/x.vue', to: 'server/lib/a.ts', evidence: ev('x>a'), status: 'ok' as const },
+    { from: 'app/pages/x.vue', to: 'server/lib/b.ts', evidence: ev('x>b'), status: 'stale' as const },
+    { from: 'server/lib/b.ts', to: 'cli/check.ts', evidence: ev('b>c') },
+    { from: 'cli/check.ts', to: 'server/lib/a.ts', evidence: ev('c>a') }
+  ];
+  const grouping = groupModules(modules, imports);
+
+  it('обзор: узел — группа с числом модулей и пометкой «авто», стрелка — число импортов', () => {
+    const { text, nodes, edges } = groupOverviewMermaid(grouping);
+    expect(text).toContain('g_server_lib["server/lib<br/>2 модуля · авто"]');
+    expect(text).toContain('g_app_pages["app/pages<br/>1 модуль · авто"]');
+    expect(text).toContain('g_app_pages -->|2| g_server_lib');
+    expect(nodes['g_server_lib']?.group?.moduleCount).toBe(2);
+    expect(edges.find((edge) => edge.link?.fromGroup === 'app/pages')?.link?.imports).toHaveLength(2);
+  });
+
+  it('расхождение хоть в одном импорте краснит всю стрелку; цикл — янтарная', () => {
+    const { text } = groupOverviewMermaid(grouping);
+    // Порядок связей: app→server (stale), server→cli, cli→server.
+    expect(text).toMatch(/linkStyle 0 stroke:#DC2626/);
+    expect(text).toMatch(/linkStyle 1 stroke:#D97706/);
+    expect(text).toMatch(/linkStyle 2 stroke:#D97706/);
+  });
+
+  it('пустой проект — пустая строка', () => {
+    expect(groupOverviewMermaid(groupModules([], []))).toEqual(
+      { text: '', details: {}, paths: {}, nodes: {}, edges: [], neighbors: {} }
+    );
+  });
+
+  it('вид группы: порты обведены, а призраки выбранного модуля — отдельной рамкой с подписью группы', () => {
+    const scoped = { codemap: { modules: grouping.byId.get('server/lib')?.members as never, imports: [imports[0]] as never } };
+    const { ghosts, imports: ghostImports } = ghostNeighbors(grouping, 'server/lib', 'server/lib/a.ts', modules, imports);
+    const { text, nodes, edges, neighbors } = codemapMermaid(
+      mapWith(scoped),
+      { ports: portsOf(grouping, 'server/lib', imports), ghosts, ghostImports, ghostCards: new Map([['cli', groupCard(grouping, 'cli') as never]]) }
+    );
+    expect(text).toContain('classDef port stroke-width:3px;');
+    expect(text).toContain(`class ${moduleNodeId('server/lib/a.ts')},${moduleNodeId('server/lib/b.ts')} port;`);
+    expect(text).toContain('subgraph ghosts["Из других групп"]');
+    expect(text).toContain('m_app_pages_x_vue["Экран<br/>из группы app/pages"]:::ghost');
+    expect(nodes['m_app_pages_x_vue']?.ghost).toEqual({ groupId: 'app/pages', groupTitle: 'app/pages' });
+    expect(nodes[moduleNodeId('server/lib/a.ts')]?.port).toBe(true);
+    // Связи с призраками — обычные рёбра диаграммы, из них же и соседи для подсветки.
+    expect(edges).toHaveLength(1 + ghostImports.length);
+    expect(neighbors['m_server_lib_a_ts']).toContain('m_app_pages_x_vue');
+  });
+
+  it('без выбора ни призраков, ни их рамки', () => {
+    const { text } = codemapMermaid(mapWith({ codemap: { modules: [{ id: 'a' }], imports: [] } }));
+    expect(text).not.toContain('ghost');
+    expect(text).not.toContain('classDef port');
   });
 });
