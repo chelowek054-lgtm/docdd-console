@@ -17,7 +17,19 @@
       "additionalProperties": false,
       "properties": {
         "capabilities": { "type": "array", "items": { "$ref": "#/$defs/capability" } },
-        "relations": { "type": "array", "items": { "$ref": "#/$defs/relation" } }
+        "relations": { "type": "array", "items": { "$ref": "#/$defs/relation" } },
+        "vision": { "$ref": "#/$defs/vision" }
+      }
+    },
+    "vision": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Вектор проекта — один на проект, повторное объявление заменяет его целиком. В removed не нужен: убрать вектор нельзя, его только заменяют. Суждение о цели, не факт об устройстве: сверки нет.",
+      "properties": {
+        "problem": { "type": "string", "description": "Какую проблему решает продукт — языком того, у кого она есть." },
+        "audience": { "type": "string", "description": "Для кого: кто пользуется и кому это важно." },
+        "outcome": { "type": "string", "description": "Что считается успехом: по чему поймём, что проблема решена." },
+        "not": { "type": "string", "description": "Чего продукт не делает — решения, а не «пока не успели»." }
       }
     },
     "relation": {
