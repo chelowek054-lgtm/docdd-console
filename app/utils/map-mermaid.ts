@@ -3,6 +3,8 @@ import {
   STATE_LABEL, relationHints, relationsOf, summarize, tallyText,
   type CapabilityState, type CapabilityStatus, type RelationKind
 } from '../../server/lib/functional';
+// Слой по папке файла, когда карта его не назвала: docs/07-maps.md, «`layer` не обязателен».
+import { layerOf } from '../../server/lib/layers';
 
 /**
  * Карты в текст mermaid. Тот же текст показывается на экране и выгружается,
@@ -264,7 +266,7 @@ export function codemapMermaid(map: ProjectMap): MermaidOutput {
   // Слои становятся подграфами: колонка на слой читается лучше клубка.
   const layers = new Map<string, typeof modules>();
   for (const module of modules) {
-    const layer = module.layer ?? 'без слоя';
+    const layer = layerOf(module);
     layers.set(layer, [...(layers.get(layer) ?? []), module]);
   }
 

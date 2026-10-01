@@ -1,4 +1,5 @@
 import { worstVerdict, type Group, type GroupModel } from '../../server/lib/groups';
+import { layerOf } from '../../server/lib/layers';
 import type { CodemapPart } from '../../server/lib/maps';
 import {
   EMPTY, classDefs, label, neighborsOf, nodeId,
@@ -195,8 +196,9 @@ export function groupMermaid(
 
   const byId = new Map(codemap.modules.map((module) => [module.id, module]));
   const hidden = options.hiddenLayers ?? new Set<string>();
-  const layerOf = (id: string) => byId.get(id)?.layer ?? 'без слоя';
-  const members = group.modules.filter((id) => !hidden.has(layerOf(id)));
+  // Модуль, названный только в импорте, слоя в карте не имеет — слой берётся по папке файла.
+  const layerFor = (id: string) => layerOf(byId.get(id) ?? { id });
+  const members = group.modules.filter((id) => !hidden.has(layerFor(id)));
   if (members.length === 0) return EMPTY;
   const memberSet = new Set(members);
 
@@ -206,7 +208,7 @@ export function groupMermaid(
   const lines = ['flowchart LR'];
 
   const layers = new Map<string, string[]>();
-  for (const id of members) layers.set(layerOf(id), [...(layers.get(layerOf(id)) ?? []), id]);
+  for (const id of members) layers.set(layerFor(id), [...(layers.get(layerFor(id)) ?? []), id]);
   lines.push(...classDefs(new Set(layers.keys()), 'layer'));
   lines.push('    classDef port stroke-width:4px;');
   lines.push('    classDef focus stroke:#2563EB,stroke-width:4px;');
@@ -263,7 +265,7 @@ export function groupMermaid(
       details[node] = [other, module?.title, `из группы: ${ownGroup}`].filter(Boolean).join(LF);
       if (module?.path) paths[node] = module.path;
       nodes[node] = {
-        id: other, title: module?.title, layer: module?.layer, path: module?.path, summary: module?.summary,
+        id: other, title: module?.title, layer: layerFor(other), path: module?.path, summary: module?.summary,
         api: module?.api, declaredBy: module?.declaredBy, pending: module?.pending, ghostOf: ownGroup
       };
     }

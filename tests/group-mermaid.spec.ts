@@ -214,3 +214,25 @@ describe('groupCardOf', () => {
     ]);
   });
 });
+
+describe('groupMermaid: слой модуля без записи в карте', () => {
+  // Модуль назван только в импорте: карта его не описала, и слоя у неё нет.
+  const only: GroupedCodemap = {
+    modules: [module('code/backend/src/app/db.py', 'ядро')],
+    imports: [edge('code/backend/src/app/db.py', 'code/backend/src/app/modules/access/__init__.py')]
+  };
+  const onlyModel = buildGroups(only.modules, only.imports);
+
+  it('слой берётся по папке файла, а не «без слоя»', () => {
+    const view = groupMermaid(only, onlyModel, 'code/backend');
+    expect(view.text).toContain('subgraph layer_modules["modules"]');
+    expect(view.text).not.toContain('без слоя');
+    expect(view.nodes['m_code_backend_src_app_modules_access___init___py']?.layer).toBe('modules');
+  });
+
+  it('и спрятать его чипом можно, как любой описанный слой', () => {
+    const view = groupMermaid(only, onlyModel, 'code/backend', { hiddenLayers: new Set(['modules']) });
+    expect(view.text).not.toContain('layer_modules');
+    expect(view.text).toContain('layer_ядро');
+  });
+});

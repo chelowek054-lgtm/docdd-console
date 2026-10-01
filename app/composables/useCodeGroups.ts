@@ -1,6 +1,7 @@
 import type { Ref } from 'vue';
 
 import { buildGroups, membersOf, ungroupedModules } from '~~/server/lib/groups';
+import { layerOf } from '~~/server/lib/layers';
 import type { ProjectMap } from '~~/server/lib/maps';
 
 /**
@@ -66,17 +67,22 @@ export function useCodeGroups(map: Ref<ProjectMap | null | undefined>) {
   // --- слои: чипы изолируют слой; работают на том, что сейчас в области просмотра ---
   const chosenHiddenLayers = ref<Set<string> | null>(null);
 
-  /** Модули в области просмотра: вся карта, одна группа или ничего (обзор рисует группы, не модули). */
+  /**
+   * Модули в области просмотра со слоем: вся карта, одна группа или ничего
+   * (обзор рисует группы, не модули). В группе — и модули, названные только в
+   * импорте: слой у них по папке файла, и чипы обязаны их знать, иначе такой
+   * модуль нельзя было бы спрятать.
+   */
   const scope = computed(() => {
-    if (mode.value === 'modules') return modules.value;
+    if (mode.value === 'modules') return modules.value.map((module) => ({ id: module.id, layer: layerOf(module) }));
     if (!openGroup.value) return [];
-    const ids = new Set(membersOf(model.value, openGroup.value));
-    return modules.value.filter((module) => ids.has(module.id));
+    return membersOf(model.value, openGroup.value)
+      .map((id) => ({ id, layer: layerOf(modulesById.value.get(id) ?? { id }) }));
   });
 
   const allLayers = computed(() => {
     const set = new Set<string>();
-    for (const item of scope.value) set.add(item.layer ?? 'без слоя');
+    for (const item of scope.value) set.add(item.layer);
     return [...set].sort();
   });
   const isLarge = computed(() => scope.value.length > LARGE_CODEMAP);
@@ -85,8 +91,7 @@ export function useCodeGroups(map: Ref<ProjectMap | null | undefined>) {
   const smallestLayer = computed(() => {
     const sizes = new Map<string, number>();
     for (const item of scope.value) {
-      const layer = item.layer ?? 'без слоя';
-      sizes.set(layer, (sizes.get(layer) ?? 0) + 1);
+      sizes.set(item.layer, (sizes.get(item.layer) ?? 0) + 1);
     }
     return [...allLayers.value].sort((a, b) => (sizes.get(a) ?? 0) - (sizes.get(b) ?? 0))[0] ?? null;
   });
@@ -131,7 +136,7 @@ export function useCodeGroups(map: Ref<ProjectMap | null | undefined>) {
     const value = map.value;
     if (!value || hiddenLayers.value.size === 0) return value?.codemap;
     const visible = new Set(
-      value.codemap.modules.filter((item) => !hiddenLayers.value.has(item.layer ?? 'без слоя')).map((item) => item.id)
+      value.codemap.modules.filter((item) => !hiddenLayers.value.has(layerOf(item))).map((item) => item.id)
     );
     return {
       modules: value.codemap.modules.filter((item) => visible.has(item.id)),
