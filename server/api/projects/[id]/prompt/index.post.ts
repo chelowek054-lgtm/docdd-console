@@ -6,6 +6,7 @@ import { checkEvidence, evidenceClaims, parseMapRecord } from '../../../../lib/m
 import {
   fixPrompt,
   functionalCheckPrompt,
+  groupsPrompt,
   inboxPrompt,
   mapFixPrompt,
   mapsPrompt,
@@ -26,6 +27,8 @@ import { fail } from '../../../../utils/http';
 import { loadIndex } from '../../../../utils/index-service';
 import { buildProjectMap } from '../../../../utils/map-service';
 import { findProject } from '../../../../utils/projects';
+// Ниже — импорты, которых карты не называют по номерам строк.
+import { buildGroups, ungroupedModules } from '../../../../lib/groups';
 
 /**
  * Сборка запроса к модели по шаблону из репозитория. Приложение подставляет
@@ -190,6 +193,25 @@ export default defineEventHandler(async (event) => {
       return { prompt: verifyPrompt(await template('verify-plan.md'), practices), count: practices.length };
     }
 
+    if (kind === 'groups') {
+      // Группировать нечего — к модели не идём: запрос стоит времени и денег (docs/03-server-api.md).
+      const codemap = buildProjectMap(project.root).codemap;
+      const model = buildGroups(codemap.modules, codemap.imports, codemap.groups);
+      const ungrouped = new Set(ungroupedModules(model));
+      if (ungrouped.size === 0) {
+        return fail(event, 422, 'groups_nothing_to_group', 'Все модули уже в группах — группировать нечего');
+      }
+      const byId = new Map(codemap.modules.map((module) => [module.id, module]));
+      return {
+        prompt: groupsPrompt(
+          await template('groups.md'),
+          [...ungrouped].map((id) => byId.get(id) ?? { id }),
+          codemap.groups
+        ),
+        count: ungrouped.size
+      };
+    }
+
     if (kind === 'functional-check') {
       const capabilities = buildProjectMap(project.root).functional.capabilities;
       if (capabilities.length === 0) {
@@ -201,7 +223,7 @@ export default defineEventHandler(async (event) => {
       };
     }
 
-    return fail(event, 400, 'kind_invalid', 'Известны запросы: `fix`, `maps`, `map-fix`, `inbox`, `verify`, `functional-check`, `phases`');
+    return fail(event, 400, 'kind_invalid', 'Известны запросы: `fix`, `maps`, `map-fix`, `inbox`, `verify`, `functional-check`, `phases`, `groups`');
   } catch (error) {
     if (error instanceof WorkspaceError) {
       return fail(event, 422, error.code, error.message, error.detail);

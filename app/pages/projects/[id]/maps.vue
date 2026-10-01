@@ -155,7 +155,7 @@ const mapRecords = computed(() => {
  * просмотра: на группе, а не на всём проекте.
  */
 const {
-  model: groupModel, modulesById, mode: codeMode, groupsAvailable, openGroup, focus,
+  model: groupModel, modulesById, capabilities, ungrouped, mode: codeMode, groupsAvailable, openGroup, focus,
   chooseMode, setOpenGroup, allLayers, isLarge: isLargeCodemap, hiddenLayers, toggleLayer,
   filteredCodemap, scopeCount
 } = useCodeGroups(map);
@@ -168,10 +168,11 @@ function codemapView(value: MapResponse) {
   if (codeMode.value === 'modules') {
     return codemapMermaid({ ...value, codemap: filteredCodemap.value ?? value.codemap });
   }
-  if (!openGroup.value) return groupsOverviewMermaid(groupModel.value, modulesById.value);
+  if (!openGroup.value) return groupsOverviewMermaid(groupModel.value, modulesById.value, capabilities.value);
   return groupMermaid(value.codemap, groupModel.value, openGroup.value, {
     hiddenLayers: hiddenLayers.value,
-    focus: focus.value
+    focus: focus.value,
+    capabilities: capabilities.value
   });
 }
 
@@ -182,7 +183,8 @@ function showGroupCard(id: string) {
   const group = groupModel.value.groups.find((item) => item.id === id);
   if (!group) return;
   selection.value = {
-    kind: 'node', id: group.id, title: group.title, group: groupCardOf(groupModel.value, group, modulesById.value)
+    kind: 'node', id: group.id, title: group.title, summary: group.summary,
+    group: groupCardOf(groupModel.value, group, modulesById.value, capabilities.value)
   };
 }
 
@@ -485,6 +487,35 @@ async function onUnrelate(relation: { from: string; to: string; kind: RelationKi
           <div v-if="fixed" class="mb-3">
             <p class="mb-2 text-sm text-muted">Модель поправила форму. Ниже — исправленный ответ:</p>
             <pre class="max-h-72 overflow-auto rounded bg-elevated p-3 text-xs whitespace-pre-wrap">{{ fixed }}</pre>
+          </div>
+        </template>
+      </PromptPanel>
+
+      <!-- Группировка — тем же путём, что «Разбить на фазы»: запрос показывается целиком, ответ ложится
+           черновиком карты и ждёт человека (docs/04-ui.md, «Группы кодовой карты»). -->
+      <PromptPanel
+        v-if="map && map.codemap.modules.length > 0"
+        :project-id="projectId"
+        kind="groups"
+        :label="`Сгруппировать модули: ${ungrouped}`"
+        :disabled="ungrouped === 0"
+        disabled-reason="Все модули уже в группах — группировать нечего"
+        hint="Ответ сохраняется черновиком карты и требует подтверждения"
+        @answered="onAnswer"
+      >
+        <template #answer="{ answer }">
+          <div class="mb-3 flex flex-wrap items-center gap-3">
+            <UButton size="sm" :loading="saving" @click="saveDraft(answer)">Сохранить черновиком</UButton>
+            <NuxtLink v-if="draftId" :to="`/projects/${projectId}/records/${draftId}`" class="text-sm hover:underline">
+              Черновик {{ draftId }} создан — открыть
+            </NuxtLink>
+            <UAlert
+              v-if="draftFailure"
+              color="error"
+              variant="subtle"
+              :title="draftFailure.message"
+              :description="problems.join(' ')"
+            />
           </div>
         </template>
       </PromptPanel>

@@ -76,6 +76,10 @@ export interface GroupCard {
   auto: boolean;
   summary?: string;
   modules: number;
+  /** Из чего состав: сколько модулей названо поимённо, поймано префиксом и посчитано по пути. */
+  sources: { named: number; prefix: number; auto: number };
+  /** Возможность функциональной карты, которую группа реализует. */
+  capability?: { id: string; title?: string };
   /** Публичная поверхность: модули группы, которые импортируют снаружи. */
   surface: { id: string; title?: string }[];
   links: { direction: 'out' | 'in'; other: string; otherTitle: string; count: number; status: EvidenceVerdict; cycle: boolean }[];

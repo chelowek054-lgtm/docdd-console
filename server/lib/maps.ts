@@ -42,6 +42,13 @@ export interface CodemapPart {
     from: string; to: string; evidence: Evidence;
     status?: EvidenceVerdict; declaredBy?: string; pending?: boolean;
   }[];
+  /** Объявленные группы — подсистемы над модулями; без свидетельства (docs/07-maps.md). */
+  groups?: {
+    id: string; title?: string; summary?: string; parent?: string;
+    paths?: string[]; modules?: string[]; capability?: string;
+    links?: { to: string; summary?: string }[];
+    declaredBy?: string; pending?: boolean;
+  }[];
 }
 
 export interface DataflowPart {
@@ -142,7 +149,9 @@ const MAP_KINDS: readonly MapKind[] = [
         name: 'imports',
         keyOf: (item) => `${item.from}>${item.to}`,
         evidence: (item) => ({ label: `${item.from} → ${item.to}`, evidence: item.evidence })
-      }
+      },
+      // Группа — суждение, а не вывод из строки кода: evidence у неё нет, сверка её обходит.
+      { name: 'groups', keyOf: (item) => item.id }
     ]
   },
   {
@@ -391,6 +400,7 @@ export function annotatePending(map: ProjectMap, pendingMaps: ReadonlySet<string
   };
 
   for (const item of map.codemap.modules) mark(item);
+  for (const item of map.codemap.groups) mark(item);
   for (const item of map.codemap.imports) markEdge(item);
   for (const item of map.dataflow.sources) mark(item);
   for (const item of map.dataflow.flows) markEdge(item);
@@ -413,7 +423,7 @@ export interface ProjectMap {
 
 export function emptyProjectMap(): ProjectMap {
   return {
-    codemap: { modules: [], imports: [] },
+    codemap: { modules: [], imports: [], groups: [] },
     dataflow: { sources: [], flows: [] },
     userflow: { screens: [], transitions: [], calls: [] },
     functional: { capabilities: [], relations: [] },

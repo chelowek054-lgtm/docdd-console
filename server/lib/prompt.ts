@@ -366,3 +366,34 @@ export function functionalCheckPrompt(
 
   return withoutFrontNote(template).replace(CAPABILITIES_TREE_MARKER, lines);
 }
+
+export const GROUPS_MARKER = '<!-- ГРУППЫ -->';
+export const GROUP_MODULES_MARKER = '<!-- МОДУЛИ -->';
+
+/**
+ * Запрос «Сгруппировать модули» (docs/07-maps.md, «Группы: уровень над
+ * модулями»; docs/prompts/groups.md). В запрос уходят модули, которые ещё не
+ * попали ни в одну объявленная группа, и сами объявленные группы — чтобы модель
+ * не предлагала второй раз то, что есть. Тем же способом, что у `phasesPrompt`.
+ */
+export function groupsPrompt(
+  template: string,
+  modules: readonly { id: string; title?: string; layer?: string; path?: string }[],
+  declared: readonly { id: string; title?: string; paths?: readonly string[]; modules?: readonly string[] }[]
+): string {
+  const groupLines = declared.length > 0
+    ? declared.map((group) => {
+      const paths = group.paths?.length ? `, paths: ${group.paths.map((path) => `\`${path}\``).join(', ')}` : '';
+      const named = group.modules?.length ? `, modules: ${group.modules.length}` : '';
+      return `- \`${group.id}\`${group.title ? ` — ${group.title}` : ''}${paths}${named}`;
+    }).join(LF)
+    : 'Объявленных групп пока нет.';
+
+  const moduleLines = modules.map((module) => {
+    // Путь называем, только когда он не совпадает с id: иначе это повтор.
+    const path = module.path && module.path !== module.id ? ` (\`${module.path}\`)` : '';
+    return `- \`${module.id}\`${path}${module.layer ? ` [${module.layer}]` : ''}${module.title ? ` — ${module.title}` : ''}`;
+  }).join(LF);
+
+  return withoutFrontNote(template).replace(GROUPS_MARKER, groupLines).replace(GROUP_MODULES_MARKER, moduleLines);
+}

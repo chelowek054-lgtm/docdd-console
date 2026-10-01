@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { CAPABILITIES_TREE_MARKER, functionalCheckPrompt } from '../server/lib/prompt';
+import {
+  CAPABILITIES_TREE_MARKER, GROUPS_MARKER, GROUP_MODULES_MARKER, functionalCheckPrompt, groupsPrompt
+} from '../server/lib/prompt';
 
 const LF = String.fromCharCode(10);
 const template = ['# Заголовок', 'Шапка для человека.', '---', '## Карта', '', CAPABILITIES_TREE_MARKER].join(LF);
@@ -38,5 +40,32 @@ describe('functionalCheckPrompt', () => {
     ]);
     expect(prompt).toContain('`a`');
     expect(prompt).toContain('`b`');
+  });
+});
+
+describe('groupsPrompt', () => {
+  const marked = ['# Заголовок', 'Шапка для человека.', '---', '## Группы', GROUPS_MARKER, '## Модули', GROUP_MODULES_MARKER].join(LF);
+
+  it('модули — списком с путём (если он не равен id), слоем и названием', () => {
+    const prompt = groupsPrompt(marked, [
+      { id: 'server/lib/a.ts', title: 'Разбор', layer: 'ядро' },
+      { id: 'maps-core', path: 'server/lib/maps.ts', title: 'Карты' }
+    ], []);
+    expect(prompt).toContain('- `server/lib/a.ts` [ядро] — Разбор');
+    expect(prompt).toContain('- `maps-core` (`server/lib/maps.ts`) — Карты');
+    expect(prompt).not.toContain('Шапка для человека');
+    expect(prompt).not.toContain(GROUP_MODULES_MARKER);
+  });
+
+  it('объявленные группы называются, чтобы модель не предлагала их второй раз', () => {
+    const prompt = groupsPrompt(marked, [{ id: 'x' }], [
+      { id: 'graph', title: 'Граф знаний', paths: ['server/lib/graph/'], modules: ['a', 'b'] }
+    ]);
+    expect(prompt).toContain('- `graph` — Граф знаний, paths: `server/lib/graph/`, modules: 2');
+    expect(prompt).not.toContain(GROUPS_MARKER);
+  });
+
+  it('групп нет — говорит об этом словами, а не пустой строкой', () => {
+    expect(groupsPrompt(marked, [{ id: 'x' }], [])).toContain('Объявленных групп пока нет.');
   });
 });

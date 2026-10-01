@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { OTHER_GROUP, autoGroupId, buildGroups, membersOf, worstVerdict, type GroupImport } from '../server/lib/groups';
+import {
+  OTHER_GROUP, autoGroupId, buildGroups, membersOf, ungroupedModules, worstVerdict, type GroupImport
+} from '../server/lib/groups';
 
 /**
  * Группы кодовой карты (docs/07-maps.md, «Группы: уровень над модулями»).
@@ -135,5 +137,125 @@ describe('buildGroups', () => {
     const model = buildGroups([], []);
     expect(model.groups).toEqual([]);
     expect(model.links).toEqual([]);
+  });
+});
+
+describe('объявленные группы: приоритет и состав', () => {
+  const mods = [
+    { id: 'server/lib/graph/a.ts', path: 'server/lib/graph/a.ts' },
+    { id: 'server/lib/graph/b.ts', path: 'server/lib/graph/b.ts' },
+    { id: 'server/lib/graphics.ts', path: 'server/lib/graphics.ts' },
+    { id: 'server/lib/other.ts', path: 'server/lib/other.ts' },
+    { id: 'app/pages/graph.vue', path: 'app/pages/graph.vue' },
+    { id: 'app/pages/home.vue', path: 'app/pages/home.vue' }
+  ];
+
+  it('по префиксу: новый файл в каталоге попадает в группу сам', () => {
+    const model = buildGroups(mods, [], [{ id: 'graph', title: 'Граф знаний', paths: ['server/lib/graph/', 'app/pages/graph'] }]);
+    expect(membersOf(model, 'graph')).toEqual(['server/lib/graph/a.ts', 'server/lib/graph/b.ts', 'app/pages/graph.vue']);
+    expect(model.memberSource.get('server/lib/graph/a.ts')).toBe('prefix');
+    expect(model.groups.find((group) => group.id === 'graph')).toMatchObject({ title: 'Граф знаний', auto: false });
+  });
+
+  it('поимённо сильнее префикса, префикс — сильнее пути', () => {
+    const model = buildGroups(mods, [], [
+      { id: 'graph', paths: ['server/lib/graph/'] },
+      { id: 'misc', modules: ['server/lib/graph/b.ts'] }
+    ]);
+    expect(model.groupOf.get('server/lib/graph/a.ts')).toBe('graph');
+    expect(model.groupOf.get('server/lib/graph/b.ts')).toBe('misc');
+    expect(model.memberSource.get('server/lib/graph/b.ts')).toBe('named');
+    // Не названное и не пойманное остаётся в автогруппе: объявленные и автоматические работают вместе.
+    expect(model.groupOf.get('server/lib/other.ts')).toBe('server/lib');
+    expect(model.groups.find((group) => group.id === 'server/lib')?.auto).toBe(true);
+  });
+
+  it('самый длинный префикс побеждает, равные — позже объявленная', () => {
+    const wide = buildGroups(mods, [], [{ id: 'lib', paths: ['server/lib/'] }, { id: 'graph', paths: ['server/lib/graph/'] }]);
+    expect(wide.groupOf.get('server/lib/graph/a.ts')).toBe('graph');
+    expect(wide.groupOf.get('server/lib/other.ts')).toBe('lib');
+
+    const tie = buildGroups(mods, [], [{ id: 'first', paths: ['server/lib/other'] }, { id: 'second', paths: ['server/lib/other'] }]);
+    expect(tie.groupOf.get('server/lib/other.ts')).toBe('second');
+  });
+
+  it('назван в двух группах — побеждает объявленная последней', () => {
+    const model = buildGroups(mods, [], [
+      { id: 'a', modules: ['server/lib/other.ts'] },
+      { id: 'b', modules: ['server/lib/other.ts'] }
+    ]);
+    expect(model.groupOf.get('server/lib/other.ts')).toBe('b');
+  });
+
+  it('группа без единого модуля не показывается', () => {
+    const model = buildGroups(mods, [], [{ id: 'empty', paths: ['нет/такого/'] }]);
+    expect(model.groups.some((group) => group.id === 'empty')).toBe(false);
+  });
+
+  it('автогруппа с тем же id, что у объявленной, — та же группа', () => {
+    const model = buildGroups(mods, [], [{ id: 'server/lib', title: 'Серверное ядро', modules: ['server/lib/other.ts'] }]);
+    const group = model.groups.find((item) => item.id === 'server/lib');
+    expect(group?.title).toBe('Серверное ядро');
+    expect(group?.modules.sort()).toEqual([
+      'server/lib/graph/a.ts', 'server/lib/graph/b.ts', 'server/lib/graphics.ts', 'server/lib/other.ts'
+    ].sort());
+    expect(group?.sources).toEqual({ named: 1, prefix: 0, auto: 3 });
+  });
+
+  it('«ещё не сгруппировано» — модули без объявленной группы', () => {
+    const model = buildGroups(mods, [], [{ id: 'graph', paths: ['server/lib/graph/'] }]);
+    expect(ungroupedModules(model).sort()).toEqual([
+      'app/pages/graph.vue', 'app/pages/home.vue', 'server/lib/graphics.ts', 'server/lib/other.ts'
+    ]);
+    const all = buildGroups(mods, [], [{ id: 'everything', paths: ['server/', 'app/'] }]);
+    expect(ungroupedModules(all)).toEqual([]);
+  });
+});
+
+describe('объявленные группы: вложенность и подписи связей', () => {
+  const mods = [
+    { id: 'g/core/a.ts', path: 'g/core/a.ts' },
+    { id: 'g/ui/b.ts', path: 'g/ui/b.ts' },
+    { id: 'x/y/c.ts', path: 'x/y/c.ts' }
+  ];
+
+  it('вложенная группа считается внутри родителя: узел обзора — группа верхнего уровня', () => {
+    const model = buildGroups(mods, [], [
+      { id: 'graph', title: 'Граф' },
+      { id: 'graph-core', parent: 'graph', paths: ['g/core/'] },
+      { id: 'graph-ui', parent: 'graph', paths: ['g/ui/'] }
+    ]);
+    expect(model.groups.map((group) => group.id)).toEqual(['graph', 'x/y']);
+    const graph = model.groups[0];
+    expect(graph?.modules.sort()).toEqual(['g/core/a.ts', 'g/ui/b.ts']);
+    expect(graph?.children.sort()).toEqual(['graph-core', 'graph-ui']);
+    expect(model.groupOf.get('g/core/a.ts')).toBe('graph');
+  });
+
+  it('родителя нет в карте или круг из parent — верхний уровень, а не потерянная группа', () => {
+    const orphan = buildGroups(mods, [], [{ id: 'core', parent: 'нет-такого', paths: ['g/core/'] }]);
+    expect(orphan.groupOf.get('g/core/a.ts')).toBe('core');
+
+    const circle = buildGroups(mods, [], [
+      { id: 'a', parent: 'b', paths: ['g/core/'] },
+      { id: 'b', parent: 'a', paths: ['g/ui/'] }
+    ]);
+    expect(circle.groupOf.get('g/core/a.ts')).toBe('a');
+    expect(circle.groupOf.get('g/ui/b.ts')).toBe('b');
+  });
+
+  it('подпись связи берётся из links группы-источника, в том числе вложенной', () => {
+    const imports: GroupImport[] = [{ from: 'g/core/a.ts', to: 'x/y/c.ts' }];
+    const model = buildGroups(mods, imports, [
+      { id: 'graph' },
+      { id: 'graph-core', parent: 'graph', paths: ['g/core/'], links: [{ to: 'x/y', summary: 'читает граф знаний' }] }
+    ]);
+    expect(model.links).toHaveLength(1);
+    expect(model.links[0]).toMatchObject({ from: 'graph', to: 'x/y', summary: 'читает граф знаний' });
+  });
+
+  it('связь без подписи остаётся числом', () => {
+    const model = buildGroups(mods, [{ from: 'g/core/a.ts', to: 'x/y/c.ts' }], [{ id: 'graph', paths: ['g/'] }]);
+    expect(model.links[0]?.summary).toBeUndefined();
   });
 });

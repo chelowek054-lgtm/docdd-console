@@ -5,6 +5,7 @@ import {
   annotatePending,
   checkEvidence,
   collapse,
+  emptyProjectMap,
   evidenceClaims,
   foldMaps,
   mapDraftText,
@@ -515,5 +516,52 @@ describe('схлопывание жалоб схемы', () => {
     // Стену никто не читает — её пролистывают.
     expect(collapsed.length).toBeLessThan(issues.length);
     expect(collapsed[collapsed.length - 1]).toContain('и ещё');
+  });
+});
+
+describe('группы в блоке docdd-codemap', () => {
+  const block = (payload: unknown) => ['```docdd-codemap', JSON.stringify(payload), '```'].join('\n');
+
+  it('группа проходит схему: id обязателен, чужие поля закрыты, свидетельства нет', () => {
+    const ok = parseMapRecord(block({
+      added: {
+        groups: [{
+          id: 'graph', title: 'Граф знаний', summary: 'Понятия и связи.', parent: 'core',
+          paths: ['server/lib/graph/'], modules: ['server/utils/graph-service.ts'], capability: 'knowledge-graph',
+          links: [{ to: 'account', summary: 'проверяет права' }]
+        }]
+      }
+    }));
+    expect(ok.problems).toEqual([]);
+    expect(ok.change.codemap?.added?.groups?.[0]?.id).toBe('graph');
+
+    expect(parseMapRecord(block({ added: { groups: [{ title: 'без id' }] } })).problems).not.toEqual([]);
+    expect(parseMapRecord(block({ added: { groups: [{ id: 'x', evidence: {} }] } })).problems).not.toEqual([]);
+    expect(parseMapRecord(block({ added: { groups: [{ id: 'x', paths: [''] }] } })).problems).not.toEqual([]);
+  });
+
+  it('свёртка: повторное объявление уточняет группу, removed убирает по id', () => {
+    const first = parseMapRecord(block({ added: { groups: [{ id: 'graph', paths: ['server/lib/graph/'] }, { id: 'old' }] } }));
+    const second = parseMapRecord(block({ added: { groups: [{ id: 'graph', title: 'Граф знаний', paths: ['server/lib/graph/', 'app/pages/graph'] }] } }));
+    const third = parseMapRecord(block({ removed: { groups: [{ id: 'old' }] } }));
+    expect([first, second, third].flatMap((item) => item.problems)).toEqual([]);
+
+    const folded = foldMaps([
+      { id: 'M-0001', change: first.change },
+      { id: 'M-0002', change: second.change },
+      { id: 'M-0003', change: third.change }
+    ]);
+    expect(folded.codemap.groups).toEqual([
+      { id: 'graph', title: 'Граф знаний', paths: ['server/lib/graph/', 'app/pages/graph'], declaredBy: 'M-0002' }
+    ]);
+  });
+
+  it('группа не участвует в сверке свидетельств: утверждать «одна подсистема» строкой кода нечем', () => {
+    const parsed = parseMapRecord(block({ added: { groups: [{ id: 'graph', paths: ['server/'] }] } }));
+    expect(evidenceClaims(parsed.change)).toEqual([]);
+  });
+
+  it('группа — часть кодовой карты, а не отдельный вид: пустая картина несёт пустой список групп', () => {
+    expect(emptyProjectMap().codemap.groups).toEqual([]);
   });
 });

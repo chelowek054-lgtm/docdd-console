@@ -269,6 +269,14 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
             <span class="text-muted">{{ plural(selection.group.modules, 'модуль', 'модуля', 'модулей') }}</span>
           </div>
           <p v-if="selection.group.summary" class="leading-relaxed">{{ selection.group.summary }}</p>
+          <p class="text-xs text-muted">
+            Состав: поимённо — {{ selection.group.sources.named }}, по префиксу — {{ selection.group.sources.prefix }},
+            по пути — {{ selection.group.sources.auto }}
+          </p>
+          <p v-if="selection.group.capability" class="text-sm">
+            <span class="text-muted">Реализует возможность:</span>
+            <strong class="ml-1">{{ selection.group.capability.title ?? selection.group.capability.id }}</strong>
+          </p>
           <div v-if="selection.group.surface.length">
             <h3 class="font-medium">Публичная поверхность</h3>
             <p class="text-xs text-muted">Модули, которые импортируют снаружи.</p>

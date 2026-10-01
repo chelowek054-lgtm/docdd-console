@@ -17,7 +17,44 @@
       "additionalProperties": false,
       "properties": {
         "modules": { "type": "array", "items": { "$ref": "#/$defs/module" } },
-        "imports": { "type": "array", "items": { "$ref": "#/$defs/import" } }
+        "imports": { "type": "array", "items": { "$ref": "#/$defs/import" } },
+        "groups": { "type": "array", "items": { "$ref": "#/$defs/group" } }
+      }
+    },
+    "group": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "description": "Подсистема над модулями. Без свидетельства: «эти файлы — одна подсистема» — суждение, как layer и summary, и подтверждает его человек (docs/07-maps.md, «Группы: уровень над модулями»).",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "description": "Уникальный идентификатор группы: короткое латинское имя." },
+        "title": { "type": "string", "description": "Как подсистему называют люди." },
+        "summary": { "type": "string", "description": "Зачем подсистема проекту — два-три предложения." },
+        "parent": { "type": "string", "description": "id группы-родителя. Формат допускает вложенность; на экране пока один уровень." },
+        "paths": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Префиксы путей: в группу входят модули, чей путь с одного из них начинается. Новый файл в каталоге попадает в группу сам."
+        },
+        "modules": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "id модулей поимённо — исключения и то, что префиксом не поймать."
+        },
+        "capability": { "type": "string", "description": "id возможности функциональной карты, которую группа реализует." },
+        "links": {
+          "type": "array",
+          "description": "Подписи к связям с другими группами; число импортов приложение считает само.",
+          "items": {
+            "type": "object",
+            "required": ["to"],
+            "additionalProperties": false,
+            "properties": {
+              "to": { "type": "string", "minLength": 1, "description": "id группы, к которой идёт связь." },
+              "summary": { "type": "string", "description": "Понятная подпись: «читает граф знаний»." }
+            }
+          }
+        }
       }
     },
     "module": {

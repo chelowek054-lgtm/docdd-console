@@ -1,6 +1,6 @@
 import type { Ref } from 'vue';
 
-import { buildGroups, membersOf } from '~~/server/lib/groups';
+import { buildGroups, membersOf, ungroupedModules } from '~~/server/lib/groups';
 import type { ProjectMap } from '~~/server/lib/maps';
 
 /**
@@ -33,7 +33,12 @@ export function useCodeGroups(map: Ref<ProjectMap | null | undefined>) {
   const modules = computed(() => map.value?.codemap.modules ?? []);
   const imports = computed(() => map.value?.codemap.imports ?? []);
   const modulesById = computed(() => new Map(modules.value.map((module) => [module.id, module])));
-  const model = computed(() => buildGroups(modules.value, imports.value));
+  /** Объявленные группы приходят из карт; что они не взяли, остаётся в автогруппах. */
+  const declared = computed(() => map.value?.codemap.groups ?? []);
+  const model = computed(() => buildGroups(modules.value, imports.value, declared.value));
+  const capabilities = computed(() => new Map((map.value?.functional.capabilities ?? []).map((item) => [item.id, item])));
+  /** Сколько модулей ещё не в объявленной группе — число на кнопке «Сгруппировать модули». */
+  const ungrouped = computed(() => ungroupedModules(model.value).length);
 
   /** Открытая группа держится в адресе: на неё можно послать ссылку. */
   const openGroup = computed<string | null>(() => {
@@ -135,7 +140,7 @@ export function useCodeGroups(map: Ref<ProjectMap | null | undefined>) {
   });
 
   return {
-    model, modulesById, mode, groupsAvailable, openGroup, focus, chooseMode, setOpenGroup,
+    model, modulesById, capabilities, ungrouped, mode, groupsAvailable, openGroup, focus, chooseMode, setOpenGroup,
     allLayers, isLarge, hiddenLayers, toggleLayer, filteredCodemap, scopeCount: computed(() => scope.value.length)
   };
 }

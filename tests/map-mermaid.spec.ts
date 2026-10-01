@@ -10,8 +10,10 @@ import { emptyProjectMap, type ProjectMap } from '../server/lib/maps';
  * попадает в документ, только на экран.
  */
 
-function mapWith(part: Partial<ProjectMap>): ProjectMap {
-  return { ...emptyProjectMap(), ...part };
+/** Карта проекта без лишних слов: чего тест не назвал — пусто, в том числе группы. */
+function mapWith(part: Partial<Omit<ProjectMap, 'codemap'>> & { codemap?: Partial<ProjectMap['codemap']> }): ProjectMap {
+  const base = emptyProjectMap();
+  return { ...base, ...part, codemap: { ...base.codemap, ...part.codemap } };
 }
 
 describe('codemapMermaid', () => {

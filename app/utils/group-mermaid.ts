@@ -40,8 +40,16 @@ function titleOfGroup(model: CodemapGroups, id: string): string {
   return model.groups.find((group) => group.id === id)?.title ?? id;
 }
 
+/** Названия возможностей функциональной карты — для строки «реализует возможность» в карточке группы. */
+export type CapabilityTitles = ReadonlyMap<string, { title?: string }>;
+
 /** Карточка группы: что в ней, что она отдаёт наружу и с кем связана. */
-export function groupCardOf(model: CodemapGroups, group: Group, modules: ReadonlyMap<string, Mod>): GroupCard {
+export function groupCardOf(
+  model: CodemapGroups,
+  group: Group,
+  modules: ReadonlyMap<string, Mod>,
+  capabilities?: CapabilityTitles
+): GroupCard {
   const links: GroupCard['links'] = [];
   for (const link of model.links) {
     if (link.from === group.id) {
@@ -54,7 +62,10 @@ export function groupCardOf(model: CodemapGroups, group: Group, modules: Readonl
     id: group.id,
     title: group.title,
     auto: group.auto,
+    summary: group.summary,
     modules: group.modules.length,
+    sources: group.sources,
+    capability: group.capability ? { id: group.capability, title: capabilities?.get(group.capability)?.title } : undefined,
     surface: (model.surface.get(group.id) ?? []).map((id) => ({ id, title: modules.get(id)?.title })),
     links
   };
@@ -104,7 +115,11 @@ function sizeBucket(count: number, max: number): number {
   return ratio > 0.7 ? 3 : ratio > 0.4 ? 2 : ratio > 0.15 ? 1 : 0;
 }
 
-export function groupsOverviewMermaid(model: CodemapGroups, modules: ReadonlyMap<string, Mod>): MermaidOutput {
+export function groupsOverviewMermaid(
+  model: CodemapGroups,
+  modules: ReadonlyMap<string, Mod>,
+  capabilities?: CapabilityTitles
+): MermaidOutput {
   if (model.groups.length === 0) return EMPTY;
 
   const max = Math.max(...model.groups.map((group) => group.modules.length));
@@ -121,7 +136,7 @@ export function groupsOverviewMermaid(model: CodemapGroups, modules: ReadonlyMap
     const count = plural(group.modules.length, 'модуль', 'модуля', 'модулей');
     lines.push(`    ${node}["${label(group.title, 30)}<br/>${count}${group.auto ? ' · авто' : ''}"]:::gsize_${sizeBucket(group.modules.length, max)}`);
     details[node] = [group.id, group.title, count, group.auto ? 'автогруппа — посчитана по пути' : ''].filter(Boolean).join(LF);
-    nodes[node] = { id: group.id, title: group.title, group: groupCardOf(model, group, modules) };
+    nodes[node] = { id: group.id, title: group.title, group: groupCardOf(model, group, modules, capabilities) };
   }
 
   const edges: MermaidEdge[] = [];
@@ -131,7 +146,9 @@ export function groupsOverviewMermaid(model: CodemapGroups, modules: ReadonlyMap
     const from = nodeId('g', link.from);
     const to = nodeId('g', link.to);
     // Подпись на стрелке — понятная фраза, если она есть, иначе число импортов.
-    const text = plural(link.count, 'импорт', 'импорта', 'импортов');
+    const text = link.summary
+      ? label(link.summary.replace(/\|/g, '/'), 28)
+      : plural(link.count, 'импорт', 'импорта', 'импортов');
     lines.push(`    ${from} ${link.status === 'pending' ? '-.->' : '-->'}|${text}| ${to}`);
     if (link.cycle) {
       cycleAt.add(edges.length);
@@ -139,7 +156,7 @@ export function groupsOverviewMermaid(model: CodemapGroups, modules: ReadonlyMap
     }
     edges.push({
       from, to, status: link.status, pending: link.status === 'pending' || undefined,
-      groupLink: edgeLinkOf(model, link.from, link.to, link.imports, link.cycle)
+      groupLink: edgeLinkOf(model, link.from, link.to, link.imports, link.cycle, link.summary)
     });
   }
 
@@ -155,6 +172,8 @@ export interface GroupViewOptions {
   hiddenLayers?: ReadonlySet<string>;
   /** Выбранный модуль: его соседи из других групп показываются призраками. */
   focus?: string | null;
+  /** Названия возможностей — для карточек соседних групп. */
+  capabilities?: CapabilityTitles;
 }
 
 /**
@@ -260,7 +279,7 @@ export function groupMermaid(
       const count = other ? plural(other.modules.length, 'модуль', 'модуля', 'модулей') : '';
       lines.push(`    ${node}["${label(titleOfGroup(model, gid), 30)}${count ? `<br/>${count}` : ''}"]:::ext`);
       details[node] = [gid, titleOfGroup(model, gid), count].filter(Boolean).join(LF);
-      if (other) nodes[node] = { id: gid, title: other.title, group: groupCardOf(model, other, byId) };
+      if (other) nodes[node] = { id: gid, title: other.title, group: groupCardOf(model, other, byId, options.capabilities) };
     }
     return node;
   };
@@ -315,7 +334,8 @@ export function groupMermaid(
         entry.outgoing ? groupId : entry.group,
         entry.outgoing ? entry.group : groupId,
         entry.imports,
-        link?.cycle ?? false
+        link?.cycle ?? false,
+        link?.summary
       )
     });
   }
