@@ -581,11 +581,16 @@ export function functionalMermaid(map: ProjectMap, filter: StatusFilter | null =
   }
 
   const placed = new Set<string>();
+  // Сколько нижних возможностей каждого состояния нарисовано — для легенды.
+  const stateCount: Record<'implemented' | 'partial' | 'not_implemented' | 'unrated', number> = {
+    implemented: 0, partial: 0, not_implemented: 0, unrated: 0
+  };
 
   function leaf(item: (typeof capabilities)[number], pad: string): void {
     placed.add(item.id);
     const view = views.get(item.id);
     const key = view?.status ?? 'unrated';
+    stateCount[key] += 1;
     const node = shown(item.id);
     // Слово под названием: цвет — не единственный признак состояния.
     lines.push(`${pad}${node}["${label(item.title ?? item.id, 34)}<br/>${IMPL_LABEL[key]}"]:::${nodeId('st', key)}`);
@@ -627,20 +632,75 @@ export function functionalMermaid(map: ProjectMap, filter: StatusFilter | null =
   const arrows: Record<string, string> = { depends: '-->', uses: '-.->', feeds: '==>' };
   const drawnLinks: { from: string; to: string }[] = [];
   const styled: string[] = [];
+  const kindCount: Record<string, number> = { depends: 0, uses: 0, feeds: 0 };
+  let cycles = 0;
+  let waits = 0;
 
   drawn.forEach((relation, at) => {
+    kindCount[relation.type] = (kindCount[relation.type] ?? 0) + 1;
     const from = shown(relation.from);
     const to = shown(relation.to);
     const caption = relation.summary ? `|"${label(relation.summary, 28).replace(/\|/g, '/')}"|` : '';
     lines.push(`    ${from} ${arrows[relation.type]}${caption} ${to}`);
     drawnLinks.push({ from, to });
     const cyclic = views.get(relation.from)?.inCycle && views.get(relation.to)?.inCycle && relation.type === 'depends';
-    if (cyclic) styled.push(`    linkStyle ${at} stroke:#DC2626,stroke-width:3px;`);
-    else if (waiting.has(relation)) styled.push(`    linkStyle ${at} stroke:#D97706,stroke-width:2px;`);
+    if (cyclic) {
+      cycles += 1;
+      styled.push(`    linkStyle ${at} stroke:#DC2626,stroke-width:3px;`);
+    } else if (waiting.has(relation)) {
+      waits += 1;
+      styled.push(`    linkStyle ${at} stroke:#D97706,stroke-width:2px;`);
+    }
   });
   lines.push(...styled);
 
+  lines.push(...functionalLegend(stateCount, kindCount, { waits, cycles }, drawn.length));
+
   return { text: lines.join(LF), details, paths: {}, nodes, edges: [], neighbors: neighborsOf(drawnLinks) };
+}
+
+/**
+ * Легенда — часть самой схемы (docs/04-ui.md, «Граф состояния»): рамка внутри
+ * диаграммы, поэтому уходит и в выгруженный SVG, и в «Скопировать mermaid».
+ * Правило одно — в ней только то, что нарисовано, и с числом. Образцы стрелок —
+ * настоящие связи между безымянными узлами, поэтому их порядок в тексте
+ * продолжает порядок рёбер диаграммы (`linkStyle` красит по номеру).
+ */
+function functionalLegend(
+  states: Record<'implemented' | 'partial' | 'not_implemented' | 'unrated', number>,
+  kinds: Record<string, number>,
+  hints: { waits: number; cycles: number },
+  drawnEdges: number
+): string[] {
+  const lines = ['    classDef legend_blank fill:none,stroke:none,color:#6B7280;', '    subgraph legend["Легенда"]'];
+  for (const key of ['implemented', 'partial', 'not_implemented', 'unrated'] as const) {
+    if (states[key] === 0) continue;
+    lines.push(`        legend_s_${key}["${IMPL_LABEL[key]} · ${states[key]}"]:::${nodeId('st', key)}`);
+  }
+
+  const samples: { arrow: string; text: string; style?: string }[] = [];
+  const names: Record<string, string> = { depends: 'зависит от', uses: 'пользуется', feeds: 'передаёт данные в' };
+  const arrows: Record<string, string> = { depends: '-->', uses: '-.->', feeds: '==>' };
+  for (const kind of ['depends', 'uses', 'feeds']) {
+    if (kinds[kind]) samples.push({ arrow: arrows[kind] as string, text: `${names[kind]} · ${kinds[kind]}` });
+  }
+  if (hints.waits) {
+    samples.push({ arrow: '-->', text: `жёлтая — ждёт зависимость · ${hints.waits}`, style: 'stroke:#D97706,stroke-width:2px' });
+  }
+  if (hints.cycles) {
+    samples.push({ arrow: '-->', text: `красная — ждут друг друга · ${hints.cycles}`, style: 'stroke:#DC2626,stroke-width:3px' });
+  }
+
+  if (samples.length === 0) {
+    lines.push('        legend_note["Связей между возможностями пока нет"]:::legend_blank');
+  }
+  const styled: string[] = [];
+  samples.forEach((sample, at) => {
+    lines.push(`        legend_l${at}a[" "]:::legend_blank ${sample.arrow}|"${sample.text}"| legend_l${at}b[" "]:::legend_blank`);
+    if (sample.style) styled.push(`    linkStyle ${drawnEdges + at} ${sample.style};`);
+  });
+  lines.push('    end', ...styled);
+  return lines;
 }
 
 function modulesWord(count: number): string {

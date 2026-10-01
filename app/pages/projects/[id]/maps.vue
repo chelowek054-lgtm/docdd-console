@@ -2,8 +2,6 @@
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import type { MapSelection, MermaidEdge } from '~/utils/map-mermaid';
 import {
-  IMPL_LABEL,
-  RELATION_LABEL,
   overallProgress,
   withMarks,
   type ImplStatus,
@@ -22,7 +20,6 @@ import {
 import { ghostNeighbors, groupCard, groupModules, groupScope, portsOf } from '~~/server/lib/groups';
 import { layerOf } from '~~/server/lib/layers';
 import type { ProjectMap } from '~~/server/lib/maps';
-import { STATUS_STYLE } from '~/utils/functional-view';
 
 const route = useRoute();
 const projectId = computed(() => String(route.params['id'] ?? ''));
@@ -502,7 +499,6 @@ const functionalEffective = computed(() => {
 });
 const functionalProgress = computed(() => overallProgress(functionalEffective.value.capabilities));
 
-const legendKeys = ['implemented', 'partial', 'not_implemented', 'unrated'] as const;
 
 /** «Занести отметки» из «Проверить по коду»: в несохранённые отметки, не в карту. */
 function applyChecks(rows: { id: string; status: ImplStatus; note: string }[]) {
@@ -1025,22 +1021,7 @@ function onEdgeClick(edge: MermaidEdge) {
                   {{ map.functional.capabilities.length ? 'Под этот фильтр ничего не подошло.' : 'В подтверждённых картах эта структура не описана.' }}
                 </p>
                 <template v-else>
-                  <!-- Легенда рядом, а не по памяти: цвет — состояние, вид стрелки — вид связи. -->
-                  <div class="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
-                    <span v-for="key in legendKeys" :key="key" class="flex items-center gap-1">
-                      <span
-                        class="inline-block h-3 w-5 rounded-sm border"
-                        :class="key === 'unrated' ? 'border-dashed' : ''"
-                        :style="{ backgroundColor: STATUS_STYLE[key].fill, borderColor: STATUS_STYLE[key].stroke }"
-                      />
-                      {{ IMPL_LABEL[key] }}
-                    </span>
-                    <span>──→ {{ RELATION_LABEL.depends }}</span>
-                    <span>╌╌→ {{ RELATION_LABEL.uses }}</span>
-                    <span>══→ {{ RELATION_LABEL.feeds }}</span>
-                    <span class="text-warning">жёлтая — ждёт зависимость</span>
-                    <span class="text-error">красная — ждут друг друга</span>
-                  </div>
+                  <!-- Легенда — внутри самой схемы (functionalMermaid), а не рядом: уходит и в SVG, и в mermaid. -->
                   <MermaidDiagram
                     :source="current.text"
                     :details="current.details"
