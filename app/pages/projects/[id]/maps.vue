@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import type { MapSelection, MermaidEdge } from '~/utils/map-mermaid';
-import type { CapabilityStatus } from '~~/server/lib/functional';
+import { summarize, visibleUnder, type CapabilityState, type CapabilityStatus, type RelationKind } from '~~/server/lib/functional';
 import type { ProjectMap } from '~~/server/lib/maps';
 
 const route = useRoute();
@@ -235,6 +235,17 @@ const pendingNodeIds = computed(() => {
   return set;
 });
 
+/**
+ * Фильтр по состоянию у графа: свой, у дерева — свой (внутри `FunctionalTree`).
+ * Рисуются только найденные возможности и их предки, а счёт считается по всей
+ * карте (docs/04-ui.md, «Функциональная карта»).
+ */
+const graphFilter = ref<CapabilityState | null>(null);
+const functionalSummary = computed(() => summarize(map.value?.functional.capabilities ?? []));
+const graphVisible = computed(
+  () => visibleUnder(map.value?.functional.capabilities ?? [], functionalSummary.value, graphFilter.value)
+);
+
 const views = computed(() => {
   const value = map.value;
   if (!value) return [];
@@ -265,7 +276,7 @@ const views = computed(() => {
       title: 'Функциональная карта',
       question: 'Что система умеет на языке предметной области, не кода',
       count: `${value.functional.capabilities.length} возможностей`,
-      ...functionalMermaid(value)
+      ...functionalMermaid(value, graphVisible.value)
     }
   ];
 });
@@ -294,7 +305,11 @@ const functionalView = ref<'tree' | 'graph'>('tree');
  * Отметки из «Проверить по коду» ложатся на дерево несохранёнными. Если читали
  * граф, возвращаем дерево: отметки живут там, и человеку надо их увидеть.
  */
-const tree = ref<{ addMarks: (marks: { id: string; status: CapabilityStatus; note?: string }[]) => void } | null>(null);
+const tree = ref<{
+  addMarks: (marks: { id: string; status: CapabilityStatus; note?: string }[]) => void;
+  openRelate: (id: string) => void;
+  removeRelation: (relation: { from: string; to: string; kind: RelationKind }) => Promise<void>;
+} | null>(null);
 async function applyChecked(marks: { id: string; status: CapabilityStatus; note?: string }[]) {
   if (functionalView.value !== 'tree') {
     functionalView.value = 'tree';
@@ -338,7 +353,46 @@ function onNodeClick(id: string) {
   selection.value = { kind: 'node', ...node };
 }
 function onEdgeClick(edge: MermaidEdge) {
+  if (edge.relation) {
+    // Связь возможностей — без свидетельства: карточка показывает смысл, а не строку кода.
+    const nodes = current.value?.nodes ?? {};
+    selection.value = {
+      kind: 'relation',
+      relationKind: edge.relation.kind,
+      summary: edge.relation.summary,
+      fromId: edge.relation.fromId,
+      toId: edge.relation.toId,
+      cycle: edge.relation.cycle,
+      fromTitle: nodes[edge.from]?.title,
+      toTitle: nodes[edge.to]?.title,
+      declaredBy: edge.declaredBy,
+      pending: edge.pending
+    };
+    return;
+  }
+  if (!edge.evidence) return;
   selection.value = { kind: 'edge', evidence: edge.evidence, status: edge.status, declaredBy: edge.declaredBy };
+}
+
+/**
+ * «Связать» и «Убрать связь» в карточке: форма и черновик живут в дереве, как
+ * и у любой другой правки функциональной карты, — карточка просит дерево их
+ * открыть (docs/04-ui.md).
+ */
+async function showTree() {
+  selection.value = null;
+  if (functionalView.value !== 'tree') {
+    functionalView.value = 'tree';
+    await nextTick();
+  }
+}
+async function onRelate(id: string) {
+  await showTree();
+  tree.value?.openRelate(id);
+}
+async function onUnrelate(relation: { from: string; to: string; kind: RelationKind }) {
+  await showTree();
+  await tree.value?.removeRelation(relation);
 }
 </script>
 
@@ -569,10 +623,17 @@ function onEdgeClick(edge: MermaidEdge) {
                 ref="tree"
                 :project-id="projectId"
                 :capabilities="map.functional.capabilities"
+                :relations="map.functional.relations"
                 @select="(value) => (selection = value)"
                 @changed="() => refresh()"
               />
               <template v-else>
+                <FunctionalSummary
+                  :tally="functionalSummary.overall"
+                  :filter="graphFilter"
+                  @filter="(state) => (graphFilter = state)"
+                />
+                <FunctionalLegend class="mb-3" />
                 <p v-if="!current.text" class="text-sm text-muted">
                   В подтверждённых картах эта структура не описана.
                 </p>
@@ -584,7 +645,6 @@ function onEdgeClick(edge: MermaidEdge) {
                   :edges="current.edges"
                   :neighbors="current.neighbors"
                   :pending-ids="pendingNodeIds"
-                  :order="current.order"
                   :fullscreen-target="stage"
                   :id="`map-${current.key}`"
                   @node-click="onNodeClick"
@@ -627,6 +687,8 @@ function onEdgeClick(edge: MermaidEdge) {
             :selection="selection"
             :to="staged ? stage : null"
             @close="selection = null"
+            @relate="onRelate"
+            @unrelate="onUnrelate"
           />
         </div>
       </template>

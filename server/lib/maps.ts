@@ -1,4 +1,4 @@
-import type { CapabilityStatus } from './functional';
+import type { CapabilityStatus, RelationKind } from './functional';
 import { validateCodemap, validateDataflow, validateFunctional, validateSkipped, validateUserflow } from './schema';
 import { yamlSafe } from './write';
 
@@ -76,6 +76,10 @@ export interface FunctionalPart {
     status?: CapabilityStatus;
     note?: string;
     declaredBy?: string; pending?: boolean;
+  }[];
+  /** Связи между возможностями: depends, uses, feeds. Без свидетельства, как и всё в этом виде. */
+  relations?: {
+    from: string; to: string; kind: RelationKind; summary?: string; declaredBy?: string; pending?: boolean;
   }[];
 }
 
@@ -176,7 +180,9 @@ const MAP_KINDS: readonly MapKind[] = [
     // Без evidence вовсе: подтверждается человеком, а не сверкой с файлом —
     // evidenceClaims не даст по этому виду ни одного утверждения для сверки.
     fields: [
-      { name: 'capabilities', keyOf: (item) => item.id }
+      { name: 'capabilities', keyOf: (item) => item.id },
+      // Ключ — тройка: между двумя возможностями бывает и «пользуется», и «передаёт данные».
+      { name: 'relations', keyOf: (item) => `${item.from}>${item.kind}>${item.to}` }
     ]
   }
 ];
@@ -392,6 +398,7 @@ export function annotatePending(map: ProjectMap, pendingMaps: ReadonlySet<string
   for (const item of map.userflow.transitions) markEdge(item);
   for (const item of map.userflow.calls) markEdge(item);
   for (const item of map.functional.capabilities) mark(item);
+  for (const item of map.functional.relations) mark(item);
 }
 
 /** Сложенная картина проекта: производное от подтверждённых карт. */
@@ -409,7 +416,7 @@ export function emptyProjectMap(): ProjectMap {
     codemap: { modules: [], imports: [] },
     dataflow: { sources: [], flows: [] },
     userflow: { screens: [], transitions: [], calls: [] },
-    functional: { capabilities: [] },
+    functional: { capabilities: [], relations: [] },
     from: []
   };
 }

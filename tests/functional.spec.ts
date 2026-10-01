@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  applyMarks, stateOfTally, summarize, tallyText, visibleUnder,
+  applyMarks, cleanRelation, relationHints, relationKey, relationsOf, stateOfTally, summarize, tallyText, visibleUnder,
   type CapabilityItem
 } from '../server/lib/functional';
 import { foldMaps, parseMapRecord } from '../server/lib/maps';
@@ -200,5 +200,113 @@ describe('схема и свёртка', () => {
     const bare = parseMapRecord(block({ added: { capabilities: [{ id: 'a', status: 'partial' }] } }));
     const folded = foldMaps([{ id: 'M-0001', change: first.change }, { id: 'M-0002', change: bare.change }]);
     expect(folded.functional.capabilities[0]?.summary).toBeUndefined();
+  });
+});
+
+describe('relationHints', () => {
+  const caps = [
+    cap('pay', undefined, 'partial'),
+    cap('catalog', undefined, 'not_implemented'),
+    cap('ship', undefined, 'implemented'),
+    cap('unknown'),
+    cap('done', undefined, 'implemented')
+  ];
+
+  it('«ждёт»: зависимость реализована не целиком; реализованная и неоценённая подсказки не дают', () => {
+    const hints = relationHints(caps, [
+      { from: 'pay', to: 'catalog', kind: 'depends' },
+      { from: 'ship', to: 'done', kind: 'depends' },
+      { from: 'ship', to: 'unknown', kind: 'depends' }
+    ]);
+    expect(hints.byId.get('pay')?.waitsFor).toEqual(['catalog']);
+    expect(hints.byId.get('ship')).toBeUndefined();
+  });
+
+  it('«ждёт» только у depends: «пользуется» и «передаёт данные» не блокируют', () => {
+    const hints = relationHints(caps, [
+      { from: 'pay', to: 'catalog', kind: 'uses' },
+      { from: 'ship', to: 'catalog', kind: 'feeds' }
+    ]);
+    expect(hints.byId.size).toBe(0);
+  });
+
+  it('«круг»: пара и цепочка длиннее, ребро вне круга не красится', () => {
+    const hints = relationHints(caps, [
+      { from: 'pay', to: 'catalog', kind: 'depends' },
+      { from: 'catalog', to: 'ship', kind: 'depends' },
+      { from: 'ship', to: 'pay', kind: 'depends' },
+      { from: 'unknown', to: 'pay', kind: 'depends' }
+    ]);
+    expect([...hints.cycleEdges].sort()).toEqual(['catalog>ship', 'pay>catalog', 'ship>pay']);
+    expect(hints.byId.get('pay')?.inCycle).toBe(true);
+    expect(hints.byId.get('unknown')?.inCycle).toBe(false);
+  });
+
+  it('связь с неизвестной возможностью и связь с собой подсказок не дают', () => {
+    const hints = relationHints(caps, [
+      { from: 'pay', to: 'нет-такой', kind: 'depends' },
+      { from: 'pay', to: 'pay', kind: 'depends' }
+    ]);
+    expect(hints.byId.size).toBe(0);
+    expect(hints.cycleEdges.size).toBe(0);
+  });
+
+  it('родитель с нереализованными подпунктами тоже заставляет ждать', () => {
+    const tree = [cap('a', undefined, 'implemented'), cap('b'), cap('b.1', 'b', 'not_implemented'), cap('b.2', 'b', 'implemented')];
+    expect(relationHints(tree, [{ from: 'a', to: 'b', kind: 'depends' }]).byId.get('a')?.waitsFor).toEqual(['b']);
+  });
+});
+
+describe('relationsOf и ключ связи', () => {
+  const relations = [
+    { from: 'a', to: 'b', kind: 'depends' as const, summary: 'берёт цену' },
+    { from: 'c', to: 'a', kind: 'feeds' as const }
+  ];
+
+  it('входящие и исходящие связи возможности', () => {
+    expect(relationsOf('a', relations)).toEqual([
+      { direction: 'out', kind: 'depends', other: 'b', summary: 'берёт цену' },
+      { direction: 'in', kind: 'feeds', other: 'c', summary: undefined }
+    ]);
+  });
+
+  it('ключ — тройка: между двумя возможностями бывает и «пользуется», и «передаёт данные»', () => {
+    expect(relationKey({ from: 'a', kind: 'uses', to: 'b' })).not.toBe(relationKey({ from: 'a', kind: 'feeds', to: 'b' }));
+  });
+
+  it('cleanRelation оставляет только поля карты', () => {
+    expect(cleanRelation({ from: 'a', to: 'b', kind: 'uses', summary: '', declaredBy: 'M-0001', pending: true } as never))
+      .toEqual({ from: 'a', to: 'b', kind: 'uses' });
+  });
+});
+
+describe('связи: схема и свёртка', () => {
+  const block = (payload: unknown) => ['```docdd-functional', JSON.stringify(payload), '```'].join('\n');
+
+  it('три вида проходят схему, четвёртого нет, из и в обязательны', () => {
+    const ok = (kind: string) => validateFunctional({ added: { relations: [{ from: 'a', to: 'b', kind }] } });
+    expect(ok('depends')).toEqual([]);
+    expect(ok('uses')).toEqual([]);
+    expect(ok('feeds')).toEqual([]);
+    expect(ok('replaces').map((issue) => issue.message).join(' ')).toContain('depends');
+    expect(validateFunctional({ added: { relations: [{ from: 'a', kind: 'uses' }] } })).not.toEqual([]);
+  });
+
+  it('связь складывается по тройке; повторное объявление уточняет подпись, removed убирает', () => {
+    const first = parseMapRecord(block({ added: { relations: [
+      { from: 'a', to: 'b', kind: 'depends' }, { from: 'a', to: 'b', kind: 'uses' }
+    ] } }));
+    const second = parseMapRecord(block({ added: { relations: [{ from: 'a', to: 'b', kind: 'depends', summary: 'берёт цену' }] } }));
+    const third = parseMapRecord(block({ removed: { relations: [{ from: 'a', to: 'b', kind: 'uses' }] } }));
+    expect([first, second, third].flatMap((item) => item.problems)).toEqual([]);
+
+    const folded = foldMaps([
+      { id: 'M-0001', change: first.change },
+      { id: 'M-0002', change: second.change },
+      { id: 'M-0003', change: third.change }
+    ]);
+    expect(folded.functional.relations).toEqual([
+      { from: 'a', to: 'b', kind: 'depends', summary: 'берёт цену', declaredBy: 'M-0002' }
+    ]);
   });
 });

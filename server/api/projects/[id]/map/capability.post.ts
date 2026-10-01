@@ -5,7 +5,6 @@ import { defineEventHandler, getRouterParam, readBody, type H3Event } from 'h3';
 
 import { analyze } from '../../../../lib/analyze';
 import { dropCache } from '../../../../lib/cache';
-import { applyMarks, cleanItem, isCapabilityStatus, type CapabilityItem, type Mark } from '../../../../lib/functional';
 import { targetPath } from '../../../../lib/import';
 import { mapDraftText, type MapChange } from '../../../../lib/maps';
 import { OutsideRootError, normalizeRoot, resolveInside } from '../../../../lib/paths';
@@ -14,9 +13,14 @@ import { validateFunctional } from '../../../../lib/schema';
 import { DEVELOPMENT_DIR, WorkspaceError, readWorkspace } from '../../../../lib/workspace';
 import { fail, failWith } from '../../../../utils/http';
 import { loadIndex } from '../../../../utils/index-service';
-import { buildProjectMap } from '../../../../utils/map-service';
 import { findProject } from '../../../../utils/projects';
 import { today } from '../../../../utils/record-write';
+// Ниже — импорты, которых карта M-0004 не называет: выше их строки названы в ней по номерам.
+import {
+  applyMarks, cleanItem, cleanRelation, isCapabilityStatus, isRelationKind, relationKey,
+  type CapabilityItem, type Mark, type Relation
+} from '../../../../lib/functional';
+import { buildProjectMap } from '../../../../utils/map-service';
 
 /**
  * Одна возможность функциональной карты — без похода к модели: у этого вида
@@ -36,9 +40,12 @@ export default defineEventHandler(async (event) => {
     return fail(event, 404, 'project_not_found', `Проект \`${id}\` не найден в списке`);
   }
 
-  const body = await readBody<{ action?: unknown; capability?: unknown; marks?: unknown }>(event);
+  const body = await readBody<{ action?: unknown; capability?: unknown; marks?: unknown; relation?: unknown }>(event);
 
   if (body?.action === 'status') return saveMarks(event, project.root, body.marks);
+  if (body?.action === 'relate' || body?.action === 'unrelate') {
+    return saveRelation(event, project.root, body.action, body.relation);
+  }
 
   const remove = body?.action === 'remove';
   const capability = asCapability(body?.capability);
@@ -100,6 +107,59 @@ async function saveMarks(event: H3Event, root: string, raw: unknown) {
 
   const title = `Функциональная карта: состояние реализации (${items.length})`;
   return writeDraft(event, root, { functional: { added: part } }, title);
+}
+
+/**
+ * Связь между возможностями — добавить или убрать (docs/07-maps.md, «Связи
+ * между возможностями»). Концы связи должны быть в подтверждённой карте: связь
+ * с несуществующей возможностью нарисовать нечем. Убрать можно и ту связь,
+ * чей конец уже убран, — иначе висячая связь осталась бы навсегда.
+ */
+async function saveRelation(event: H3Event, root: string, action: 'relate' | 'unrelate', raw: unknown) {
+  const relation = asRelation(raw);
+  if (!relation) {
+    return fail(
+      event,
+      400,
+      'relation_invalid',
+      'Нужна связь: `from` и `to` — разные непустые `id`, `kind` — одно из depends, uses, feeds'
+    );
+  }
+
+  let functional;
+  try {
+    functional = buildProjectMap(normalizeRoot(root)).functional;
+  } catch (error) {
+    return failureOf(event, error);
+  }
+
+  if (action === 'relate') {
+    const known = new Set(functional.capabilities.map((item) => item.id));
+    const unknown = [relation.from, relation.to].filter((item) => !known.has(item));
+    if (unknown.length > 0) {
+      return fail(
+        event,
+        422,
+        'capability_unknown',
+        `В подтверждённой функциональной карте нет возможностей: ${unknown.map((item) => `\`${item}\``).join(', ')}`,
+        unknown.join(', ')
+      );
+    }
+  } else if (!functional.relations.some((item) => relationKey(item) === relationKey(relation))) {
+    return fail(event, 422, 'relation_unknown', 'Такой связи в подтверждённой карте нет: убирать нечего');
+  }
+
+  const remove = action === 'unrelate';
+  // Убирается по ключу: подпись для этого не нужна, а в `removed` лишние поля только мешают.
+  const part = { relations: [remove ? { from: relation.from, to: relation.to, kind: relation.kind } : relation] };
+  const invalid = invalidPart(event, remove ? { removed: part } : { added: part });
+  if (invalid) return invalid;
+
+  const title = remove
+    ? `Функциональная карта: убрана связь «${relation.from}» → «${relation.to}»`
+    : `Функциональная карта: связь «${relation.from}» → «${relation.to}»`;
+  const change: MapChange = remove ? { functional: { removed: part } } : { functional: { added: part } };
+  return writeDraft(event, root, change, title);
 }
 
 function invalidPart(event: H3Event, data: unknown) {
@@ -169,6 +229,16 @@ function asCapability(value: unknown): CapabilityItem | null {
     status: isCapabilityStatus(raw['status']) ? raw['status'] : undefined,
     note: text(raw['note'])
   });
+}
+
+function asRelation(value: unknown): Relation | null {
+  if (!value || typeof value !== 'object') return null;
+  const raw = value as Record<string, unknown>;
+  const from = text(raw['from']);
+  const to = text(raw['to']);
+  const kind = raw['kind'];
+  if (!from || !to || from === to || !isRelationKind(kind)) return null;
+  return cleanRelation({ from, to, kind, summary: text(raw['summary']) });
 }
 
 function asMarks(value: unknown): Mark[] | null {

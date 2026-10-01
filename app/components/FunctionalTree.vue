@@ -3,8 +3,8 @@ import type { ApiFailure } from '~/composables/useProjectIndex';
 import type { Capability } from './FunctionalTreeNode.vue';
 import type { MapSelection } from '~/utils/map-mermaid';
 import {
-  summarize, tallyText, visibleUnder,
-  type CapabilityState, type CapabilityStatus, type MarkPatch
+  RELATION_KINDS, RELATION_LABEL, relationHints, relationsOf, summarize, tallyText, visibleUnder,
+  type CapabilityState, type CapabilityStatus, type MarkPatch, type Relation, type RelationKind
 } from '~~/server/lib/functional';
 
 /**
@@ -19,6 +19,8 @@ const props = defineProps<{
   projectId: string;
   /** Как в подтверждённой карте — без несохранённых отметок. */
   capabilities: Capability[];
+  /** Связи между возможностями (docs/07-maps.md): от них зависят подсказки «ждёт» и «круг». */
+  relations?: Relation[];
 }>();
 
 const emit = defineEmits<{
@@ -49,6 +51,7 @@ const effective = computed<Capability[]>(() => props.capabilities.map((item) => 
 }));
 
 const summary = computed(() => summarize(effective.value));
+const hints = computed(() => relationHints(effective.value, props.relations ?? [], summary.value));
 const visible = computed(() => visibleUnder(effective.value, summary.value, filter.value));
 const marked = computed(() => new Set(Object.keys(marks.value)));
 const markCount = computed(() => marked.value.size);
@@ -85,7 +88,72 @@ function addMarks(list: { id: string; status: CapabilityStatus; note?: string }[
     onMark(entry.id, entry.note === undefined ? { status: entry.status } : { status: entry.status, note: entry.note });
   }
 }
-defineExpose({ addMarks });
+
+// --- связи между возможностями: добавить / убрать, каждое действие — черновик ---
+const relateFrom = ref<string | null>(null);
+const relationKind = ref<RelationKind>('depends');
+const relationTo = ref<string | undefined>(undefined);
+const relationSummary = ref('');
+
+const kindItems = RELATION_KINDS.map((kind) => ({ label: RELATION_LABEL[kind], value: kind }));
+const targetItems = computed(() => props.capabilities
+  .filter((item) => item.id !== relateFrom.value)
+  .map((item) => ({ label: item.title ?? item.id, value: item.id })));
+
+function openRelate(id: string) {
+  relateFrom.value = id;
+  relationKind.value = 'depends';
+  relationTo.value = undefined;
+  relationSummary.value = '';
+  failure.value = null;
+  formOpen.value = false;
+}
+function closeRelate() {
+  relateFrom.value = null;
+}
+
+async function postRelation(action: 'relate' | 'unrelate', relation: Relation, label: string): Promise<boolean> {
+  saving.value = true;
+  failure.value = null;
+  try {
+    const response = await $fetch(`/api/projects/${props.projectId}/map/capability`, {
+      method: 'POST',
+      body: { action, relation },
+      ignoreResponseError: true
+    });
+    const problem = failureOf(response);
+    if (problem) {
+      failure.value = problem;
+      return false;
+    }
+    const record = (response as { record?: { id: string } }).record;
+    if (record) pendingDraft.value = { id: record.id, label };
+    return true;
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function saveRelation() {
+  const from = relateFrom.value;
+  const to = relationTo.value;
+  if (!from || !to) return;
+  const summaryText = relationSummary.value.trim() || undefined;
+  const done = await postRelation(
+    'relate',
+    { from, to, kind: relationKind.value, summary: summaryText },
+    `связь «${titleOf(from)}» → «${titleOf(to)}»`
+  );
+  if (done) closeRelate();
+}
+
+async function removeRelation(relation: { from: string; to: string; kind: RelationKind }) {
+  // eslint-disable-next-line no-alert -- то же подтверждение, что и на убирание возможности выше.
+  if (!confirm(`Убрать связь «${titleOf(relation.from)}» ${RELATION_LABEL[relation.kind]} «${titleOf(relation.to)}»?`)) return;
+  await postRelation('unrelate', relation, `убрана связь «${titleOf(relation.from)}» → «${titleOf(relation.to)}»`);
+}
+
+defineExpose({ addMarks, openRelate, removeRelation });
 
 async function saveMarks() {
   const body = Object.entries(marks.value).map(([id, mark]) => {
@@ -159,8 +227,13 @@ function toggle(id: string) {
   expanded.value = next;
 }
 
+function titleOf(id: string): string {
+  return props.capabilities.find((candidate) => candidate.id === id)?.title ?? id;
+}
+
 function onSelect(item: Capability) {
   const own = summary.value.byId.get(item.id);
+  const hint = hints.value.byId.get(item.id);
   // У родителя состояние расчётное, а не из файла: карточка показывает то же,
   // что значок в строке, и счёт нижних рядом (docs/07-maps.md).
   const state = own?.state;
@@ -169,6 +242,9 @@ function onSelect(item: Capability) {
     status: state && state !== 'unassessed' ? state : undefined,
     note: item.note,
     progress: own && !own.leaf ? tallyText(own.tally) : undefined,
+    relations: relationsOf(item.id, props.relations ?? []).map((entry) => ({ ...entry, otherTitle: titleOf(entry.other) })),
+    waitsFor: hint?.waitsFor.length ? hint.waitsFor.map(titleOf) : undefined,
+    inCycle: hint?.inCycle || undefined,
     declaredBy: item.declaredBy, pending: item.pending, capability: true
   });
 }
@@ -183,6 +259,7 @@ const saving = ref(false);
 const failure = ref<ApiFailure | null>(null);
 
 function openAdd(parentId: string | null) {
+  relateFrom.value = null;
   formOpen.value = true;
   formParent.value = parentId;
   editingId.value = null;
@@ -345,13 +422,46 @@ async function confirmDraft() {
     </div>
 
     <UAlert
-      v-if="failure && !formOpen"
+      v-if="failure && !formOpen && !relateFrom"
       class="mb-3"
       color="error"
       variant="subtle"
       :title="failure.message"
       :description="failure.detail"
     />
+
+    <!-- Связь: вид, вторая возможность и необязательная подпись — одним черновиком карты. -->
+    <UCard v-if="relateFrom" class="mb-3">
+      <p class="mb-2 text-sm text-muted">Связь от «{{ titleOf(relateFrom) }}»</p>
+      <div class="flex flex-wrap items-center gap-3">
+        <USelect v-model="relationKind" :items="kindItems" class="w-56" />
+        <USelectMenu
+          v-model="relationTo"
+          value-key="value"
+          :items="targetItems"
+          placeholder="С какой возможностью"
+          class="min-w-64 flex-1"
+        />
+      </div>
+      <UInput
+        v-model="relationSummary"
+        class="mt-3 w-full"
+        placeholder="Подпись — необязательно: например, «берёт цену из каталога»"
+        @keyup.enter="saveRelation"
+      />
+      <div class="mt-3 flex gap-2">
+        <UButton :loading="saving" :disabled="!relationTo" @click="saveRelation">Связать</UButton>
+        <UButton variant="ghost" color="neutral" @click="closeRelate">Отмена</UButton>
+      </div>
+      <UAlert
+        v-if="failure"
+        class="mt-3"
+        color="error"
+        variant="subtle"
+        :title="failure.message"
+        :description="failure.detail"
+      />
+    </UCard>
 
     <UCard v-if="formOpen" class="mb-3">
       <p class="mb-2 text-sm text-muted">
@@ -402,12 +512,14 @@ async function confirmDraft() {
         :visible="visible"
         :marked="marked"
         :quiet="allPending"
+        :hints="hints.byId"
         @toggle="toggle"
         @select="onSelect"
         @add-child="(id) => openAdd(id)"
         @edit="openEdit"
         @remove="removeCapability"
         @mark="onMark"
+        @relate="openRelate"
       />
     </ul>
   </div>

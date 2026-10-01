@@ -4,7 +4,7 @@ import type { ComponentPublicInstance } from 'vue';
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import { highlightCode, type CodeToken } from '~/utils/highlight';
 import type { MapSelection } from '~/utils/map-mermaid';
-import { STATE_LABEL, type CapabilityState } from '~~/server/lib/functional';
+import { RELATION_LABEL, RELATION_LABEL_IN, STATE_LABEL, type CapabilityState, type RelationKind } from '~~/server/lib/functional';
 import type { EvidenceVerdict } from '~~/server/lib/maps';
 
 /**
@@ -26,7 +26,13 @@ const props = defineProps<{
    */
   to?: HTMLElement | null;
 }>();
-const emit = defineEmits<{ close: [] }>();
+const emit = defineEmits<{
+  close: [];
+  /** «Связать» у возможности: форма живёт в дереве, карточка только просит её открыть. */
+  relate: [id: string];
+  /** «Убрать связь»: черновик заводит дерево, как и всякую правку функциональной карты. */
+  unrelate: [relation: { from: string; to: string; kind: RelationKind }];
+}>();
 
 const open = computed({
   get: () => props.selection !== null,
@@ -57,6 +63,7 @@ const path = computed(() => {
   const sel = props.selection;
   if (!sel) return null;
   if (sel.kind === 'edge') return sel.evidence.path;
+  if (sel.kind === 'relation') return null;
   if (sel.path) return sel.path;
   return LOOKS_LIKE_PATH.test(sel.id) ? sel.id : null;
 });
@@ -149,6 +156,7 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
       <div v-if="selection" class="flex w-full items-start gap-2">
         <div class="min-w-0 flex-1">
           <h2 v-if="selection.kind === 'node'" class="truncate font-medium">{{ selection.title ?? selection.id }}</h2>
+          <h2 v-else-if="selection.kind === 'relation'" class="font-medium">Связь между возможностями</h2>
           <h2 v-else class="font-medium">Свидетельство связи</h2>
           <p v-if="selection.kind === 'node' && selection.layer" class="text-sm text-muted">
             слой: {{ selection.layer }}
@@ -177,6 +185,33 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
       <div v-if="selection" class="space-y-4 text-sm">
         <div v-if="selection.kind === 'node'" class="space-y-1">
           <p class="font-mono text-xs text-muted">{{ selection.id }}</p>
+        </div>
+
+        <!-- Связь возможностей: свидетельства нет вовсе, только смысл (docs/07-maps.md). -->
+        <div v-if="selection.kind === 'relation'" class="space-y-2">
+          <p class="leading-relaxed">
+            <strong>{{ selection.fromTitle ?? selection.fromId }}</strong>
+            {{ RELATION_LABEL[selection.relationKind] }}
+            <strong>{{ selection.toTitle ?? selection.toId }}</strong>
+          </p>
+          <p v-if="selection.summary" class="text-muted">{{ selection.summary }}</p>
+          <UBadge v-if="selection.cycle" color="error" variant="subtle" icon="i-lucide-refresh-cw">
+            зависимость по кругу — не реализуется ни в каком порядке
+          </UBadge>
+          <UBadge v-if="selection.pending" color="neutral" variant="subtle">
+            не совпадает с кодовой базой — карта ещё не устоялась
+          </UBadge>
+          <div>
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="soft"
+              icon="i-lucide-unlink"
+              @click="emit('unrelate', { from: selection.fromId, to: selection.toId, kind: selection.relationKind })"
+            >
+              Убрать связь
+            </UButton>
+          </div>
         </div>
 
         <div v-if="selection.kind === 'edge'" class="space-y-1">
@@ -210,6 +245,60 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
           </UBadge>
           <p v-if="selection.progress" class="text-xs text-muted">{{ selection.progress }}</p>
           <p v-if="selection.note" class="leading-relaxed">{{ selection.note }}</p>
+          <!-- Подсказки считаются из связей и состояния, нигде не хранятся (docs/07-maps.md). -->
+          <UBadge v-if="selection.waitsFor?.length" color="warning" variant="subtle" icon="i-lucide-hourglass">
+            ждёт: {{ selection.waitsFor.join(', ') }}
+          </UBadge>
+          <UBadge v-if="selection.inCycle" color="error" variant="subtle" icon="i-lucide-refresh-cw">
+            зависит по кругу
+          </UBadge>
+        </div>
+
+        <!-- Связи возможности: входящие и исходящие, с видом и подписью. Правит их дерево. -->
+        <div v-if="selection.kind === 'node' && selection.capability" class="space-y-2">
+          <div class="flex items-center gap-2">
+            <h3 class="font-medium">Связи</h3>
+            <UButton
+              class="ml-auto"
+              size="xs"
+              variant="soft"
+              color="neutral"
+              icon="i-lucide-link"
+              @click="emit('relate', selection.id)"
+            >
+              Связать
+            </UButton>
+          </div>
+          <p v-if="!selection.relations?.length" class="text-muted">Связей нет.</p>
+          <ul v-else class="space-y-1">
+            <li
+              v-for="relation in selection.relations"
+              :key="relation.direction + relation.kind + relation.other"
+              class="flex flex-wrap items-baseline gap-x-2 rounded border border-default p-2"
+            >
+              <span class="text-xs text-muted">{{ relation.direction === 'out' ? '→' : '←' }}</span>
+              <template v-if="relation.direction === 'out'">
+                <span class="text-xs">{{ RELATION_LABEL[relation.kind] }}</span>
+                <strong>{{ relation.otherTitle ?? relation.other }}</strong>
+              </template>
+              <template v-else>
+                <strong>{{ relation.otherTitle ?? relation.other }}</strong>
+                <span class="text-xs">{{ RELATION_LABEL_IN[relation.kind] }}</span>
+              </template>
+              <span v-if="relation.summary" class="w-full text-xs text-muted">{{ relation.summary }}</span>
+              <UButton
+                class="ml-auto"
+                size="xs"
+                variant="ghost"
+                color="neutral"
+                icon="i-lucide-unlink"
+                title="Убрать связь"
+                @click="emit('unrelate', relation.direction === 'out'
+                  ? { from: selection.id, to: relation.other, kind: relation.kind }
+                  : { from: relation.other, to: selection.id, kind: relation.kind })"
+              />
+            </li>
+          </ul>
         </div>
 
         <p v-if="nodeSummary" class="leading-relaxed">{{ nodeSummary }}</p>

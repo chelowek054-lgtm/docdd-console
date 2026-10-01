@@ -239,3 +239,138 @@ export function applyMarks(
   }
   return { items, unknown };
 }
+
+// --- связи между возможностями (docs/07-maps.md, «Связи между возможностями») ---
+
+export type RelationKind = 'depends' | 'uses' | 'feeds';
+
+export const RELATION_KINDS: readonly RelationKind[] = ['depends', 'uses', 'feeds'];
+
+/** Как вид связи читается: «A <подпись> B». */
+export const RELATION_LABEL: Record<RelationKind, string> = {
+  depends: 'зависит от',
+  uses: 'пользуется',
+  feeds: 'передаёт данные в'
+};
+
+/** То же с точки зрения второй стороны: «X <подпись>» про возможность, на которую смотрит карточка. */
+export const RELATION_LABEL_IN: Record<RelationKind, string> = {
+  depends: 'зависит от неё',
+  uses: 'пользуется ею',
+  feeds: 'получает от неё данные'
+};
+
+export function isRelationKind(value: unknown): value is RelationKind {
+  return typeof value === 'string' && (RELATION_KINDS as readonly string[]).includes(value);
+}
+
+export interface Relation {
+  from: string;
+  to: string;
+  kind: RelationKind;
+  summary?: string;
+}
+
+/** Ключ связи — тройка: между двумя возможностями бывает и «пользуется», и «передаёт данные». */
+export function relationKey(relation: Pick<Relation, 'from' | 'kind' | 'to'>): string {
+  return `${relation.from}>${relation.kind}>${relation.to}`;
+}
+
+/** Копия связи только с полями, что лежат в карте: `declaredBy` и `pending` схема не знает. */
+export function cleanRelation(source: Relation & Record<string, unknown>): Relation {
+  const relation: Relation = { from: source.from, to: source.to, kind: source.kind };
+  if (source.summary) relation.summary = source.summary;
+  return relation;
+}
+
+export interface RelationHint {
+  /** Возможности, от которых эта зависит, а они ещё не реализованы целиком. */
+  waitsFor: string[];
+  /** Зависит по кругу: такая зависимость не реализуется ни в каком порядке. */
+  inCycle: boolean;
+}
+
+export interface RelationHints {
+  byId: Map<string, RelationHint>;
+  /** Ключи (`from>to`) рёбер `depends`, лежащих на круге. */
+  cycleEdges: Set<string>;
+}
+
+/**
+ * Две подсказки, нигде не хранящиеся (docs/07-maps.md):
+ * - **«ждёт»** — `from` зависит от `to` (`depends`), а `to` реализован не
+ *   полностью. Неоценённое `to` подсказки не даёт: что мы не знаем, мы не
+ *   утверждаем;
+ * - **«круг»** — возможности, зависящие друг от друга по кругу (A → B → A и
+ *   длиннее). Ребро лежит на круге, если по зависимостям из его конца можно
+ *   вернуться в начало.
+ * Связь с неизвестным `id` подсказок не даёт: рисовать нечего.
+ */
+export function relationHints(
+  capabilities: readonly CapabilityLike[],
+  relations: readonly Relation[],
+  summary: Summary = summarize(capabilities)
+): RelationHints {
+  const known = new Set(capabilities.map((item) => item.id));
+  const depends = relations.filter((item) => item.kind === 'depends' && item.from !== item.to
+    && known.has(item.from) && known.has(item.to));
+
+  const next = new Map<string, string[]>();
+  for (const item of depends) next.set(item.from, [...(next.get(item.from) ?? []), item.to]);
+
+  const reaches = (start: string, goal: string): boolean => {
+    const seen = new Set<string>();
+    const stack = [start];
+    while (stack.length > 0) {
+      const at = stack.pop() as string;
+      if (at === goal) return true;
+      if (seen.has(at)) continue;
+      seen.add(at);
+      stack.push(...(next.get(at) ?? []));
+    }
+    return false;
+  };
+
+  const byId = new Map<string, RelationHint>();
+  const hintOf = (id: string): RelationHint => {
+    let hint = byId.get(id);
+    if (!hint) {
+      hint = { waitsFor: [], inCycle: false };
+      byId.set(id, hint);
+    }
+    return hint;
+  };
+  const cycleEdges = new Set<string>();
+
+  for (const item of depends) {
+    const target = summary.byId.get(item.to)?.state;
+    if (target === 'partial' || target === 'not_implemented') {
+      const waits = hintOf(item.from).waitsFor;
+      if (!waits.includes(item.to)) waits.push(item.to);
+    }
+    if (reaches(item.to, item.from)) {
+      cycleEdges.add(`${item.from}>${item.to}`);
+      hintOf(item.from).inCycle = true;
+      hintOf(item.to).inCycle = true;
+    }
+  }
+  return { byId, cycleEdges };
+}
+
+export interface RelationOfCapability {
+  direction: 'out' | 'in';
+  kind: RelationKind;
+  /** Вторая сторона связи. */
+  other: string;
+  summary?: string;
+}
+
+/** Связи возможности, входящие и исходящие, — для карточки. */
+export function relationsOf(id: string, relations: readonly Relation[]): RelationOfCapability[] {
+  const list: RelationOfCapability[] = [];
+  for (const item of relations) {
+    if (item.from === id) list.push({ direction: 'out', kind: item.kind, other: item.to, summary: item.summary });
+    if (item.to === id) list.push({ direction: 'in', kind: item.kind, other: item.from, summary: item.summary });
+  }
+  return list;
+}

@@ -13,13 +13,6 @@ const props = defineProps<{
   /** id узла → id соседей — для подсветки при клике (app/utils/map-mermaid.ts). */
   neighbors?: Record<string, string[]>;
   /**
-   * id узлов в порядке текста диаграммы — только у `mindmap` (функциональная
-   * карта, `app/utils/map-mermaid.ts`). Mermaid не кладёт туда наш id вовсе,
-   * нумеруя узлы вслепую (`node_0`, `node_1`, …); без этого списка клик и
-   * подсказка при наведении у mindmap не находили узел никогда.
-   */
-  order?: string[];
-  /**
    * id узлов, объявленных картой, которая ещё не устоялась — архитектор
    * описал намерение, кода может не быть (`server/lib/maps.ts`, `pending`).
    * Рисуются полупрозрачными: видно, что есть на карте, но не спутать с уже
@@ -104,16 +97,10 @@ watch(() => props.pendingIds, applyFocus);
  * Ключ узла (как в `details`/`paths`) по элементу SVG. Mermaid называет узел
  * по нашему id с добавками (`flowchart-m_xxx-3`), поэтому ищем по вхождению,
  * а не по точному совпадению — тем же способом, каким искали для title.
- *
- * `mindmap` устроен иначе: свой id узла mermaid не сохраняет вовсе, нумеруя
- * узлы по счёту их появления в тексте (`mermaid-<id диаграммы>-node_N`) — там
- * ищем не по вхождению, а по номеру в `order` (`app/utils/map-mermaid.ts`).
+ * Рамка подграфа (`.cluster`) названа нашим id как есть, поэтому родитель
+ * функциональной карты кликается так же, как узел.
  */
-const mindmapNode = new RegExp(`^mermaid-${props.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-node_(\\d+)$`);
 function keyOfNode(node: Element): string | null {
-  const byOrder = node.id.match(mindmapNode);
-  if (byOrder) return props.order?.[Number(byOrder[1])] || null;
-
   const entries = Object.keys(props.details ?? {});
   return entries.find((key) => node.id.includes(`${key}-`) || node.id.endsWith(key)) ?? null;
 }
@@ -124,7 +111,7 @@ function keyOfNode(node: Element): string | null {
  */
 function annotateTitles() {
   if (!container.value || !props.details) return;
-  for (const node of container.value.querySelectorAll<SVGGElement>('.node, .mindmap-node')) {
+  for (const node of container.value.querySelectorAll<SVGGElement>('.node, .cluster')) {
     const key = keyOfNode(node);
     const text = key ? props.details[key] : undefined;
     if (!text) continue;
@@ -144,7 +131,7 @@ function annotateTitles() {
 function attachInteractions() {
   if (!container.value) return;
 
-  for (const node of container.value.querySelectorAll<SVGGElement>('.node, .mindmap-node')) {
+  for (const node of container.value.querySelectorAll<SVGGElement>('.node, .cluster')) {
     const key = keyOfNode(node);
     if (!key) continue;
     (node.style as CSSStyleDeclaration).cursor = 'pointer';
@@ -206,7 +193,7 @@ function applyFocus() {
   const active = focused.value;
   const keep = active ? new Set([active, ...(props.neighbors?.[active] ?? [])]) : null;
 
-  for (const node of container.value.querySelectorAll<SVGGElement>('.node, .mindmap-node')) {
+  for (const node of container.value.querySelectorAll<SVGGElement>('.node, .cluster')) {
     const key = keyOfNode(node);
     node.style.opacity = opacityOf(key, keep, props.pendingIds);
   }

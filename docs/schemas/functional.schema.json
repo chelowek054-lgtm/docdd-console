@@ -16,7 +16,22 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "capabilities": { "type": "array", "items": { "$ref": "#/$defs/capability" } }
+        "capabilities": { "type": "array", "items": { "$ref": "#/$defs/capability" } },
+        "relations": { "type": "array", "items": { "$ref": "#/$defs/relation" } }
+      }
+    },
+    "relation": {
+      "type": "object",
+      "required": ["from", "to", "kind"],
+      "additionalProperties": false,
+      "properties": {
+        "from": { "type": "string", "minLength": 1, "description": "id возможности, от которой идёт связь." },
+        "to": { "type": "string", "minLength": 1, "description": "id возможности, к которой идёт связь." },
+        "kind": {
+          "enum": ["depends", "uses", "feeds"],
+          "description": "depends — from зависит от to: без to не работает; uses — from пользуется to: работает и без него, но хуже; feeds — from передаёт данные в to."
+        },
+        "summary": { "type": "string", "description": "Подпись связи на языке предметной области: «оплата берёт цену из каталога»." }
       }
     },
     "capability": {

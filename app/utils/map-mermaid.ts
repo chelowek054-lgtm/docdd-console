@@ -1,5 +1,8 @@
-import type { CapabilityStatus } from '../../server/lib/functional';
 import type { ApiItem, Evidence, EvidenceVerdict, ProjectMap } from '../../server/lib/maps';
+import {
+  STATE_LABEL, relationHints, relationsOf, summarize, tallyText,
+  type CapabilityState, type CapabilityStatus, type RelationKind
+} from '../../server/lib/functional';
 
 /**
  * Карты в текст mermaid. Тот же текст показывается на экране и выгружается,
@@ -23,12 +26,35 @@ export interface MermaidEdge {
   /** id узлов — как в тексте диаграммы (`nodeId()` ниже), не исходные from/to карты. */
   from: string;
   to: string;
-  evidence: Evidence;
+  /** Нет у связи возможностей: у функциональной карты свидетельства нет вовсе (docs/07-maps.md). */
+  evidence?: Evidence;
+  /** Связь между возможностями вместо свидетельства: вид, подпись и подсказка «круг». */
+  relation?: EdgeRelation;
   status?: EvidenceVerdict;
   /** Какая карта последней объявила эту связь (`server/lib/maps.ts`, `declaredBy`). */
   declaredBy?: string;
   /** Карта-источник ещё не устоялась — архитектор описал намерение, кода может не быть (`server/lib/maps.ts`). */
   pending?: boolean;
+}
+
+/** Связь между возможностями на ребре — то, что карточка ребра показывает вместо свидетельства. */
+export interface EdgeRelation {
+  kind: RelationKind;
+  summary?: string;
+  /** Исходные `id` возможностей: у `MermaidEdge.from/to` — id узлов диаграммы. */
+  fromId: string;
+  toId: string;
+  /** Лежит на круге зависимостей. */
+  cycle: boolean;
+}
+
+/** Связь возможности, как её показывает карточка: с названием второй стороны. */
+export interface NodeRelation {
+  direction: 'out' | 'in';
+  kind: RelationKind;
+  other: string;
+  otherTitle?: string;
+  summary?: string;
 }
 
 export interface MermaidNode {
@@ -51,12 +77,30 @@ export interface MermaidNode {
   note?: string;
   /** Счёт нижних возможностей под родителем: «5 из 8 реализовано, 2 не оценено». */
   progress?: string;
+  /** Входящие и исходящие связи возможности. */
+  relations?: NodeRelation[];
+  /** Названия возможностей, чьей реализации эта ждёт. */
+  waitsFor?: string[];
+  /** Зависит по кругу. */
+  inCycle?: boolean;
 }
 
-/** Что показывает `MapInspector.vue` — узел (по `MermaidNode`) или ребро (по `MermaidEdge`). */
+/**
+ * Что показывает `MapInspector.vue`: узел (по `MermaidNode`), ребро со
+ * свидетельством (по `MermaidEdge`) или связь между возможностями.
+ */
 export type MapSelection =
   | ({ kind: 'node' } & MermaidNode)
-  | ({ kind: 'edge' } & Pick<MermaidEdge, 'evidence' | 'status' | 'declaredBy'>);
+  | ({ kind: 'edge' } & Pick<MermaidEdge, 'status' | 'declaredBy'> & { evidence: Evidence })
+  | ({
+    kind: 'relation';
+    /** Вид связи — отдельным полем: `kind` занят различием вариантов выбора. */
+    relationKind: RelationKind;
+    fromTitle?: string;
+    toTitle?: string;
+    declaredBy?: string;
+    pending?: boolean;
+  } & Pick<EdgeRelation, 'summary' | 'fromId' | 'toId' | 'cycle'>);
 
 export interface MermaidOutput {
   text: string;
@@ -70,14 +114,6 @@ export interface MermaidOutput {
   edges: MermaidEdge[];
   /** id узла → id узлов, с которыми он соединён связью (в любую сторону). */
   neighbors: Record<string, string[]>;
-  /**
-   * id узлов в порядке, в котором они встречаются в тексте диаграммы —
-   * только у `mindmap` (`functionalMermaid`). В отличие от `flowchart`,
-   * mindmap не кладёт наш id в svg-id узла вовсе, нумеруя их вслепую
-   * (`node_0`, `node_1`, …) — `MermaidDiagram.vue` находит узел по этому
-   * порядку, а не по вхождению id в строку, как у остальных трёх видов.
-   */
-  order?: string[];
 }
 
 const LF = String.fromCharCode(10);
@@ -342,64 +378,145 @@ export function userflowMermaid(map: ProjectMap): MermaidOutput {
 }
 
 /**
- * Дерево возможностей — не flowchart: тут нет рёбер со своим смыслом, только
- * вложенность, и mermaid для этого держит отдельный вид (`mindmap`). Доменный
- * специалист читает вложенность как есть, без легенды про стрелки и формы.
- * Цвет по ветке mindmap расставляет сам — раскрашивать его классами незачем.
- * Свидетельства нет вовсе (docs/07-maps.md) — узел ведёт только к своему
- * месту в дереве, `paths` и `edges` у этого вида всегда пустые.
+ * Заливка и обводка узла по состоянию реализации. Текст чёрный в обеих темах:
+ * заливка светлая (как у палитры слоёв, `PALETTE`), и светлый текст тёмной темы
+ * на ней не читался бы.
  */
-export function functionalMermaid(map: ProjectMap): MermaidOutput {
-  const { capabilities } = map.functional;
+const STATE_FILL: Record<CapabilityState, { fill: string; stroke: string }> = {
+  implemented: { fill: '#DCFCE7', stroke: '#16A34A' },
+  partial: { fill: '#FEF3C7', stroke: '#D97706' },
+  not_implemented: { fill: '#FEE2E2', stroke: '#DC2626' },
+  unassessed: { fill: '#F3F4F6', stroke: '#9CA3AF' }
+};
+
+const RELATION_ARROW: Record<RelationKind, string> = { depends: '-->', uses: '-.->', feeds: '==>' };
+
+/** Подпись на стрелке: `|` и кавычки ломают синтаксис ребра mermaid. */
+function edgeLabel(text: string): string {
+  return label(text.replace(/\|/g, '/'), 24);
+}
+
+/**
+ * Граф состояния функциональной карты (docs/04-ui.md, «Функциональная карта»).
+ * Раньше её рисовал круговой `mindmap`: цвета веток ничего не значили, а линии
+ * наезжали на названия. Теперь цвет — состояние реализации, родитель — рамка
+ * вокруг своих подпунктов со счётом, а между возможностями идут стрелки трёх
+ * видов: сплошная «зависит», пунктирная «пользуется», толстая «передаёт данные».
+ * Нет свидетельства — значит нет `paths`, и ребро ведёт не к файлу, а к самой
+ * связи (`MermaidEdge.relation`).
+ *
+ * `visible` — фильтр по состоянию: рисуются только эти возможности, а счёт и
+ * подсказки по-прежнему считаются по всей карте, иначе рамка родителя
+ * показывала бы «2 из 2», когда в ней на самом деле восемь.
+ */
+export function functionalMermaid(map: ProjectMap, visible: ReadonlySet<string> | null = null): MermaidOutput {
+  const { capabilities, relations } = map.functional;
   if (capabilities.length === 0) return EMPTY;
+
+  const summary = summarize(capabilities);
+  const hints = relationHints(capabilities, relations, summary);
+  const byId = new Map(capabilities.map((item) => [item.id, item]));
+  const titleOf = (id: string) => byId.get(id)?.title ?? id;
 
   const details: Record<string, string> = {};
   const nodes: Record<string, MermaidNode> = {};
-  // Скобки ломают синтаксис узла mindmap (`id(текст)`) — в flowchart их
-  // прятала кавычка вокруг подписи, здесь кавычки нет.
-  const safe = (text: string) => label(text).replace(/[()]/g, ' ');
-
-  const byId = new Map(capabilities.map((item) => [item.id, item]));
-  const ROOT = Symbol('root');
-  const childrenOf = new Map<string | typeof ROOT, typeof capabilities>();
-  for (const item of capabilities) {
-    const parent: string | typeof ROOT = item.parent && byId.has(item.parent) ? item.parent : ROOT;
-    childrenOf.set(parent, [...(childrenOf.get(parent) ?? []), item]);
+  const lines = ['flowchart LR'];
+  for (const [state, { fill, stroke }] of Object.entries(STATE_FILL)) {
+    lines.push(`    classDef cap_${state} fill:${fill},stroke:${stroke},color:#111827;`);
   }
+  lines.push('    classDef cap_cycle stroke:#DC2626,stroke-width:3px,stroke-dasharray:4 2;');
 
-  const lines = ['mindmap'];
+  // Родитель, которого в списке нет, и круг из `parent` читаются как «верхний
+  // уровень»: осиротевшая ветка не должна молча пропасть с диаграммы.
+  const children = new Map<string, typeof capabilities>();
+  for (const item of capabilities) {
+    if (item.parent && item.parent !== item.id && byId.has(item.parent)) {
+      children.set(item.parent, [...(children.get(item.parent) ?? []), item]);
+    }
+  }
+  const roots = capabilities.filter((item) => !item.parent || item.parent === item.id || !byId.has(item.parent));
+
   const placed = new Set<string>();
-  // Тот же порядок, каким mermaid слепо нумерует узлы mindmap (node_0, node_1, …
-  // без разбора вложенности) — синтетический корень тоже строка, пустой ключ.
-  const order: string[] = [];
+  const styles: string[] = [];
+  const cycleNodes: string[] = [];
+
+  function describe(item: (typeof capabilities)[number], node: string): void {
+    const own = summary.byId.get(item.id);
+    const state = own?.state ?? 'unassessed';
+    const hint = hints.byId.get(item.id);
+    const waitsFor = (hint?.waitsFor ?? []).map(titleOf);
+    details[node] = [
+      item.id,
+      item.title,
+      `состояние: ${STATE_LABEL[state]}`,
+      waitsFor.length ? `ждёт: ${waitsFor.join(', ')}` : '',
+      hint?.inCycle ? 'зависит по кругу' : ''
+    ].filter(Boolean).join(LF);
+    nodes[node] = {
+      id: item.id, title: item.title, summary: item.summary, declaredBy: item.declaredBy, pending: item.pending,
+      capability: true,
+      status: state === 'unassessed' ? undefined : state,
+      note: item.note,
+      progress: own && !own.leaf ? tallyText(own.tally) : undefined,
+      relations: relationsOf(item.id, relations).map((entry) => ({ ...entry, otherTitle: byId.get(entry.other)?.title })),
+      waitsFor: waitsFor.length ? waitsFor : undefined,
+      inCycle: hint?.inCycle || undefined
+    };
+  }
 
   function render(item: (typeof capabilities)[number], depth: number): void {
     // Схема не требует уникальности id: два элемента с одним и тем же id в
     // разных ветках дерева нарисовали бы один узел дважды, с двух разных
     // мест сразу — mermaid запутается, какое определение верное.
-    if (placed.has(item.id)) return;
+    if (placed.has(item.id) || (visible && !visible.has(item.id))) return;
     placed.add(item.id);
+
     const node = nodeId('f', item.id);
-    lines.push(`${'  '.repeat(depth)}${node}(${safe(item.title ?? item.id)})`);
-    details[node] = [item.id, item.title].filter(Boolean).join(LF);
-    nodes[node] = {
-      id: item.id, title: item.title, summary: item.summary, declaredBy: item.declaredBy, pending: item.pending,
-      capability: true, status: item.status, note: item.note
-    };
-    order.push(node);
-    for (const child of childrenOf.get(item.id) ?? []) render(child, depth + 1);
+    const pad = '    '.repeat(depth);
+    const own = summary.byId.get(item.id);
+    const state = own?.state ?? 'unassessed';
+    const hint = hints.byId.get(item.id);
+    describe(item, node);
+
+    if (own && !own.leaf) {
+      // Рамка вокруг подпунктов, на ней — счёт «5 из 8».
+      lines.push(`${pad}subgraph ${node}["${label(item.title ?? item.id, 34)} · ${own.tally.implemented} из ${own.tally.total}"]`);
+      for (const child of children.get(item.id) ?? []) render(child, depth + 1);
+      lines.push(`${pad}end`);
+      styles.push(`    style ${node} fill:none,stroke:${hint?.inCycle ? '#DC2626' : STATE_FILL[state].stroke},stroke-width:2px;`);
+      return;
+    }
+
+    const waits = (hint?.waitsFor ?? []).map(titleOf);
+    // «Ждёт» — второй строкой в самом узле: подсказка видна без клика.
+    const wait = waits.length ? `<br/>ждёт: ${label(waits.join(', '), 30)}` : '';
+    lines.push(`${pad}${node}["${label(item.title ?? item.id)}${wait}"]:::cap_${state}`);
+    if (hint?.inCycle) cycleNodes.push(node);
   }
 
-  const tops = childrenOf.get(ROOT) ?? [];
-  if (tops.length === 1 && tops[0]) {
-    render(tops[0], 1);
-  } else {
-    // Mindmap — дерево с одним корнем; несколько верхних возможностей разом
-    // собираем под общим узлом, а не молча теряем часть картины.
-    lines.push('  root((Проект))');
-    order.push(''); // синтетический узел без своих данных — но свою позицию в счёте занимает.
-    for (const top of tops) render(top, 2);
+  for (const item of roots) render(item, 1);
+  for (const item of capabilities) render(item, 1);
+
+  const edges: MermaidEdge[] = [];
+  const cycleLinks: number[] = [];
+  for (const relation of relations) {
+    if (relation.from === relation.to || !byId.has(relation.from) || !byId.has(relation.to)) continue;
+    if (visible && (!visible.has(relation.from) || !visible.has(relation.to))) continue;
+    const from = nodeId('f', relation.from);
+    const to = nodeId('f', relation.to);
+    const cycle = relation.kind === 'depends' && hints.cycleEdges.has(`${relation.from}>${relation.to}`);
+    const text = relation.summary ? `|${edgeLabel(relation.summary)}|` : '';
+    lines.push(`    ${from} ${RELATION_ARROW[relation.kind]}${text} ${to}`);
+    if (cycle) cycleLinks.push(edges.length);
+    edges.push({
+      from, to, declaredBy: relation.declaredBy, pending: relation.pending,
+      relation: { kind: relation.kind, summary: relation.summary, fromId: relation.from, toId: relation.to, cycle }
+    });
   }
 
-  return { text: lines.join(LF), details, paths: {}, nodes, edges: [], neighbors: {}, order };
+  lines.push(...styles);
+  if (cycleNodes.length > 0) lines.push(`    class ${cycleNodes.join(',')} cap_cycle;`);
+  for (const index of cycleLinks) lines.push(`    linkStyle ${index} stroke:#DC2626,stroke-width:2px;`);
+
+  return { text: lines.join(LF), details, paths: {}, nodes, edges, neighbors: neighborsOf(edges) };
 }

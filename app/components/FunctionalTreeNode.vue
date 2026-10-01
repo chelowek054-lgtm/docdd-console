@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {
   CAPABILITY_STATUSES, STATE_LABEL, tallyText,
-  type CapabilityStatus, type CapabilitySummary, type MarkPatch
+  type CapabilityStatus, type CapabilitySummary, type MarkPatch, type RelationHint
 } from '~~/server/lib/functional';
 
 export interface Capability {
@@ -27,6 +27,8 @@ const props = defineProps<{
   marked: ReadonlySet<string>;
   /** Бейдж «ещё не устоялось» уже сказан одной строкой над деревом. */
   quiet: boolean;
+  /** Подсказки «ждёт» и «круг»: считаются из связей, нигде не хранятся (docs/07-maps.md). */
+  hints: ReadonlyMap<string, RelationHint>;
 }>();
 
 const emit = defineEmits<{
@@ -36,6 +38,7 @@ const emit = defineEmits<{
   edit: [item: Capability];
   remove: [item: Capability];
   mark: [id: string, patch: MarkPatch];
+  relate: [id: string];
 }>();
 
 const isOpen = computed(() => props.expanded.has(props.item.id));
@@ -46,6 +49,11 @@ function childrenOf(id: string): Capability[] {
 const own = computed(() => props.summary.get(props.item.id));
 const state = computed(() => own.value?.state ?? 'unassessed');
 const isLeaf = computed(() => own.value?.leaf ?? true);
+
+const hint = computed(() => props.hints.get(props.item.id));
+const waitsFor = computed(() => (hint.value?.waitsFor ?? []).map(
+  (id) => props.allCapabilities.find((candidate) => candidate.id === id)?.title ?? id
+));
 
 const dimmed = computed(() => props.item.pending && !props.quiet);
 
@@ -138,6 +146,13 @@ function commitNote() {
         {{ item.note }}
       </button>
 
+      <UBadge v-if="waitsFor.length" size="xs" color="warning" variant="subtle" icon="i-lucide-hourglass" :title="`Зависит от нереализованного: ${waitsFor.join(', ')}`">
+        ждёт: {{ waitsFor[0] }}{{ waitsFor.length > 1 ? ` и ещё ${waitsFor.length - 1}` : '' }}
+      </UBadge>
+      <UBadge v-if="hint?.inCycle" size="xs" color="error" variant="subtle" icon="i-lucide-refresh-cw" title="Зависит по кругу — не реализуется ни в каком порядке">
+        круг
+      </UBadge>
+
       <UBadge v-if="item.pending && !quiet" size="xs" color="neutral" variant="subtle">ещё не устоялось</UBadge>
 
       <!-- Кнопки — на весь ряд по наведению, не всегда видны: дерево читают чаще, чем правят. -->
@@ -150,6 +165,14 @@ function commitNote() {
           color="neutral"
           title="Что сделано и чего не хватает"
           @click="openNote"
+        />
+        <UButton
+          icon="i-lucide-link"
+          size="xs"
+          variant="ghost"
+          color="neutral"
+          title="Связать с другой возможностью"
+          @click="emit('relate', item.id)"
         />
         <UButton
           icon="i-lucide-plus"
@@ -203,12 +226,14 @@ function commitNote() {
         :visible="visible"
         :marked="marked"
         :quiet="quiet"
+        :hints="hints"
         @toggle="(id) => emit('toggle', id)"
         @select="(value) => emit('select', value)"
         @add-child="(id) => emit('add-child', id)"
         @edit="(value) => emit('edit', value)"
         @remove="(value) => emit('remove', value)"
         @mark="(id, patch) => emit('mark', id, patch)"
+        @relate="(id) => emit('relate', id)"
       />
     </ul>
   </li>
