@@ -1,3 +1,4 @@
+import type { CapabilityStatus } from '../../server/lib/functional';
 import type { ApiItem, Evidence, EvidenceVerdict, ProjectMap } from '../../server/lib/maps';
 
 /**
@@ -44,6 +45,12 @@ export interface MermaidNode {
   pending?: boolean;
   /** Возможность функциональной карты: у неё нет ни файла, ни интерфейса, только название и описание. */
   capability?: boolean;
+  /** Состояние реализации возможности (docs/07-maps.md); нет — «не оценено». */
+  status?: CapabilityStatus;
+  /** Что сделано и чего не хватает — к состоянию реализации. */
+  note?: string;
+  /** Счёт нижних возможностей под родителем: «5 из 8 реализовано, 2 не оценено». */
+  progress?: string;
 }
 
 /** Что показывает `MapInspector.vue` — узел (по `MermaidNode`) или ребро (по `MermaidEdge`). */
@@ -377,7 +384,7 @@ export function functionalMermaid(map: ProjectMap): MermaidOutput {
     details[node] = [item.id, item.title].filter(Boolean).join(LF);
     nodes[node] = {
       id: item.id, title: item.title, summary: item.summary, declaredBy: item.declaredBy, pending: item.pending,
-      capability: true
+      capability: true, status: item.status, note: item.note
     };
     order.push(node);
     for (const child of childrenOf.get(item.id) ?? []) render(child, depth + 1);

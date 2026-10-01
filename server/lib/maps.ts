@@ -1,3 +1,4 @@
+import type { CapabilityStatus } from './functional';
 import { validateCodemap, validateDataflow, validateFunctional, validateSkipped, validateUserflow } from './schema';
 import { yamlSafe } from './write';
 
@@ -70,7 +71,11 @@ export interface UserflowPart {
  */
 export interface FunctionalPart {
   capabilities?: {
-    id: string; title?: string; parent?: string; summary?: string; declaredBy?: string; pending?: boolean;
+    id: string; title?: string; parent?: string; summary?: string;
+    /** Состояние реализации; нет поля — «не оценено» (docs/07-maps.md). */
+    status?: CapabilityStatus;
+    note?: string;
+    declaredBy?: string; pending?: boolean;
   }[];
 }
 

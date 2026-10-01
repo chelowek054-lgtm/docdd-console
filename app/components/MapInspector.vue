@@ -4,6 +4,7 @@ import type { ComponentPublicInstance } from 'vue';
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import { highlightCode, type CodeToken } from '~/utils/highlight';
 import type { MapSelection } from '~/utils/map-mermaid';
+import { STATE_LABEL, type CapabilityState } from '~~/server/lib/functional';
 import type { EvidenceVerdict } from '~~/server/lib/maps';
 
 /**
@@ -128,6 +129,9 @@ function tokenStyle(token: CodeToken) {
   };
 }
 
+const capabilityState = computed<CapabilityState>(
+  () => (props.selection?.kind === 'node' ? props.selection.status : undefined) ?? 'unassessed'
+);
 const nodeApi = computed(() => (props.selection?.kind === 'node' ? props.selection.api ?? [] : []));
 const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.selection.summary : undefined));
 </script>
@@ -197,6 +201,16 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
             {{ selection.declaredBy }}
           </NuxtLink>
         </p>
+
+        <!-- Состояние реализации — только у возможности функциональной карты. У родителя
+             оно расчётное, и счёт нижних приходит вместе с ним (`progress`). -->
+        <div v-if="selection.kind === 'node' && selection.capability" class="space-y-1">
+          <UBadge :color="STATE_UI[capabilityState].color" variant="subtle" :icon="STATE_UI[capabilityState].icon">
+            {{ STATE_LABEL[capabilityState] }}
+          </UBadge>
+          <p v-if="selection.progress" class="text-xs text-muted">{{ selection.progress }}</p>
+          <p v-if="selection.note" class="leading-relaxed">{{ selection.note }}</p>
+        </div>
 
         <p v-if="nodeSummary" class="leading-relaxed">{{ nodeSummary }}</p>
 
