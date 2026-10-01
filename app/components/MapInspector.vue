@@ -63,7 +63,7 @@ const path = computed(() => {
   const sel = props.selection;
   if (!sel) return null;
   if (sel.kind === 'edge') return sel.evidence.path;
-  if (sel.kind === 'relation') return null;
+  if (sel.kind === 'relation' || sel.kind === 'group-link') return null;
   if (sel.path) return sel.path;
   return LOOKS_LIKE_PATH.test(sel.id) ? sel.id : null;
 });
@@ -157,6 +157,7 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
         <div class="min-w-0 flex-1">
           <h2 v-if="selection.kind === 'node'" class="truncate font-medium">{{ selection.title ?? selection.id }}</h2>
           <h2 v-else-if="selection.kind === 'relation'" class="font-medium">Связь между возможностями</h2>
+          <h2 v-else-if="selection.kind === 'group-link'" class="font-medium">Связь между группами</h2>
           <h2 v-else class="font-medium">Свидетельство связи</h2>
           <p v-if="selection.kind === 'node' && selection.layer" class="text-sm text-muted">
             слой: {{ selection.layer }}
@@ -185,6 +186,39 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
       <div v-if="selection" class="space-y-4 text-sm">
         <div v-if="selection.kind === 'node'" class="space-y-1">
           <p class="font-mono text-xs text-muted">{{ selection.id }}</p>
+        </div>
+
+        <!-- Свёрнутая стрелка между группами: раскрытие — исходные импорты, каждый со свидетельством. -->
+        <div v-if="selection.kind === 'group-link'" class="space-y-2">
+          <p class="leading-relaxed">
+            <strong>{{ selection.fromTitle }}</strong> → <strong>{{ selection.toTitle }}</strong>:
+            {{ plural(selection.count, 'импорт', 'импорта', 'импортов') }}
+          </p>
+          <p v-if="selection.summary" class="text-muted">{{ selection.summary }}</p>
+          <div class="flex flex-wrap gap-2">
+            <UBadge :color="selection.status === 'ok' ? 'success' : selection.status === 'pending' ? 'neutral' : 'error'" variant="subtle">
+              {{ STATUS_LABEL[selection.status] }}
+            </UBadge>
+            <UBadge v-if="selection.cycle" color="warning" variant="subtle" icon="i-lucide-refresh-cw">
+              цикл между группами
+            </UBadge>
+          </div>
+          <ul class="space-y-2">
+            <li v-for="item in selection.imports" :key="item.from + item.to" class="rounded border border-default p-2">
+              <p class="break-all font-mono text-xs">{{ item.from }} → {{ item.to }}</p>
+              <p class="mt-1 font-mono text-xs text-muted">{{ item.evidence.path }}:{{ item.evidence.line }}</p>
+              <pre class="mt-1 overflow-x-auto rounded bg-elevated p-1.5 text-xs">{{ item.evidence.fragment }}</pre>
+              <UBadge
+                v-if="item.status"
+                class="mt-1"
+                size="xs"
+                :color="item.status === 'ok' ? 'success' : item.status === 'pending' ? 'neutral' : 'error'"
+                variant="subtle"
+              >
+                {{ STATUS_LABEL[item.status] }}
+              </UBadge>
+            </li>
+          </ul>
         </div>
 
         <!-- Связь возможностей: свидетельства нет вовсе, только смысл (docs/07-maps.md). -->
@@ -225,6 +259,43 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
             {{ STATUS_LABEL[selection.status] }}
           </UBadge>
         </div>
+
+        <!-- Группа: что в ней, что она отдаёт наружу и с кем связана (docs/04-ui.md, «Группы кодовой карты»). -->
+        <div v-if="selection.kind === 'node' && selection.group" class="space-y-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <UBadge v-if="selection.group.auto" color="neutral" variant="subtle" size="sm">
+              автогруппа — посчитана по пути
+            </UBadge>
+            <span class="text-muted">{{ plural(selection.group.modules, 'модуль', 'модуля', 'модулей') }}</span>
+          </div>
+          <p v-if="selection.group.summary" class="leading-relaxed">{{ selection.group.summary }}</p>
+          <div v-if="selection.group.surface.length">
+            <h3 class="font-medium">Публичная поверхность</h3>
+            <p class="text-xs text-muted">Модули, которые импортируют снаружи.</p>
+            <ul class="mt-1 space-y-0.5">
+              <li v-for="item in selection.group.surface" :key="item.id" class="font-mono text-xs">{{ item.title ?? item.id }}</li>
+            </ul>
+          </div>
+          <div v-if="selection.group.links.length">
+            <h3 class="font-medium">Связи с группами</h3>
+            <ul class="mt-1 space-y-1">
+              <li v-for="link in selection.group.links" :key="link.direction + link.other" class="flex flex-wrap items-center gap-2">
+                <span class="text-muted">{{ link.direction === 'out' ? '→' : '←' }}</span>
+                <strong>{{ link.otherTitle }}</strong>
+                <span class="text-xs text-muted">{{ plural(link.count, 'импорт', 'импорта', 'импортов') }}</span>
+                <UBadge v-if="link.status !== 'ok' && link.status !== 'pending'" size="xs" color="error" variant="subtle">не сходится</UBadge>
+                <UBadge v-if="link.cycle" size="xs" color="warning" variant="subtle">цикл</UBadge>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <UBadge v-if="selection.kind === 'node' && selection.ghostOf" color="neutral" variant="outline">
+          из группы {{ selection.ghostOf }}
+        </UBadge>
+        <UBadge v-if="selection.kind === 'node' && selection.port" color="neutral" variant="subtle">
+          порт группы — у модуля есть связи с другими группами
+        </UBadge>
 
         <UBadge v-if="selection.kind === 'node' && selection.pending" color="neutral" variant="subtle">
           не совпадает с кодовой базой — карта ещё не устоялась
@@ -373,7 +444,7 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
           в режиме «Дерево» — вместе с названием откроется поле описания.
         </p>
         <p
-          v-else-if="!path && !nodeSummary && !nodeApi.length && selection.kind === 'node'"
+          v-else-if="!path && !nodeSummary && !nodeApi.length && selection.kind === 'node' && !selection.group"
           class="text-muted"
         >
           Карта пока не описала этот узел — ни что он делает, ни его интерфейс, ни файл.

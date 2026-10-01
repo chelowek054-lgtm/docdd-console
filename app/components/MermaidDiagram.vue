@@ -33,6 +33,8 @@ const emit = defineEmits<{
   /** Клик по узлу — id узла (ключ в `details`/`paths`/`neighbors`). */
   'node-click': [id: string];
   'edge-click': [edge: MermaidEdge];
+  /** Клик мимо узлов и рёбер — снять выбор (у кодовой карты по группам это выбранный модуль). */
+  'blank-click': [];
 }>();
 
 const colorMode = useColorMode();
@@ -163,6 +165,7 @@ function attachInteractions() {
       focused.value = null;
       applyFocus();
     }
+    emit('blank-click');
   });
 }
 

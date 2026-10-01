@@ -30,6 +30,8 @@ export interface MermaidEdge {
   evidence?: Evidence;
   /** Связь между возможностями вместо свидетельства: вид, подпись и подсказка «круг». */
   relation?: EdgeRelation;
+  /** Свёрнутая стрелка между группами вместо одного свидетельства. */
+  groupLink?: EdgeGroupLink;
   status?: EvidenceVerdict;
   /** Какая карта последней объявила эту связь (`server/lib/maps.ts`, `declaredBy`). */
   declaredBy?: string;
@@ -46,6 +48,37 @@ export interface EdgeRelation {
   toId: string;
   /** Лежит на круге зависимостей. */
   cycle: boolean;
+}
+
+/**
+ * Стрелка между группами: свёртка импортов в одну (docs/07-maps.md, «Группы»).
+ * Раскрытие показывает исходные импорты со свидетельствами, поэтому сверка не
+ * теряется — вердикт стрелки худший из свёрнутых.
+ */
+export interface EdgeGroupLink {
+  fromGroup: string;
+  toGroup: string;
+  fromTitle: string;
+  toTitle: string;
+  count: number;
+  status: EvidenceVerdict;
+  cycle: boolean;
+  /** Понятная подпись связи; нет — у стрелки остаётся число. */
+  summary?: string;
+  imports: { from: string; to: string; evidence: Evidence; status?: EvidenceVerdict }[];
+}
+
+/** Что карточка знает о группе (docs/04-ui.md, «Группы кодовой карты»). */
+export interface GroupCard {
+  id: string;
+  title: string;
+  /** Посчитана по пути, а не объявлена в карте. */
+  auto: boolean;
+  summary?: string;
+  modules: number;
+  /** Публичная поверхность: модули группы, которые импортируют снаружи. */
+  surface: { id: string; title?: string }[];
+  links: { direction: 'out' | 'in'; other: string; otherTitle: string; count: number; status: EvidenceVerdict; cycle: boolean }[];
 }
 
 /** Связь возможности, как её показывает карточка: с названием второй стороны. */
@@ -83,6 +116,12 @@ export interface MermaidNode {
   waitsFor?: string[];
   /** Зависит по кругу. */
   inCycle?: boolean;
+  /** Узел обзора — группа, а не модуль. */
+  group?: GroupCard;
+  /** Модуль соседней группы, показанный призраком у выбранного модуля: название его группы. */
+  ghostOf?: string;
+  /** Порт группы: у модуля есть импорт через границу группы. */
+  port?: boolean;
 }
 
 /**
@@ -92,6 +131,7 @@ export interface MermaidNode {
 export type MapSelection =
   | ({ kind: 'node' } & MermaidNode)
   | ({ kind: 'edge' } & Pick<MermaidEdge, 'status' | 'declaredBy'> & { evidence: Evidence })
+  | ({ kind: 'group-link' } & EdgeGroupLink & { declaredBy?: string })
   | ({
     kind: 'relation';
     /** Вид связи — отдельным полем: `kind` занят различием вариантов выбора. */
@@ -117,10 +157,10 @@ export interface MermaidOutput {
 }
 
 const LF = String.fromCharCode(10);
-const EMPTY: MermaidOutput = { text: '', details: {}, paths: {}, nodes: {}, edges: [], neighbors: {} };
+export const EMPTY: MermaidOutput = { text: '', details: {}, paths: {}, nodes: {}, edges: [], neighbors: {} };
 
 /** `neighbors` — из уже собранных рёбер, один проход, обе стороны сразу. */
-function neighborsOf(edges: readonly MermaidEdge[]): Record<string, string[]> {
+export function neighborsOf(edges: readonly MermaidEdge[]): Record<string, string[]> {
   const map = new Map<string, Set<string>>();
   const link = (a: string, b: string) => map.set(a, (map.get(a) ?? new Set()).add(b));
   for (const edge of edges) {
@@ -131,11 +171,11 @@ function neighborsOf(edges: readonly MermaidEdge[]): Record<string, string[]> {
 }
 
 /** Идентификатор узла для mermaid: путь с точками и слешами он не переваривает. */
-function nodeId(prefix: string, value: string): string {
+export function nodeId(prefix: string, value: string): string {
   return `${prefix}_${value.replace(/[^a-zA-Zа-яА-Я0-9]/g, '_')}`;
 }
 
-function label(text: string, limit = 40): string {
+export function label(text: string, limit = 40): string {
   const clean = text.replace(/["`]/g, "'");
   return clean.length > limit ? `${clean.slice(0, limit - 1)}…` : clean;
 }
@@ -178,7 +218,7 @@ export function colorOf(key: string): string {
 }
 
 /** `classDef`-блок: один класс на категорию, назначенный по цвету из палитры. */
-function classDefs(categories: ReadonlySet<string>, prefix: string): string[] {
+export function classDefs(categories: ReadonlySet<string>, prefix: string): string[] {
   return [...categories].map((category) => `    classDef ${nodeId(prefix, category)} fill:${colorOf(category)},stroke:#6B7280;`);
 }
 

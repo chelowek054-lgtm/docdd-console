@@ -148,78 +148,43 @@ const mapRecords = computed(() => {
 });
 
 /**
- * Слои кодовой базы — чипы над диаграммой. Клик изолирует: остаётся виден
- * только этот слой, повторный клик по нему же возвращает все. Скрытые
- * запоминаются по имени слоя, а не по индексу — переживают «Обновить карты»
- * и новые слои сами не пропадают из списка.
+ * Кодовая база показывается тремя уровнями: обзор групп, группа, выбранный
+ * модуль (docs/04-ui.md, «Группы кодовой карты»). Состояние — в композабле:
+ * режим, открытая группа (она же в адресе), выбранный модуль и слои. Слои и
+ * порог крупной базы работают как прежде, но на том, что сейчас в области
+ * просмотра: на группе, а не на всём проекте.
  */
-const allLayers = computed(() => {
-  const set = new Set<string>();
-  for (const item of map.value?.codemap.modules ?? []) set.add(item.layer ?? 'без слоя');
-  return [...set].sort();
-});
+const {
+  model: groupModel, modulesById, mode: codeMode, groupsAvailable, openGroup, focus,
+  chooseMode, setOpenGroup, allLayers, isLarge: isLargeCodemap, hiddenLayers, toggleLayer,
+  filteredCodemap, scopeCount
+} = useCodeGroups(map);
 
-/**
- * Крупная кодовая база — та, что при полной раскладке mermaid ощутимо
- * подвешивает вкладку (сотни модулей, тысячи пересечений линий). Порог
- * приблизительный: важно не точное число, а сам факт, что рисовать всё
- * разом больше не бесплатно (docs/07-maps.md, «Крупная кодовая база»).
- */
-const LARGE_CODEMAP = 150;
-const isLargeCodemap = computed(() => (map.value?.codemap.modules.length ?? 0) > LARGE_CODEMAP);
-
-/** Самый маленький по числу модулей слой — с него начинают знакомство с крупной базой. */
-const smallestLayer = computed(() => {
-  const sizes = new Map<string, number>();
-  for (const item of map.value?.codemap.modules ?? []) {
-    const layer = item.layer ?? 'без слоя';
-    sizes.set(layer, (sizes.get(layer) ?? 0) + 1);
-  }
-  return [...allLayers.value].sort((a, b) => (sizes.get(a) ?? 0) - (sizes.get(b) ?? 0))[0] ?? null;
-});
-
-/**
- * Чипы, скрытые явным кликом человека. Пусто — значит человек ещё не решал
- * сам: тогда решает `hiddenLayers` (ниже) — производное, не хранимое
- * состояние, чтобы отрисовка на сервере и на клиенте при гидратации совпала
- * до последнего байта (ref, наполненный сайд-эффектом в watch, до первой
- * отрисовки на клиенте успевал разойтись с тем, что уже отдал сервер).
- */
-const chosenHiddenLayers = ref<Set<string> | null>(null);
-
-/**
- * Слои кодовой базы — чипы над диаграммой. Клик изолирует: остаётся виден
- * только этот слой, повторный клик по нему же возвращает все. На крупной
- * базе, пока человек ни разу не тронул чипы, изолирован сам маленький слой
- * — не все сотни модулей разом (docs/07-maps.md, «Крупная кодовая база»).
- */
-const hiddenLayers = computed(() => {
-  if (chosenHiddenLayers.value) return chosenHiddenLayers.value;
-  if (!isLargeCodemap.value || !smallestLayer.value) return new Set<string>();
-  return new Set(allLayers.value.filter((layer) => layer !== smallestLayer.value));
-});
-function toggleLayer(layer: string) {
-  const isolated = hiddenLayers.value.size === allLayers.value.length - 1 && !hiddenLayers.value.has(layer);
-  chosenHiddenLayers.value = isolated ? new Set() : new Set(allLayers.value.filter((item) => item !== layer));
+function onMode(value: unknown) {
+  void chooseMode(value === 'modules' ? 'modules' : 'groups');
 }
 
-/**
- * Кодовая база с вычетом скрытых слоёв — рёбра к спрятанному модулю тоже
- * прячутся. Диаграмма строится заново на каждый клик по чипу (mermaid не
- * умеет иначе), но раз слоёв на экране всегда один-два, а не все разом,
- * пересборка остаётся дешёвой даже на крупной базе (docs/04-ui.md, «Карты»).
- */
-const filteredCodemap = computed(() => {
-  const value = map.value;
-  if (!value || hiddenLayers.value.size === 0) return value?.codemap;
-  const visible = new Set(
-    value.codemap.modules.filter((item) => !hiddenLayers.value.has(item.layer ?? 'без слоя')).map((item) => item.id)
-  );
-  return {
-    modules: value.codemap.modules.filter((item) => visible.has(item.id)),
-    imports: value.codemap.imports.filter((edge) => visible.has(edge.from) && visible.has(edge.to))
+function codemapView(value: MapResponse) {
+  if (codeMode.value === 'modules') {
+    return codemapMermaid({ ...value, codemap: filteredCodemap.value ?? value.codemap });
+  }
+  if (!openGroup.value) return groupsOverviewMermaid(groupModel.value, modulesById.value);
+  return groupMermaid(value.codemap, groupModel.value, openGroup.value, {
+    hiddenLayers: hiddenLayers.value,
+    focus: focus.value
+  });
+}
+
+const openGroupInfo = computed(() => groupModel.value.groups.find((group) => group.id === openGroup.value));
+
+/** Карточка группы: «О группе» на экране группы и список групп под обзором. */
+function showGroupCard(id: string) {
+  const group = groupModel.value.groups.find((item) => item.id === id);
+  if (!group) return;
+  selection.value = {
+    kind: 'node', id: group.id, title: group.title, group: groupCardOf(groupModel.value, group, modulesById.value)
   };
-});
+}
 
 /**
  * Узлы, объявленные картой, которая ещё не устоялась (`server/lib/maps.ts`,
@@ -255,7 +220,7 @@ const views = computed(() => {
       title: 'Кодовая база',
       question: 'Из чего состоит проект и что на что опирается',
       count: `${value.codemap.modules.length} модулей, ${value.codemap.imports.length} связей`,
-      ...codemapMermaid({ ...value, codemap: filteredCodemap.value ?? value.codemap })
+      ...codemapView(value)
     },
     {
       key: 'dataflow',
@@ -350,9 +315,28 @@ const selection = ref<MapSelection | null>(null);
 function onNodeClick(id: string) {
   const node = current.value?.nodes?.[id];
   if (!node) return; // Нет метаданных — карте нечего показать (functional map, неизвестный узел).
+  if (shown.value === 'codemap' && codeMode.value === 'groups') {
+    // Узел обзора и узел-группа по краям ведут внутрь группы; модуль группы
+    // становится выбранным, и его соседи из других групп показываются призраками.
+    if (node.group) {
+      void setOpenGroup(node.group.id);
+      return;
+    }
+    if (openGroup.value && !node.ghostOf) focus.value = node.id;
+  }
   selection.value = { kind: 'node', ...node };
 }
+
+/** Клик мимо узлов снимает выбор модуля: призраки пропадают, внешние связи сворачиваются обратно. */
+function onBlankClick() {
+  if (focus.value !== null) focus.value = null;
+}
 function onEdgeClick(edge: MermaidEdge) {
+  if (edge.groupLink) {
+    // Свёрнутая стрелка между группами: карточка раскрывает её в исходные импорты со свидетельствами.
+    selection.value = { kind: 'group-link', ...edge.groupLink, declaredBy: edge.declaredBy };
+    return;
+  }
   if (edge.relation) {
     // Связь возможностей — без свидетельства: карточка показывает смысл, а не строку кода.
     const nodes = current.value?.nodes ?? {};
@@ -556,7 +540,16 @@ async function onUnrelate(relation: { from: string; to: string; kind: RelationKi
                   <h2 class="font-medium">{{ current.title }}</h2>
                   <p class="text-sm text-muted">{{ current.question }}</p>
                 </div>
-                <!-- У функциональной карты свой переключатель режима — дерево или тот же mermaid-граф, что у остальных видов. -->
+                <!-- Кодовая база: группы (обзор → группа → модуль) или все модули разом. -->
+                <UTabs
+                  v-if="current.key === 'codemap' && groupsAvailable"
+                  :model-value="codeMode"
+                  class="ml-auto w-56"
+                  size="xs"
+                  :items="[{ label: 'Группы', value: 'groups' }, { label: 'Все модули', value: 'modules' }]"
+                  @update:model-value="onMode"
+                />
+                <!-- У функциональной карты свой переключатель режима — дерево или граф состояния. -->
                 <UTabs
                   v-if="current.key === 'functional'"
                   v-model="functionalView"
@@ -585,10 +578,48 @@ async function onUnrelate(relation: { from: string; to: string; kind: RelationKi
               </div>
             </template>
 
+            <!-- Кодовая база по группам: обзор → группа → выбранный модуль (docs/04-ui.md, «Группы кодовой карты»). -->
+            <template v-if="shown === 'codemap' && codeMode === 'groups'">
+              <div v-if="openGroupInfo" class="mb-3 flex flex-wrap items-center gap-2">
+                <UButton size="xs" variant="soft" color="neutral" icon="i-lucide-arrow-left" @click="setOpenGroup(null)">
+                  Все группы
+                </UButton>
+                <span class="font-medium">{{ openGroupInfo.title }}</span>
+                <UBadge v-if="openGroupInfo.auto" size="xs" color="neutral" variant="subtle">авто</UBadge>
+                <span class="text-sm text-muted">{{ plural(openGroupInfo.modules.length, 'модуль', 'модуля', 'модулей') }}</span>
+                <UButton size="xs" variant="ghost" color="neutral" icon="i-lucide-info" @click="showGroupCard(openGroupInfo.id)">
+                  О группе
+                </UButton>
+                <span v-if="focus" class="text-sm text-muted">
+                  Выбран модуль — соседи из других групп показаны призраками. Клик в пустое место снимает выбор.
+                </span>
+              </div>
+              <div v-else class="mb-3 space-y-2">
+                <p class="text-sm text-muted">
+                  Обзор: {{ plural(groupModel.groups.length, 'группа', 'группы', 'групп') }}. Клик по группе открывает её,
+                  клик по стрелке показывает свёрнутые импорты со свидетельствами.
+                </p>
+                <ul class="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                  <li v-for="group in groupModel.groups" :key="group.id" class="inline-flex items-center gap-1">
+                    <button type="button" class="hover:underline" @click="setOpenGroup(group.id)">{{ group.title }}</button>
+                    <span class="text-muted">{{ group.modules.length }}</span>
+                    <UButton
+                      size="xs"
+                      variant="ghost"
+                      color="neutral"
+                      icon="i-lucide-info"
+                      :aria-label="`О группе ${group.title}`"
+                      @click="showGroupCard(group.id)"
+                    />
+                  </li>
+                </ul>
+              </div>
+            </template>
+
             <!-- Слои — только у кодовой базы: у остальных видов узел не несёт слоя. -->
             <template v-if="shown === 'codemap' && allLayers.length > 1">
               <p v-if="isLargeCodemap && hiddenLayers.size > 0" class="mb-2 text-sm text-muted">
-                Крупная кодовая база ({{ map.codemap.modules.length }} модулей) — чтобы не перегружать диаграмму,
+                Крупная кодовая база ({{ scopeCount }} модулей) — чтобы не перегружать диаграмму,
                 сначала показан один слой. Выберите другой чипом; чтобы увидеть все разом, кликните по выбранному ещё раз.
               </p>
               <div class="mb-3 flex flex-wrap gap-1">
@@ -678,6 +709,7 @@ async function onUnrelate(relation: { from: string; to: string; kind: RelationKi
                 :id="`map-${current.key}`"
                 @node-click="onNodeClick"
                 @edge-click="onEdgeClick"
+                @blank-click="onBlankClick"
               />
             </template>
           </UCard>
