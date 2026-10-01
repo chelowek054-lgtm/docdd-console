@@ -1,7 +1,17 @@
 <script setup lang="ts">
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import type { MapSelection, MermaidEdge } from '~/utils/map-mermaid';
+import {
+  IMPL_LABEL,
+  RELATION_LABEL,
+  overallProgress,
+  withMarks,
+  type ImplStatus,
+  type Mark,
+  type StatusFilter
+} from '~~/server/lib/functional';
 import type { ProjectMap } from '~~/server/lib/maps';
+import { STATUS_STYLE } from '~/utils/functional-view';
 
 const route = useRoute();
 const projectId = computed(() => String(route.params['id'] ?? ''));
@@ -234,6 +244,40 @@ const pendingNodeIds = computed(() => {
   return set;
 });
 
+/**
+ * Состояние реализации функциональной карты: отметки, ещё не сохранённые в
+ * карту, лежат здесь и накладываются поверх картины — их видят и дерево, и
+ * граф, и «Проверить по коду» кладёт сюда же (docs/04-ui.md, «Функциональная
+ * карта»). Фильтр по состоянию — тоже общий.
+ */
+const marks = ref<Record<string, Mark>>({});
+const statusFilter = ref<StatusFilter | null>(null);
+const functionalEffective = computed(() => {
+  const source = map.value?.functional;
+  return {
+    capabilities: withMarks(source?.capabilities ?? [], marks.value),
+    relations: source?.relations ?? []
+  };
+});
+const functionalProgress = computed(() => overallProgress(functionalEffective.value.capabilities));
+
+const legendKeys = ['implemented', 'partial', 'not_implemented', 'unrated'] as const;
+
+/** «Занести отметки» из «Проверить по коду»: в несохранённые отметки, не в карту. */
+function applyChecks(rows: { id: string; status: ImplStatus; note: string }[]) {
+  const next = { ...marks.value };
+  for (const row of rows) next[row.id] = { status: row.status, note: row.note };
+  marks.value = next;
+}
+
+/** Закрыть вкладку с несохранёнными отметками — браузер предупредит о потере. */
+function warnUnsaved(event: BeforeUnloadEvent) {
+  if (Object.keys(marks.value).length === 0) return;
+  event.preventDefault();
+}
+onMounted(() => window.addEventListener('beforeunload', warnUnsaved));
+onUnmounted(() => window.removeEventListener('beforeunload', warnUnsaved));
+
 const views = computed(() => {
   const value = map.value;
   if (!value) return [];
@@ -264,7 +308,7 @@ const views = computed(() => {
       title: 'Функциональная карта',
       question: 'Что система умеет на языке предметной области, не кода',
       count: `${value.functional.capabilities.length} возможностей`,
-      ...functionalMermaid(value)
+      ...functionalMermaid({ ...value, functional: functionalEffective.value }, statusFilter.value)
     }
   ];
 });
@@ -282,10 +326,10 @@ const viewMode = ref<'2d' | '3d'>('2d');
 
 /**
  * У функциональной карты свой переключатель — дерево (читает доменный
- * специалист, docs/07-maps.md, «Экран: дерево, а не mindmap») или тот же
- * mermaid-граф (`mindmap`), что рисуют и остальные виды карт, для тех, кому
- * привычнее диаграмма. Тексты и узлы уже посчитаны (`functionalMermaid` в
- * `views` выше) — включение режима ничего не пересчитывает.
+ * специалист, docs/07-maps.md, «Экран: дерево, граф состояния») или граф
+ * состояния — возможности цветом по состоянию и стрелки связей. Текст и узлы
+ * уже посчитаны (`functionalMermaid` в `views` выше) — включение режима
+ * ничего не пересчитывает.
  */
 const functionalView = ref<'tree' | 'graph'>('tree');
 
@@ -543,33 +587,68 @@ function onEdgeClick(edge: MermaidEdge) {
                 :project-id="projectId"
                 kind="functional-check"
                 label="Проверить по коду"
-                hint="Модель сама читает код — ответ ничего не подтверждает, это её мнение"
+                hint="Модель сама читает код и предлагает состояние — это её мнение, подтверждает человек"
+              >
+                <template #answer="{ answer }">
+                  <FunctionalCheck
+                    :project-id="projectId"
+                    :answer="answer"
+                    @apply="applyChecks"
+                  />
+                </template>
+              </PromptPanel>
+
+              <FunctionalSummary
+                v-if="functionalProgress.total > 0"
+                v-model:filter="statusFilter"
+                :progress="functionalProgress"
               />
+
               <FunctionalTree
                 v-if="functionalView === 'tree'"
+                v-model:marks="marks"
                 :project-id="projectId"
-                :capabilities="map.functional.capabilities"
+                :capabilities="functionalEffective.capabilities"
+                :saved="map.functional.capabilities"
+                :relations="functionalEffective.relations"
+                :filter="statusFilter"
                 @select="(value) => (selection = value)"
                 @changed="() => refresh()"
               />
               <template v-else>
                 <p v-if="!current.text" class="text-sm text-muted">
-                  В подтверждённых картах эта структура не описана.
+                  {{ map.functional.capabilities.length ? 'Под этот фильтр ничего не подошло.' : 'В подтверждённых картах эта структура не описана.' }}
                 </p>
-                <MermaidDiagram
-                  v-else
-                  :source="current.text"
-                  :details="current.details"
-                  :paths="current.paths"
-                  :edges="current.edges"
-                  :neighbors="current.neighbors"
-                  :pending-ids="pendingNodeIds"
-                  :order="current.order"
-                  :fullscreen-target="stage"
-                  :id="`map-${current.key}`"
-                  @node-click="onNodeClick"
-                  @edge-click="onEdgeClick"
-                />
+                <template v-else>
+                  <!-- Легенда рядом, а не по памяти: цвет — состояние, вид стрелки — вид связи. -->
+                  <div class="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
+                    <span v-for="key in legendKeys" :key="key" class="flex items-center gap-1">
+                      <span
+                        class="inline-block h-3 w-5 rounded-sm border"
+                        :class="key === 'unrated' ? 'border-dashed' : ''"
+                        :style="{ backgroundColor: STATUS_STYLE[key].fill, borderColor: STATUS_STYLE[key].stroke }"
+                      />
+                      {{ IMPL_LABEL[key] }}
+                    </span>
+                    <span>──→ {{ RELATION_LABEL.depends }}</span>
+                    <span>╌╌→ {{ RELATION_LABEL.uses }}</span>
+                    <span>══→ {{ RELATION_LABEL.feeds }}</span>
+                    <span class="text-warning">жёлтая — ждёт зависимость</span>
+                    <span class="text-error">красная — ждут друг друга</span>
+                  </div>
+                  <MermaidDiagram
+                    :source="current.text"
+                    :details="current.details"
+                    :paths="current.paths"
+                    :edges="current.edges"
+                    :neighbors="current.neighbors"
+                    :pending-ids="pendingNodeIds"
+                    :fullscreen-target="stage"
+                    :id="`map-${current.key}`"
+                    @node-click="onNodeClick"
+                    @edge-click="onEdgeClick"
+                  />
+                </template>
               </template>
             </template>
 

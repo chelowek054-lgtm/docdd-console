@@ -1,4 +1,5 @@
 import { contractDigest } from './contract-digest';
+import { capabilityLines, type CapabilityLike } from './functional';
 import type { IssueDto } from './types';
 
 /**
@@ -337,22 +338,7 @@ export const CAPABILITIES_TREE_MARKER = '<!-- ВОЗМОЖНОСТИ -->';
  */
 export function functionalCheckPrompt(
   template: string,
-  capabilities: readonly { id: string; title?: string; parent?: string }[]
+  capabilities: readonly CapabilityLike[]
 ): string {
-  const byId = new Map(capabilities.map((item) => [item.id, item]));
-  const depthOf = (id: string, seen: ReadonlySet<string> = new Set()): number => {
-    const item = byId.get(id);
-    // Цикл в `parent` — та же защита, что и у отрисовки дерева на экране
-    // (`functionalMermaid`): глубина считается, а не зависает.
-    if (!item?.parent || seen.has(id)) return 0;
-    return 1 + depthOf(item.parent, new Set([...seen, id]));
-  };
-
-  const lines = capabilities.length > 0
-    ? capabilities
-      .map((item) => `${'  '.repeat(depthOf(item.id))}- \`${item.id}\`${item.title ? ` — ${item.title}` : ''}`)
-      .join(LF)
-    : 'Возможностей в карте пока нет.';
-
-  return withoutFrontNote(template).replace(CAPABILITIES_TREE_MARKER, lines);
+  return withoutFrontNote(template).replace(CAPABILITIES_TREE_MARKER, capabilityLines(capabilities));
 }

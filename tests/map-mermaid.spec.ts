@@ -324,75 +324,130 @@ describe('userflowMermaid', () => {
 });
 
 describe('functionalMermaid', () => {
-  it('одна верхняя возможность становится корнем без обёртки', () => {
-    const { text } = functionalMermaid(mapWith({
-      functional: {
-        capabilities: [
-          { id: 'orders', title: 'Заказы' },
-          { id: 'orders.pay', title: 'Оплата', parent: 'orders' }
-        ]
-      }
-    }));
-    expect(text).toContain('mindmap');
-    expect(text).not.toContain('root((Проект))');
-    expect(text).toContain('f_orders(Заказы)');
-    expect(text).toContain('f_orders_pay(Оплата)');
-    // Вложенность — отступом: у ребёнка отступ больше, чем у родителя.
-    const parentAt = text.split('\n').findIndex((line) => line.includes('f_orders('));
-    const childAt = text.split('\n').findIndex((line) => line.includes('f_orders_pay('));
-    const indentOf = (line: string) => (line.match(/^ */)?.[0] ?? '').length;
+  const functional = (
+    capabilities: ProjectMap['functional']['capabilities'],
+    relations: ProjectMap['functional']['relations'] = []
+  ) => mapWith({ functional: { capabilities, relations } });
+
+  it('родитель — рамка вокруг подпунктов, со счётом реализованных', () => {
+    const { text } = functionalMermaid(functional([
+      { id: 'orders', title: 'Заказы' },
+      { id: 'orders.pay', title: 'Оплата', parent: 'orders', status: 'implemented' },
+      { id: 'orders.cancel', title: 'Отмена', parent: 'orders', status: 'not_implemented' }
+    ]));
+    expect(text).toContain('flowchart LR');
+    expect(text).toContain('subgraph f_orders["Заказы · 1 из 2"]');
+    // Лист внутри рамки: отступ больше, чем у самой рамки.
     const lines = text.split('\n');
-    expect(indentOf(lines[childAt] ?? '')).toBeGreaterThan(indentOf(lines[parentAt] ?? ''));
+    const indentOf = (line: string | undefined) => (line?.match(/^ */)?.[0] ?? '').length;
+    const frame = lines.find((line) => line.includes('subgraph f_orders'));
+    const leaf = lines.find((line) => line.includes('f_orders_pay['));
+    expect(indentOf(leaf)).toBeGreaterThan(indentOf(frame));
   });
 
-  it('подробности при наведении несут id и заголовок возможности', () => {
-    const { details } = functionalMermaid(mapWith({
-      functional: { capabilities: [{ id: 'orders', title: 'Заказы' }] }
-    }));
-    expect(details['f_orders']).toBe('orders\nЗаказы');
+  it('цвет и слово — по состоянию; не оценённая — отдельным классом', () => {
+    const { text } = functionalMermaid(functional([
+      { id: 'a', title: 'А', status: 'implemented' },
+      { id: 'b', title: 'Б', status: 'partial' },
+      { id: 'c', title: 'В', status: 'not_implemented' },
+      { id: 'd', title: 'Г' }
+    ]));
+    expect(text).toContain('f_a["А<br/>Реализовано"]:::st_implemented');
+    expect(text).toContain('f_b["Б<br/>Частично"]:::st_partial');
+    expect(text).toContain('f_c["В<br/>Не реализовано"]:::st_not_implemented');
+    expect(text).toContain('f_d["Г<br/>Не оценено"]:::st_unrated');
   });
 
-  it('несколько верхних возможностей собираются под общим узлом', () => {
-    const { text } = functionalMermaid(mapWith({
-      functional: {
-        capabilities: [
-          { id: 'orders', title: 'Заказы' },
-          { id: 'billing', title: 'Биллинг' }
-        ]
-      }
-    }));
-    expect(text).toContain('root((Проект))');
-    expect(text).toContain('f_orders(Заказы)');
-    expect(text).toContain('f_billing(Биллинг)');
+  it('связи — тремя видами стрелок, с подписью', () => {
+    const { text, neighbors } = functionalMermaid(functional(
+      [{ id: 'a', title: 'А' }, { id: 'b', title: 'Б' }, { id: 'c', title: 'В' }],
+      [
+        { from: 'a', to: 'b', type: 'depends' },
+        { from: 'a', to: 'c', type: 'uses', summary: 'профиль' },
+        { from: 'b', to: 'c', type: 'feeds' }
+      ]
+    ));
+    expect(text).toContain('f_a --> f_b');
+    expect(text).toContain('f_a -.->|"профиль"| f_c');
+    expect(text).toContain('f_b ==> f_c');
+    expect(neighbors['f_a']).toEqual(['f_b', 'f_c']);
+  });
+
+  it('связь без возможности на конце и связь с предком не рисуются', () => {
+    const { text } = functionalMermaid(functional(
+      [{ id: 'a', title: 'А' }, { id: 'a.x', title: 'Х', parent: 'a' }],
+      [
+        { from: 'a', to: 'нет', type: 'uses' },
+        { from: 'a.x', to: 'a', type: 'depends' }
+      ]
+    ));
+    expect(text).not.toContain('-->');
+    expect(text).not.toContain('-.->');
+  });
+
+  it('цикл по depends краснеет, ждущая связь — жёлтая', () => {
+    const cycle = functionalMermaid(functional(
+      [{ id: 'a', title: 'А' }, { id: 'b', title: 'Б' }],
+      [{ from: 'a', to: 'b', type: 'depends' }, { from: 'b', to: 'a', type: 'depends' }]
+    ));
+    expect(cycle.text).toContain('linkStyle 0 stroke:#DC2626');
+    expect(cycle.text).toContain('linkStyle 1 stroke:#DC2626');
+
+    const waiting = functionalMermaid(functional(
+      [{ id: 'a', title: 'А', status: 'partial' }, { id: 'b', title: 'Б', status: 'not_implemented' }],
+      [{ from: 'a', to: 'b', type: 'depends' }]
+    ));
+    expect(waiting.text).toContain('linkStyle 0 stroke:#D97706');
+  });
+
+  it('фильтр оставляет листья нужного состояния и их предков', () => {
+    const { text } = functionalMermaid(functional([
+      { id: 'orders', title: 'Заказы' },
+      { id: 'orders.pay', title: 'Оплата', parent: 'orders', status: 'implemented' },
+      { id: 'orders.cancel', title: 'Отмена', parent: 'orders', status: 'not_implemented' },
+      { id: 'other', title: 'Прочее', status: 'implemented' }
+    ]), 'not_implemented');
+    expect(text).toContain('f_orders_cancel[');
+    expect(text).toContain('subgraph f_orders');
+    expect(text).not.toContain('f_orders_pay[');
+    expect(text).not.toContain('f_other[');
+    // Состояние родителя считается по всему дереву, а не по тому, что осталось под фильтром.
+    expect(text).toContain('Заказы · 1 из 2');
+  });
+
+  it('узел несёт состояние, связи и note для карточки', () => {
+    const { nodes, details } = functionalMermaid(functional(
+      [{ id: 'a', title: 'А', status: 'partial', note: 'нет возвратов' }, { id: 'b', title: 'Б' }],
+      [{ from: 'a', to: 'b', type: 'depends' }]
+    ));
+    expect(nodes['f_a']?.note).toBe('нет возвратов');
+    expect(nodes['f_a']?.capabilityView?.status).toBe('partial');
+    expect(nodes['f_a']?.capabilityView?.links).toEqual([
+      { direction: 'out', type: 'depends', id: 'b', title: 'Б', summary: undefined }
+    ]);
+    expect(nodes['f_b']?.capabilityView?.links[0]?.direction).toBe('in');
+    expect(details['f_a']).toBe('a\nА\nЧастично\nнет возвратов');
   });
 
   it('ссылка на несуществующего родителя не теряет возможность', () => {
-    const { text } = functionalMermaid(mapWith({
-      functional: { capabilities: [{ id: 'orphan', title: 'Одна', parent: 'нет-такой' }] }
-    }));
-    expect(text).toContain('f_orphan(Одна)');
+    const { text } = functionalMermaid(functional([{ id: 'orphan', title: 'Одна', parent: 'нет-такой' }]));
+    expect(text).toContain('f_orphan[');
   });
 
   it('повторный id не рисует один узел дважды в разных ветках', () => {
-    const { text } = functionalMermaid(mapWith({
-      functional: {
-        capabilities: [
-          { id: 'a', title: 'Первая' },
-          { id: 'b', title: 'Б', parent: 'a' },
-          // Тот же id 'a', но объявлен потомком 'b' — без защиты узел 'a'
-          // нарисовался бы и корнем, и веткой глубже одновременно.
-          { id: 'a', title: 'Вторая', parent: 'b' }
-        ]
-      }
-    }));
-    expect(text.match(/f_a\(/g)).toHaveLength(1);
+    const { text } = functionalMermaid(functional([
+      { id: 'a', title: 'Первая' },
+      { id: 'b', title: 'Б', parent: 'a' },
+      // Тот же id 'a', но объявлен потомком 'b' — без защиты узел 'a'
+      // нарисовался бы и корнем, и веткой глубже одновременно.
+      { id: 'a', title: 'Вторая', parent: 'b' }
+    ]));
+    expect(text.match(/f_a\[|subgraph f_a\[/g)).toHaveLength(1);
   });
 
-  it('скобки в названии не рвут синтаксис узла', () => {
-    const { text } = functionalMermaid(mapWith({
-      functional: { capabilities: [{ id: 'x', title: 'Отчёты (PDF)' }] }
-    }));
-    expect(text).not.toMatch(/\(Отчёты \(PDF\)\)/);
+  it('кавычки в названии не рвут диаграмму', () => {
+    const { text } = functionalMermaid(functional([{ id: 'x', title: 'Отчёты "PDF"' }]));
+    expect(text).toContain("Отчёты 'PDF'");
   });
 
   it('пустая структура даёт пустую строку, а не пустую диаграмму', () => {

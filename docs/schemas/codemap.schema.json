@@ -17,7 +17,31 @@
       "additionalProperties": false,
       "properties": {
         "modules": { "type": "array", "items": { "$ref": "#/$defs/module" } },
-        "imports": { "type": "array", "items": { "$ref": "#/$defs/import" } }
+        "imports": { "type": "array", "items": { "$ref": "#/$defs/import" } },
+        "groups": { "type": "array", "items": { "$ref": "#/$defs/group" } }
+      }
+    },
+    "group": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "description": "Группа модулей — уровень над модулем, на который смотрит обзор. Суждение, как layer и summary: свидетельства нет, подтверждает человек. В removed нужен один id.",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "description": "Уникальное имя группы." },
+        "title": { "type": "string", "description": "Название на языке предметной области." },
+        "summary": { "type": "string", "description": "Зачем группа в проекте — 2–3 предложения, а не перечень файлов." },
+        "parent": { "type": "string", "description": "id группы-родителя. Формат допускает вложенность; экран пока рисует один уровень." },
+        "paths": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Префиксы путей от корня проекта: в группу входят модули, чей path лежит под ними (по границе сегмента)."
+        },
+        "modules": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "id модулей, входящих в группу поимённо. Сильнее paths."
+        },
+        "capability": { "type": "string", "description": "id возможности функциональной карты, которую группа реализует." }
       }
     },
     "module": {
