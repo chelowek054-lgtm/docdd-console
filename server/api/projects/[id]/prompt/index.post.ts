@@ -6,6 +6,7 @@ import { checkEvidence, evidenceClaims, parseMapRecord } from '../../../../lib/m
 import {
   fixPrompt,
   functionalCheckPrompt,
+  groupsPrompt,
   inboxPrompt,
   mapFixPrompt,
   mapsPrompt,
@@ -201,7 +202,15 @@ export default defineEventHandler(async (event) => {
       };
     }
 
-    return fail(event, 400, 'kind_invalid', 'Известны запросы: `fix`, `maps`, `map-fix`, `inbox`, `verify`, `functional-check`, `phases`');
+    if (kind === 'groups') {
+      const { modules, groups } = buildProjectMap(project.root).codemap;
+      if (modules.length === 0) {
+        return fail(event, 422, 'groups_nothing_to_group', 'В кодовой карте нет ни одного модуля: группировать нечего');
+      }
+      return { prompt: groupsPrompt(await template('groups.md'), modules, groups), count: modules.length };
+    }
+
+    return fail(event, 400, 'kind_invalid', 'Известны запросы: `fix`, `maps`, `map-fix`, `inbox`, `verify`, `functional-check`, `phases`, `groups`');
   } catch (error) {
     if (error instanceof WorkspaceError) {
       return fail(event, 422, error.code, error.message, error.detail);

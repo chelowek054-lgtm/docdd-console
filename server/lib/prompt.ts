@@ -342,3 +342,44 @@ export function functionalCheckPrompt(
 ): string {
   return withoutFrontNote(template).replace(CAPABILITIES_TREE_MARKER, capabilityLines(capabilities));
 }
+
+export const GROUPS_MARKER = '<!-- ГРУППЫ -->';
+export const GROUP_MODULES_MARKER = '<!-- МОДУЛИ -->';
+
+/** Дальше этого описание в запросе не читают: на сотнях модулей оно и так длинное. */
+const SUMMARY_LIMIT = 160;
+
+/**
+ * Запрос «Сгруппировать модули» (docs/07-maps.md, «Группы: уровень над
+ * модулями»). Модели уходят модули общей картины и уже объявленные группы — то,
+ * что человек подтвердил, ей повторять не нужно. Ответ — блок `docdd-codemap`
+ * только с `groups`, он ложится черновиком карты и ждёт подтверждения.
+ */
+export function groupsPrompt(
+  template: string,
+  modules: readonly { id: string; path?: string | undefined; layer?: string | undefined; summary?: string | undefined }[],
+  groups: readonly { id: string; title?: string | undefined; summary?: string | undefined; paths?: readonly string[] | undefined }[]
+): string {
+  const modulesText = modules.map((module) => {
+    const facts = [
+      module.path && module.path !== module.id ? `путь: ${module.path}` : '',
+      module.layer ? `слой: ${module.layer}` : '',
+      module.summary ? module.summary.replace(/\s+/g, ' ').slice(0, SUMMARY_LIMIT) : ''
+    ].filter(Boolean);
+    return `- \`${module.id}\`${facts.length ? ` — ${facts.join('; ')}` : ''}`;
+  }).join(LF);
+
+  const groupsText = groups.length
+    ? groups.map((group) => {
+      const facts = [
+        group.title ?? '',
+        group.paths?.length ? `каталоги: ${group.paths.join(', ')}` : ''
+      ].filter(Boolean);
+      return `- \`${group.id}\`${facts.length ? ` — ${facts.join('; ')}` : ''}`;
+    }).join(LF)
+    : 'Групп пока не объявлено: это первое разбиение.';
+
+  return withoutFrontNote(template)
+    .replace(GROUPS_MARKER, () => groupsText)
+    .replace(GROUP_MODULES_MARKER, () => modulesText);
+}

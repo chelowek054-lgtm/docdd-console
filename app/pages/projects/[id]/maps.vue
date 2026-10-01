@@ -63,14 +63,14 @@ async function askToFix(answer: string) {
 }
 
 /** Ответ модели сохраняется черновиком: подтверждает человек, а не приложение. */
-async function saveDraft(answer: string) {
+async function saveDraft(answer: string, title?: string) {
   saving.value = true;
   draftFailure.value = null;
   draftId.value = '';
   try {
     const response = await $fetch(`/api/projects/${projectId.value}/map/draft`, {
       method: 'POST',
-      body: { answer },
+      body: { answer, ...(title ? { title } : {}) },
       ignoreResponseError: true
     });
     const problem = failureOf(response);
@@ -171,7 +171,8 @@ const GROUPED_CODEMAP = 40;
 
 const grouping = computed(() => {
   const value = map.value;
-  return value ? groupModules(value.codemap.modules, value.codemap.imports) : null;
+  // Объявленные картой группы сильнее автоматических (docs/07-maps.md).
+  return value ? groupModules(value.codemap.modules, value.codemap.imports, value.codemap.groups) : null;
 });
 
 const codemapMode = computed<'groups' | 'group' | 'all'>(() => {
@@ -185,6 +186,11 @@ const codemapMode = computed<'groups' | 'group' | 'all'>(() => {
 });
 const openGroupId = computed(() => (codemapMode.value === 'group' ? String(route.query['group']) : ''));
 const openGroupInfo = computed(() => (openGroupId.value && grouping.value ? groupCard(grouping.value, openGroupId.value) : null));
+
+/** id → название возможности функциональной карты: карточка группы называет, какую возможность она реализует. */
+const capabilityTitles = computed(() => Object.fromEntries(
+  (map.value?.functional.capabilities ?? []).map((item) => [item.id, item.title ?? item.id])
+));
 
 /** Выбранный модуль открытой группы — его соседи из других групп показываются «призраками». */
 const ghostFor = ref<string | null>(null);
@@ -747,6 +753,35 @@ function onEdgeClick(edge: MermaidEdge) {
               </div>
             </template>
 
+            <!-- Модель предлагает границы, человек их утверждает (docs/07-maps.md, «Группы: уровень над модулями»). -->
+            <PromptPanel
+              v-if="shown === 'codemap' && map.codemap.modules.length > 0"
+              class="mb-3"
+              :project-id="projectId"
+              kind="groups"
+              label="Сгруппировать модули"
+              hint="Ответ сохраняется черновиком карты и требует подтверждения"
+              @answered="onAnswer"
+            >
+              <template #answer="{ answer }">
+                <div class="mb-3 flex flex-wrap items-center gap-3">
+                  <UButton size="sm" :loading="saving" @click="saveDraft(answer, 'Группы модулей')">Сохранить черновиком</UButton>
+                  <NuxtLink
+                    v-if="draftId"
+                    :to="`/projects/${projectId}/records/${draftId}`"
+                    class="text-sm hover:underline"
+                  >Черновик {{ draftId }} создан — подтвердите его, и группы вступят в силу</NuxtLink>
+                  <UAlert
+                    v-if="draftFailure"
+                    color="error"
+                    variant="subtle"
+                    :title="draftFailure.message"
+                    :description="problems.join(' ')"
+                  />
+                </div>
+              </template>
+            </PromptPanel>
+
             <!-- Слои — только у кодовой базы: у остальных видов узел не несёт слоя. На обзоре групп их нет. -->
             <template v-if="shown === 'codemap' && codemapMode !== 'groups' && allLayers.length > 1">
               <p v-if="isLargeCodemap && hiddenLayers.size > 0" class="mb-2 text-sm text-muted">
@@ -879,6 +914,7 @@ function onEdgeClick(edge: MermaidEdge) {
           <MapInspector
             :project-id="projectId"
             :selection="selection"
+            :capability-titles="capabilityTitles"
             :to="staged ? stage : null"
             @close="onBackgroundClick"
             @open-group="enterGroup"

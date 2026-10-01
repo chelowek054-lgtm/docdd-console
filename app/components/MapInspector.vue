@@ -25,6 +25,8 @@ const props = defineProps<{
    * полноэкранного элемента).
    */
   to?: HTMLElement | null;
+  /** id → название возможности функциональной карты — для карточки группы. */
+  capabilityTitles?: Record<string, string>;
 }>();
 const emit = defineEmits<{
   close: [];
@@ -236,11 +238,20 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
           <template v-for="card in [selection.kind === 'group' ? selection : groupOfNode]" :key="card?.groupId">
             <template v-if="card">
               <p v-if="card.summary" class="leading-relaxed">{{ card.summary }}</p>
-              <p v-else class="text-muted">
+              <p v-else-if="card.auto" class="text-muted">
                 У группы нет описания: она выведена из путей. Описание появится, когда карта её объявит.
               </p>
+              <p v-else class="text-muted">У группы нет описания: карта её объявила без поля `summary`.</p>
               <p v-if="card.capability" class="text-xs text-muted">
-                Реализует возможность <span class="font-mono">{{ card.capability }}</span>
+                Реализует возможность
+                <template v-if="capabilityTitles?.[card.capability]">«{{ capabilityTitles[card.capability] }}»</template>
+                <template v-else><span class="font-mono">{{ card.capability }}</span> — такой возможности нет</template>
+              </p>
+              <p v-if="card.declaredBy" class="text-xs text-muted">
+                Объявлена картой
+                <NuxtLink :to="`/projects/${projectId}/records/${card.declaredBy}`" class="hover:underline">
+                  {{ card.declaredBy }}
+                </NuxtLink>
               </p>
 
               <p>{{ plural(card.moduleCount, 'модуль', 'модуля', 'модулей') }}</p>

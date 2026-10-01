@@ -42,6 +42,14 @@ export interface CodemapPart {
     from: string; to: string; evidence: Evidence;
     status?: EvidenceVerdict; declaredBy?: string; pending?: boolean;
   }[];
+  /**
+   * Группы модулей — уровень над модулем (docs/07-maps.md, «Группы: уровень
+   * над модулями»). Суждение, как `layer`: свидетельства нет, подтверждает человек.
+   */
+  groups?: {
+    id: string; title?: string; summary?: string; parent?: string;
+    paths?: string[]; modules?: string[]; capability?: string; declaredBy?: string;
+  }[];
 }
 
 export interface DataflowPart {
@@ -139,7 +147,9 @@ const MAP_KINDS: readonly MapKind[] = [
         name: 'imports',
         keyOf: (item) => `${item.from}>${item.to}`,
         evidence: (item) => ({ label: `${item.from} → ${item.to}`, evidence: item.evidence })
-      }
+      },
+      // Без evidence: группа — суждение о том, зачем модули вместе, сверять нечем.
+      { name: 'groups', keyOf: (item) => item.id }
     ]
   },
   {
@@ -409,7 +419,7 @@ export interface ProjectMap {
 
 export function emptyProjectMap(): ProjectMap {
   return {
-    codemap: { modules: [], imports: [] },
+    codemap: { modules: [], imports: [], groups: [] },
     dataflow: { sources: [], flows: [] },
     userflow: { screens: [], transitions: [], calls: [] },
     functional: { capabilities: [], relations: [] },
