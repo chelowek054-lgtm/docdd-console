@@ -1,3 +1,4 @@
+import type { ImplStatus, RelationType } from './functional';
 import { validateCodemap, validateDataflow, validateFunctional, validateSkipped, validateUserflow } from './schema';
 import { yamlSafe } from './write';
 
@@ -70,8 +71,13 @@ export interface UserflowPart {
  */
 export interface FunctionalPart {
   capabilities?: {
-    id: string; title?: string; parent?: string; summary?: string; declaredBy?: string; pending?: boolean;
+    id: string; title?: string; parent?: string; summary?: string;
+    /** Состояние реализации; нет поля — «не оценено» (docs/07-maps.md). */
+    status?: ImplStatus; note?: string;
+    declaredBy?: string; pending?: boolean;
   }[];
+  /** Связи между возможностями: depends / uses / feeds. Свидетельства нет, как у всей карты. */
+  relations?: { from: string; to: string; type: RelationType; summary?: string; declaredBy?: string }[];
 }
 
 /** Файл, который модель посмотрела и в карту не положила. */
@@ -171,7 +177,9 @@ const MAP_KINDS: readonly MapKind[] = [
     // Без evidence вовсе: подтверждается человеком, а не сверкой с файлом —
     // evidenceClaims не даст по этому виду ни одного утверждения для сверки.
     fields: [
-      { name: 'capabilities', keyOf: (item) => item.id }
+      { name: 'capabilities', keyOf: (item) => item.id },
+      // Тип входит в ключ: между двумя возможностями бывает и зависимость, и передача данных.
+      { name: 'relations', keyOf: (item) => `${item.from}>${item.to}:${item.type}` }
     ]
   }
 ];
@@ -404,7 +412,7 @@ export function emptyProjectMap(): ProjectMap {
     codemap: { modules: [], imports: [] },
     dataflow: { sources: [], flows: [] },
     userflow: { screens: [], transitions: [], calls: [] },
-    functional: { capabilities: [] },
+    functional: { capabilities: [], relations: [] },
     from: []
   };
 }

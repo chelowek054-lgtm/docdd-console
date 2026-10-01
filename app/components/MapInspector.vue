@@ -3,6 +3,7 @@ import type { ComponentPublicInstance } from 'vue';
 
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import { highlightCode, type CodeToken } from '~/utils/highlight';
+import { STATUS_STYLE, statusText } from '~/utils/functional-view';
 import type { MapSelection } from '~/utils/map-mermaid';
 import type { EvidenceVerdict } from '~~/server/lib/maps';
 
@@ -128,6 +129,22 @@ function tokenStyle(token: CodeToken) {
   };
 }
 
+/**
+ * Возможность функциональной карты: состояние, `note`, связи в обе стороны и
+ * «ждёт» (docs/04-ui.md, «Функциональная карта»). Названия связей читаются от
+ * лица самой возможности — «зависит от», а с другой стороны — «от неё зависит».
+ */
+const capView = computed(() => (props.selection?.kind === 'node' ? props.selection.capabilityView : undefined));
+const capNote = computed(() => (props.selection?.kind === 'node' ? props.selection.note : undefined));
+const BADGE_COLOR = { implemented: 'success', partial: 'warning', not_implemented: 'error', unrated: 'neutral' } as const;
+const LINK_WORDS = {
+  out: { depends: 'зависит от', uses: 'пользуется', feeds: 'передаёт данные в' },
+  in: { depends: 'от неё зависит', uses: 'ею пользуется', feeds: 'передаёт ей данные' }
+} as const;
+const waitingNames = computed(() => (capView.value?.waiting ?? []).map(
+  (id) => capView.value?.links.find((link) => link.id === id)?.title ?? id
+));
+
 const nodeApi = computed(() => (props.selection?.kind === 'node' ? props.selection.api ?? [] : []));
 const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.selection.summary : undefined));
 </script>
@@ -198,7 +215,34 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
           </NuxtLink>
         </p>
 
+        <div v-if="capView" class="space-y-2">
+          <UBadge
+            :color="BADGE_COLOR[capView.status ?? 'unrated']"
+            :icon="STATUS_STYLE[capView.status ?? 'unrated'].icon"
+            variant="subtle"
+          >
+            {{ statusText(capView) }}
+          </UBadge>
+          <p v-if="capNote" class="leading-relaxed">{{ capNote }}</p>
+          <p v-if="capView.inCycle" class="text-xs text-error">
+            Две возможности ждут друг друга — по очереди их не сделать, граница проведена неверно.
+          </p>
+          <p v-else-if="waitingNames.length" class="text-xs text-warning">
+            Ждёт: {{ waitingNames.join(', ') }} — начинать с неё нет смысла, пока зависимость не готова.
+          </p>
+        </div>
+
         <p v-if="nodeSummary" class="leading-relaxed">{{ nodeSummary }}</p>
+
+        <template v-if="capView && capView.links.length">
+          <h3 class="font-medium">Связи</h3>
+          <ul class="space-y-1">
+            <li v-for="link in capView.links" :key="`${link.direction}:${link.type}:${link.id}`" class="text-xs">
+              <span class="text-muted">{{ LINK_WORDS[link.direction][link.type] }}</span>
+              {{ link.title }}<span v-if="link.summary" class="text-muted"> — {{ link.summary }}</span>
+            </li>
+          </ul>
+        </template>
 
         <template v-if="nodeApi.length">
           <h3 class="font-medium">Интерфейс</h3>

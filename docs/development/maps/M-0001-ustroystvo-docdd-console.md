@@ -185,7 +185,7 @@ updated: 2026-09-10
         {"from":"app/pages/projects/[id]/index.vue","to":"server/lib/types.ts","evidence":{"path":"app/pages/projects/[id]/index.vue","line":2,"fragment":"import type { IndexRecord } from '~~/server/lib/types';"}},
         {"from":"app/pages/projects/[id]/maps.vue","to":"app/composables/useProjectIndex.ts","evidence":{"path":"app/pages/projects/[id]/maps.vue","line":2,"fragment":"import type { ApiFailure } from '~/composables/useProjectInd"}},
         {"from":"app/pages/projects/[id]/maps.vue","to":"app/utils/map-mermaid.ts","evidence":{"path":"app/pages/projects/[id]/maps.vue","line":3,"fragment":"import type { MapSelection, MermaidEdge } from '~/utils/map-mermaid';"}},
-        {"from":"app/pages/projects/[id]/maps.vue","to":"server/lib/maps.ts","evidence":{"path":"app/pages/projects/[id]/maps.vue","line":4,"fragment":"import type { ProjectMap } from '~~/server/lib/maps';"}},
+        {"from":"app/pages/projects/[id]/maps.vue","to":"server/lib/maps.ts","evidence":{"path":"app/pages/projects/[id]/maps.vue","line":13,"fragment":"import type { ProjectMap } from '~~/server/lib/maps';"}},
         {"from":"app/pages/projects/[id]/records/[recordId].vue","to":"server/lib/types.ts","evidence":{"path":"app/pages/projects/[id]/records/[recordId].vue","line":2,"fragment":"import type { LinkKind } from '~~/server/lib/types';"}},
         {"from":"app/pages/projects/[id]/requirements.vue","to":"server/lib/types.ts","evidence":{"path":"app/pages/projects/[id]/requirements.vue","line":2,"fragment":"import type { IndexRecord } from '~~/server/lib/types';"}},
         {"from":"app/pages/projects/[id]/shared.vue","to":"app/composables/useProjectIndex.ts","evidence":{"path":"app/pages/projects/[id]/shared.vue","line":2,"fragment":"import type { ApiFailure } from '~/composables/useProjectInd"}},
@@ -194,7 +194,7 @@ updated: 2026-09-10
         {"from":"app/pages/projects/[id]/shared.vue","to":"server/utils/shared-service.ts","evidence":{"path":"app/pages/projects/[id]/shared.vue","line":5,"fragment":"import type { SharedSourceView } from '~~/server/utils/share"}},
         {"from":"app/utils/graph-layout.ts","to":"server/lib/types.ts","evidence":{"path":"app/utils/graph-layout.ts","line":3,"fragment":"import type { IndexRecord, LinkKind } from '../../server/lib"}},
         {"from":"app/utils/labels.ts","to":"server/lib/types.ts","evidence":{"path":"app/utils/labels.ts","line":1,"fragment":"import type { Severity } from '~~/server/lib/types';"}},
-        {"from":"app/utils/map-mermaid.ts","to":"server/lib/maps.ts","evidence":{"path":"app/utils/map-mermaid.ts","line":1,"fragment":"from '../../server/lib/maps';"}},
+        {"from":"app/utils/map-mermaid.ts","to":"server/lib/maps.ts","evidence":{"path":"app/utils/map-mermaid.ts","line":8,"fragment":"from '../../server/lib/maps';"}},
         {"from":"cli/check.ts","to":"cli/report.ts","evidence":{"path":"cli/check.ts","line":5,"fragment":"import { exitCode, formatJson, formatText } from './report';"}},
         {"from":"cli/check.ts","to":"server/lib/indexer.ts","evidence":{"path":"cli/check.ts","line":3,"fragment":"import { buildIndex } from '../server/lib/indexer';"}},
         {"from":"cli/check.ts","to":"server/lib/workspace.ts","evidence":{"path":"cli/check.ts","line":4,"fragment":"import { WorkspaceError } from '../server/lib/workspace';"}},
@@ -585,7 +585,7 @@ updated: 2026-09-10
         {"from":"/projects/:id/issues","to":"POST /api/projects/:id/fix","evidence":{"path":"app/components/FixWork.vue","line":45,"fragment":"  const result = await stream<{ state: FixState }>(`/api/pro"}},
         {"from":"/projects/:id/issues","to":"POST /api/projects/:id/fix/work","evidence":{"path":"app/components/FixWork.vue","line":59,"fragment":"      `/api/projects/${props.projectId}/fix/work`,"}},
         {"from":"/projects/:id/maps","to":"GET /api/projects/:id/map/inventory","evidence":{"path":"app/components/MapInventory.vue","line":19,"fragment":"const { data, refresh } = useFetch<Inventory>(() => `/api/pr"}},
-        {"from":"/projects/:id/maps","to":"POST /api/projects/:id/prompt","evidence":{"path":"app/pages/projects/[id]/maps.vue","line":34,"fragment":"    { method: 'POST', body: { kind: 'map-fix', answer, probl"}},
+        {"from":"/projects/:id/maps","to":"POST /api/projects/:id/prompt","evidence":{"path":"app/pages/projects/[id]/maps.vue","line":46,"fragment":"    { method: 'POST', body: { kind: 'map-fix', answer, probl"}},
         {"from":"/projects/:id/records/:recordId","to":"GET /api/projects/:id/records/:recordId/work","evidence":{"path":"app/components/TaskWork.vue","line":19,"fragment":"  () => `/api/projects/${props.projectId}/records/${props.re"}},
         {"from":"/projects/:id/records/:recordId","to":"POST /api/projects/:id/records/:recordId/work","evidence":{"path":"app/components/TaskWork.vue","line":43,"fragment":"  const url = `/api/projects/${props.projectId}/records/${pr"}}
       ]

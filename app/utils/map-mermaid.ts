@@ -1,4 +1,12 @@
+import {
+  IMPL_LABEL,
+  childrenIndex,
+  drawableRelations,
+  filterByStatus,
+  type StatusFilter
+} from '../../server/lib/functional';
 import type { ApiItem, Evidence, EvidenceVerdict, ProjectMap } from '../../server/lib/maps';
+import { STATUS_STYLE, capabilityViews, type CapabilityView } from './functional-view';
 
 /**
  * Карты в текст mermaid. Тот же текст показывается на экране и выгружается,
@@ -44,6 +52,10 @@ export interface MermaidNode {
   pending?: boolean;
   /** Возможность функциональной карты: у неё нет ни файла, ни интерфейса, только название и описание. */
   capability?: boolean;
+  /** Что сделано и чего не хватает — `note` возможности. */
+  note?: string | undefined;
+  /** Состояние, связи и «ждёт» возможности (`app/utils/functional-view.ts`). */
+  capabilityView?: CapabilityView;
 }
 
 /** Что показывает `MapInspector.vue` — узел (по `MermaidNode`) или ребро (по `MermaidEdge`). */
@@ -63,21 +75,13 @@ export interface MermaidOutput {
   edges: MermaidEdge[];
   /** id узла → id узлов, с которыми он соединён связью (в любую сторону). */
   neighbors: Record<string, string[]>;
-  /**
-   * id узлов в порядке, в котором они встречаются в тексте диаграммы —
-   * только у `mindmap` (`functionalMermaid`). В отличие от `flowchart`,
-   * mindmap не кладёт наш id в svg-id узла вовсе, нумеруя их вслепую
-   * (`node_0`, `node_1`, …) — `MermaidDiagram.vue` находит узел по этому
-   * порядку, а не по вхождению id в строку, как у остальных трёх видов.
-   */
-  order?: string[];
 }
 
 const LF = String.fromCharCode(10);
 const EMPTY: MermaidOutput = { text: '', details: {}, paths: {}, nodes: {}, edges: [], neighbors: {} };
 
 /** `neighbors` — из уже собранных рёбер, один проход, обе стороны сразу. */
-function neighborsOf(edges: readonly MermaidEdge[]): Record<string, string[]> {
+function neighborsOf(edges: readonly { from: string; to: string }[]): Record<string, string[]> {
   const map = new Map<string, Set<string>>();
   const link = (a: string, b: string) => map.set(a, (map.get(a) ?? new Set()).add(b));
   for (const edge of edges) {
@@ -335,64 +339,96 @@ export function userflowMermaid(map: ProjectMap): MermaidOutput {
 }
 
 /**
- * Дерево возможностей — не flowchart: тут нет рёбер со своим смыслом, только
- * вложенность, и mermaid для этого держит отдельный вид (`mindmap`). Доменный
- * специалист читает вложенность как есть, без легенды про стрелки и формы.
- * Цвет по ветке mindmap расставляет сам — раскрашивать его классами незачем.
- * Свидетельства нет вовсе (docs/07-maps.md) — узел ведёт только к своему
- * месту в дереве, `paths` и `edges` у этого вида всегда пустые.
+ * Граф состояния функциональной карты (docs/04-ui.md, «Функциональная карта»):
+ * возможность — прямоугольник цвета своего состояния, родитель — рамка вокруг
+ * подпунктов с названием и счётом, связь — стрелка одного из трёх видов.
+ * Свидетельства нет вовсе (docs/07-maps.md) — узел ведёт только к своей
+ * карточке, `paths` и `edges` у этого вида всегда пустые; а у связей собственного
+ * смысла, кроме вида и подписи, нет, поэтому клика по стрелке тоже нет.
+ *
+ * Прежний круговой `mindmap` убран: цвета ветвей в нём ничего не значили, а
+ * линии наезжали на названия.
  */
-export function functionalMermaid(map: ProjectMap): MermaidOutput {
-  const { capabilities } = map.functional;
+export function functionalMermaid(map: ProjectMap, filter: StatusFilter | null = null): MermaidOutput {
+  const all = map.functional.capabilities;
+  if (all.length === 0) return EMPTY;
+
+  // Состояние и «ждёт» считаются по всему дереву, а не по тому, что осталось
+  // под фильтром: иначе родитель менял бы цвет от самого фильтра.
+  const views = capabilityViews(all, map.functional.relations);
+  const capabilities = filterByStatus(all, filter);
   if (capabilities.length === 0) return EMPTY;
 
   const details: Record<string, string> = {};
   const nodes: Record<string, MermaidNode> = {};
-  // Скобки ломают синтаксис узла mindmap (`id(текст)`) — в flowchart их
-  // прятала кавычка вокруг подписи, здесь кавычки нет.
-  const safe = (text: string) => label(text).replace(/[()]/g, ' ');
+  const index = childrenIndex(capabilities);
+  const shown = (id: string) => nodeId('f', id);
 
-  const byId = new Map(capabilities.map((item) => [item.id, item]));
-  const ROOT = Symbol('root');
-  const childrenOf = new Map<string | typeof ROOT, typeof capabilities>();
-  for (const item of capabilities) {
-    const parent: string | typeof ROOT = item.parent && byId.has(item.parent) ? item.parent : ROOT;
-    childrenOf.set(parent, [...(childrenOf.get(parent) ?? []), item]);
+  const lines = ['flowchart LR'];
+  for (const key of ['implemented', 'partial', 'not_implemented', 'unrated'] as const) {
+    const style = STATUS_STYLE[key];
+    const dash = key === 'unrated' ? ',stroke-dasharray:4 3' : '';
+    lines.push(`    classDef ${nodeId('st', key)} fill:${style.fill},stroke:${style.stroke},color:#111827${dash};`);
   }
 
-  const lines = ['mindmap'];
   const placed = new Set<string>();
-  // Тот же порядок, каким mermaid слепо нумерует узлы mindmap (node_0, node_1, …
-  // без разбора вложенности) — синтетический корень тоже строка, пустой ключ.
-  const order: string[] = [];
+
+  function leaf(item: (typeof capabilities)[number], pad: string): void {
+    placed.add(item.id);
+    const view = views.get(item.id);
+    const key = view?.status ?? 'unrated';
+    const node = shown(item.id);
+    // Слово под названием: цвет — не единственный признак состояния.
+    lines.push(`${pad}${node}["${label(item.title ?? item.id, 34)}<br/>${IMPL_LABEL[key]}"]:::${nodeId('st', key)}`);
+    details[node] = [item.id, item.title, IMPL_LABEL[key], item.note].filter(Boolean).join(LF);
+    nodes[node] = {
+      id: item.id, title: item.title, summary: item.summary, declaredBy: (item as { declaredBy?: string }).declaredBy,
+      pending: (item as { pending?: boolean }).pending, capability: true, note: item.note, ...(view ? { capabilityView: view } : {})
+    };
+  }
 
   function render(item: (typeof capabilities)[number], depth: number): void {
-    // Схема не требует уникальности id: два элемента с одним и тем же id в
-    // разных ветках дерева нарисовали бы один узел дважды, с двух разных
-    // мест сразу — mermaid запутается, какое определение верное.
+    // Схема не требует уникальности id: два элемента с одним id в разных ветках
+    // нарисовали бы один узел дважды.
     if (placed.has(item.id)) return;
+    const pad = '    '.repeat(depth + 1);
+    // Уже стоящие на месте не считаем: рамка без единого содержимого ничего не рисует.
+    const kids = (index.get(item.id) ?? []).filter((kid) => !placed.has(kid.id));
+    if (kids.length === 0) {
+      leaf(item, pad);
+      return;
+    }
     placed.add(item.id);
-    const node = nodeId('f', item.id);
-    lines.push(`${'  '.repeat(depth)}${node}(${safe(item.title ?? item.id)})`);
-    details[node] = [item.id, item.title].filter(Boolean).join(LF);
-    nodes[node] = {
-      id: item.id, title: item.title, summary: item.summary, declaredBy: item.declaredBy, pending: item.pending,
-      capability: true
-    };
-    order.push(node);
-    for (const child of childrenOf.get(item.id) ?? []) render(child, depth + 1);
+    const progress = views.get(item.id)?.progress;
+    const score = progress ? ` · ${progress.implemented} из ${progress.total}` : '';
+    lines.push(`${pad}subgraph ${shown(item.id)}["${label(item.title ?? item.id, 40)}${score}"]`);
+    for (const kid of kids) render(kid, depth + 1);
+    lines.push(`${pad}end`);
   }
 
-  const tops = childrenOf.get(ROOT) ?? [];
-  if (tops.length === 1 && tops[0]) {
-    render(tops[0], 1);
-  } else {
-    // Mindmap — дерево с одним корнем; несколько верхних возможностей разом
-    // собираем под общим узлом, а не молча теряем часть картины.
-    lines.push('  root((Проект))');
-    order.push(''); // синтетический узел без своих данных — но свою позицию в счёте занимает.
-    for (const top of tops) render(top, 2);
+  for (const top of index.get(null) ?? []) render(top, 0);
+  // Ветка, замкнутая в цикл по `parent`, до корня не доходит — не теряем её молча.
+  for (const item of capabilities) {
+    if (!placed.has(item.id)) leaf(item, '    ');
   }
 
-  return { text: lines.join(LF), details, paths: {}, nodes, edges: [], neighbors: {}, order };
+  const { drawn } = drawableRelations(map.functional.relations, capabilities);
+  const waiting = new Set(drawn.filter((relation) => (views.get(relation.from)?.waiting ?? []).includes(relation.to)));
+  const arrows: Record<string, string> = { depends: '-->', uses: '-.->', feeds: '==>' };
+  const drawnLinks: { from: string; to: string }[] = [];
+  const styled: string[] = [];
+
+  drawn.forEach((relation, at) => {
+    const from = shown(relation.from);
+    const to = shown(relation.to);
+    const caption = relation.summary ? `|"${label(relation.summary, 28).replace(/\|/g, '/')}"|` : '';
+    lines.push(`    ${from} ${arrows[relation.type]}${caption} ${to}`);
+    drawnLinks.push({ from, to });
+    const cyclic = views.get(relation.from)?.inCycle && views.get(relation.to)?.inCycle && relation.type === 'depends';
+    if (cyclic) styled.push(`    linkStyle ${at} stroke:#DC2626,stroke-width:3px;`);
+    else if (waiting.has(relation)) styled.push(`    linkStyle ${at} stroke:#D97706,stroke-width:2px;`);
+  });
+  lines.push(...styled);
+
+  return { text: lines.join(LF), details, paths: {}, nodes, edges: [], neighbors: neighborsOf(drawnLinks) };
 }

@@ -146,7 +146,7 @@ updated: 2026-09-24
         "to": "server/lib/import.ts",
         "evidence": {
           "path": "server/api/projects/[id]/map/capability.post.ts",
-          "line": 8,
+          "line": 15,
           "fragment": "import { targetPath } from '../../../../lib/import';"
         }
       },
@@ -155,7 +155,7 @@ updated: 2026-09-24
         "to": "server/lib/maps.ts",
         "evidence": {
           "path": "server/api/projects/[id]/map/capability.post.ts",
-          "line": 9,
+          "line": 16,
           "fragment": "import { mapDraftText, type MapChange } from '../../../../lib/maps';"
         }
       },
@@ -164,7 +164,7 @@ updated: 2026-09-24
         "to": "server/lib/paths.ts",
         "evidence": {
           "path": "server/api/projects/[id]/map/capability.post.ts",
-          "line": 10,
+          "line": 17,
           "fragment": "import { OutsideRootError, normalizeRoot, resolveInside } from '../../../../lib/paths';"
         }
       },
@@ -173,7 +173,7 @@ updated: 2026-09-24
         "to": "server/lib/scaffold.ts",
         "evidence": {
           "path": "server/api/projects/[id]/map/capability.post.ts",
-          "line": 11,
+          "line": 18,
           "fragment": "import { nextId } from '../../../../lib/scaffold';"
         }
       },
@@ -182,7 +182,7 @@ updated: 2026-09-24
         "to": "server/lib/schema.ts",
         "evidence": {
           "path": "server/api/projects/[id]/map/capability.post.ts",
-          "line": 12,
+          "line": 19,
           "fragment": "import { validateFunctional } from '../../../../lib/schema';"
         }
       },
@@ -191,7 +191,7 @@ updated: 2026-09-24
         "to": "server/lib/workspace.ts",
         "evidence": {
           "path": "server/api/projects/[id]/map/capability.post.ts",
-          "line": 13,
+          "line": 20,
           "fragment": "import { DEVELOPMENT_DIR, WorkspaceError, readWorkspace } from '../../../../lib/workspace';"
         }
       },
@@ -200,7 +200,7 @@ updated: 2026-09-24
         "to": "server/utils/http.ts",
         "evidence": {
           "path": "server/api/projects/[id]/map/capability.post.ts",
-          "line": 14,
+          "line": 21,
           "fragment": "import { fail, failWith } from '../../../../utils/http';"
         }
       },
@@ -209,7 +209,7 @@ updated: 2026-09-24
         "to": "server/utils/index-service.ts",
         "evidence": {
           "path": "server/api/projects/[id]/map/capability.post.ts",
-          "line": 15,
+          "line": 22,
           "fragment": "import { loadIndex } from '../../../../utils/index-service';"
         }
       },
@@ -218,7 +218,7 @@ updated: 2026-09-24
         "to": "server/utils/projects.ts",
         "evidence": {
           "path": "server/api/projects/[id]/map/capability.post.ts",
-          "line": 16,
+          "line": 24,
           "fragment": "import { findProject } from '../../../../utils/projects';"
         }
       },
@@ -227,7 +227,7 @@ updated: 2026-09-24
         "to": "server/utils/record-write.ts",
         "evidence": {
           "path": "server/api/projects/[id]/map/capability.post.ts",
-          "line": 17,
+          "line": 25,
           "fragment": "import { today } from '../../../../utils/record-write';"
         }
       },
