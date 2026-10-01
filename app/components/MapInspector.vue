@@ -26,7 +26,11 @@ const props = defineProps<{
    */
   to?: HTMLElement | null;
 }>();
-const emit = defineEmits<{ close: [] }>();
+const emit = defineEmits<{
+  close: [];
+  /** «Открыть группу» — из карточки группы, призрака или связи (docs/04-ui.md, «Группы кодовой карты»). */
+  'open-group': [groupId: string];
+}>();
 
 const open = computed({
   get: () => props.selection !== null,
@@ -57,6 +61,7 @@ const path = computed(() => {
   const sel = props.selection;
   if (!sel) return null;
   if (sel.kind === 'edge') return sel.evidence.path;
+  if (sel.kind === 'group' || sel.kind === 'link') return null;
   if (sel.path) return sel.path;
   return LOOKS_LIKE_PATH.test(sel.id) ? sel.id : null;
 });
@@ -145,6 +150,10 @@ const waitingNames = computed(() => (capView.value?.waiting ?? []).map(
   (id) => capView.value?.links.find((link) => link.id === id)?.title ?? id
 ));
 
+const ghostOf = computed(() => (props.selection?.kind === 'node' ? props.selection.ghost : undefined));
+const groupOfNode = computed(() => (props.selection?.kind === 'node' ? props.selection.group : undefined));
+const GROUP_STATUS_COLOR = { ok: 'success', pending: 'neutral' } as const;
+
 const nodeApi = computed(() => (props.selection?.kind === 'node' ? props.selection.api ?? [] : []));
 const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.selection.summary : undefined));
 </script>
@@ -162,9 +171,19 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
       <div v-if="selection" class="flex w-full items-start gap-2">
         <div class="min-w-0 flex-1">
           <h2 v-if="selection.kind === 'node'" class="truncate font-medium">{{ selection.title ?? selection.id }}</h2>
+          <h2 v-else-if="selection.kind === 'group'" class="truncate font-medium">{{ selection.title }}</h2>
+          <h2 v-else-if="selection.kind === 'link'" class="font-medium">
+            {{ selection.fromTitle }} → {{ selection.toTitle }}
+          </h2>
           <h2 v-else class="font-medium">Свидетельство связи</h2>
-          <p v-if="selection.kind === 'node' && selection.layer" class="text-sm text-muted">
+          <p v-if="selection.kind === 'node' && selection.layer && !selection.group" class="text-sm text-muted">
             слой: {{ selection.layer }}
+          </p>
+          <p v-else-if="selection.kind === 'group'" class="text-sm text-muted">
+            {{ selection.auto ? 'группа выведена из путей — «авто»' : 'группа объявлена картой' }}
+          </p>
+          <p v-else-if="selection.kind === 'link'" class="text-sm text-muted">
+            {{ plural(selection.imports.length, 'импорт', 'импорта', 'импортов') }} между группами
           </p>
         </div>
         <UButton
@@ -204,11 +223,110 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
           </UBadge>
         </div>
 
+        <!-- Призрак: сосед выбранного модуля из другой группы — не часть открытой (docs/04-ui.md). -->
+        <div v-if="ghostOf" class="flex flex-wrap items-center gap-2">
+          <UBadge color="neutral" variant="outline">из группы {{ ghostOf.groupTitle }}</UBadge>
+          <UButton size="xs" variant="soft" icon="i-lucide-folder-open" @click="emit('open-group', ghostOf.groupId)">
+            Открыть группу
+          </UButton>
+        </div>
+
+        <!-- Карточка группы -->
+        <div v-if="selection.kind === 'group' || groupOfNode" class="space-y-3">
+          <template v-for="card in [selection.kind === 'group' ? selection : groupOfNode]" :key="card?.groupId">
+            <template v-if="card">
+              <p v-if="card.summary" class="leading-relaxed">{{ card.summary }}</p>
+              <p v-else class="text-muted">
+                У группы нет описания: она выведена из путей. Описание появится, когда карта её объявит.
+              </p>
+              <p v-if="card.capability" class="text-xs text-muted">
+                Реализует возможность <span class="font-mono">{{ card.capability }}</span>
+              </p>
+
+              <p>{{ plural(card.moduleCount, 'модуль', 'модуля', 'модулей') }}</p>
+              <div class="flex flex-wrap gap-1">
+                <UBadge v-for="item in card.layers" :key="item.layer" size="xs" color="neutral" variant="subtle">
+                  {{ item.layer }} · {{ item.count }}
+                </UBadge>
+              </div>
+
+              <UButton
+                v-if="selection.kind === 'group'"
+                size="sm"
+                icon="i-lucide-folder-open"
+                @click="emit('open-group', card.groupId)"
+              >
+                Открыть группу
+              </UButton>
+
+              <template v-if="card.surface.length">
+                <h3 class="font-medium">Публичная поверхность</h3>
+                <p class="text-xs text-muted">Модули, на которые ссылаются снаружи, и сколько групп.</p>
+                <ul class="space-y-1">
+                  <li v-for="item in card.surface" :key="item.id" class="text-xs">
+                    <span class="font-mono">{{ item.title ?? item.id }}</span>
+                    <span class="text-muted"> — {{ plural(item.importers, 'группа', 'группы', 'групп') }}</span>
+                  </li>
+                </ul>
+              </template>
+
+              <template v-if="card.dependsOn.length">
+                <h3 class="font-medium">Зависит от</h3>
+                <ul class="space-y-1">
+                  <li v-for="item in card.dependsOn" :key="item.groupId" class="text-xs">
+                    <button type="button" class="hover:underline" @click="emit('open-group', item.groupId)">{{ item.title }}</button>
+                    <span class="text-muted"> — {{ plural(item.count, 'импорт', 'импорта', 'импортов') }}</span>
+                  </li>
+                </ul>
+              </template>
+
+              <template v-if="card.usedBy.length">
+                <h3 class="font-medium">Используют</h3>
+                <ul class="space-y-1">
+                  <li v-for="item in card.usedBy" :key="item.groupId" class="text-xs">
+                    <button type="button" class="hover:underline" @click="emit('open-group', item.groupId)">{{ item.title }}</button>
+                    <span class="text-muted"> — {{ plural(item.count, 'импорт', 'импорта', 'импортов') }}</span>
+                  </li>
+                </ul>
+              </template>
+            </template>
+          </template>
+        </div>
+
+        <!-- Связь между группами: исходные импорты со свидетельствами -->
+        <div v-if="selection.kind === 'link'" class="space-y-3">
+          <UBadge
+            :color="GROUP_STATUS_COLOR[selection.status as 'ok' | 'pending'] ?? 'error'"
+            variant="subtle"
+          >
+            {{ STATUS_LABEL[selection.status] }}
+          </UBadge>
+          <p v-if="selection.cycle" class="text-xs text-warning">
+            Группы зависят друг от друга по кругу — это уровень выше модулей, где такой цикл не виден.
+          </p>
+          <ul class="space-y-2">
+            <li v-for="item in selection.imports" :key="`${item.from}>${item.to}`" class="rounded border border-default p-2">
+              <p class="font-mono text-xs">{{ item.from }} → {{ item.to }}</p>
+              <p class="mt-1 font-mono text-xs text-muted">{{ item.evidence.path }}:{{ item.evidence.line }}</p>
+              <pre class="mt-1 overflow-x-auto rounded bg-elevated p-1.5 text-xs">{{ item.evidence.fragment }}</pre>
+              <UBadge
+                v-if="item.status"
+                class="mt-1"
+                size="xs"
+                :color="item.status === 'ok' ? 'success' : item.status === 'pending' ? 'neutral' : 'error'"
+                variant="subtle"
+              >
+                {{ STATUS_LABEL[item.status] }}
+              </UBadge>
+            </li>
+          </ul>
+        </div>
+
         <UBadge v-if="selection.kind === 'node' && selection.pending" color="neutral" variant="subtle">
           не совпадает с кодовой базой — карта ещё не устоялась
         </UBadge>
 
-        <p v-if="selection.declaredBy" class="text-xs text-muted">
+        <p v-if="(selection.kind === 'node' || selection.kind === 'edge') && selection.declaredBy" class="text-xs text-muted">
           Объявлено картой
           <NuxtLink :to="`/projects/${projectId}/records/${selection.declaredBy}`" class="hover:underline">
             {{ selection.declaredBy }}
@@ -314,7 +432,7 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
           в режиме «Дерево» — вместе с названием откроется поле описания.
         </p>
         <p
-          v-else-if="!path && !nodeSummary && !nodeApi.length && selection.kind === 'node'"
+          v-else-if="!path && !nodeSummary && !nodeApi.length && selection.kind === 'node' && !groupOfNode"
           class="text-muted"
         >
           Карта пока не описала этот узел — ни что он делает, ни его интерфейс, ни файл.

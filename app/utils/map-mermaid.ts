@@ -5,6 +5,13 @@ import {
   filterByStatus,
   type StatusFilter
 } from '../../server/lib/functional';
+import {
+  groupCard,
+  type GhostNode,
+  type GroupCard,
+  type GroupImport,
+  type Grouping
+} from '../../server/lib/groups';
 import type { ApiItem, Evidence, EvidenceVerdict, ProjectMap } from '../../server/lib/maps';
 import { STATUS_STYLE, capabilityViews, type CapabilityView } from './functional-view';
 
@@ -36,6 +43,20 @@ export interface MermaidEdge {
   declaredBy?: string;
   /** Карта-источник ещё не устоялась — архитектор описал намерение, кода может не быть (`server/lib/maps.ts`). */
   pending?: boolean;
+  /** Связь между группами: исходные импорты, свёрнутые в эту стрелку (`evidence` — первого из них). */
+  link?: LinkCard;
+}
+
+/** Свёрнутая связь «группа → группа»: клик по стрелке на обзоре (docs/04-ui.md, «Группы кодовой карты»). */
+export interface LinkCard {
+  fromGroup: string;
+  toGroup: string;
+  fromTitle: string;
+  toTitle: string;
+  status: EvidenceVerdict;
+  /** Группы зависят друг от друга по кругу. */
+  cycle: boolean;
+  imports: { from: string; to: string; evidence: Evidence; status?: EvidenceVerdict | undefined }[];
 }
 
 export interface MermaidNode {
@@ -56,12 +77,20 @@ export interface MermaidNode {
   note?: string | undefined;
   /** Состояние, связи и «ждёт» возможности (`app/utils/functional-view.ts`). */
   capabilityView?: CapabilityView;
+  /** Узел обзора — группа: карточка группы для клика. */
+  group?: GroupCard;
+  /** «Призрак»: сосед выбранного модуля из другой группы (docs/04-ui.md, «Группы кодовой карты»). */
+  ghost?: { groupId: string; groupTitle: string };
+  /** Порт: у модуля есть связи за пределами его группы. */
+  port?: boolean;
 }
 
-/** Что показывает `MapInspector.vue` — узел (по `MermaidNode`) или ребро (по `MermaidEdge`). */
+/** Что показывает `MapInspector.vue` — узел, ребро, группа или свёрнутая связь между группами. */
 export type MapSelection =
   | ({ kind: 'node' } & MermaidNode)
-  | ({ kind: 'edge' } & Pick<MermaidEdge, 'evidence' | 'status' | 'declaredBy'>);
+  | ({ kind: 'edge' } & Pick<MermaidEdge, 'evidence' | 'status' | 'declaredBy'>)
+  | ({ kind: 'group' } & GroupCard)
+  | ({ kind: 'link' } & LinkCard);
 
 export interface MermaidOutput {
   text: string;
@@ -140,7 +169,7 @@ export function colorOf(key: string): string {
 
 /** `classDef`-блок: один класс на категорию, назначенный по цвету из палитры. */
 function classDefs(categories: ReadonlySet<string>, prefix: string): string[] {
-  return [...categories].map((category) => `    classDef ${nodeId(prefix, category)} fill:${colorOf(category)},stroke:#6B7280;`);
+  return [...categories].map((category) => `    classDef ${nodeId(prefix, category)} fill:${colorOf(category)},stroke:#6B7280,color:#111827;`);
 }
 
 /**
@@ -157,7 +186,24 @@ function styleUnverified(lines: string[], edges: readonly MermaidEdge[]): void {
   });
 }
 
-export function codemapMermaid(map: ProjectMap): MermaidOutput {
+/** Вид группы поверх обычной кодовой карты: порты и призраки выбранного модуля. */
+export interface CodemapOptions {
+  /** id модулей-портов — обведены толстой рамкой. */
+  ports?: ReadonlySet<string>;
+  /** Соседи выбранного модуля из других групп. */
+  ghosts?: readonly GhostNode[];
+  /** Связи выбранного модуля с призраками (концы уже переписаны на id призраков). */
+  ghostImports?: readonly GroupImport[];
+  /** Карточки групп — для свёрнутых призраков, у которых клик ведёт к группе. */
+  ghostCards?: ReadonlyMap<string, GroupCard>;
+}
+
+/** id узла модуля — по нему экран находит узел в SVG и держит фокус на выбранном. */
+export function moduleNodeId(moduleId: string): string {
+  return nodeId('m', moduleId);
+}
+
+export function codemapMermaid(map: ProjectMap, options: CodemapOptions = {}): MermaidOutput {
   const { modules, imports } = map.codemap;
   if (modules.length === 0 && imports.length === 0) return EMPTY;
 
@@ -183,10 +229,36 @@ export function codemapMermaid(map: ProjectMap): MermaidOutput {
       if (module.path) paths[node] = module.path;
       nodes[node] = {
         id: module.id, title: module.title, layer, path: module.path,
-        summary: module.summary, api: module.api, declaredBy: module.declaredBy, pending: module.pending
+        summary: module.summary, api: module.api, declaredBy: module.declaredBy, pending: module.pending,
+        ...(options.ports?.has(module.id) ? { port: true } : {})
       };
     }
     lines.push('    end');
+  }
+
+  // Призраки — отдельной рамкой: они не часть открытой группы и не лежат в её слоях.
+  const ghosts = options.ghosts ?? [];
+  if (ghosts.length > 0) {
+    lines.push('    classDef ghost fill:#F3F4F6,stroke:#6B7280,color:#111827,stroke-dasharray:5 4;');
+    lines.push('    subgraph ghosts["Из других групп"]');
+    for (const ghost of ghosts) {
+      const node = nodeId('m', ghost.id);
+      const name = ghost.collapsed ? `${ghost.groupTitle} · ${ghost.collapsed} модулей` : (ghost.title ?? ghost.id);
+      lines.push(`        ${node}["${label(name)}<br/>из группы ${label(ghost.groupTitle, 28)}"]:::ghost`);
+      details[node] = [ghost.id, ghost.title, `из группы ${ghost.groupTitle}`].filter(Boolean).join(LF);
+      nodes[node] = {
+        id: ghost.id, title: ghost.collapsed ? ghost.groupTitle : ghost.title,
+        ghost: { groupId: ghost.groupId, groupTitle: ghost.groupTitle },
+        ...(ghost.collapsed && options.ghostCards?.get(ghost.groupId) ? { group: options.ghostCards.get(ghost.groupId) as GroupCard } : {})
+      };
+    }
+    lines.push('    end');
+  }
+
+  const ports = [...(options.ports ?? [])].filter((id) => modules.some((module) => module.id === id));
+  if (ports.length > 0) {
+    lines.push('    classDef port stroke-width:3px;');
+    lines.push(`    class ${ports.map((id) => nodeId('m', id)).join(',')} port;`);
   }
 
   declareImplicit(
@@ -198,7 +270,7 @@ export function codemapMermaid(map: ProjectMap): MermaidOutput {
   );
 
   const edges: MermaidEdge[] = [];
-  for (const edge of imports) {
+  for (const edge of [...imports, ...(options.ghostImports ?? [])]) {
     const from = nodeId('m', edge.from);
     const to = nodeId('m', edge.to);
     lines.push(`    ${from} --> ${to}`);
@@ -431,4 +503,70 @@ export function functionalMermaid(map: ProjectMap, filter: StatusFilter | null =
   lines.push(...styled);
 
   return { text: lines.join(LF), details, paths: {}, nodes, edges: [], neighbors: neighborsOf(drawnLinks) };
+}
+
+function modulesWord(count: number): string {
+  const last = count % 10;
+  const tens = count % 100;
+  if (last === 1 && tens !== 11) return 'модуль';
+  if (last >= 2 && last <= 4 && (tens < 12 || tens > 14)) return 'модуля';
+  return 'модулей';
+}
+
+/**
+ * Обзор групп (docs/04-ui.md, «Группы кодовой карты»): узел — группа, стрелка —
+ * свёрнутые импорты с их числом. Группы, зависящие друг от друга по кругу,
+ * подсвечены: на уровне модулей этот цикл распылён и не виден. Расхождение
+ * свидетельств не растворяется в сумме — стрелка краснеет, если не сошёлся
+ * хоть один из её импортов.
+ */
+export function groupOverviewMermaid(grouping: Grouping): MermaidOutput {
+  const { groups, links } = grouping;
+  if (groups.length === 0) return EMPTY;
+
+  const details: Record<string, string> = {};
+  const nodes: Record<string, MermaidNode> = {};
+  const lines = ['flowchart LR'];
+  lines.push(...classDefs(new Set(groups.map((group) => group.id)), 'grp'));
+
+  for (const group of groups) {
+    const node = nodeId('g', group.id);
+    const count = group.members.length;
+    const tail = `${count} ${modulesWord(count)}${group.auto ? ' · авто' : ''}`;
+    lines.push(`    ${node}["${label(group.title, 34)}<br/>${tail}"]:::${nodeId('grp', group.id)}`);
+    details[node] = [group.title, group.summary, tail].filter(Boolean).join(LF);
+    const card = groupCard(grouping, group.id);
+    nodes[node] = {
+      id: group.id, title: group.title, layer: group.title, summary: group.summary,
+      ...(card ? { group: card } : {})
+    };
+  }
+
+  const edges: MermaidEdge[] = [];
+  const styled: string[] = [];
+  links.forEach((link, at) => {
+    const from = nodeId('g', link.from);
+    const to = nodeId('g', link.to);
+    lines.push(`    ${from} -->|${link.imports.length}| ${to}`);
+    const first = link.imports[0];
+    if (!first) return;
+    edges.push({
+      from, to, evidence: first.evidence, status: link.status,
+      link: {
+        fromGroup: link.from,
+        toGroup: link.to,
+        fromTitle: grouping.byId.get(link.from)?.title ?? link.from,
+        toTitle: grouping.byId.get(link.to)?.title ?? link.to,
+        status: link.status,
+        cycle: link.cycle,
+        imports: link.imports.map((item) => ({ from: item.from, to: item.to, evidence: item.evidence, status: item.status }))
+      }
+    });
+    const bad = link.status !== 'ok' && link.status !== 'pending';
+    if (bad) styled.push(`    linkStyle ${at} stroke:#DC2626,stroke-width:3px;`);
+    else if (link.cycle) styled.push(`    linkStyle ${at} stroke:#D97706,stroke-width:3px;`);
+  });
+  lines.push(...styled);
+
+  return { text: lines.join(LF), details, paths: {}, nodes, edges, neighbors: neighborsOf(edges) };
 }
