@@ -361,6 +361,9 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
           <NuxtLink :to="`/projects/${projectId}/records/${selection.declaredBy}`" class="hover:underline">
             {{ selection.declaredBy }}
           </NuxtLink>
+          <template v-if="selection.kind === 'node' && selection.declaredAt">
+            · {{ selection.declaredAt }} · {{ selection.declaredByRole ?? 'автор не указан' }}
+          </template>
         </p>
 
         <div v-if="capView" class="space-y-2">

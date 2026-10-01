@@ -128,6 +128,19 @@ describe('recordTemplate', () => {
     expect(text.indexOf('Со слов врача.')).toBeLessThan(text.indexOf('```docdd-functional'));
   });
 
+  it('вектор проекта уходит тем же блоком; карта с одним вектором — тоже карта', () => {
+    const vision = { problem: 'Связь рвётся незаметно', outcome: 'Нарушение видно сразу' };
+    const both = recordTemplate({
+      id: 'M-0001', type: 'map', title: 'Курс', today: '2026-08-31', vision, capabilities: [{ id: 'a' }]
+    });
+    const block = /```docdd-functional\n([\s\S]*?)```/.exec(both)?.[1] ?? '';
+    expect(JSON.parse(block)).toEqual({ added: { vision, capabilities: [{ id: 'a' }] } });
+
+    const only = recordTemplate({ id: 'M-0002', type: 'map', title: 'Курс', today: '2026-08-31', vision });
+    expect(JSON.parse(/```docdd-functional\n([\s\S]*?)```/.exec(only)?.[1] ?? '')).toEqual({ added: { vision } });
+    expect(only).not.toContain('Зачем это, что делаем');
+  });
+
   it('без прозы — только блок, без пустой заготовки-подсказки над ним', () => {
     const text = recordTemplate({
       id: 'M-0001',
@@ -295,6 +308,22 @@ describe('CLAUDE.md', () => {
   it('требует свидетельства под утверждением', () => {
     expect(rules).toContain('свидетельств');
     expect(rules).toContain('путь, номер, фрагмент');
+  });
+
+  it('несёт правила реализации: четыре вещи, функциональная карта первой, вектор наверху', () => {
+    expect(rules).toContain('## Правила реализации');
+    for (const thing of ['**требование**', '**способ проверки**', '**задача**', '**запись в картах**']) {
+      expect(rules, thing).toContain(thing);
+    }
+    expect(rules).toContain('Новая функция — сперва в функциональную карту');
+    expect(rules).toContain('Функциональная карта — источник правды');
+    expect(rules).toContain('Вектор проекта');
+  });
+
+  it('правила реализации короткие: файл читают перед каждой работой, длинное пролистают', () => {
+    const start = rules.indexOf('## Правила реализации');
+    const end = rules.indexOf('## Где что лежит');
+    expect(rules.slice(start, end).split('\n').length).toBeLessThan(25);
   });
 
   it('не описывает устройство проекта: оно живёт в картах и меняется', () => {

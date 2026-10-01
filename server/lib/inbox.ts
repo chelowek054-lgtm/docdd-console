@@ -26,6 +26,8 @@ export interface ProposedRecord {
   notes?: string[];
   /** Только у `type: map` — возможности для функциональной карты. */
   capabilities?: { id: string; title?: string; parent?: string }[];
+  /** Только у `type: map` — вектор проекта (docs/07-maps.md, «Вектор проекта»). */
+  vision?: { problem?: string; audience?: string; outcome?: string; not?: string };
   links?: Record<string, string[]>;
   /**
    * Заводит только приложение (карта-намерение на пачку задач): в схеме ответа

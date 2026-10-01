@@ -97,6 +97,8 @@ export interface TemplateInput {
    * блоком ```docdd-functional под текстом тела (docs/06-phases.md, фаза 12).
    */
   capabilities?: { id: string; title?: string; parent?: string }[];
+  /** Только для карт: вектор проекта — уходит в тот же блок `docdd-functional`. */
+  vision?: { problem?: string; audience?: string; outcome?: string; not?: string };
   /**
    * Только для карт: `intent: true` — карта намерения, сверка с кодом не
    * запускается (docs/07-maps.md, «Карта-намерение на пачку задач»).
@@ -117,8 +119,13 @@ export function initialStatus(type: RecordType): string {
  * руками (docs/07-maps.md). Собирается кодом, а не текстом модели: так модели
  * не нужно помнить синтаксис фенс-блока и рисковать сломать его экранированием.
  */
-function bodyWithCapabilities(prose: string, capabilities: NonNullable<TemplateInput['capabilities']>): string {
-  const block = ['```docdd-functional', JSON.stringify({ added: { capabilities } }, null, 2), '```'];
+function bodyWithCapabilities(
+  prose: string,
+  capabilities: NonNullable<TemplateInput['capabilities']>,
+  vision?: TemplateInput['vision']
+): string {
+  const added = { ...(vision ? { vision } : {}), ...(capabilities.length > 0 ? { capabilities } : {}) };
+  const block = ['```docdd-functional', JSON.stringify({ added }, null, 2), '```'];
   return prose === '' ? block.join(NEW_LINE) : [prose, '', ...block].join(NEW_LINE);
 }
 
@@ -152,8 +159,8 @@ export function recordTemplate(input: TemplateInput, eol = '\n'): string {
 
   const said = (input.body ?? '').trim();
   const capabilities = input.capabilities ?? [];
-  const body = capabilities.length > 0
-    ? bodyWithCapabilities(said, capabilities)
+  const body = capabilities.length > 0 || input.vision
+    ? bodyWithCapabilities(said, capabilities, input.vision)
     : (said === '' ? 'Зачем это, что делаем, чего не делаем, как понять, что готово.' : said);
 
   const sources = input.sources ?? [];
@@ -287,6 +294,24 @@ export function claudeMd(input: ManifestInput, eol = NEW_LINE): string {
     'Исключения: опечатки, форматирование, переименование внутреннего, починка',
     'дефекта, восстанавливающая уже описанное поведение. Если дефект показал, что',
     'документ описывал не то, — сперва правится документ.',
+    '',
+    '## Правила реализации',
+    '',
+    'У любой реализации — четыре вещи: **требование**, **способ проверки**,',
+    '**задача** и **запись в картах** (кодовая база / потоки данных /',
+    'пользовательские пути — какие затронуты, можно все).',
+    '',
+    '- **Новая функция — сперва в функциональную карту**: подпунктом большого',
+    '  функционала или новой группой верхнего уровня. Потом требование, проверка,',
+    '  задача, код.',
+    '- **Функциональная карта — источник правды.** Курс меняется в ней первым,',
+    '  новой записью `map` (время и автор — в журнале), и только потом в',
+    '  требованиях и задачах.',
+    '- **Вектор проекта** — какую проблему решает продукт, для кого, чего он не',
+    '  делает — лежит наверху функциональной карты (`vision`). Что вектору не',
+    '  служит, молча не берём: спрашиваем человека.',
+    '- Закрыта задача — отметь возможность «реализовано» или «частично». Работа',
+    '  идёт маленькими законченными кусками, как в Scrum и Agile, но без церемоний.',
     '',
     '## Где что лежит',
     '',

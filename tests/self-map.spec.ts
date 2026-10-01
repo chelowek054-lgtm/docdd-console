@@ -30,7 +30,9 @@ describe('карта этого репозитория', () => {
     const parsed = parseMapRecord(text);
     // Карта может нести только `docdd-skipped` — список не-модулей, без
     // структур и свидетельств (docs/07-maps.md, «Не всё попадает в карту»).
-    const structural = parsed.present.length > 0;
+    // Функциональная карта свидетельств не несёт (docs/07-maps.md): сверять нечего,
+    // схему же проверяет первый тест выше.
+    const structural = parsed.present.some((structure) => structure !== 'functional');
 
     it(`${name}: разбирается без претензий схемы`, () => {
       expect(parsed.problems).toEqual([]);

@@ -33,7 +33,8 @@ import { today } from '../../../../utils/record-write';
  * (docs/adr/0011-body-editing.md).
  *
  * Действия: `add`, `remove` — возможность; `status` — отметки состояния
- * пачкой, в одну запись; `relate`, `unrelate` — связь между возможностями.
+ * пачкой, в одну запись; `relate`, `unrelate` — связь между возможностями;
+ * `vision` — вектор проекта (docs/07-maps.md, «Вектор проекта»).
  */
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id') ?? '';
@@ -42,13 +43,30 @@ export default defineEventHandler(async (event) => {
     return fail(event, 404, 'project_not_found', `Проект \`${id}\` не найден в списке`);
   }
 
-  const body = await readBody<{ action?: unknown; capability?: unknown; statuses?: unknown; relation?: unknown }>(event);
+  const body = await readBody<{ action?: unknown; capability?: unknown; statuses?: unknown; relation?: unknown; vision?: unknown }>(event);
   const action = typeof body?.action === 'string' ? body.action : 'add';
 
   let change: MapChange;
   let title: string;
 
-  if (action === 'status') {
+  if (action === 'vision') {
+    const vision = asVision(body?.vision);
+    if (!vision) {
+      return fail(event, 422, 'vision_invalid', 'Вектор проекта: хотя бы одно из полей `problem`, `audience`, `outcome`, `not` должно быть непустым');
+    }
+    const issues = validateFunctional({ added: { vision } });
+    if (issues.length > 0) {
+      return failWith(
+        event,
+        422,
+        'vision_invalid',
+        'Вектор не прошёл схему',
+        issues.map((issue) => ({ code: 'functional', message: issue.message }))
+      );
+    }
+    change = { functional: { added: { vision } } };
+    title = 'Функциональная карта: вектор проекта';
+  } else if (action === 'status') {
     const items = asStatusItems(body?.statuses);
     if (!items) {
       return fail(event, 400, 'capability_invalid', 'Нужен непустой список `statuses`: у каждого `id`, `status` (или `null`) и необязательная `note`');
@@ -172,6 +190,18 @@ function asCapability(value: unknown): {
     ...(status ? { status } : {}),
     ...(text(raw['note']) ? { note: text(raw['note']) as string } : {})
   };
+}
+
+/** Четыре поля вектора; пустые отбрасываются, нет ни одного — это не вектор. */
+function asVision(value: unknown): { problem?: string; audience?: string; outcome?: string; not?: string } | null {
+  if (!value || typeof value !== 'object') return null;
+  const raw = value as Record<string, unknown>;
+  const vision: { problem?: string; audience?: string; outcome?: string; not?: string } = {};
+  for (const key of ['problem', 'audience', 'outcome', 'not'] as const) {
+    const text = typeof raw[key] === 'string' ? (raw[key] as string).trim() : '';
+    if (text) vision[key] = text;
+  }
+  return Object.keys(vision).length > 0 ? vision : null;
 }
 
 function asStatusItems(value: unknown): StatusItem[] | null {

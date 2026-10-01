@@ -522,7 +522,7 @@ onUnmounted(() => window.removeEventListener('beforeunload', warnUnsaved));
 const views = computed(() => {
   const value = map.value;
   if (!value) return [];
-  return [
+  const all = [
     {
       key: 'codemap',
       title: 'Кодовая база',
@@ -552,9 +552,16 @@ const views = computed(() => {
       ...functionalMermaid({ ...value, functional: functionalEffective.value }, statusFilter.value)
     }
   ];
+  // Функциональная карта — основной источник правды: первая вкладка и открывается
+  // по умолчанию (docs/04-ui.md, «Карты»).
+  return [...all.filter((view) => view.key === 'functional'), ...all.filter((view) => view.key !== 'functional')];
 });
 
-const shown = ref<'codemap' | 'dataflow' | 'userflow' | 'functional'>('codemap');
+// Ссылка с группой в адресе ведёт на её вкладку, а не на первую (docs/04-ui.md, «Группы кодовой карты»).
+const startTab = route.query['fgroup'] || route.query['fkind'] || route.query['fview']
+  ? 'dataflow'
+  : route.query['group'] || route.query['view'] ? 'codemap' : 'functional';
+const shown = ref<'codemap' | 'dataflow' | 'userflow' | 'functional'>(startTab);
 const current = computed(() => views.value.find((view) => view.key === shown.value));
 
 /**
@@ -988,6 +995,13 @@ function onEdgeClick(edge: MermaidEdge) {
                   />
                 </template>
               </PromptPanel>
+
+              <VisionCard
+                :project-id="projectId"
+                :vision="map.functional.vision"
+                @changed="() => refresh()"
+              />
+              <CourseHistory :project-id="projectId" :history="map.functional.history" />
 
               <FunctionalSummary
                 v-if="functionalProgress.total > 0"

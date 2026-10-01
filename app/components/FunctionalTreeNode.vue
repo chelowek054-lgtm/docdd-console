@@ -10,6 +10,8 @@ export interface Capability {
   status?: ImplStatus;
   note?: string;
   declaredBy?: string;
+  declaredAt?: string;
+  declaredByRole?: string | null;
   pending?: boolean;
 }
 

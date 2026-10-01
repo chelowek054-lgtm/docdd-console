@@ -97,6 +97,7 @@ export type ViolationCode =
   | 'map_drift'
   | 'task_maps_unapproved'
   | 'change_missing'
+  | 'map_capability_missing'
   // выполнение
   | 'work_unreviewed'
   | 'work_branch_orphan'
@@ -161,6 +162,7 @@ export const VIOLATION_LEVELS: Readonly<Record<ViolationCode, Severity>> = {
   map_drift: 'error',
   task_maps_unapproved: 'error',
   change_missing: 'warning',
+  map_capability_missing: 'warning',
   work_unreviewed: 'warning',
   work_branch_orphan: 'warning',
   task_not_ready_docs: 'error',
