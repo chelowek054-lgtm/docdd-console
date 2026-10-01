@@ -571,7 +571,7 @@ updated: 2026-09-10
         {"from":"/projects/:id","to":"/projects/:id/tasks","trigger":"ссылка","evidence":{"path":"app/pages/projects/[id]/index.vue","line":83,"fragment":"<NuxtLink :to=\"`/projects/${projectId}/tasks`\" class=\"block\""}},
         {"from":"/projects/:id","to":"/projects/:id/records/:recordId","trigger":"ссылка","evidence":{"path":"app/pages/projects/[id]/index.vue","line":138,"fragment":":to=\"`/projects/${projectId}/records/${issue.recordId}`\""}},
         {"from":"/projects/:id/requirements","to":"/projects/:id/records/:id","trigger":"ссылка","evidence":{"path":"app/pages/projects/[id]/requirements.vue","line":101,"fragment":":to=\"`/projects/${projectId}/records/${id}`\""}},
-        {"from":"/projects/:id/tasks","to":"/projects/:id/records/:id","trigger":"ссылка","evidence":{"path":"app/pages/projects/[id]/tasks.vue","line":144,"fragment":":to=\"`/projects/${projectId}/records/${id}`\""}}
+        {"from":"/projects/:id/tasks","to":"/projects/:id/records/:id","trigger":"ссылка","evidence":{"path":"app/pages/projects/[id]/tasks.vue","line":150,"fragment":":to=\"`/projects/${projectId}/records/${id}`\""}}
       ],
       "calls": [
         {"from":"/","to":"DELETE /api/projects/:id","evidence":{"path":"app/pages/index.vue","line":79,"fragment":"await $fetch(`/api/projects/${id}`, { method: 'DELETE', igno"}},

@@ -9,10 +9,6 @@ const phases = computed(() => records.value
   .filter((record) => record.type === 'phase')
   .sort((a, b) => a.id.localeCompare(b.id))
   .map((phase) => phaseProgress(phase, records.value)));
-
-function percent(done: number, total: number): number {
-  return total === 0 ? 0 : Math.round((done / total) * 100);
-}
 </script>
 
 <template>
@@ -24,6 +20,8 @@ function percent(done: number, total: number): number {
         <h1 class="text-xl font-semibold">Фазы</h1>
         <p class="text-sm text-muted">{{ phases.length }}</p>
       </div>
+
+      <OverallProgress :records="records" />
 
       <PhasePlanner :project-id="projectId" :records="records" @changed="refresh" />
 

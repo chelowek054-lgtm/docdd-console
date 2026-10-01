@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { phaseProgress, phaseState } from '../app/utils/phases';
+import { overallProgress, percent, phaseProgress, phaseState } from '../app/utils/phases';
 import type { IndexRecord, LinkKind } from '../server/lib/types';
 
 /**
@@ -86,5 +86,44 @@ describe('phaseProgress', () => {
   it('статус из файла фазы на расчёт не влияет', () => {
     const phase = record('P-0001', 'phase', 'done');
     expect(phaseProgress(phase, [phase]).state).toBe('planned');
+  });
+});
+
+describe('overallProgress', () => {
+  it('задачи: закрытые из всех неотменённых, в том числе вне фаз', () => {
+    const progress = overallProgress([
+      record('T-0001', 'task', 'done'),
+      record('T-0002', 'task', 'in_progress', {}, 'P-0001'),
+      record('T-0003', 'task', 'dropped'),
+      record('T-0004', 'task', 'done', {}, 'P-0001'),
+      record('R-0001', 'requirement', 'done')
+    ]);
+    expect(progress.tasks).toEqual({ done: 2, total: 3 });
+  });
+
+  it('фазы: закрыта та, что done по расчёту, а не по своему файлу', () => {
+    const closed = record('P-0001', 'phase', 'planned', { covers: ['T-0001'] });
+    const running = record('P-0002', 'phase', 'planned', { covers: ['T-0002', 'T-0003'] });
+    const claimed = record('P-0003', 'phase', 'done');
+    const progress = overallProgress([
+      closed,
+      running,
+      claimed,
+      record('T-0001', 'task', 'done'),
+      record('T-0002', 'task', 'done'),
+      record('T-0003', 'task', 'in_review')
+    ]);
+    expect(progress.phases).toEqual({ done: 1, total: 3 });
+  });
+
+  it('фаза из одних отменённых задач закрытой не считается', () => {
+    const phase = record('P-0001', 'phase', 'planned', { covers: ['T-0001'] });
+    expect(overallProgress([phase, record('T-0001', 'task', 'dropped')]).phases).toEqual({ done: 0, total: 1 });
+  });
+
+  it('пустой проект — нули, а не NaN', () => {
+    expect(overallProgress([])).toEqual({ tasks: { done: 0, total: 0 }, phases: { done: 0, total: 0 } });
+    expect(percent(0, 0)).toBe(0);
+    expect(percent(1, 3)).toBe(33);
   });
 });
