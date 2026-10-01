@@ -133,7 +133,14 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
 </script>
 
 <template>
-  <USlideover v-model:open="open" :portal="to ?? true" :ui="{ content: wide ? 'max-w-[96vw]' : 'max-w-xl' }">
+  <!-- Слой задан явно: у темы его нет, а у кнопок диаграммы (MermaidDiagram.vue) стоит
+       z-10 — без z-50 они вылезали поверх карточки, особенно в полноэкранном режиме,
+       где карточка живёт внутри того же контейнера (docs/04-ui.md, «Карты»). -->
+  <USlideover
+    v-model:open="open"
+    :portal="to ?? true"
+    :ui="{ overlay: 'z-50', content: `z-50 ${wide ? 'max-w-[96vw]' : 'max-w-xl'}` }"
+  >
     <template #header>
       <div v-if="selection" class="flex w-full items-start gap-2">
         <div class="min-w-0 flex-1">
