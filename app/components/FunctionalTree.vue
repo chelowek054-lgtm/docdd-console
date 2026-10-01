@@ -95,7 +95,8 @@ function onSelect(item: Capability) {
   const view = views.value.get(item.id);
   emit('select', {
     kind: 'node', id: item.id, title: item.title, summary: item.summary, note: item.note,
-    declaredBy: item.declaredBy, pending: item.pending, capability: true,
+    declaredBy: item.declaredBy, declaredAt: item.declaredAt, declaredByRole: item.declaredByRole,
+    pending: item.pending, capability: true,
     ...(view ? { capabilityView: view } : {})
   });
 }

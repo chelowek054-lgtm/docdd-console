@@ -81,6 +81,9 @@ export interface MermaidNode {
   /** Публичный интерфейс модуля — из карты. */
   api?: ApiItem[];
   declaredBy?: string;
+  /** След правки курса — только у возможностей: когда карту подтвердили и кто (docs/07-maps.md). */
+  declaredAt?: string | undefined;
+  declaredByRole?: string | null | undefined;
   /** См. `MermaidEdge.pending` — то же самое, но у узла. */
   pending?: boolean;
   /** Возможность функциональной карты: у неё нет ни файла, ни интерфейса, только название и описание. */
@@ -589,6 +592,7 @@ export function functionalMermaid(map: ProjectMap, filter: StatusFilter | null =
     details[node] = [item.id, item.title, IMPL_LABEL[key], item.note].filter(Boolean).join(LF);
     nodes[node] = {
       id: item.id, title: item.title, summary: item.summary, declaredBy: (item as { declaredBy?: string }).declaredBy,
+      declaredAt: (item as { declaredAt?: string }).declaredAt, declaredByRole: (item as { declaredByRole?: string | null }).declaredByRole,
       pending: (item as { pending?: boolean }).pending, capability: true, note: item.note, ...(view ? { capabilityView: view } : {})
     };
   }

@@ -345,7 +345,7 @@ describe('functionalMermaid', () => {
   const functional = (
     capabilities: ProjectMap['functional']['capabilities'],
     relations: ProjectMap['functional']['relations'] = []
-  ) => mapWith({ functional: { capabilities, relations } });
+  ) => mapWith({ functional: { capabilities, relations, vision: null } });
 
   it('родитель — рамка вокруг подпунктов, со счётом реализованных', () => {
     const { text } = functionalMermaid(functional([

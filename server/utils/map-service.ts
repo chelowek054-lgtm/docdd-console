@@ -1,4 +1,5 @@
 import { analyze } from '../lib/analyze';
+import { approvalOf, courseHistory, type CourseEntry } from '../lib/course';
 import {
   annotateEvidenceStatus,
   annotatePending,
@@ -19,6 +20,8 @@ import { readWorkspace, sourceReader } from '../lib/workspace';
 export interface ProjectMapResult extends ProjectMap {
   /** Сколько утверждений не прошло сверку свидетельств. */
   unverified: number;
+  /** История курса — производное от подтверждённых карт, нигде не хранится. */
+  functional: ProjectMap['functional'] & { history: CourseEntry[] };
 }
 
 export function buildProjectMap(root: string): ProjectMapResult {
@@ -47,7 +50,30 @@ export function buildProjectMap(root: string): ProjectMapResult {
   // же самое ребро, что видит экран, а не история черновиков поверх него.
   annotateEvidenceStatus(folded, read);
   annotatePending(folded, pendingMapIds(approved, result.records));
-  return { ...folded, unverified: countUnverified(folded) };
+
+  // След правки курса: когда карту подтвердили и кто (docs/07-maps.md,
+  // «Источник правды и история курса»). Из записей же, своего журнала нет.
+  const approvals = new Map(approved.map((record) => [record.id, approvalOf(record.body, String(record.data['updated'] ?? ''))]));
+  const trace = (item: { declaredBy?: string; declaredAt?: string; declaredByRole?: string | null }) => {
+    const approval = item.declaredBy ? approvals.get(item.declaredBy) : undefined;
+    if (!approval) return;
+    item.declaredAt = approval.at;
+    item.declaredByRole = approval.by;
+  };
+  for (const item of folded.functional.capabilities) trace(item);
+  if (folded.functional.vision) trace(folded.functional.vision);
+
+  const history = courseHistory(approved.map((record, at) => ({
+    id: record.id,
+    title: record.title,
+    approval: approvals.get(record.id) ?? { at: '', by: null },
+    change: changes[at]?.change ?? {}
+  })));
+  return {
+    ...folded,
+    functional: { ...folded.functional, history },
+    unverified: countUnverified(folded)
+  };
 }
 
 /**

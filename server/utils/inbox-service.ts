@@ -233,6 +233,7 @@ export function createRecords(root: string, original: readonly ProposedRecord[],
     const sources = (record.notes ?? []).filter((note) => notes.includes(note));
     // Возможности — только у карт: у остальных типов поле просто игнорируется.
     const capabilities = record.type === 'map' ? record.capabilities : undefined;
+    const vision = record.type === 'map' ? record.vision : undefined;
 
     const text = recordTemplate({
       id,
@@ -243,6 +244,7 @@ export function createRecords(root: string, original: readonly ProposedRecord[],
       ...(sources.length ? { sources } : {}),
       ...(record.body ? { body: record.body } : {}),
       ...(capabilities?.length ? { capabilities } : {}),
+      ...(vision && Object.keys(vision).length ? { vision } : {}),
       ...(record.type === 'map' && record.intent ? { intent: true } : {}),
       ...(record.type === 'task' && record.change ? { change: record.change } : {})
     });

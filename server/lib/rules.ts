@@ -171,6 +171,7 @@ export function checkAll(ctx: RuleContext): Violation[] {
     ...checkMaps(ctx),
     ...taskMapsUnapproved(ctx),
     ...changeMissing(ctx),
+    ...mapCapabilityMissing(ctx),
     ...workUnreviewed(ctx),
     ...workBranchOrphan(ctx),
     ...taskNotReadyDocs(ctx),
@@ -444,6 +445,36 @@ export function taskMapsUnapproved(ctx: RuleContext): Violation[] {
         `Задача ${task.id} в статусе \`${task.status}\`, а карта ${id} — \`${map.status}\`. Устройство меняется до кода, а не после: подтвердите карту.`
       ));
     }
+  }
+  return found;
+}
+
+/**
+ * Функция сделана, а в функциональной карте её нет: источник правды отстал
+ * (docs/08-usage.md, «Правила реализации»). Срабатывает с `in_review`, а не с
+ * `ready`: карта-намерение на пачку задач пуста по замыслу, и раньше шума было
+ * бы больше, чем толку.
+ */
+export function mapCapabilityMissing(ctx: RuleContext): Violation[] {
+  const found: Violation[] = [];
+  for (const task of tasks(ctx)) {
+    if (task.status !== 'in_review' && task.status !== 'done') continue;
+    if (task.data['change'] !== 'feature') continue;
+
+    const declares = (task.links.affects ?? []).some((id) => {
+      const map = ctx.graph.byId.get(id);
+      if (!map || map.type !== 'map') return false;
+      const parsed = parseMapRecord(map.body).change.functional;
+      return (parsed?.added?.capabilities?.length ?? 0) > 0;
+    });
+    if (declares) continue;
+
+    found.push(violation(
+      'map_capability_missing',
+      task.id,
+      task.source.path,
+      `Задача ${task.id} (\`feature\`) дошла до \`${task.status}\`, а ни одна её карта не объявляет возможность функциональной карты. Функциональная карта — источник правды: добавьте возможность (или уточните существующую) новой картой и свяжите её с задачей.`
+    ));
   }
   return found;
 }

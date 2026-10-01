@@ -56,6 +56,9 @@ const expected = [
   'link_broken T-0003',
   'link_cycle T-0004',
   'link_wrong_type T-0011',
+  'map_capability_missing T-0001',
+  'map_capability_missing T-0006',
+  'map_capability_missing T-0007',
   'map_drift M-0006',
   'map_evidence_missing M-0003',
   'map_evidence_stale M-0005',
@@ -89,7 +92,7 @@ describe('набор файлов-примеров', () => {
     // transition_forbidden отвечает на запрос действия, а не на состояние
     // набора записей, поэтому в этом списке его нет — он проверен в rules.spec.
     const covered = new Set(result.violations.map((item) => item.code));
-    expect(covered.size).toBe(25);
+    expect(covered.size).toBe(26);
     expect(covered.has('transition_forbidden')).toBe(false);
   });
 

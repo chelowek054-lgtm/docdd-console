@@ -77,12 +77,27 @@ export interface UserflowPart {
  * — иначе, чем у остальных трёх видов: подтверждается человеком, как обычная
  * запись, а не построчной сверкой с файлом (docs/07-maps.md).
  */
+/**
+ * Вектор проекта — какую проблему решает продукт, для кого, что считается
+ * успехом и чего он не делает (docs/07-maps.md, «Вектор проекта»). Один на
+ * проект, без свидетельства: суждение о цели, не факт об устройстве.
+ */
+export interface Vision {
+  problem?: string;
+  audience?: string;
+  outcome?: string;
+  not?: string;
+}
+
 export interface FunctionalPart {
+  vision?: Vision;
   capabilities?: {
     id: string; title?: string; parent?: string; summary?: string;
     /** Состояние реализации; нет поля — «не оценено» (docs/07-maps.md). */
     status?: ImplStatus; note?: string;
-    declaredBy?: string; pending?: boolean;
+    /** След правки курса: какая карта объявила, когда и кто подтвердил (docs/07-maps.md). */
+    declaredBy?: string; declaredAt?: string; declaredByRole?: string | null;
+    pending?: boolean;
   }[];
   /** Связи между возможностями: depends / uses / feeds. Свидетельства нет, как у всей карты. */
   relations?: { from: string; to: string; type: RelationType; summary?: string; declaredBy?: string }[];
@@ -412,7 +427,12 @@ export interface ProjectMap {
   codemap: Required<CodemapPart>;
   dataflow: Required<DataflowPart>;
   userflow: Required<UserflowPart>;
-  functional: Required<FunctionalPart>;
+  functional: {
+    capabilities: NonNullable<FunctionalPart['capabilities']>;
+    relations: NonNullable<FunctionalPart['relations']>;
+    /** Вектор проекта; `null` — никто не объявил. Последнее объявление заменяет прежнее целиком. */
+    vision: (Vision & { declaredBy?: string; declaredAt?: string; declaredByRole?: string | null }) | null;
+  };
   /** Какие записи сложены, в порядке применения. */
   from: string[];
 }
@@ -422,7 +442,7 @@ export function emptyProjectMap(): ProjectMap {
     codemap: { modules: [], imports: [], groups: [] },
     dataflow: { sources: [], flows: [] },
     userflow: { screens: [], transitions: [], calls: [] },
-    functional: { capabilities: [], relations: [] },
+    functional: { capabilities: [], relations: [], vision: null },
     from: []
   };
 }
@@ -446,6 +466,11 @@ export function foldMaps(changes: readonly { id: string; change: MapChange }[]):
         apply((result as any)[kind.name], field.name, part, field.keyOf, id);
       }
     }
+
+    // Вектор — не список, а один объект на проект: повторное объявление
+    // заменяет его целиком (docs/07-maps.md, «Вектор проекта»).
+    const vision = change.functional?.added?.vision;
+    if (vision) result.functional.vision = { ...vision, declaredBy: id };
   }
 
   return result;
