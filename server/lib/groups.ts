@@ -1,3 +1,4 @@
+import { layerOf } from './layers';
 import type { Evidence, EvidenceVerdict } from './maps';
 
 /**
@@ -257,7 +258,7 @@ export function groupCard(grouping: Grouping, groupId: string): GroupCard | null
 
   const layers = new Map<string, number>();
   for (const member of group.members) {
-    const layer = member.layer ?? 'без слоя';
+    const layer = layerOf(member);
     layers.set(layer, (layers.get(layer) ?? 0) + 1);
   }
 

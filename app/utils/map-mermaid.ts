@@ -19,6 +19,8 @@ import {
   type GroupImport,
   type Grouping
 } from '../../server/lib/groups';
+// Слой по папке файла, когда карта его не назвала: docs/07-maps.md, «`layer` не обязателен».
+import { layerOf } from '../../server/lib/layers';
 import type { ApiItem, Evidence, EvidenceVerdict, ProjectMap } from '../../server/lib/maps';
 import { STATUS_STYLE, capabilityViews, type CapabilityView } from './functional-view';
 
@@ -226,7 +228,7 @@ export function codemapMermaid(map: ProjectMap, options: CodemapOptions = {}): M
   // Слои становятся подграфами: колонка на слой читается лучше клубка.
   const layers = new Map<string, typeof modules>();
   for (const module of modules) {
-    const layer = module.layer ?? 'без слоя';
+    const layer = layerOf(module);
     layers.set(layer, [...(layers.get(layer) ?? []), module]);
   }
 

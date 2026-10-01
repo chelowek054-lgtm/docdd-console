@@ -319,3 +319,17 @@ describe('groups в карте: разбор и сложение', () => {
     expect(grouping.byId.get('app/pages')?.auto).toBe(true);
   });
 });
+
+describe('слой модуля без layer — по папке файла', () => {
+  it('карточка группы считает слои по папке, а не сваливает всё в «без слоя»', () => {
+    const grouping = groupModules([
+      { id: 'src/modules/access/index.ts' },
+      { id: 'src/modules/billing/pay.ts', layer: 'ядро' },
+      { id: 'src/widgets/card/index.ts' }
+    ], []);
+    const layers = (id: string) => groupCard(grouping, id)?.layers.map((item) => item.layer).sort();
+    // index.ts — это сама папка access, берётся папка над ней (modules); объявленный слой сильнее.
+    expect(layers('src/modules')).toEqual(['modules', 'ядро'].sort());
+    expect(layers('src/widgets')).toEqual(['widgets']);
+  });
+});

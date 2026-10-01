@@ -20,6 +20,7 @@ import {
   type FlowItem
 } from '~~/server/lib/flow-groups';
 import { ghostNeighbors, groupCard, groupModules, groupScope, portsOf } from '~~/server/lib/groups';
+import { layerOf } from '~~/server/lib/layers';
 import type { ProjectMap } from '~~/server/lib/maps';
 import { STATUS_STYLE } from '~/utils/functional-view';
 
@@ -261,9 +262,11 @@ const scopeCodemap = computed(() => {
   const value = map.value;
   if (!value) return null;
   if (codemapMode.value !== 'group' || !grouping.value) return value.codemap;
-  const ids = new Set((grouping.value.byId.get(openGroupId.value)?.members ?? []).map((member) => member.id));
+  // Модуль, названный только в импорте, — тоже участник группы: со слоем по папке он входит в чипы слоёв наравне с описанными.
+  const declared = new Map(value.codemap.modules.map((item) => [item.id, item]));
+  const members = grouping.value.byId.get(openGroupId.value)?.members ?? [];
   return {
-    modules: value.codemap.modules.filter((item) => ids.has(item.id)),
+    modules: members.map((member) => declared.get(member.id) ?? { id: member.id }),
     imports: groupScope(grouping.value, openGroupId.value, value.codemap.imports).imports as typeof value.codemap.imports
   };
 });
@@ -284,7 +287,7 @@ watch([scopeKey, flowScopeKey], () => {
  */
 const allLayers = computed(() => {
   const set = new Set<string>();
-  for (const item of scopeCodemap.value?.modules ?? []) set.add(item.layer ?? 'без слоя');
+  for (const item of scopeCodemap.value?.modules ?? []) set.add(layerOf(item));
   return [...set].sort();
 });
 
@@ -301,7 +304,7 @@ const isLargeCodemap = computed(() => (scopeCodemap.value?.modules.length ?? 0) 
 const smallestLayer = computed(() => {
   const sizes = new Map<string, number>();
   for (const item of scopeCodemap.value?.modules ?? []) {
-    const layer = item.layer ?? 'без слоя';
+    const layer = layerOf(item);
     sizes.set(layer, (sizes.get(layer) ?? 0) + 1);
   }
   return [...allLayers.value].sort((a, b) => (sizes.get(a) ?? 0) - (sizes.get(b) ?? 0))[0] ?? null;
@@ -342,7 +345,7 @@ const filteredCodemap = computed(() => {
   const value = scopeCodemap.value;
   if (!value || hiddenLayers.value.size === 0) return value;
   const visible = new Set(
-    value.modules.filter((item) => !hiddenLayers.value.has(item.layer ?? 'без слоя')).map((item) => item.id)
+    value.modules.filter((item) => !hiddenLayers.value.has(layerOf(item))).map((item) => item.id)
   );
   return {
     modules: value.modules.filter((item) => visible.has(item.id)),
