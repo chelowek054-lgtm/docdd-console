@@ -63,9 +63,20 @@ export interface EdgeGroupLink {
   count: number;
   status: EvidenceVerdict;
   cycle: boolean;
-  /** Понятная подпись связи; нет — у стрелки остаётся число. */
+  /** Понятная подпись связи; нет — у стрелки остаётся число. У потоков данных — «читает» / «пишет». */
   summary?: string;
+  /** Что свёрнуто в стрелку: импорты кодовой карты (по умолчанию) или потоки данных. */
+  unit?: 'imports' | 'flows';
   imports: { from: string; to: string; evidence: Evidence; status?: EvidenceVerdict }[];
+}
+
+/** Узел обзора потоков данных, который свёртывает источники: «хранилища графа», «база данных». */
+export interface BucketCard {
+  id: string;
+  title: string;
+  /** Потоков данных к источникам свёртки. */
+  flows: number;
+  sources: { id: string; title?: string; kind: string; where?: string }[];
 }
 
 /** Что карточка знает о группе (docs/04-ui.md, «Группы кодовой карты»). */
@@ -122,6 +133,8 @@ export interface MermaidNode {
   inCycle?: boolean;
   /** Узел обзора — группа, а не модуль. */
   group?: GroupCard;
+  /** Узел обзора потоков — свёртка источников. */
+  bucket?: BucketCard;
   /** Модуль соседней группы, показанный призраком у выбранного модуля: название его группы. */
   ghostOf?: string;
   /** Порт группы: у модуля есть импорт через границу группы. */
@@ -293,7 +306,7 @@ export function codemapMermaid(map: ProjectMap): MermaidOutput {
   return { text: lines.join(LF), details, paths, nodes, edges, neighbors: neighborsOf(edges) };
 }
 
-const SOURCE_KIND_LABEL: Record<string, string> = {
+export const SOURCE_KIND_LABEL: Record<string, string> = {
   file: 'файл',
   http: 'http',
   db: 'база данных',

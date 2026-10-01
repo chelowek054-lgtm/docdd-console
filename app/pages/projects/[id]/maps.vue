@@ -154,11 +154,24 @@ const mapRecords = computed(() => {
  * порог крупной базы работают как прежде, но на том, что сейчас в области
  * просмотра: на группе, а не на всём проекте.
  */
+const codeGroups = useCodeGroups(map);
 const {
   model: groupModel, modulesById, capabilities, ungrouped, mode: codeMode, groupsAvailable, openGroup, focus,
   chooseMode, setOpenGroup, allLayers, isLarge: isLargeCodemap, hiddenLayers, toggleLayer,
   filteredCodemap, scopeCount
-} = useCodeGroups(map);
+} = codeGroups;
+
+/**
+ * Потоки данных строятся по тем же группам: обзор «группы ↔ хранилища и внешние
+ * системы», а внутри группы или свёртки источников — нынешняя детализация.
+ */
+const {
+  mode: flowMode, openBucket, open: openFlow, chooseMode: chooseFlowMode, view: flowView
+} = useFlowGroups(map, codeGroups);
+
+function onFlowMode(value: unknown) {
+  void chooseFlowMode(value === 'flows' ? 'flows' : 'groups');
+}
 
 function onMode(value: unknown) {
   void chooseMode(value === 'modules' ? 'modules' : 'groups');
@@ -177,6 +190,17 @@ function codemapView(value: MapResponse) {
 }
 
 const openGroupInfo = computed(() => groupModel.value.groups.find((group) => group.id === openGroup.value));
+
+/** Обзор потоков (а не детализация внутри группы или свёртки и не «все потоки разом»). */
+const flowOverview = computed(() => flowMode.value === 'groups' && !openGroup.value && !openBucket.value);
+
+/** Узлы обзора потоков списком: рядом с диаграммой, чтобы открыть группу или посмотреть её карточку без клика по узлу. */
+const flowOverviewItems = computed(() => (shown.value === 'dataflow' && flowOverview.value
+  ? Object.values(current.value?.nodes ?? {}).filter((node) => node.group || node.bucket)
+  : []));
+
+/** Название того, что открыто на экране потоков: группа кода или свёртка источников. */
+const flowScopeTitle = computed(() => openBucket.value ?? openGroupInfo.value?.title ?? null);
 
 /** Карточка группы: «О группе» на экране группы и список групп под обзором. */
 function showGroupCard(id: string) {
@@ -229,7 +253,7 @@ const views = computed(() => {
       title: 'Потоки данных',
       question: 'Откуда данные приходят, где лежат и куда уходят',
       count: `${value.dataflow.sources.length} источников, ${value.dataflow.flows.length} потоков`,
-      ...dataflowMermaid(value)
+      ...flowView(value)
     },
     {
       key: 'userflow',
@@ -317,6 +341,17 @@ const selection = ref<MapSelection | null>(null);
 function onNodeClick(id: string) {
   const node = current.value?.nodes?.[id];
   if (!node) return; // Нет метаданных — карте нечего показать (functional map, неизвестный узел).
+  if (shown.value === 'dataflow' && flowOverview.value) {
+    // Обзор потоков: узел-группа и узел-свёртка ведут внутрь, как на кодовой базе.
+    if (node.group) {
+      void openFlow({ group: node.group.id });
+      return;
+    }
+    if (node.bucket) {
+      void openFlow({ bucket: node.bucket.id });
+      return;
+    }
+  }
   if (shown.value === 'codemap' && codeMode.value === 'groups') {
     // Узел обзора и узел-группа по краям ведут внутрь группы; модуль группы
     // становится выбранным, и его соседи из других групп показываются призраками.
@@ -580,6 +615,15 @@ async function onUnrelate(relation: { from: string; to: string; kind: RelationKi
                   :items="[{ label: 'Группы', value: 'groups' }, { label: 'Все модули', value: 'modules' }]"
                   @update:model-value="onMode"
                 />
+                <!-- Потоки данных: по группам (обзор → группа или свёртка источников) или все потоки разом. -->
+                <UTabs
+                  v-if="current.key === 'dataflow' && groupsAvailable"
+                  :model-value="flowMode"
+                  class="ml-auto w-56"
+                  size="xs"
+                  :items="[{ label: 'Группы', value: 'groups' }, { label: 'Все потоки', value: 'flows' }]"
+                  @update:model-value="onFlowMode"
+                />
                 <!-- У функциональной карты свой переключатель режима — дерево или граф состояния. -->
                 <UTabs
                   v-if="current.key === 'functional'"
@@ -641,6 +685,51 @@ async function onUnrelate(relation: { from: string; to: string; kind: RelationKi
                       icon="i-lucide-info"
                       :aria-label="`О группе ${group.title}`"
                       @click="showGroupCard(group.id)"
+                    />
+                  </li>
+                </ul>
+              </div>
+            </template>
+
+            <!-- Потоки по группам: обзор → группа кода или свёртка источников (docs/04-ui.md). -->
+            <template v-if="shown === 'dataflow' && flowMode === 'groups'">
+              <div v-if="flowScopeTitle" class="mb-3 flex flex-wrap items-center gap-2">
+                <UButton size="xs" variant="soft" color="neutral" icon="i-lucide-arrow-left" @click="openFlow()">
+                  Все группы
+                </UButton>
+                <span class="font-medium">{{ flowScopeTitle }}</span>
+                <UBadge size="xs" color="neutral" variant="subtle">{{ openBucket ? 'свёртка источников' : 'группа кода' }}</UBadge>
+                <UButton
+                  v-if="openGroupInfo"
+                  size="xs"
+                  variant="ghost"
+                  color="neutral"
+                  icon="i-lucide-info"
+                  @click="showGroupCard(openGroupInfo.id)"
+                >
+                  О группе
+                </UButton>
+              </div>
+              <div v-else class="mb-3 space-y-2">
+                <p class="text-sm text-muted">
+                  Обзор: кто читает и пишет где. Клик по группе или по свёртке источников открывает её детали,
+                  клик по стрелке показывает свёрнутые потоки со свидетельствами.
+                </p>
+                <ul class="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                  <li v-for="item in flowOverviewItems" :key="item.id + (item.bucket ? 'b' : 'g')" class="inline-flex items-center gap-1">
+                    <button
+                      type="button"
+                      class="hover:underline"
+                      @click="openFlow(item.bucket ? { bucket: item.id } : { group: item.id })"
+                    >{{ item.title ?? item.id }}</button>
+                    <UBadge size="xs" color="neutral" variant="subtle">{{ item.bucket ? 'источники' : 'код' }}</UBadge>
+                    <UButton
+                      size="xs"
+                      variant="ghost"
+                      color="neutral"
+                      icon="i-lucide-info"
+                      :aria-label="`О ${item.title ?? item.id}`"
+                      @click="selection = { kind: 'node', ...item }"
                     />
                   </li>
                 </ul>
@@ -716,7 +805,10 @@ async function onUnrelate(relation: { from: string; to: string; kind: RelationKi
             </template>
 
             <template v-else>
-              <p v-if="!current.text" class="text-sm text-muted">
+              <p v-if="!current.text && shown === 'dataflow' && flowScopeTitle" class="text-sm text-muted">
+                У «{{ flowScopeTitle }}» нет потоков данных в подтверждённых картах.
+              </p>
+              <p v-else-if="!current.text" class="text-sm text-muted">
                 В подтверждённых картах эта структура не описана.
               </p>
               <MermaidDiagram3D

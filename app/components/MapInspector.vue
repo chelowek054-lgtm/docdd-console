@@ -192,7 +192,9 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
         <div v-if="selection.kind === 'group-link'" class="space-y-2">
           <p class="leading-relaxed">
             <strong>{{ selection.fromTitle }}</strong> → <strong>{{ selection.toTitle }}</strong>:
-            {{ plural(selection.count, 'импорт', 'импорта', 'импортов') }}
+            {{ selection.unit === 'flows'
+              ? plural(selection.count, 'поток', 'потока', 'потоков')
+              : plural(selection.count, 'импорт', 'импорта', 'импортов') }}
           </p>
           <p v-if="selection.summary" class="text-muted">{{ selection.summary }}</p>
           <div class="flex flex-wrap gap-2">
@@ -296,6 +298,24 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
               </li>
             </ul>
           </div>
+        </div>
+
+        <!-- Свёртка источников на обзоре потоков: что в неё свёрнуто. -->
+        <div v-if="selection.kind === 'node' && selection.bucket" class="space-y-2">
+          <p class="text-muted">
+            {{ plural(selection.bucket.flows, 'поток', 'потока', 'потоков') }} данных,
+            {{ plural(selection.bucket.sources.length, 'источник', 'источника', 'источников') }}
+          </p>
+          <ul v-if="selection.bucket.sources.length" class="space-y-1">
+            <li v-for="item in selection.bucket.sources" :key="item.id" class="rounded border border-default p-2">
+              <div class="flex flex-wrap items-baseline gap-2">
+                <strong>{{ item.title ?? item.id }}</strong>
+                <UBadge size="xs" color="neutral" variant="subtle">{{ item.kind }}</UBadge>
+              </div>
+              <p v-if="item.where" class="mt-0.5 break-all font-mono text-xs text-muted">{{ item.where }}</p>
+            </li>
+          </ul>
+          <p v-else class="text-muted">Карта этого источника не объявила — есть только потоки к нему.</p>
         </div>
 
         <UBadge v-if="selection.kind === 'node' && selection.ghostOf" color="neutral" variant="outline">
@@ -452,7 +472,7 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
           в режиме «Дерево» — вместе с названием откроется поле описания.
         </p>
         <p
-          v-else-if="!path && !nodeSummary && !nodeApi.length && selection.kind === 'node' && !selection.group"
+          v-else-if="!path && !nodeSummary && !nodeApi.length && selection.kind === 'node' && !selection.group && !selection.bucket"
           class="text-muted"
         >
           Карта пока не описала этот узел — ни что он делает, ни его интерфейс, ни файл.

@@ -23,7 +23,7 @@ const LF = String.fromCharCode(10);
  * «2 модуля», «5 модулей». Своя, а не `plural` из labels.ts: этот модуль читает
  * тест без Nuxt, а labels.ts тянет алиас Nuxt (`~~`), которого обычный tsc не знает.
  */
-function plural(count: number, one: string, few: string, many: string): string {
+export function countWord(count: number, one: string, few: string, many: string): string {
   const mod10 = count % 10;
   const mod100 = count % 100;
   if (mod10 === 1 && mod100 !== 11) return `${count} ${one}`;
@@ -133,7 +133,7 @@ export function groupsOverviewMermaid(
   const nodes: Record<string, MermaidNode> = {};
   for (const group of model.groups) {
     const node = nodeId('g', group.id);
-    const count = plural(group.modules.length, 'модуль', 'модуля', 'модулей');
+    const count = countWord(group.modules.length, 'модуль', 'модуля', 'модулей');
     lines.push(`    ${node}["${label(group.title, 30)}<br/>${count}${group.auto ? ' · авто' : ''}"]:::gsize_${sizeBucket(group.modules.length, max)}`);
     details[node] = [group.id, group.title, count, group.auto ? 'автогруппа — посчитана по пути' : ''].filter(Boolean).join(LF);
     nodes[node] = { id: group.id, title: group.title, group: groupCardOf(model, group, modules, capabilities) };
@@ -148,7 +148,7 @@ export function groupsOverviewMermaid(
     // Подпись на стрелке — понятная фраза, если она есть, иначе число импортов.
     const text = link.summary
       ? label(link.summary.replace(/\|/g, '/'), 28)
-      : plural(link.count, 'импорт', 'импорта', 'импортов');
+      : countWord(link.count, 'импорт', 'импорта', 'импортов');
     lines.push(`    ${from} ${link.status === 'pending' ? '-.->' : '-->'}|${text}| ${to}`);
     if (link.cycle) {
       cycleAt.add(edges.length);
@@ -276,7 +276,7 @@ export function groupMermaid(
       node = nodeId('x', gid);
       external.set(gid, node);
       const other = model.groups.find((item) => item.id === gid);
-      const count = other ? plural(other.modules.length, 'модуль', 'модуля', 'модулей') : '';
+      const count = other ? countWord(other.modules.length, 'модуль', 'модуля', 'модулей') : '';
       lines.push(`    ${node}["${label(titleOfGroup(model, gid), 30)}${count ? `<br/>${count}` : ''}"]:::ext`);
       details[node] = [gid, titleOfGroup(model, gid), count].filter(Boolean).join(LF);
       if (other) nodes[node] = { id: gid, title: other.title, group: groupCardOf(model, other, byId, options.capabilities) };
