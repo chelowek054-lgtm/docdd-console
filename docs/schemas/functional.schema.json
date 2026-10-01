@@ -16,7 +16,23 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "capabilities": { "type": "array", "items": { "$ref": "#/$defs/capability" } }
+        "capabilities": { "type": "array", "items": { "$ref": "#/$defs/capability" } },
+        "relations": { "type": "array", "items": { "$ref": "#/$defs/relation" } }
+      }
+    },
+    "relation": {
+      "type": "object",
+      "required": ["from", "to", "type"],
+      "additionalProperties": false,
+      "description": "Связь между возможностями. Без свидетельства, как вся функциональная карта. В removed нужны from, to и type.",
+      "properties": {
+        "from": { "type": "string", "minLength": 1, "description": "id возможности, которая зависит, пользуется или передаёт." },
+        "to": { "type": "string", "minLength": 1, "description": "id возможности, от которой зависят, которой пользуются или в которую передают." },
+        "type": {
+          "enum": ["depends", "uses", "feeds"],
+          "description": "depends — без `to` возможность `from` не работает; uses — пользуется, но работает и без; feeds — передаёт данные."
+        },
+        "summary": { "type": "string", "description": "Одна фраза: что именно связано." }
       }
     },
     "capability": {
@@ -27,7 +43,12 @@
         "id": { "type": "string", "minLength": 1, "description": "Свободный идентификатор, не путь и не номер." },
         "title": { "type": "string", "description": "Как это назовёт доменный специалист, не разработчик." },
         "parent": { "type": "string", "description": "id родительской возможности — так набирается иерархия, дерево, не список." },
-        "summary": { "type": "string", "description": "Что возможность значит для пользователя, языком предметной области, а не кода: два-три предложения." }
+        "summary": { "type": "string", "description": "Что возможность значит для пользователя, языком предметной области, а не кода: два-три предложения." },
+        "status": {
+          "enum": ["implemented", "partial", "not_implemented"],
+          "description": "Состояние реализации. Нет поля — «не оценено»: это не то же самое, что not_implemented. У родителя считается по подпунктам, собственное значение экран не показывает."
+        },
+        "note": { "type": "string", "description": "Одна-две фразы: что сделано и чего не хватает. Для partial — обязательно по смыслу, схемой не требуется." }
       }
     }
   }
