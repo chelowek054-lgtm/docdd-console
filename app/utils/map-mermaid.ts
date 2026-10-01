@@ -6,6 +6,13 @@ import {
   type StatusFilter
 } from '../../server/lib/functional';
 import {
+  UNKNOWN_KIND,
+  type FlowDirection,
+  type FlowGhost,
+  type FlowGrouping,
+  type FlowItem
+} from '../../server/lib/flow-groups';
+import {
   groupCard,
   type GhostNode,
   type GroupCard,
@@ -56,6 +63,9 @@ export interface LinkCard {
   status: EvidenceVerdict;
   /** Группы зависят друг от друга по кругу. */
   cycle: boolean;
+  /** Только у потоков данных: «читают» / «пишут» / «читают и пишут» — от лица группы кода. */
+  direction?: FlowDirection;
+  directionText?: string;
   imports: { from: string; to: string; evidence: Evidence; status?: EvidenceVerdict | undefined }[];
 }
 
@@ -83,6 +93,8 @@ export interface MermaidNode {
   ghost?: { groupId: string; groupTitle: string };
   /** Порт: у модуля есть связи за пределами его группы. */
   port?: boolean;
+  /** Узел обзора потоков: группа кода или вид источников — двойной клик открывает его (docs/04-ui.md). */
+  flowGroup?: { type: 'code' | 'kind'; id: string };
 }
 
 /** Что показывает `MapInspector.vue` — узел, ребро, группа или свёрнутая связь между группами. */
@@ -291,7 +303,27 @@ const SOURCE_KIND_LABEL: Record<string, string> = {
   memory: 'память процесса'
 };
 
-export function dataflowMermaid(map: ProjectMap): MermaidOutput {
+/** Вид группы потоков поверх обычной карты: кликабельные модули и призраки выбранного узла. */
+export interface DataflowOptions {
+  /** Узлы-«откуда» получают карточку (в группе кода — модуль, чей `id` обычно путь к файлу). */
+  selectableFrom?: boolean;
+  /** Чужие модули, трогающие тот же источник, что выбранный узел. */
+  ghosts?: readonly FlowGhost[];
+  /** Их потоки к источникам (концы уже переписаны на id призраков). */
+  ghostFlows?: readonly FlowItem[];
+  /** Карточки групп — для свёрнутых призраков. */
+  ghostCards?: ReadonlyMap<string, GroupCard>;
+}
+
+/** id узла-«откуда» (модуль или экран) и узла источника — по ним экран держит фокус на выбранном. */
+export function fromNodeId(id: string): string {
+  return nodeId('f', id);
+}
+export function sourceNodeId(id: string): string {
+  return nodeId('s', id);
+}
+
+export function dataflowMermaid(map: ProjectMap, options: DataflowOptions = {}): MermaidOutput {
   const { sources, flows } = map.dataflow;
   if (sources.length === 0 && flows.length === 0) return EMPTY;
 
@@ -334,10 +366,30 @@ export function dataflowMermaid(map: ProjectMap): MermaidOutput {
     const node = nodeId('f', name);
     lines.push(`    ${node}["${label(name)}"]`);
     details[node] = name;
+    if (options.selectableFrom) nodes[node] = { id: name, title: name };
+  }
+
+  // Призраки — отдельной рамкой: они не часть открытой группы (docs/04-ui.md, «Группы кодовой карты»).
+  const ghosts = options.ghosts ?? [];
+  if (ghosts.length > 0) {
+    lines.push('    classDef ghost fill:#F3F4F6,stroke:#6B7280,color:#111827,stroke-dasharray:5 4;');
+    lines.push('    subgraph ghosts["Из других групп"]');
+    for (const ghost of ghosts) {
+      const node = nodeId('f', ghost.id);
+      const name = ghost.collapsed ? `${ghost.groupTitle} · ${ghost.collapsed} модулей` : ghost.id;
+      lines.push(`        ${node}["${label(name)}<br/>из группы ${label(ghost.groupTitle, 28)}"]:::ghost`);
+      details[node] = [ghost.id, `из группы ${ghost.groupTitle}`].join(LF);
+      nodes[node] = {
+        id: ghost.id, title: ghost.collapsed ? ghost.groupTitle : ghost.id,
+        ghost: { groupId: ghost.groupId, groupTitle: ghost.groupTitle },
+        ...(ghost.collapsed && options.ghostCards?.get(ghost.groupId) ? { group: options.ghostCards.get(ghost.groupId) as GroupCard } : {})
+      };
+    }
+    lines.push('    end');
   }
 
   const edges: MermaidEdge[] = [];
-  for (const flow of flows) {
+  for (const flow of [...flows, ...(options.ghostFlows ?? [])]) {
     // Чтение — сплошная стрелка, запись — пунктир, «оба» — жирная сплошная:
     // направление данных видно по линии, не только по подписи.
     const arrow = flow.direction === 'both' ? '==>' : flow.direction === 'write' ? '-.->' : '-->';
@@ -350,6 +402,86 @@ export function dataflowMermaid(map: ProjectMap): MermaidOutput {
   }
   styleUnverified(lines, edges);
   return { text: lines.join(LF), details, paths, nodes, edges, neighbors: neighborsOf(edges) };
+}
+
+const UNKNOWN_KIND_LABEL = 'не опознан';
+const kindLabel = (kind: string) => (kind === UNKNOWN_KIND ? UNKNOWN_KIND_LABEL : SOURCE_KIND_LABEL[kind] ?? kind);
+
+const DIRECTION_TEXT: Record<FlowDirection, string> = {
+  read: 'читают',
+  write: 'пишут',
+  both: 'читают и пишут'
+};
+
+/**
+ * Обзор потоков (docs/04-ui.md, «Группы кодовой карты»): группы кода и виды
+ * источников со свёрнутыми потоками — кто читает и пишет где. Стрелка по
+ * направлению данных, как у обычной диаграммы: чтение — от источника, запись —
+ * к нему; подпись — число потоков. Расхождение хоть в одном потоке краснит
+ * всю связь.
+ */
+export function flowOverviewMermaid(grouping: FlowGrouping, cards: ReadonlyMap<string, GroupCard>): MermaidOutput {
+  if (grouping.links.length === 0) return EMPTY;
+
+  const details: Record<string, string> = {};
+  const nodes: Record<string, MermaidNode> = {};
+  const lines = ['flowchart LR'];
+  lines.push(...classDefs(new Set(grouping.codeGroups.map((group) => group.id)), 'grp'));
+  lines.push(...classDefs(new Set(grouping.kinds.map((item) => item.kind)), 'kind'));
+
+  for (const group of grouping.codeGroups) {
+    const node = nodeId('gf', group.id);
+    const tail = `${group.flows} ${group.flows === 1 ? 'поток' : 'потоков'}`;
+    lines.push(`    ${node}["${label(group.title, 34)}<br/>${tail}"]:::${nodeId('grp', group.id)}`);
+    details[node] = [group.title, tail].join(LF);
+    const card = cards.get(group.id);
+    nodes[node] = {
+      id: group.id, title: group.title, layer: group.title,
+      flowGroup: { type: 'code', id: group.id }, ...(card ? { group: card } : {})
+    };
+  }
+
+  for (const item of grouping.kinds) {
+    // Хранилище — цилиндром, как на обычной диаграмме потоков.
+    const node = nodeId('gk', item.kind);
+    const text = `${label(kindLabel(item.kind))}<br/>${item.sources} ${item.sources === 1 ? 'источник' : 'источников'}`;
+    const shape = item.kind === 'db' || item.kind === 'file' ? `[("${text}")]` : `["${text}"]`;
+    lines.push(`    ${node}${shape}:::${nodeId('kind', item.kind)}`);
+    details[node] = text.replace('<br/>', LF);
+    nodes[node] = { id: item.kind, title: kindLabel(item.kind), layer: kindLabel(item.kind), flowGroup: { type: 'kind', id: item.kind } };
+  }
+
+  const edges: MermaidEdge[] = [];
+  grouping.links.forEach((link, at) => {
+    const code = nodeId('gf', link.codeGroup);
+    const kind = nodeId('gk', link.kind);
+    const arrow = link.direction === 'both' ? '==>' : link.direction === 'write' ? '-.->' : '-->';
+    const from = link.direction === 'read' ? kind : code;
+    const to = link.direction === 'read' ? code : kind;
+    lines.push(`    ${from} ${arrow}|${link.flows.length}| ${to}`);
+    const first = link.flows[0];
+    if (!first) return;
+    const titleOf = grouping.codeGroups.find((group) => group.id === link.codeGroup)?.title ?? link.codeGroup;
+    edges.push({
+      from, to, evidence: first.evidence, status: link.status,
+      link: {
+        fromGroup: link.codeGroup,
+        toGroup: link.kind,
+        fromTitle: titleOf,
+        toTitle: kindLabel(link.kind),
+        status: link.status,
+        cycle: false,
+        direction: link.direction,
+        directionText: DIRECTION_TEXT[link.direction],
+        imports: link.flows.map((flow) => ({ from: flow.from, to: flow.to, evidence: flow.evidence, status: flow.status }))
+      }
+    });
+    if (link.status !== 'ok' && link.status !== 'pending') {
+      lines.push(`    linkStyle ${at} stroke:#DC2626,stroke-width:3px;`);
+    }
+  });
+
+  return { text: lines.join(LF), details, paths: {}, nodes, edges, neighbors: neighborsOf(edges) };
 }
 
 export function userflowMermaid(map: ProjectMap): MermaidOutput {

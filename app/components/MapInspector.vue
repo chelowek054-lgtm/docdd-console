@@ -32,6 +32,8 @@ const emit = defineEmits<{
   close: [];
   /** «Открыть группу» — из карточки группы, призрака или связи (docs/04-ui.md, «Группы кодовой карты»). */
   'open-group': [groupId: string];
+  /** «Открыть» у узла обзора потоков: группа кода или вид источников. */
+  'open-flow': [target: { type: 'code' | 'kind'; id: string }];
 }>();
 
 const open = computed({
@@ -152,6 +154,7 @@ const waitingNames = computed(() => (capView.value?.waiting ?? []).map(
   (id) => capView.value?.links.find((link) => link.id === id)?.title ?? id
 ));
 
+const flowGroupOf = computed(() => (props.selection?.kind === 'node' ? props.selection.flowGroup : undefined));
 const ghostOf = computed(() => (props.selection?.kind === 'node' ? props.selection.ghost : undefined));
 const groupOfNode = computed(() => (props.selection?.kind === 'node' ? props.selection.group : undefined));
 const GROUP_STATUS_COLOR = { ok: 'success', pending: 'neutral' } as const;
@@ -178,11 +181,15 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
             {{ selection.fromTitle }} → {{ selection.toTitle }}
           </h2>
           <h2 v-else class="font-medium">Свидетельство связи</h2>
-          <p v-if="selection.kind === 'node' && selection.layer && !selection.group" class="text-sm text-muted">
+          <p v-if="selection.kind === 'node' && selection.layer && !selection.group && !selection.flowGroup" class="text-sm text-muted">
             слой: {{ selection.layer }}
           </p>
           <p v-else-if="selection.kind === 'group'" class="text-sm text-muted">
             {{ selection.auto ? 'группа выведена из путей — «авто»' : 'группа объявлена картой' }}
+          </p>
+          <p v-else-if="selection.kind === 'link' && selection.direction" class="text-sm text-muted">
+            {{ selection.fromTitle }} {{ selection.directionText }} {{ selection.toTitle }}:
+            {{ plural(selection.imports.length, 'поток', 'потока', 'потоков') }}
           </p>
           <p v-else-if="selection.kind === 'link'" class="text-sm text-muted">
             {{ plural(selection.imports.length, 'импорт', 'импорта', 'импортов') }} между группами
@@ -223,6 +230,18 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
           >
             {{ STATUS_LABEL[selection.status] }}
           </UBadge>
+        </div>
+
+        <!-- Узел обзора потоков: группа кода или вид источников. -->
+        <div v-if="flowGroupOf" class="space-y-2">
+          <p v-if="flowGroupOf.type === 'kind'" class="leading-relaxed">
+            Все источники этого вида и группы кода, что их трогают.
+          </p>
+          <p v-else-if="!groupOfNode" class="leading-relaxed">
+            Группа кода без карточки в кодовой карте: экраны пользовательской карты или то,
+            что карта не назвала модулем.
+          </p>
+          <UButton size="sm" icon="i-lucide-folder-open" @click="emit('open-flow', flowGroupOf)">Открыть</UButton>
         </div>
 
         <!-- Призрак: сосед выбранного модуля из другой группы — не часть открытой (docs/04-ui.md). -->
@@ -443,7 +462,7 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
           в режиме «Дерево» — вместе с названием откроется поле описания.
         </p>
         <p
-          v-else-if="!path && !nodeSummary && !nodeApi.length && selection.kind === 'node' && !groupOfNode"
+          v-else-if="!path && !nodeSummary && !nodeApi.length && selection.kind === 'node' && !groupOfNode && !flowGroupOf"
           class="text-muted"
         >
           Карта пока не описала этот узел — ни что он делает, ни его интерфейс, ни файл.

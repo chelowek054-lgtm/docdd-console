@@ -10,6 +10,15 @@ import {
   type Mark,
   type StatusFilter
 } from '~~/server/lib/functional';
+import {
+  codeGroupScope,
+  flowContext,
+  flowGhosts,
+  groupFlows,
+  codeGroupOf,
+  kindScope,
+  type FlowItem
+} from '~~/server/lib/flow-groups';
 import { ghostNeighbors, groupCard, groupModules, groupScope, portsOf } from '~~/server/lib/groups';
 import type { ProjectMap } from '~~/server/lib/maps';
 import { STATUS_STYLE } from '~/utils/functional-view';
@@ -204,6 +213,49 @@ const showGroups = () => goTo({ view: 'groups' });
 const showAllModules = () => goTo({ view: 'all' });
 const enterGroup = (groupId: string) => goTo({ group: groupId });
 
+/**
+ * Группы на потоках данных (docs/07-maps.md, «Потоки данных», «Группы и
+ * здесь»): группы кода те же, что у кодовой карты, источники — по `kind`.
+ * Те же три уровня экрана: обзор «группы кода ↔ виды источников», группа кода
+ * или вид источников целиком, выбранный узел с соседями из других групп.
+ * В адресе — `fview`, `fgroup` (группа кода), `fkind` (вид источников).
+ */
+const flowCtx = computed(() => {
+  const value = map.value;
+  return value && grouping.value ? flowContext(grouping.value, value.userflow.screens, value.dataflow.sources) : null;
+});
+const flowGrouping = computed(() => (flowCtx.value && map.value ? groupFlows(map.value.dataflow.flows, flowCtx.value) : null));
+
+/** Больше стольких узлов (модули «откуда» и источники) — обзор, а не всё разом; хватает двух групп кода. */
+const flowMode = computed<'groups' | 'code' | 'kind' | 'all'>(() => {
+  const found = flowGrouping.value;
+  if (!found || found.links.length === 0) return 'all';
+  if (found.codeGroups.some((group) => group.id === String(route.query['fgroup'] ?? ''))) return 'code';
+  if (found.kinds.some((item) => item.kind === String(route.query['fkind'] ?? ''))) return 'kind';
+  const wanted = String(route.query['fview'] ?? '');
+  if (wanted === 'all' || found.codeGroups.length < 2) return 'all';
+  if (wanted === 'groups') return 'groups';
+  const value = map.value;
+  const nodes = new Set([...(value?.dataflow.flows ?? []).map((flow) => flow.from), ...(value?.dataflow.sources ?? []).map((source) => source.id)]);
+  return nodes.size > GROUPED_CODEMAP ? 'groups' : 'all';
+});
+const flowGroupId = computed(() => (flowMode.value === 'code' ? String(route.query['fgroup']) : ''));
+const flowKindId = computed(() => (flowMode.value === 'kind' ? String(route.query['fkind']) : ''));
+const flowScopeKey = computed(() => `${flowMode.value}:${flowGroupId.value}:${flowKindId.value}`);
+const flowCanSwitch = computed(() => (flowGrouping.value?.codeGroups.length ?? 0) >= 2);
+const flowGroupTitle = computed(() => flowGrouping.value?.codeGroups.find((group) => group.id === flowGroupId.value)?.title ?? flowGroupId.value);
+
+function goFlow(query: { fview?: string; fgroup?: string; fkind?: string }) {
+  selection.value = null;
+  ghostFor.value = null;
+  void router.push({ query: { ...route.query, fview: undefined, fgroup: undefined, fkind: undefined, ...query } });
+}
+const showFlowGroups = () => goFlow({ fview: 'groups' });
+const showAllFlows = () => goFlow({ fview: 'all' });
+function enterFlow(target: { type: 'code' | 'kind'; id: string }) {
+  goFlow(target.type === 'code' ? { fgroup: target.id } : { fkind: target.id });
+}
+
 /** Что рисует кодовая карта сейчас: все модули или модули одной группы с импортами между ними. */
 const scopeCodemap = computed(() => {
   const value = map.value;
@@ -218,7 +270,7 @@ const scopeCodemap = computed(() => {
 
 /** Смена области — повод забыть выбор слоёв: у другой группы свои слои. */
 const scopeKey = computed(() => `${codemapMode.value}:${openGroupId.value}`);
-watch(scopeKey, () => {
+watch([scopeKey, flowScopeKey], () => {
   chosenHiddenLayers.value = null;
   selection.value = null;
   ghostFor.value = null;
@@ -326,6 +378,87 @@ const codemapView = computed(() => {
   });
 });
 
+/** Источники и потоки открытой группы кода или вида источников. */
+const flowScopeValue = computed(() => {
+  const value = map.value;
+  const ctx = flowCtx.value;
+  if (!value || !ctx) return null;
+  if (flowMode.value === 'code') return codeGroupScope(ctx, flowGroupId.value, value.dataflow.flows);
+  if (flowMode.value === 'kind') return kindScope(ctx, flowKindId.value, value.dataflow.flows);
+  return null;
+});
+
+const dataflowView = computed(() => {
+  const value = map.value;
+  const ctx = flowCtx.value;
+  const found = flowGrouping.value;
+  if (!value || !ctx || !found || flowMode.value === 'all') return null;
+
+  if (flowMode.value === 'groups') {
+    const cards = new Map(found.codeGroups.flatMap((group) => {
+      const card = grouping.value ? groupCard(grouping.value, group.id) : null;
+      return card ? [[group.id, card] as const] : [];
+    }));
+    return flowOverviewMermaid(found, cards);
+  }
+
+  const scope = flowScopeValue.value;
+  if (!scope) return null;
+  const restricted = (flows: FlowItem[]) => ({ ...value, dataflow: { sources: scope.sources as typeof value.dataflow.sources, flows: flows as typeof value.dataflow.flows } });
+
+  if (flowMode.value === 'kind') {
+    // Группы кода, что трогают источники этого вида: по одному узлу и одному потоку на источник, а не каждый модуль.
+    const seen = new Set<string>();
+    const rewritten = scope.flows.flatMap((flow) => {
+      const groupId = codeGroupOf(flow.from, ctx);
+      const title = found.codeGroups.find((group) => group.id === groupId)?.title ?? groupId;
+      const key = `${title}>${flow.to}>${flow.direction}`;
+      if (seen.has(key)) return [];
+      seen.add(key);
+      return [{ ...flow, from: title }];
+    });
+    return dataflowMermaid(restricted(rewritten));
+  }
+
+  const selected = ghostFor.value
+    && (scope.flows.some((flow) => flow.from === ghostFor.value) || scope.sources.some((source) => source.id === ghostFor.value))
+    ? ghostFor.value
+    : null;
+  const near = selected
+    ? flowGhosts(ctx, flowGroupId.value, selected, value.dataflow.flows)
+    : { ghosts: [], flows: [] };
+  return dataflowMermaid(restricted(scope.flows), {
+    selectableFrom: true,
+    ghosts: near.ghosts,
+    ghostFlows: near.flows,
+    ghostCards: new Map(near.ghosts.flatMap((ghost) => {
+      const card = ghost.collapsed && grouping.value ? groupCard(grouping.value, ghost.groupId) : null;
+      return card ? [[ghost.groupId, card] as const] : [];
+    }))
+  });
+});
+
+/** Выбранный узел группы кода — по нему диаграмма держит фокус. */
+const flowFocusKey = computed(() => {
+  const id = ghostFor.value;
+  if (!id || flowMode.value !== 'code' || !map.value) return null;
+  return map.value.dataflow.sources.some((source) => source.id === id) ? sourceNodeId(id) : fromNodeId(id);
+});
+
+/** Переключатель «Группы» / «Все …» — у кодовой карты и у потоков данных, когда есть из чего выбирать. */
+const hasGroupSwitch = computed(() => {
+  if (shown.value === 'codemap') return !!grouping.value && grouping.value.groups.length >= 2;
+  if (shown.value === 'dataflow') return flowCanSwitch.value;
+  return false;
+});
+const allShown = computed(() => (shown.value === 'dataflow' ? flowMode.value === 'all' : codemapMode.value === 'all'));
+const flowKindLabel = computed(() => {
+  const labels: Record<string, string> = {
+    file: 'файлы', http: 'http', db: 'базы данных', queue: 'очереди', env: 'переменные окружения', memory: 'память процесса'
+  };
+  return labels[flowKindId.value] ?? (flowKindId.value === 'unknown' ? 'не опознаны' : flowKindId.value);
+});
+
 /** Узлы-призраки: полупрозрачные (0.65), а не 0.5 — это другое, чем «карта не устоялась». */
 const ghostNodeIds = computed(() => {
   const set = new Set<string>();
@@ -399,7 +532,7 @@ const views = computed(() => {
       title: 'Потоки данных',
       question: 'Откуда данные приходят, где лежат и куда уходят',
       count: `${value.dataflow.sources.length} источников, ${value.dataflow.flows.length} потоков`,
-      ...dataflowMermaid(value)
+      ...(dataflowView.value ?? dataflowMermaid(value))
     },
     {
       key: 'userflow',
@@ -471,17 +604,25 @@ function onNodeClick(id: string) {
   const node = current.value?.nodes?.[id];
   if (!node) return; // Нет метаданных — карте нечего показать (functional map, неизвестный узел).
   // На обзоре узел — группа: карточка группы, а не файла.
-  if (shown.value === 'codemap' && codemapMode.value === 'groups' && node.group) {
-    selection.value = { kind: 'group', ...node.group };
+  if ((shown.value === 'codemap' && codemapMode.value === 'groups' && node.group)
+    || (shown.value === 'dataflow' && flowMode.value === 'groups' && node.group)) {
+    selection.value = { kind: 'group', ...(node.group as NonNullable<typeof node.group>) };
     return;
   }
   selection.value = { kind: 'node', ...node };
   // Выбранный модуль открытой группы показывает соседей из других групп; призрак выбором не становится.
   if (shown.value === 'codemap' && codemapMode.value === 'group' && !node.ghost) ghostFor.value = node.id;
+  if (shown.value === 'dataflow' && flowMode.value === 'code' && !node.ghost) ghostFor.value = node.id;
 }
 function onNodeDblClick(id: string) {
   const node = current.value?.nodes?.[id];
   if (shown.value === 'codemap' && codemapMode.value === 'groups' && node?.group) enterGroup(node.group.groupId);
+  if (shown.value === 'dataflow' && flowMode.value === 'groups' && node?.flowGroup) enterFlow(node.flowGroup);
+}
+/** «Открыть группу» из карточки: на потоках — группа кода, на кодовой карте — группа модулей. */
+function openGroupFromCard(groupId: string) {
+  if (shown.value === 'dataflow') enterFlow({ type: 'code', id: groupId });
+  else enterGroup(groupId);
 }
 function onBackgroundClick() {
   selection.value = null;
@@ -666,29 +807,29 @@ function onEdgeClick(edge: MermaidEdge) {
                 />
                 <template v-else>
                   <!-- Группы или все модули разом — у кодовой базы (docs/04-ui.md, «Группы кодовой карты»). -->
-                  <div v-if="current.key === 'codemap' && grouping && grouping.groups.length >= 2" class="ml-auto flex gap-1">
+                  <div v-if="hasGroupSwitch" class="ml-auto flex gap-1">
                     <UButton
                       size="xs"
-                      :variant="codemapMode === 'all' ? 'outline' : 'solid'"
+                      :variant="allShown ? 'outline' : 'solid'"
                       color="neutral"
                       icon="i-lucide-boxes"
-                      @click="showGroups"
+                      @click="current.key === 'dataflow' ? showFlowGroups() : showGroups()"
                     >
                       Группы
                     </UButton>
                     <UButton
                       size="xs"
-                      :variant="codemapMode === 'all' ? 'solid' : 'outline'"
+                      :variant="allShown ? 'solid' : 'outline'"
                       color="neutral"
                       icon="i-lucide-network"
-                      @click="showAllModules"
+                      @click="current.key === 'dataflow' ? showAllFlows() : showAllModules()"
                     >
-                      Все модули
+                      {{ current.key === 'dataflow' ? 'Все потоки' : 'Все модули' }}
                     </UButton>
                   </div>
                   <UTabs
                     v-model="viewMode"
-                    :class="current.key === 'codemap' && grouping && grouping.groups.length >= 2 ? 'w-40' : 'ml-auto w-40'"
+                    :class="hasGroupSwitch ? 'w-40' : 'ml-auto w-40'"
                     size="xs"
                     :items="[{ label: '2D', value: '2d' }, { label: '3D', value: '3d' }]"
                   />
@@ -704,6 +845,32 @@ function onEdgeClick(edge: MermaidEdge) {
                 >
                   {{ copied ? 'Скопировано' : 'Скопировать mermaid' }}
                 </UButton>
+              </div>
+            </template>
+
+            <template v-if="shown === 'dataflow' && flowMode === 'groups'">
+              <p class="mb-3 text-sm text-muted">
+                Кто читает и пишет где: группы кода слева, виды источников справа; стрелка идёт по направлению
+                данных, подпись — число потоков. Клик — карточка, двойной клик — открыть.
+              </p>
+            </template>
+
+            <template v-if="shown === 'dataflow' && (flowMode === 'code' || flowMode === 'kind')">
+              <div class="mb-3 space-y-1 text-sm">
+                <p class="flex flex-wrap items-center gap-1">
+                  <UButton size="xs" variant="link" color="neutral" icon="i-lucide-chevron-left" @click="showFlowGroups">
+                    Все группы
+                  </UButton>
+                  <span class="text-muted">›</span>
+                  <span class="font-medium">{{ flowMode === 'code' ? flowGroupTitle : flowKindLabel }}</span>
+                  <span class="text-muted">
+                    · {{ flowMode === 'code' ? 'группа кода' : 'вид источников' }},
+                    {{ plural(flowScopeValue?.sources.length ?? 0, 'источник', 'источника', 'источников') }}
+                  </span>
+                </p>
+                <p v-if="flowMode === 'code'" class="text-xs text-muted">
+                  Выберите модуль или источник — другие группы, которые трогают те же источники, появятся призраками.
+                </p>
               </div>
             </template>
 
@@ -891,7 +1058,7 @@ function onEdgeClick(edge: MermaidEdge) {
                    области перерисовывает диаграмму, не сбрасывая масштаб. -->
               <MermaidDiagram
                 v-else
-                :key="shown === 'codemap' ? scopeKey : shown"
+                :key="shown === 'codemap' ? scopeKey : shown === 'dataflow' ? flowScopeKey : shown"
                 :source="current.text"
                 :details="current.details"
                 :paths="current.paths"
@@ -899,7 +1066,7 @@ function onEdgeClick(edge: MermaidEdge) {
                 :neighbors="current.neighbors"
                 :pending-ids="pendingNodeIds"
                 :ghost-ids="ghostNodeIds"
-                :focus-key="shown === 'codemap' && ghostFor ? moduleNodeId(ghostFor) : null"
+                :focus-key="shown === 'codemap' && ghostFor ? moduleNodeId(ghostFor) : shown === 'dataflow' ? flowFocusKey : null"
                 :keep-view="true"
                 :fullscreen-target="stage"
                 :id="`map-${current.key}`"
@@ -917,7 +1084,8 @@ function onEdgeClick(edge: MermaidEdge) {
             :capability-titles="capabilityTitles"
             :to="staged ? stage : null"
             @close="onBackgroundClick"
-            @open-group="enterGroup"
+            @open-group="openGroupFromCard"
+            @open-flow="enterFlow"
           />
         </div>
       </template>
