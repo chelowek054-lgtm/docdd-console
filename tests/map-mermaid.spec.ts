@@ -471,6 +471,68 @@ describe('functionalMermaid', () => {
   it('пустая структура даёт пустую строку, а не пустую диаграмму', () => {
     expect(functionalMermaid(emptyProjectMap())).toEqual({ text: '', details: {}, paths: {}, nodes: {}, edges: [], neighbors: {} });
   });
+
+  describe('легенда — внутри схемы, только то, что нарисовано, и с числом', () => {
+    it('связей нет, состояния не поставлены: одно «Не оценено · N» и честное «связей нет»', () => {
+      const { text } = functionalMermaid(functional([{ id: 'a', title: 'А' }, { id: 'b', title: 'Б' }]));
+      expect(text).toContain('subgraph legend["Легенда"]');
+      expect(text).toContain('legend_s_unrated["Не оценено · 2"]:::st_unrated');
+      expect(text).toContain('Связей между возможностями пока нет');
+      for (const absent of ['Реализовано ·', 'Частично ·', 'Не реализовано ·', 'зависит от', 'пользуется', 'передаёт данные', 'жёлтая', 'красная']) {
+        expect(text, absent).not.toContain(absent);
+      }
+    });
+
+    it('по строке на встретившееся состояние и по образцу стрелки на нарисованный вид связи', () => {
+      const { text } = functionalMermaid(functional(
+        [
+          { id: 'a', title: 'А', status: 'implemented' }, { id: 'b', title: 'Б', status: 'implemented' },
+          { id: 'c', title: 'В', status: 'partial' }
+        ],
+        [{ from: 'a', to: 'b', type: 'depends' }, { from: 'c', to: 'a', type: 'depends' }, { from: 'b', to: 'c', type: 'feeds' }]
+      ));
+      expect(text).toContain('legend_s_implemented["Реализовано · 2"]:::st_implemented');
+      expect(text).toContain('legend_s_partial["Частично · 1"]:::st_partial');
+      expect(text).not.toContain('legend_s_not_implemented');
+      expect(text).toContain('legend_l0a[" "]:::legend_blank -->|"зависит от · 2"| legend_l0b');
+      expect(text).toContain('==>|"передаёт данные в · 1"|');
+      expect(text).not.toContain('пользуется');
+      expect(text).not.toContain('Связей между возможностями пока нет');
+    });
+
+    it('жёлтая и красная подсказки — только когда такие связи есть, с номерами linkStyle после настоящих рёбер', () => {
+      const { text } = functionalMermaid(functional(
+        [{ id: 'a', title: 'А', status: 'partial' }, { id: 'b', title: 'Б', status: 'not_implemented' }],
+        [{ from: 'a', to: 'b', type: 'depends' }]
+      ));
+      // Одно настоящее ребро (№0, жёлтое: ждёт), потом образцы: «зависит от» (№1) и жёлтый (№2).
+      expect(text).toContain('legend_l1a[" "]:::legend_blank -->|"жёлтая — ждёт зависимость · 1"|');
+      expect(text).toContain('linkStyle 0 stroke:#D97706');
+      expect(text).toContain('linkStyle 2 stroke:#D97706');
+      expect(text).not.toContain('красная');
+
+      const cycle = functionalMermaid(functional(
+        [{ id: 'a', title: 'А' }, { id: 'b', title: 'Б' }],
+        [{ from: 'a', to: 'b', type: 'depends' }, { from: 'b', to: 'a', type: 'depends' }]
+      )).text;
+      expect(cycle).toContain('красная — ждут друг друга · 2');
+      expect(cycle).toContain('linkStyle 3 stroke:#DC2626');
+    });
+
+    it('фильтр по состоянию убирает из легенды то, что спрятал на схеме', () => {
+      const { text } = functionalMermaid(functional([
+        { id: 'a', title: 'А', status: 'implemented' }, { id: 'b', title: 'Б', status: 'not_implemented' }
+      ]), 'not_implemented');
+      expect(text).toContain('legend_s_not_implemented["Не реализовано · 1"]');
+      expect(text).not.toContain('legend_s_implemented');
+    });
+
+    it('узлы легенды не кликабельны: у них нет ни карточки, ни подсказки', () => {
+      const { nodes, details } = functionalMermaid(functional([{ id: 'a', title: 'А' }]));
+      expect(Object.keys(nodes).filter((key) => key.startsWith('legend'))).toEqual([]);
+      expect(Object.keys(details).filter((key) => key.startsWith('legend'))).toEqual([]);
+    });
+  });
 });
 
 describe('группы кодовой карты на диаграмме', () => {
