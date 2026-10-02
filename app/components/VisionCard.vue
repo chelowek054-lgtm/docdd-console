@@ -25,6 +25,25 @@ const FIELDS = [
 
 type Key = (typeof FIELDS)[number]['key'];
 
+/**
+ * Аккордеон: вектор длинный и нужен не всегда, поэтому его можно свернуть.
+ * Выбор помнится в браузере; правка и неподтверждённый черновик раскрывают
+ * карточку сами — иначе их легко не заметить.
+ */
+const STORAGE_KEY = 'docdd:vision-open';
+const expanded = ref(true);
+onMounted(() => {
+  try {
+    if (localStorage.getItem(STORAGE_KEY) === '0') expanded.value = false;
+  } catch { /* хранилище может быть закрыто — карточка просто раскрыта */ }
+});
+function toggle() {
+  expanded.value = !expanded.value;
+  try {
+    localStorage.setItem(STORAGE_KEY, expanded.value ? '1' : '0');
+  } catch { /* не страшно: выбор не запомнится */ }
+}
+
 const editing = ref(false);
 const form = ref<Record<Key, string>>({ problem: '', audience: '', outcome: '', not: '' });
 const saving = ref(false);
@@ -32,7 +51,7 @@ const confirming = ref(false);
 const failure = ref<ApiFailure | null>(null);
 const draft = ref<string | null>(null);
 
-function open() {
+function startEdit() {
   form.value = {
     problem: props.vision?.problem ?? '',
     audience: props.vision?.audience ?? '',
@@ -91,6 +110,8 @@ async function confirm() {
   }
 }
 
+const shown = computed(() => expanded.value || editing.value || draft.value !== null);
+
 const trace = computed(() => {
   const v = props.vision;
   if (!v?.declaredBy) return '';
@@ -99,20 +120,28 @@ const trace = computed(() => {
 </script>
 
 <template>
-  <UCard class="mb-3">
+  <UCard :ui="{ header: shown ? '' : 'border-b-0', body: shown ? '' : 'hidden' }">
     <template #header>
       <div class="flex flex-wrap items-center gap-3">
-        <div>
-          <h3 class="font-medium">Вектор проекта</h3>
-          <p class="text-sm text-muted">Зачем продукт: к этому сверяется каждая возможность ниже</p>
-        </div>
+        <button
+          type="button"
+          class="flex min-w-0 items-start gap-2 text-left"
+          :aria-expanded="shown"
+          @click="toggle"
+        >
+          <UIcon :name="shown ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" class="mt-1 size-4 shrink-0" />
+          <span>
+            <span class="block font-medium">Вектор проекта</span>
+            <span class="block text-sm text-muted">Зачем продукт: к этому сверяется каждая возможность</span>
+          </span>
+        </button>
         <UButton
           v-if="!editing"
           class="ml-auto"
           size="xs"
           variant="soft"
           :icon="vision ? 'i-lucide-pencil' : 'i-lucide-plus'"
-          @click="open"
+          @click="startEdit"
         >
           {{ vision ? 'Изменить вектор' : 'Записать вектор' }}
         </UButton>
