@@ -108,7 +108,40 @@
               "parent": {
                 "type": "string",
                 "description": "id родительской возможности внутри того же списка — так возможности складываются в дерево."
+              },
+              "summary": {
+                "type": "string",
+                "description": "Что возможность значит на языке предметной области, два-три предложения."
+              },
+              "status": {
+                "enum": ["implemented", "partial", "not_implemented"],
+                "description": "Только если заметка прямо говорит, что функция уже работает или чего в ней не хватает. Иначе поля нет: возможность остаётся «не оценена», угадывать нечем."
+              },
+              "note": {
+                "type": "string",
+                "description": "Что сделано и чего не хватает, одна-две фразы."
+              },
+              "priority": {
+                "enum": ["must", "should", "could", "wont"]
+              },
+              "horizon": {
+                "enum": ["now", "next", "later"]
               }
+            }
+          }
+        },
+        "relations": {
+          "type": "array",
+          "description": "Только у type: map — связи между возможностями, если заметка говорит, что на чём стоит («оплата запускает отправку» — triggers). Концы — возможности из этого же предложения или уже стоящие в карте; связь с несуществующей приложение в запись не пускает. Уходят блоком ```docdd-functional.",
+          "items": {
+            "type": "object",
+            "required": ["from", "to", "type"],
+            "additionalProperties": false,
+            "properties": {
+              "from": { "type": "string", "minLength": 1 },
+              "to": { "type": "string", "minLength": 1 },
+              "type": { "enum": ["depends", "uses", "feeds", "triggers", "replaces"] },
+              "summary": { "type": "string", "description": "Одна фраза: что именно связано." }
             }
           }
         }

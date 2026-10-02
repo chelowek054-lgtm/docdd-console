@@ -1,6 +1,14 @@
 <script setup lang="ts">
-import { IMPL_LABEL, type ImplStatus, type Mark } from '../../server/lib/functional';
-import { STATUS_STYLE, statusText, type CapabilityView } from '~/utils/functional-view';
+import {
+  HORIZON_LABEL,
+  IMPL_LABEL,
+  PRIORITY_LABEL,
+  type Horizon,
+  type ImplStatus,
+  type Mark,
+  type Priority
+} from '../../server/lib/functional';
+import { RISK_LABEL, STATUS_STYLE, statusText, tasksText, type CapabilityView } from '~/utils/functional-view';
 
 export interface Capability {
   id: string;
@@ -9,6 +17,8 @@ export interface Capability {
   summary?: string;
   status?: ImplStatus;
   note?: string;
+  priority?: Priority;
+  horizon?: Horizon;
   declaredBy?: string;
   declaredAt?: string;
   declaredByRole?: string | null;
@@ -48,6 +58,7 @@ function childrenOf(id: string): Capability[] {
 }
 
 const BADGE_COLOR = { implemented: 'success', partial: 'warning', not_implemented: 'error', unrated: 'neutral' } as const;
+const PRIORITY_COLOR = { must: 'primary', should: 'info', could: 'neutral', wont: 'neutral' } as const;
 
 const menu = computed(() => [(['implemented', 'partial', 'not_implemented', 'unrated'] as const).map((value) => ({
   label: IMPL_LABEL[value],
@@ -55,12 +66,27 @@ const menu = computed(() => [(['implemented', 'partial', 'not_implemented', 'unr
   onSelect: () => emit('mark', props.item.id, value === 'unrated' ? null : value)
 }))]);
 
+const titleOf = (id: string) => props.allCapabilities.find((item) => item.id === id)?.title ?? id;
+
 const waitingTitle = computed(() => {
   const ids = view.value?.waiting ?? [];
   if (ids.length === 0) return '';
-  const names = ids.map((id) => props.allCapabilities.find((item) => item.id === id)?.title ?? id);
-  return `ждёт: ${names.join(', ')}`;
+  return `ждёт: ${ids.map(titleOf).join(', ')}`;
 });
+
+// Что стоит за отметкой в процессе (docs/07-maps.md, «Покрытие процессом»).
+const tasks = computed(() => tasksText(view.value?.coverage));
+const checks = computed(() => {
+  const cover = view.value?.coverage;
+  if (!cover || cover.verifications.ids.length === 0) return null;
+  const { passed, failed, ids } = cover.verifications;
+  if (failed > 0) return { icon: 'i-lucide-circle-x', text: 'text-error', title: `Проверка падает: ${failed} из ${ids.length}` };
+  if (passed === ids.length) return { icon: 'i-lucide-check', text: 'text-success', title: `Проверки прошли: ${passed} из ${ids.length}` };
+  return { icon: 'i-lucide-dot', text: 'text-muted', title: `Прошли ${passed} из ${ids.length}, остальные не запускались` };
+});
+// «Нет следа» — только у нижней возможности и только когда покрытие загружено.
+const noTrace = computed(() => !isParent.value && view.value?.coverage?.level === 'none');
+const consistency = computed(() => (view.value?.flags ?? []).filter((flag) => flag === 'ahead' || flag === 'behind'));
 </script>
 
 <template>
@@ -88,6 +114,49 @@ const waitingTitle = computed(() => {
         >
           {{ item.title ?? item.id }}
         </button>
+
+        <!-- Приоритет, горизонт и то, что за отметкой стоит в процессе; унаследованное приглушено. -->
+        <div
+          v-if="view && (view.priority || view.horizon || tasks || checks || noTrace || view.replacedBy.length || consistency.length)"
+          class="mt-0.5 flex flex-wrap items-center gap-1"
+        >
+          <UBadge
+            v-if="view.priority"
+            size="xs"
+            variant="subtle"
+            :color="PRIORITY_COLOR[view.priority.value]"
+            :class="view.priority.inherited ? 'opacity-60' : ''"
+            :title="view.priority.inherited ? `Приоритет унаследован от «${titleOf(view.priority.from)}»` : 'Приоритет'"
+          >
+            {{ PRIORITY_LABEL[view.priority.value] }}
+          </UBadge>
+          <UBadge
+            v-if="view.horizon"
+            size="xs"
+            variant="outline"
+            color="neutral"
+            :class="view.horizon.inherited ? 'opacity-60' : ''"
+            :title="view.horizon.inherited ? `Горизонт унаследован от «${titleOf(view.horizon.from)}»` : 'Горизонт'"
+          >
+            {{ HORIZON_LABEL[view.horizon.value] }}
+          </UBadge>
+          <span v-if="tasks" class="text-xs text-muted" title="Задачи, связанные с возможностью через её карту">{{ tasks }}</span>
+          <UIcon v-if="checks" :name="checks.icon" class="size-4" :class="checks.text" :title="checks.title" />
+          <span v-if="noTrace" class="text-xs text-dimmed" title="Ни требований, ни задач за этой возможностью нет">нет следа</span>
+          <UBadge
+            v-for="flag in consistency"
+            :key="flag"
+            size="xs"
+            variant="subtle"
+            color="warning"
+          >
+            {{ RISK_LABEL[flag] }}
+          </UBadge>
+          <UBadge v-if="view.replacedBy.length" size="xs" variant="subtle" color="warning">
+            заменяется на {{ view.replacedBy.map(titleOf).join(', ') }}
+          </UBadge>
+        </div>
+
         <p v-if="item.note && !isParent" class="text-xs text-muted">{{ item.note }}</p>
       </div>
 
@@ -114,7 +183,7 @@ const waitingTitle = computed(() => {
           size="xs"
           variant="ghost"
           color="neutral"
-          title="Переименовать, описание, состояние"
+          title="Переименовать, описание, состояние, приоритет"
           @click="emit('edit', item)"
         />
         <UButton

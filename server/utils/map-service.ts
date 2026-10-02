@@ -3,6 +3,7 @@ import { approvalOf, courseHistory, type CourseEntry } from '../lib/course';
 import {
   annotateEvidenceStatus,
   annotatePending,
+  approvedMaps,
   foldMaps,
   parseMapRecord,
   type MapChange,
@@ -34,12 +35,7 @@ export function buildProjectMap(root: string): ProjectMapResult {
   });
   const read = memoizedReader(root);
 
-  const approved = result.records
-    .filter((record) => record.type === 'map' && record.status === 'approved' && record.id)
-    // Порядок подтверждения известен только по дате правки; при равенстве —
-    // по идентификатору, чтобы картина не зависела от обхода папки.
-    .sort((a, b) => String(a.data['updated'] ?? '').localeCompare(String(b.data['updated'] ?? ''))
-      || a.id.localeCompare(b.id));
+  const approved = approvedMaps(result.records);
 
   const changes: { id: string; change: MapChange }[] = approved
     .map((record) => ({ id: record.id, change: parseMapRecord(record.body).change }));

@@ -11,6 +11,7 @@ import {
   mapFixPrompt,
   mapsPrompt,
   phasesPrompt,
+  relationsPrompt,
   verifyPrompt,
   type MapsState
 } from '../../../../lib/prompt';
@@ -202,6 +203,17 @@ export default defineEventHandler(async (event) => {
       };
     }
 
+    if (kind === 'relations') {
+      const { capabilities, relations } = buildProjectMap(project.root).functional;
+      if (capabilities.length < 2) {
+        return fail(event, 422, 'relations_nothing_to_link', 'В функциональной карте меньше двух возможностей: связывать нечего');
+      }
+      return {
+        prompt: relationsPrompt(await template('relations.md'), capabilities, relations),
+        count: capabilities.length
+      };
+    }
+
     if (kind === 'groups') {
       const { modules, groups } = buildProjectMap(project.root).codemap;
       if (modules.length === 0) {
@@ -210,7 +222,7 @@ export default defineEventHandler(async (event) => {
       return { prompt: groupsPrompt(await template('groups.md'), modules, groups), count: modules.length };
     }
 
-    return fail(event, 400, 'kind_invalid', 'Известны запросы: `fix`, `maps`, `map-fix`, `inbox`, `verify`, `functional-check`, `phases`, `groups`');
+    return fail(event, 400, 'kind_invalid', 'Известны запросы: `fix`, `maps`, `map-fix`, `inbox`, `verify`, `functional-check`, `relations`, `phases`, `groups`');
   } catch (error) {
     if (error instanceof WorkspaceError) {
       return fail(event, 422, error.code, error.message, error.detail);

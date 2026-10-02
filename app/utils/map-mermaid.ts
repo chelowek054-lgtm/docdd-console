@@ -1,8 +1,19 @@
 import {
+  COVERAGE_LABEL,
+  FUNCTIONAL_GHOST_LIMIT,
   IMPL_LABEL,
   childrenIndex,
   drawableRelations,
-  filterByStatus,
+  filterLeaves,
+  functionalGhosts,
+  groupLevel,
+  groupScopeOf,
+  impactOf,
+  isImplStatus,
+  planPredicate,
+  rootOf,
+  type CapabilityCoverage,
+  type PlanFilter,
   type StatusFilter
 } from '../../server/lib/functional';
 import {
@@ -22,7 +33,15 @@ import {
 // Слой по папке файла, когда карта его не назвала: docs/07-maps.md, «`layer` не обязателен».
 import { layerOf } from '../../server/lib/layers';
 import type { ApiItem, Evidence, EvidenceVerdict, ProjectMap } from '../../server/lib/maps';
-import { STATUS_STYLE, capabilityViews, type CapabilityView } from './functional-view';
+import {
+  RISK_LABEL,
+  STATUS_STYLE,
+  capabilityViews,
+  planText,
+  riskLevel,
+  tasksText,
+  type CapabilityView
+} from './functional-view';
 
 /**
  * Карты в текст mermaid. Тот же текст показывается на экране и выгружается,
@@ -92,6 +111,8 @@ export interface MermaidNode {
   note?: string | undefined;
   /** Состояние, связи и «ждёт» возможности (`app/utils/functional-view.ts`). */
   capabilityView?: CapabilityView;
+  /** Возможность верхнего уровня, чью группу открывает двойной клик или «Открыть группу» в карточке. */
+  capabilityGroup?: string;
   /** Узел обзора — группа: карточка группы для клика. */
   group?: GroupCard;
   /** «Призрак»: сосед выбранного модуля из другой группы (docs/04-ui.md, «Группы кодовой карты»). */
@@ -547,54 +568,231 @@ export function userflowMermaid(map: ProjectMap): MermaidOutput {
   return { text: lines.join(LF), details, paths, nodes, edges, neighbors: neighborsOf(edges) };
 }
 
+export type FunctionalMode = 'state' | 'coverage' | 'risks' | 'order';
+export type FunctionalLevel = 'all' | 'groups' | 'group';
+
+/** Слова на переключателе режимов окраски (docs/04-ui.md, «Режимы окраски»). */
+export const FUNCTIONAL_MODE_LABEL: Record<FunctionalMode, string> = {
+  state: 'Состояние',
+  coverage: 'Покрытие',
+  risks: 'Риски',
+  order: 'Порядок'
+};
+
+/** Вид графа состояния поверх карты: уровень, режим окраски, фильтры и выбранная возможность. */
+export interface FunctionalGraphOptions {
+  mode?: FunctionalMode;
+  level?: FunctionalLevel;
+  /** Открытая группа — `id` возможности верхнего уровня; нужна при `level: 'group'`. */
+  group?: string | null | undefined;
+  /** Покрытие процессом: без него режимы «Покрытие» и «Риски» нечем красить. */
+  coverage?: Readonly<Record<string, CapabilityCoverage>> | undefined;
+  /** Скрытые виды связей: стрелки и строки легенды уходят вместе. */
+  hiddenKinds?: ReadonlySet<string> | undefined;
+  plan?: PlanFilter | undefined;
+  /** «Только риски»: листья с признаком из режима «Риски» и их родители. */
+  onlyRisks?: boolean | undefined;
+  /** Выбранная возможность: соседи из других групп «призраками» и влияние. */
+  selected?: string | null | undefined;
+  impact?: boolean | undefined;
+}
+
+interface Look {
+  fill: string;
+  stroke: string;
+  color?: string;
+  width?: number;
+  dash?: boolean;
+}
+
+/** Цвета остальных режимов; состояние — те же `STATUS_STYLE`, что у дерева и сводки. */
+const MODE_LOOK: Record<'coverage' | 'risks' | 'order', Record<string, Look>> = {
+  coverage: {
+    verified: { fill: '#DCFCE7', stroke: '#16A34A' },
+    unchecked: { fill: '#ECFCCB', stroke: '#65A30D' },
+    no_check: { fill: '#DBEAFE', stroke: '#2563EB' },
+    none: { fill: '#F3F4F6', stroke: '#9CA3AF', dash: true },
+    failing: { fill: '#FEE2E2', stroke: '#DC2626', width: 3 }
+  },
+  risks: {
+    red: { fill: '#FEE2E2', stroke: '#DC2626', width: 3 },
+    orange: { fill: '#FFEDD5', stroke: '#EA580C', width: 2 },
+    yellow: { fill: '#FEF3C7', stroke: '#D97706' },
+    none: { fill: '#F3F4F6', stroke: '#9CA3AF' }
+  },
+  order: {
+    start: { fill: '#F0FDF4', stroke: '#16A34A', width: 3 },
+    wait: { fill: '#FEF3C7', stroke: '#D97706' },
+    done: { fill: '#ECFDF5', stroke: '#86EFAC', color: '#6B7280' },
+    skip: { fill: '#F3F4F6', stroke: '#9CA3AF', color: '#6B7280', dash: true },
+    unrated: { fill: '#F3F4F6', stroke: '#9CA3AF', dash: true }
+  }
+};
+
+const MODE_PREFIX = { state: 'st', coverage: 'cv', risks: 'rk', order: 'or' } as const;
+
+const MODE_LABEL: Record<'coverage' | 'risks' | 'order', Record<string, string>> = {
+  coverage: COVERAGE_LABEL,
+  risks: { red: 'Цикл или падающая проверка', orange: 'Отметка расходится с задачами', yellow: 'Ждёт зависимость', none: 'Без признаков' },
+  order: { start: 'Можно начинать', wait: 'Ждёт зависимость', done: 'Готово', skip: 'Не берём', unrated: 'Не оценено' }
+};
+
+/** Образцы и стрелки видов связи: сплошная, пунктир, толстая, с кружком, с крестом. */
+const KIND_ARROW: Record<string, string> = { depends: '-->', uses: '-.->', feeds: '==>', triggers: '--o', replaces: '--x' };
+const KIND_COLOR: Record<string, string> = { triggers: '#7C3AED', replaces: '#6B7280' };
+const KIND_ORDER = ['depends', 'uses', 'feeds', 'triggers', 'replaces'] as const;
+
+const STATE_KEYS = ['implemented', 'partial', 'not_implemented', 'unrated'] as const;
+
+function lookLine(cls: string, look: Look): string {
+  const parts = [`fill:${look.fill}`, `stroke:${look.stroke}`, `color:${look.color ?? '#111827'}`];
+  if (look.width) parts.push(`stroke-width:${look.width}px`);
+  if (look.dash) parts.push('stroke-dasharray:4 3');
+  return `    classDef ${cls} ${parts.join(',')};`;
+}
+
+function classDefsOf(mode: FunctionalMode): string[] {
+  if (mode === 'state') {
+    return STATE_KEYS.map((key) => lookLine(nodeId('st', key), { ...STATUS_STYLE[key], dash: key === 'unrated' }));
+  }
+  return Object.entries(MODE_LOOK[mode]).map(([key, look]) => lookLine(nodeId(MODE_PREFIX[mode], key), look));
+}
+
+function labelOf(mode: FunctionalMode, key: string): string {
+  return mode === 'state' ? IMPL_LABEL[key as keyof typeof IMPL_LABEL] : (MODE_LABEL[mode][key] ?? key);
+}
+
+/** Какой класс и какие строки под названием получает нижняя возможность в этом режиме. */
+function placement(
+  mode: FunctionalMode,
+  view: CapabilityView | undefined,
+  titles: ReadonlyMap<string, string>
+): { key: string; lines: string[] } {
+  const stateKey = view?.status ?? 'unrated';
+  const names = (ids: readonly string[]) => ids.map((id) => label(titles.get(id) ?? id, 24)).join(', ');
+  const lines: string[] = [];
+  let key: string = stateKey;
+
+  if (mode === 'state') {
+    const tasks = tasksText(view?.coverage);
+    lines.push(tasks ? `${IMPL_LABEL[stateKey]} · ${tasks}` : IMPL_LABEL[stateKey]);
+  } else if (mode === 'coverage') {
+    const cover = view?.coverage;
+    key = cover?.level ?? 'none';
+    lines.push(COVERAGE_LABEL[cover?.level ?? 'none']);
+    const counts = [
+      cover?.requirements.total ? `треб. ${cover.requirements.total}` : '',
+      cover?.tasks.total ? `задачи ${cover.tasks.done}/${cover.tasks.total}` : '',
+      cover?.verifications.ids.length ? `проверки ${cover.verifications.passed}/${cover.verifications.ids.length}` : ''
+    ].filter(Boolean);
+    if (counts.length > 0) lines.push(counts.join(' · '));
+  } else if (mode === 'risks') {
+    const flags = view?.flags ?? [];
+    key = riskLevel(flags);
+    lines.push(flags.length > 0
+      ? flags.map((flag) => (flag === 'waits' ? `ждёт: ${names(view?.waiting ?? [])}` : RISK_LABEL[flag])).join(' · ')
+      : IMPL_LABEL[stateKey]);
+  } else {
+    if (view?.priority?.value === 'wont') key = 'skip';
+    else if (stateKey === 'implemented') key = 'done';
+    else if (view && view.waiting.length > 0) key = 'wait';
+    else key = stateKey === 'unrated' ? 'unrated' : 'start';
+    if (key === 'start') lines.push(view && view.unblocks > 0 ? `Можно начинать · освободит ${view.unblocks}` : 'Можно начинать');
+    else if (key === 'wait') lines.push(`Ждёт: ${names(view?.waiting ?? [])}`);
+    else lines.push(MODE_LABEL.order[key] ?? key);
+    const plan = view ? planText(view) : '';
+    // У «готово» и «не берём» приоритет уже сказан словом или ничего не решает.
+    if (plan && key !== 'done' && key !== 'skip') lines.push(plan);
+  }
+
+  if (view && view.replacedBy.length > 0) lines.push(`заменяется на ${names(view.replacedBy)}`);
+  return { key, lines };
+}
+
+interface DrawnLink {
+  from: string;
+  to: string;
+  type: string;
+  summary?: string | undefined;
+  /** Подсказка процессу: цикл по depends или «ждёт» — по ним считается легенда. */
+  hint?: 'cycle' | 'wait' | null;
+  /** Стиль стрелки для `linkStyle`: он красит по порядковому номеру связи в тексте. */
+  styles: string[];
+}
+
 /**
  * Граф состояния функциональной карты (docs/04-ui.md, «Функциональная карта»):
  * возможность — прямоугольник цвета своего состояния, родитель — рамка вокруг
- * подпунктов с названием и счётом, связь — стрелка одного из трёх видов.
+ * подпунктов с названием и счётом, связь — стрелка одного из пяти видов.
  * Свидетельства нет вовсе (docs/07-maps.md) — узел ведёт только к своей
  * карточке, `paths` и `edges` у этого вида всегда пустые; а у связей собственного
  * смысла, кроме вида и подписи, нет, поэтому клика по стрелке тоже нет.
  *
- * Прежний круговой `mindmap` убран: цвета ветвей в нём ничего не значили, а
- * линии наезжали на названия.
+ * Три уровня, как у кодовой карты: обзор групп (`groups`), одна группа
+ * (`group`) с соседями выбранной возможности «призраками» и всё сразу (`all`).
+ * Режим окраски отвечает на один вопрос за раз: состояние, покрытие, риски,
+ * порядок. Прежний круговой `mindmap` убран: цвета ветвей в нём ничего не
+ * значили, а линии наезжали на названия.
  */
-export function functionalMermaid(map: ProjectMap, filter: StatusFilter | null = null): MermaidOutput {
-  const all = map.functional.capabilities;
-  if (all.length === 0) return EMPTY;
+export function functionalMermaid(
+  map: ProjectMap,
+  filter: StatusFilter | null = null,
+  options: FunctionalGraphOptions = {}
+): MermaidOutput {
+  const everything = map.functional.capabilities;
+  if (everything.length === 0) return EMPTY;
+  const allRelations = map.functional.relations;
+  const mode = options.mode ?? 'state';
+  const level = options.level ?? 'all';
 
-  // Состояние и «ждёт» считаются по всему дереву, а не по тому, что осталось
-  // под фильтром: иначе родитель менял бы цвет от самого фильтра.
-  const views = capabilityViews(all, map.functional.relations);
-  const capabilities = filterByStatus(all, filter);
+  // Состояние, «ждёт» и признаки считаются по всему дереву, а не по тому, что
+  // осталось под фильтром или в открытой группе: иначе родитель менял бы цвет
+  // от самого фильтра.
+  const views = capabilityViews(everything, allRelations, options.coverage);
+  const titles = new Map(everything.map((item) => [item.id, item.title ?? item.id]));
+
+  const scope = level === 'group' && options.group
+    ? groupScopeOf(everything, allRelations, options.group)
+    : { capabilities: everything, relations: allRelations };
+
+  // Один приём на все фильтры: лист остаётся, если подошёл под каждое условие.
+  const plan = planPredicate(everything, options.plan ?? {});
+  const keepLeaf = filter || plan || options.onlyRisks
+    ? (leaf: (typeof everything)[number]) => {
+      if (filter && !(filter === 'unrated' ? !isImplStatus(leaf.status) : leaf.status === filter)) return false;
+      if (plan && !plan(leaf)) return false;
+      if (options.onlyRisks && (views.get(leaf.id)?.flags.length ?? 0) === 0) return false;
+      return true;
+    }
+    : null;
+  const capabilities = filterLeaves(scope.capabilities, keepLeaf);
   if (capabilities.length === 0) return EMPTY;
+
+  const relations = scope.relations.filter((relation) => !options.hiddenKinds?.has(relation.type));
+  if (level === 'groups') return functionalOverview(everything, relations, capabilities, views);
 
   const details: Record<string, string> = {};
   const nodes: Record<string, MermaidNode> = {};
   const index = childrenIndex(capabilities);
   const shown = (id: string) => nodeId('f', id);
 
-  const lines = ['flowchart LR'];
-  for (const key of ['implemented', 'partial', 'not_implemented', 'unrated'] as const) {
-    const style = STATUS_STYLE[key];
-    const dash = key === 'unrated' ? ',stroke-dasharray:4 3' : '';
-    lines.push(`    classDef ${nodeId('st', key)} fill:${style.fill},stroke:${style.stroke},color:#111827${dash};`);
-  }
+  const lines = [mode === 'order' ? 'flowchart RL' : 'flowchart LR', ...classDefsOf(mode)];
 
   const placed = new Set<string>();
-  // Сколько нижних возможностей каждого состояния нарисовано — для легенды.
-  const stateCount: Record<'implemented' | 'partial' | 'not_implemented' | 'unrated', number> = {
-    implemented: 0, partial: 0, not_implemented: 0, unrated: 0
-  };
+  // Сколько нижних возможностей каждого класса нарисовано — для легенды.
+  const classCount = new Map<string, number>();
+  const leafNodes = new Map<string, string>();
 
   function leaf(item: (typeof capabilities)[number], pad: string): void {
     placed.add(item.id);
     const view = views.get(item.id);
-    const key = view?.status ?? 'unrated';
-    stateCount[key] += 1;
+    const { key, lines: text } = placement(mode, view, titles);
+    classCount.set(key, (classCount.get(key) ?? 0) + 1);
     const node = shown(item.id);
-    // Слово под названием: цвет — не единственный признак состояния.
-    lines.push(`${pad}${node}["${label(item.title ?? item.id, 34)}<br/>${IMPL_LABEL[key]}"]:::${nodeId('st', key)}`);
-    details[node] = [item.id, item.title, IMPL_LABEL[key], item.note].filter(Boolean).join(LF);
+    leafNodes.set(item.id, node);
+    // Слово под названием: цвет — не единственный признак.
+    lines.push(`${pad}${node}["${[label(item.title ?? item.id, 34), ...text.map((line) => label(line, 40))].join('<br/>')}"]:::${nodeId(MODE_PREFIX[mode], key)}`);
+    details[node] = [item.id, item.title, ...text, item.note].filter(Boolean).join(LF);
     nodes[node] = {
       id: item.id, title: item.title, summary: item.summary, declaredBy: (item as { declaredBy?: string }).declaredBy,
       declaredAt: (item as { declaredAt?: string }).declaredAt, declaredByRole: (item as { declaredByRole?: string | null }).declaredByRole,
@@ -627,36 +825,213 @@ export function functionalMermaid(map: ProjectMap, filter: StatusFilter | null =
     if (!placed.has(item.id)) leaf(item, '    ');
   }
 
-  const { drawn } = drawableRelations(map.functional.relations, capabilities);
+  // Призраки — соседи выбранной возможности из других групп (только в открытой группе).
+  const ghostLinks: DrawnLink[] = [];
+  const ghosts = level === 'group' && options.group && options.selected
+    ? functionalGhosts(everything, allRelations, options.group, options.selected)
+      .filter((ghost) => !options.hiddenKinds || ghost.links.some((link) => !options.hiddenKinds?.has(link.type)))
+    : [];
+  if (ghosts.length > 0 && leafNodes.has(options.selected as string)) {
+    lines.push('    classDef ghost fill:#F3F4F6,stroke:#6B7280,color:#111827,stroke-dasharray:5 4;');
+    lines.push('    subgraph ghosts["Из других групп"]');
+    const collapse = ghosts.length > FUNCTIONAL_GHOST_LIMIT;
+    const drawnGhosts = collapse
+      ? [...new Map(ghosts.map((ghost) => [ghost.groupId, ghost])).values()]
+      : ghosts;
+    for (const ghost of drawnGhosts) {
+      const node = collapse ? nodeId('fgg', ghost.groupId) : shown(ghost.id);
+      const members = ghosts.filter((other) => other.groupId === ghost.groupId);
+      const name = collapse ? `${ghost.groupTitle} · ${members.length} ${members.length === 1 ? 'возможность' : 'возможностей'}` : ghost.title;
+      lines.push(`        ${node}["${label(name, 34)}<br/>из группы ${label(ghost.groupTitle, 28)}"]:::ghost`);
+      details[node] = [collapse ? ghost.groupId : ghost.id, name, `из группы ${ghost.groupTitle}`].join(LF);
+      const view = views.get(collapse ? ghost.groupId : ghost.id);
+      nodes[node] = {
+        id: collapse ? ghost.groupId : ghost.id, title: collapse ? ghost.groupTitle : ghost.title,
+        ghost: { groupId: ghost.groupId, groupTitle: ghost.groupTitle }, capability: true,
+        capabilityGroup: ghost.groupId, ...(view ? { capabilityView: view } : {})
+      };
+    }
+    lines.push('    end');
+
+    const chosen = shown(options.selected as string);
+    const seen = new Set<string>();
+    for (const ghost of ghosts) {
+      const node = collapse ? nodeId('fgg', ghost.groupId) : shown(ghost.id);
+      for (const link of ghost.links) {
+        if (options.hiddenKinds?.has(link.type)) continue;
+        const key = `${node}:${link.direction}:${link.type}`;
+        // Свёрнутые призраки: одна стрелка на группу и вид, а не на каждую связь.
+        if (collapse && seen.has(key)) continue;
+        seen.add(key);
+        ghostLinks.push({
+          from: link.direction === 'out' ? chosen : node,
+          to: link.direction === 'out' ? node : chosen,
+          type: link.type,
+          summary: collapse ? undefined : link.summary,
+          styles: []
+        });
+      }
+    }
+  }
+  const { drawn } = drawableRelations(relations, capabilities);
   const waiting = new Set(drawn.filter((relation) => (views.get(relation.from)?.waiting ?? []).includes(relation.to)));
-  const arrows: Record<string, string> = { depends: '-->', uses: '-.->', feeds: '==>' };
-  const drawnLinks: { from: string; to: string }[] = [];
-  const styled: string[] = [];
-  const kindCount: Record<string, number> = { depends: 0, uses: 0, feeds: 0 };
+  const drawnLinks: DrawnLink[] = drawn.map((relation) => {
+    const cyclic = relation.type === 'depends' && views.get(relation.from)?.inCycle && views.get(relation.to)?.inCycle;
+    const hint: DrawnLink['hint'] = cyclic ? 'cycle' : waiting.has(relation) ? 'wait' : null;
+    return {
+      from: shown(relation.from),
+      to: shown(relation.to),
+      type: relation.type,
+      summary: relation.summary,
+      hint,
+      styles: cyclic ? ['stroke:#DC2626', 'stroke-width:3px']
+        : waiting.has(relation) ? ['stroke:#D97706', 'stroke-width:2px']
+          : KIND_COLOR[relation.type] ? [`stroke:${KIND_COLOR[relation.type]}`, 'stroke-width:2px'] : []
+    };
+  });
+  const cycles = drawnLinks.filter((link) => link.hint === 'cycle').length;
+  const waits = drawnLinks.filter((link) => link.hint === 'wait').length;
+
+  // Влияние: выбранная, то, на чём она стоит, и то, что её заденет; остальное приглушено.
+  const impactLines: string[] = [];
+  const impactCount = { up: 0, down: 0 };
+  const dimmedEdges = new Set<number>();
+  if (options.impact && options.selected && leafNodes.has(options.selected)) {
+    const impact = impactOf(options.selected, allRelations, everything);
+    const up = new Set(impact.reliesOn);
+    const down = new Set(impact.reliedOnBy);
+    const chain = new Set([options.selected, ...up, ...down]);
+    const classes: Record<string, string[]> = { imp_self: [], imp_up: [], imp_down: [], imp_dim: [] };
+    for (const [id, node] of leafNodes) {
+      if (id === options.selected) classes['imp_self']?.push(node);
+      else if (up.has(id)) classes['imp_up']?.push(node);
+      else if (down.has(id)) classes['imp_down']?.push(node);
+      else classes['imp_dim']?.push(node);
+    }
+    impactCount.up = classes['imp_up']?.length ?? 0;
+    impactCount.down = classes['imp_down']?.length ?? 0;
+    impactLines.push(
+      '    classDef imp_self stroke:#111827,stroke-width:4px;',
+      '    classDef imp_up stroke:#2563EB,stroke-width:4px;',
+      '    classDef imp_down stroke:#7C3AED,stroke-width:4px;',
+      '    classDef imp_dim opacity:0.3;'
+    );
+    for (const [cls, ids] of Object.entries(classes)) {
+      if (ids.length > 0) impactLines.push(`    class ${ids.join(',')} ${cls};`);
+    }
+    drawn.forEach((relation, at) => {
+      if (!chain.has(relation.from) || !chain.has(relation.to)) dimmedEdges.add(at);
+    });
+  }
+
+  const everyLink = [...drawnLinks, ...ghostLinks];
+  const kindCount: Record<string, number> = {};
+  everyLink.forEach((link, at) => {
+    kindCount[link.type] = (kindCount[link.type] ?? 0) + 1;
+    const caption = link.summary ? `|"${label(link.summary, 28).replace(/\|/g, '/')}"|` : '';
+    lines.push(`    ${link.from} ${KIND_ARROW[link.type]}${caption} ${link.to}`);
+    const styles = dimmedEdges.has(at) ? [...link.styles, 'stroke-opacity:0.2'] : link.styles;
+    if (styles.length > 0) impactLines.push(`    linkStyle ${at} ${styles.join(',')};`);
+  });
+  lines.push(...impactLines);
+
+  const entries = [...classCount].map(([key, count]) => ({
+    key, cls: nodeId(MODE_PREFIX[mode], key), label: labelOf(mode, key), count
+  }));
+  entries.sort((a, b) => order(mode, a.key) - order(mode, b.key));
+  if (options.impact && impactCount.up + impactCount.down > 0) {
+    if (impactCount.up > 0) entries.push({ key: 'impact_up', cls: 'imp_up', label: 'На чём стоит', count: impactCount.up });
+    if (impactCount.down > 0) entries.push({ key: 'impact_down', cls: 'imp_down', label: 'Что заденет', count: impactCount.down });
+  }
+  lines.push(...functionalLegend(entries, kindCount, { waits, cycles }, everyLink.length));
+
+  return {
+    text: lines.join(LF),
+    details,
+    paths: {},
+    nodes,
+    edges: [],
+    neighbors: neighborsOf(everyLink.map((link) => ({ from: link.from, to: link.to })))
+  };
+}
+
+/** Порядок строк легенды: как на переключателе, а не как встретились в карте. */
+function order(mode: FunctionalMode, key: string): number {
+  const keys = mode === 'state' ? [...STATE_KEYS] : Object.keys(MODE_LOOK[mode]);
+  const at = keys.indexOf(key);
+  return at < 0 ? keys.length : at;
+}
+
+/**
+ * Обзор групп: узел — возможность верхнего уровня со счётом «5 из 8», стрелка —
+ * свёрнутые связи между потомками двух групп, подпись — их число. Группы, что
+ * ждут друг друга по `depends`, краснеют: на уровне возможностей этот цикл распылён.
+ * Фильтры оставляют только группы, где есть подходящие возможности.
+ */
+function functionalOverview(
+  everything: ProjectMap['functional']['capabilities'],
+  relations: ProjectMap['functional']['relations'],
+  kept: ProjectMap['functional']['capabilities'],
+  views: ReadonlyMap<string, CapabilityView>
+): MermaidOutput {
+  const level = groupLevel(everything, relations);
+  const keep = new Set(kept.map((item) => rootOf(item.id, everything)));
+  const groups = level.groups.filter((group) => keep.has(group.id));
+  if (groups.length === 0) return EMPTY;
+  const shownGroup = new Set(groups.map((group) => group.id));
+  const node = (id: string) => nodeId('fgrp', id);
+
+  const lines = ['flowchart LR', ...classDefsOf('state')];
+  const details: Record<string, string> = {};
+  const nodes: Record<string, MermaidNode> = {};
+  const classCount = new Map<string, number>();
+
+  for (const group of groups) {
+    const key = group.status ?? 'unrated';
+    classCount.set(key, (classCount.get(key) ?? 0) + 1);
+    const progress = group.progress;
+    const score = progress.total > 0 ? `${progress.implemented} из ${progress.total}` : '';
+    lines.push(`    ${node(group.id)}["${[label(group.title, 34), score, IMPL_LABEL[key]].filter(Boolean).join('<br/>')}"]:::${nodeId('st', key)}`);
+    const root = everything.find((item) => item.id === group.id);
+    details[node(group.id)] = [group.id, group.title, IMPL_LABEL[key], score].filter(Boolean).join(LF);
+    nodes[node(group.id)] = {
+      id: group.id, title: group.title, summary: root?.summary, note: root?.note,
+      declaredBy: (root as { declaredBy?: string } | undefined)?.declaredBy,
+      declaredAt: (root as { declaredAt?: string } | undefined)?.declaredAt,
+      declaredByRole: (root as { declaredByRole?: string | null } | undefined)?.declaredByRole,
+      pending: (root as { pending?: boolean } | undefined)?.pending,
+      capability: true, capabilityGroup: group.id,
+      ...(views.get(group.id) ? { capabilityView: views.get(group.id) as CapabilityView } : {})
+    };
+  }
+
+  const kindCount: Record<string, number> = {};
+  const edges = level.edges.filter((edge) => shownGroup.has(edge.from) && shownGroup.has(edge.to));
+  const styles: string[] = [];
   let cycles = 0;
   let waits = 0;
-
-  drawn.forEach((relation, at) => {
-    kindCount[relation.type] = (kindCount[relation.type] ?? 0) + 1;
-    const from = shown(relation.from);
-    const to = shown(relation.to);
-    const caption = relation.summary ? `|"${label(relation.summary, 28).replace(/\|/g, '/')}"|` : '';
-    lines.push(`    ${from} ${arrows[relation.type]}${caption} ${to}`);
-    drawnLinks.push({ from, to });
-    const cyclic = views.get(relation.from)?.inCycle && views.get(relation.to)?.inCycle && relation.type === 'depends';
+  edges.forEach((edge, at) => {
+    kindCount[edge.type] = (kindCount[edge.type] ?? 0) + 1;
+    lines.push(`    ${node(edge.from)} ${KIND_ARROW[edge.type]}|"${edge.count > 1 ? `${edge.count} связей` : '1 связь'}"| ${node(edge.to)}`);
+    const cyclic = edge.type === 'depends' && level.cycle.has(edge.from) && level.cycle.has(edge.to);
     if (cyclic) {
       cycles += 1;
-      styled.push(`    linkStyle ${at} stroke:#DC2626,stroke-width:3px;`);
-    } else if (waiting.has(relation)) {
+      styles.push(`    linkStyle ${at} stroke:#DC2626,stroke-width:3px;`);
+    } else if (edge.waiting) {
       waits += 1;
-      styled.push(`    linkStyle ${at} stroke:#D97706,stroke-width:2px;`);
+      styles.push(`    linkStyle ${at} stroke:#D97706,stroke-width:2px;`);
+    } else if (KIND_COLOR[edge.type]) {
+      styles.push(`    linkStyle ${at} stroke:${KIND_COLOR[edge.type]},stroke-width:2px;`);
     }
   });
-  lines.push(...styled);
+  lines.push(...styles);
 
-  lines.push(...functionalLegend(stateCount, kindCount, { waits, cycles }, drawn.length));
+  const entries = STATE_KEYS
+    .filter((key) => classCount.has(key))
+    .map((key) => ({ key, cls: nodeId('st', key), label: IMPL_LABEL[key], count: classCount.get(key) as number }));
+  lines.push(...functionalLegend(entries, kindCount, { waits, cycles }, edges.length));
 
-  return { text: lines.join(LF), details, paths: {}, nodes, edges: [], neighbors: neighborsOf(drawnLinks) };
+  return { text: lines.join(LF), details, paths: {}, nodes, edges: [], neighbors: neighborsOf(edges.map((edge) => ({ from: node(edge.from), to: node(edge.to) }))) };
 }
 
 /**
@@ -667,22 +1042,27 @@ export function functionalMermaid(map: ProjectMap, filter: StatusFilter | null =
  * продолжает порядок рёбер диаграммы (`linkStyle` красит по номеру).
  */
 function functionalLegend(
-  states: Record<'implemented' | 'partial' | 'not_implemented' | 'unrated', number>,
+  entries: readonly { key: string; cls: string; label: string; count: number }[],
   kinds: Record<string, number>,
   hints: { waits: number; cycles: number },
   drawnEdges: number
 ): string[] {
   const lines = ['    classDef legend_blank fill:none,stroke:none,color:#6B7280;', '    subgraph legend["Легенда"]'];
-  for (const key of ['implemented', 'partial', 'not_implemented', 'unrated'] as const) {
-    if (states[key] === 0) continue;
-    lines.push(`        legend_s_${key}["${IMPL_LABEL[key]} · ${states[key]}"]:::${nodeId('st', key)}`);
+  for (const entry of entries) {
+    lines.push(`        legend_s_${entry.key}["${entry.label} · ${entry.count}"]:::${entry.cls}`);
   }
 
   const samples: { arrow: string; text: string; style?: string }[] = [];
-  const names: Record<string, string> = { depends: 'зависит от', uses: 'пользуется', feeds: 'передаёт данные в' };
-  const arrows: Record<string, string> = { depends: '-->', uses: '-.->', feeds: '==>' };
-  for (const kind of ['depends', 'uses', 'feeds']) {
-    if (kinds[kind]) samples.push({ arrow: arrows[kind] as string, text: `${names[kind]} · ${kinds[kind]}` });
+  const names: Record<string, string> = {
+    depends: 'зависит от', uses: 'пользуется', feeds: 'передаёт данные в', triggers: 'запускает', replaces: 'заменяет'
+  };
+  for (const kind of KIND_ORDER) {
+    if (!kinds[kind]) continue;
+    samples.push({
+      arrow: KIND_ARROW[kind] as string,
+      text: `${names[kind]} · ${kinds[kind]}`,
+      ...(KIND_COLOR[kind] ? { style: `stroke:${KIND_COLOR[kind]},stroke-width:2px` } : {})
+    });
   }
   if (hints.waits) {
     samples.push({ arrow: '-->', text: `жёлтая — ждёт зависимость · ${hints.waits}`, style: 'stroke:#D97706,stroke-width:2px' });

@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync,
 import { dirname, join } from 'node:path';
 
 import { withIntentMap } from '../lib/intent-map';
-import { parseProposal, resolveLinks, titleOf, type Note, type ProposedRecord } from '../lib/inbox';
+import { parseProposal, resolveLinks, titleOf, usableRelations, type Note, type ProposedRecord } from '../lib/inbox';
 import { parseRecord } from '../lib/parse';
 import { normalizeRoot, resolveInside, toProjectPath } from '../lib/paths';
 import { nextId, recordTemplate, slugify } from '../lib/scaffold';
@@ -12,6 +12,7 @@ import { readWorkspace } from '../lib/workspace';
 import { journalLines } from '../lib/write';
 import { dropCache } from '../lib/cache';
 import { loadIndex } from './index-service';
+import { buildProjectMap } from './map-service';
 import { today } from './record-write';
 
 /**
@@ -206,6 +207,10 @@ export function createRecords(root: string, original: readonly ProposedRecord[],
   const created: CreatedRecord[] = [];
   const problems: string[] = [];
   const stamp = today();
+  // Концы связей — возможности предложения или уже стоящие в карте.
+  const standing = proposed.some((record) => record.type === 'map' && record.relations?.length)
+    ? buildProjectMap(normalized).functional.capabilities
+    : [];
 
   for (const record of proposed) {
     const id = assigned.get(record.key) as string;
@@ -234,6 +239,10 @@ export function createRecords(root: string, original: readonly ProposedRecord[],
     // Возможности — только у карт: у остальных типов поле просто игнорируется.
     const capabilities = record.type === 'map' ? record.capabilities : undefined;
     const vision = record.type === 'map' ? record.vision : undefined;
+    const relations = record.type === 'map'
+      ? usableRelations(record.relations, capabilities ?? [], standing)
+      : { relations: [], problems: [] };
+    problems.push(...relations.problems.map((problem) => `${record.title}: ${problem}`));
 
     const text = recordTemplate({
       id,
@@ -244,6 +253,7 @@ export function createRecords(root: string, original: readonly ProposedRecord[],
       ...(sources.length ? { sources } : {}),
       ...(record.body ? { body: record.body } : {}),
       ...(capabilities?.length ? { capabilities } : {}),
+      ...(relations.relations.length ? { relations: relations.relations } : {}),
       ...(vision && Object.keys(vision).length ? { vision } : {}),
       ...(record.type === 'map' && record.intent ? { intent: true } : {}),
       ...(record.type === 'task' && record.change ? { change: record.change } : {})

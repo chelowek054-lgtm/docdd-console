@@ -1,11 +1,23 @@
 <script setup lang="ts">
 import type { ApiFailure } from '~/composables/useProjectIndex';
-import type { MapSelection, MermaidEdge } from '~/utils/map-mermaid';
+import type { FunctionalMode, MapSelection, MermaidEdge } from '~/utils/map-mermaid';
+import { capabilityViews } from '~/utils/functional-view';
 import {
+  NO_RELATION_MARKS,
+  groupLevel,
   overallProgress,
+  queueRelationAdd,
+  queueRelationRemove,
+  relationMarkCount,
   withMarks,
+  withRelationMarks,
+  type CapabilityCoverage,
+  type Horizon,
   type ImplStatus,
   type Mark,
+  type Priority,
+  type RelationItem,
+  type RelationMarks,
   type StatusFilter
 } from '~~/server/lib/functional';
 import {
@@ -26,10 +38,22 @@ const projectId = computed(() => String(route.params['id'] ?? ''));
 
 type MapResponse = ProjectMap & { unverified: number };
 
-const { data, refresh, status } = useFetch<MapResponse | { error: ApiFailure }>(
+const { data, refresh: refreshMap, status } = useFetch<MapResponse | { error: ApiFailure }>(
   () => `/api/projects/${projectId.value}/map`,
   { key: () => `map:${projectId.value}` }
 );
+
+/** Что стоит за возможностями в процессе — отдельный запрос: ему нужны требования, задачи и отчёты (docs/03-server-api.md). */
+const { data: coverageData, refresh: refreshCoverage } = useFetch<{ coverage: Record<string, CapabilityCoverage> } | { error: ApiFailure }>(
+  () => `/api/projects/${projectId.value}/map/coverage`,
+  { key: () => `coverage:${projectId.value}` }
+);
+const coverage = computed(() => (coverageData.value && 'coverage' in coverageData.value ? coverageData.value.coverage : undefined));
+
+/** Перечитать карту и покрытие вместе: отметка или связь меняет оба. */
+async function refresh() {
+  await Promise.all([refreshMap(), refreshCoverage()]);
+}
 
 const saving = ref(false);
 const draftId = ref('');
@@ -489,15 +513,91 @@ const pendingNodeIds = computed(() => {
  * карта»). Фильтр по состоянию — тоже общий.
  */
 const marks = ref<Record<string, Mark>>({});
+/** Несохранённые связи — пачка на экране, как отметки (docs/04-ui.md, «Связи — тоже пачкой»). */
+const relationMarks = ref<RelationMarks>(NO_RELATION_MARKS);
 const statusFilter = ref<StatusFilter | null>(null);
 const functionalEffective = computed(() => {
   const source = map.value?.functional;
   return {
     capabilities: withMarks(source?.capabilities ?? [], marks.value),
-    relations: source?.relations ?? []
+    relations: withRelationMarks(source?.relations ?? [], relationMarks.value)
   };
 });
 const functionalProgress = computed(() => overallProgress(functionalEffective.value.capabilities));
+
+/**
+ * Уровни, режимы и фильтры графа состояния (docs/04-ui.md, «Уровни графа»,
+ * «Режимы окраски», «Фильтры»). Уровень, группа и режим живут в адресе —
+ * ссылкой можно поделиться; фильтры только на экране.
+ */
+const GROUPED_FUNCTIONAL = 25;
+const functionalGroups = computed(() => groupLevel(functionalEffective.value.capabilities, functionalEffective.value.relations));
+const capLevel = computed<'groups' | 'group' | 'all'>(() => {
+  const found = functionalGroups.value.groups;
+  if (found.some((group) => group.id === String(route.query['capgroup'] ?? ''))) return 'group';
+  const wanted = String(route.query['capview'] ?? '');
+  if (wanted === 'all' || found.length < 2) return 'all';
+  if (wanted === 'groups') return 'groups';
+  return functionalProgress.value.total > GROUPED_FUNCTIONAL ? 'groups' : 'all';
+});
+const capGroupId = computed(() => (capLevel.value === 'group' ? String(route.query['capgroup']) : ''));
+const capGroupTitle = computed(() => functionalGroups.value.groups.find((group) => group.id === capGroupId.value)?.title ?? capGroupId.value);
+
+/** Режим окраски; «Покрытие» и «Риски» — только когда покрытие загружено. */
+const capMode = computed<FunctionalMode>(() => {
+  const wanted = String(route.query['capmode'] ?? '');
+  if (wanted === 'order') return 'order';
+  return (wanted === 'coverage' || wanted === 'risks') && coverage.value ? wanted : 'state';
+});
+const capModeModel = computed<FunctionalMode>({
+  get: () => capMode.value,
+  set: (value) => { void router.replace({ query: { ...route.query, capmode: value === 'state' ? undefined : value } }); }
+});
+
+const hiddenKinds = ref<string[]>([]);
+const planPriority = ref<Priority | 'none' | null>(null);
+const planHorizon = ref<Horizon | 'none' | null>(null);
+const onlyRisks = ref(false);
+/** Выбранная возможность: от неё — соседи-призраки и влияние. */
+const capFocus = ref<string | null>(null);
+const impactOn = ref(false);
+
+const kindCounts = computed(() => {
+  const counts: Record<string, number> = {};
+  for (const relation of functionalEffective.value.relations) counts[relation.type] = (counts[relation.type] ?? 0) + 1;
+  return counts;
+});
+
+function goCap(query: { capview?: string; capgroup?: string }) {
+  selection.value = null;
+  void router.push({ query: { ...route.query, capview: undefined, capgroup: undefined, ...query } });
+}
+const showCapGroups = () => goCap({ capview: 'groups' });
+const showCapAll = () => goCap({ capview: 'all' });
+const enterCapGroup = (groupId: string) => goCap({ capgroup: groupId });
+
+function removeRelation(relation: { from: string; to: string; type: string }) {
+  relationMarks.value = queueRelationRemove(relationMarks.value, relation, map.value?.functional.relations ?? []);
+}
+
+/** «Занести связи» из «Предложить связи»: в пачку на экране, не в карту. */
+function applyRelations(rows: RelationItem[]) {
+  let next = relationMarks.value;
+  for (const row of rows) next = queueRelationAdd(next, row, map.value?.functional.relations ?? []);
+  relationMarks.value = next;
+}
+
+/** Выбрать возможность из списка «Можно начинать»: карточка открывается, как после клика по узлу. */
+function selectCapability(id: string) {
+  const item = functionalEffective.value.capabilities.find((candidate) => candidate.id === id);
+  if (!item) return;
+  const view = capabilityViews(functionalEffective.value.capabilities, functionalEffective.value.relations, coverage.value).get(id);
+  selection.value = {
+    kind: 'node', id, title: item.title, summary: item.summary, note: item.note,
+    declaredBy: item.declaredBy, declaredAt: item.declaredAt, declaredByRole: item.declaredByRole,
+    pending: item.pending, capability: true, ...(view ? { capabilityView: view } : {})
+  };
+}
 
 
 /** «Занести отметки» из «Проверить по коду»: в несохранённые отметки, не в карту. */
@@ -509,7 +609,7 @@ function applyChecks(rows: { id: string; status: ImplStatus; note: string }[]) {
 
 /** Закрыть вкладку с несохранёнными отметками — браузер предупредит о потере. */
 function warnUnsaved(event: BeforeUnloadEvent) {
-  if (Object.keys(marks.value).length === 0) return;
+  if (Object.keys(marks.value).length === 0 && relationMarkCount(relationMarks.value) === 0) return;
   event.preventDefault();
 }
 onMounted(() => window.addEventListener('beforeunload', warnUnsaved));
@@ -545,7 +645,17 @@ const views = computed(() => {
       title: 'Функциональная карта',
       question: 'Что система умеет на языке предметной области, не кода',
       count: `${value.functional.capabilities.length} возможностей`,
-      ...functionalMermaid({ ...value, functional: functionalEffective.value }, statusFilter.value)
+      ...functionalMermaid({ ...value, functional: functionalEffective.value }, statusFilter.value, {
+        mode: capMode.value,
+        level: capLevel.value,
+        group: capGroupId.value || null,
+        coverage: coverage.value,
+        hiddenKinds: new Set(hiddenKinds.value),
+        plan: { priority: planPriority.value, horizon: planHorizon.value },
+        onlyRisks: onlyRisks.value,
+        selected: capFocus.value,
+        impact: impactOn.value
+      })
     }
   ];
   // Функциональная карта — основной источник правды: первая вкладка и открывается
@@ -606,6 +716,18 @@ async function copySource() {
  * карточка открывается сбоку, диаграмма остаётся под рукой.
  */
 const selection = ref<MapSelection | null>(null);
+// Выбранная возможность ведёт соседей-призраков и влияние; призрак выбором не становится.
+watch(selection, (value) => {
+  if (!value) {
+    capFocus.value = null;
+    impactOn.value = false;
+    return;
+  }
+  if (value.kind === 'node' && value.capability && !value.ghost && value.capabilityView && capFocus.value !== value.id) {
+    capFocus.value = value.id;
+    impactOn.value = false;
+  }
+});
 function onNodeClick(id: string) {
   const node = current.value?.nodes?.[id];
   if (!node) return; // Нет метаданных — карте нечего показать (functional map, неизвестный узел).
@@ -624,10 +746,12 @@ function onNodeDblClick(id: string) {
   const node = current.value?.nodes?.[id];
   if (shown.value === 'codemap' && codemapMode.value === 'groups' && node?.group) enterGroup(node.group.groupId);
   if (shown.value === 'dataflow' && flowMode.value === 'groups' && node?.flowGroup) enterFlow(node.flowGroup);
+  if (shown.value === 'functional' && capLevel.value === 'groups' && node?.capabilityGroup) enterCapGroup(node.capabilityGroup);
 }
 /** «Открыть группу» из карточки: на потоках — группа кода, на кодовой карте — группа модулей. */
 function openGroupFromCard(groupId: string) {
-  if (shown.value === 'dataflow') enterFlow({ type: 'code', id: groupId });
+  if (shown.value === 'functional') enterCapGroup(groupId);
+  else if (shown.value === 'dataflow') enterFlow({ type: 'code', id: groupId });
   else enterGroup(groupId);
 }
 function onBackgroundClick() {
@@ -992,6 +1116,25 @@ function onEdgeClick(edge: MermaidEdge) {
                 </template>
               </PromptPanel>
 
+              <PromptPanel
+                class="mb-3"
+                :project-id="projectId"
+                kind="relations"
+                label="Предложить связи"
+                hint="Модель читает дерево и код и предлагает связи — это её мнение, подтверждает человек"
+                :disabled="map.functional.capabilities.length < 2"
+                disabled-reason="Связывать нечего: в карте меньше двух возможностей."
+              >
+                <template #answer="{ answer }">
+                  <FunctionalRelations
+                    :project-id="projectId"
+                    :answer="answer"
+                    :titles="capabilityTitles"
+                    @apply="applyRelations"
+                  />
+                </template>
+              </PromptPanel>
+
               <VisionCard
                 :project-id="projectId"
                 :vision="map.functional.vision"
@@ -1005,33 +1148,64 @@ function onEdgeClick(edge: MermaidEdge) {
                 :progress="functionalProgress"
               />
 
+              <FunctionalNext
+                :capabilities="functionalEffective.capabilities"
+                :relations="functionalEffective.relations"
+                @select="selectCapability"
+                @show-unrated="statusFilter = 'unrated'"
+              />
+
               <FunctionalTree
                 v-if="functionalView === 'tree'"
                 v-model:marks="marks"
+                v-model:relation-marks="relationMarks"
                 :project-id="projectId"
                 :capabilities="functionalEffective.capabilities"
                 :saved="map.functional.capabilities"
                 :relations="functionalEffective.relations"
+                :saved-relations="map.functional.relations"
+                :coverage="coverage"
                 :filter="statusFilter"
                 @select="(value) => (selection = value)"
                 @changed="() => refresh()"
               />
               <template v-else>
+                <FunctionalGraphBar
+                  v-if="map.functional.capabilities.length"
+                  v-model:mode="capModeModel"
+                  v-model:hidden-kinds="hiddenKinds"
+                  v-model:priority="planPriority"
+                  v-model:horizon="planHorizon"
+                  v-model:only-risks="onlyRisks"
+                  :level="capLevel"
+                  :can-switch="functionalGroups.groups.length >= 2"
+                  :group-title="capGroupTitle"
+                  :has-coverage="!!coverage"
+                  :kind-counts="kindCounts"
+                  @show-groups="showCapGroups"
+                  @show-all="showCapAll"
+                />
                 <p v-if="!current.text" class="text-sm text-muted">
-                  {{ map.functional.capabilities.length ? 'Под этот фильтр ничего не подошло.' : 'В подтверждённых картах эта структура не описана.' }}
+                  {{ map.functional.capabilities.length ? 'Под эти фильтры ничего не подошло.' : 'В подтверждённых картах эта структура не описана.' }}
                 </p>
                 <template v-else>
                   <!-- Легенда — внутри самой схемы (functionalMermaid), а не рядом: уходит и в SVG, и в mermaid. -->
                   <MermaidDiagram
+                    :key="`${capLevel}:${capGroupId}`"
                     :source="current.text"
                     :details="current.details"
                     :paths="current.paths"
                     :edges="current.edges"
                     :neighbors="current.neighbors"
                     :pending-ids="pendingNodeIds"
+                    :ghost-ids="ghostNodeIds"
+                    :focus-key="capFocus && capLevel !== 'groups' ? fromNodeId(capFocus) : null"
+                    :keep-view="true"
                     :fullscreen-target="stage"
                     :id="`map-${current.key}`"
                     @node-click="onNodeClick"
+                    @node-dblclick="onNodeDblClick"
+                    @background-click="onBackgroundClick"
                     @edge-click="onEdgeClick"
                   />
                 </template>
@@ -1080,7 +1254,10 @@ function onEdgeClick(edge: MermaidEdge) {
             :project-id="projectId"
             :selection="selection"
             :capability-titles="capabilityTitles"
+            :impact-on="impactOn"
             :to="staged ? stage : null"
+            @impact="impactOn = !impactOn"
+            @unrelate="removeRelation"
             @close="onBackgroundClick"
             @open-group="openGroupFromCard"
             @open-flow="enterFlow"

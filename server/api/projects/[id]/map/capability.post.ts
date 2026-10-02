@@ -9,7 +9,9 @@ import {
   drawableRelations,
   isImplStatus,
   isRelationType,
+  planRelations,
   statusDeclarations,
+  type RelationItem,
   type StatusItem
 } from '../../../../lib/functional';
 import { targetPath } from '../../../../lib/import';
@@ -34,7 +36,8 @@ import { today } from '../../../../utils/record-write';
  *
  * Действия: `add`, `remove` — возможность; `status` — отметки состояния
  * пачкой, в одну запись; `relate`, `unrelate` — связь между возможностями;
- * `vision` — вектор проекта (docs/07-maps.md, «Вектор проекта»).
+ * `relations` — связи пачкой, в одну запись; `vision` — вектор проекта
+ * (docs/07-maps.md, «Вектор проекта»).
  */
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id') ?? '';
@@ -43,11 +46,15 @@ export default defineEventHandler(async (event) => {
     return fail(event, 404, 'project_not_found', `Проект \`${id}\` не найден в списке`);
   }
 
-  const body = await readBody<{ action?: unknown; capability?: unknown; statuses?: unknown; relation?: unknown; vision?: unknown }>(event);
+  const body = await readBody<{
+    action?: unknown; capability?: unknown; statuses?: unknown; relation?: unknown; vision?: unknown;
+    add?: unknown; remove?: unknown;
+  }>(event);
   const action = typeof body?.action === 'string' ? body.action : 'add';
 
   let change: MapChange;
   let title: string;
+  let skipped: { from: string; to: string; type: string; reason: string }[] = [];
 
   if (action === 'vision') {
     const vision = asVision(body?.vision);
@@ -84,10 +91,50 @@ export default defineEventHandler(async (event) => {
     }
     change = { functional: { added: { capabilities: declarations } } };
     title = `Функциональная карта: отметки состояния (${declarations.length})`;
+  } else if (action === 'relations') {
+    const add = asRelationList(body?.add);
+    const remove = asRelationList(body?.remove);
+    if (!add || !remove || add.length + remove.length === 0) {
+      return fail(event, 400, 'relation_invalid', 'Нужны списки `add` и/или `remove`, в них вместе — хотя бы одна связь: `from`, `to` и `type`');
+    }
+    const { capabilities: current, relations: standing } = buildProjectMap(normalizeRoot(project.root)).functional;
+    const plan = planRelations(current, standing, add, remove.map(({ from, to, type }) => ({ from, to, type })));
+    if (plan.problems.length > 0) {
+      return failWith(
+        event,
+        422,
+        'relation_invalid',
+        'В пачке есть связи, которые нельзя завести; ничего не записано',
+        plan.problems.map((message) => ({ code: 'relation_invalid', message }))
+      );
+    }
+    if (plan.add.length + plan.remove.length === 0) {
+      return failWith(event, 409, 'nothing_to_create', 'Всё из пачки уже так и есть: записывать нечего', plan.skipped.map((item) => ({
+        code: 'skipped',
+        message: `«${item.from}» → «${item.to}» (${item.type}): ${item.reason}`
+      })));
+    }
+    const parts = {
+      ...(plan.add.length ? { added: { relations: plan.add } } : {}),
+      ...(plan.remove.length ? { removed: { relations: plan.remove } } : {})
+    };
+    const issues = validateFunctional(parts);
+    if (issues.length > 0) {
+      return failWith(
+        event,
+        422,
+        'relation_invalid',
+        'Связи не прошли схему',
+        issues.map((issue) => ({ code: 'functional', message: issue.message }))
+      );
+    }
+    change = { functional: parts };
+    title = `Функциональная карта: связи (+${plan.add.length} −${plan.remove.length})`;
+    skipped = plan.skipped;
   } else if (action === 'relate' || action === 'unrelate') {
     const relation = asRelation(body?.relation);
     if (!relation) {
-      return fail(event, 400, 'relation_invalid', 'Нужна связь: `from`, `to` и `type` — `depends`, `uses` или `feeds`');
+      return fail(event, 400, 'relation_invalid', 'Нужна связь: `from`, `to` и `type` — `depends`, `uses`, `feeds`, `triggers` или `replaces`');
     }
     if (action === 'relate') {
       const capabilities = buildProjectMap(normalizeRoot(project.root)).functional.capabilities;
@@ -157,7 +204,11 @@ export default defineEventHandler(async (event) => {
     dropCache(root);
 
     const index = loadIndex(root, true);
-    return { record: index.records.find((item) => item.id === recordId), path: relative };
+    return {
+      record: index.records.find((item) => item.id === recordId),
+      path: relative,
+      ...(skipped.length ? { skipped } : {})
+    };
   } catch (error) {
     if (error instanceof OutsideRootError) {
       return fail(event, 403, 'outside_root', error.message, error.requested);
@@ -175,6 +226,7 @@ function text(value: unknown): string | undefined {
 
 function asCapability(value: unknown): {
   id: string; title?: string; parent?: string; summary?: string; status?: string; note?: string;
+  priority?: string; horizon?: string;
 } | null {
   if (!value || typeof value !== 'object') return null;
   const raw = value as Record<string, unknown>;
@@ -188,7 +240,10 @@ function asCapability(value: unknown): {
     ...(text(raw['parent']) ? { parent: text(raw['parent']) as string } : {}),
     ...(text(raw['summary']) ? { summary: text(raw['summary']) as string } : {}),
     ...(status ? { status } : {}),
-    ...(text(raw['note']) ? { note: text(raw['note']) as string } : {})
+    ...(text(raw['note']) ? { note: text(raw['note']) as string } : {}),
+    // Как и `status`: незнакомое значение схема отвергнет и назовёт причину.
+    ...(text(raw['priority']) ? { priority: text(raw['priority']) as string } : {}),
+    ...(text(raw['horizon']) ? { horizon: text(raw['horizon']) as string } : {})
   };
 }
 
@@ -222,7 +277,20 @@ function asStatusItems(value: unknown): StatusItem[] | null {
   return items;
 }
 
-function asRelation(value: unknown): { from: string; to: string; type: 'depends' | 'uses' | 'feeds'; summary?: string } | null {
+/** Список связей пачки; не список или хоть одна без `from`/`to`/вида — `null`. Пустой список — допустим. */
+function asRelationList(value: unknown): RelationItem[] | null {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) return null;
+  const items: RelationItem[] = [];
+  for (const raw of value) {
+    const relation = asRelation(raw);
+    if (!relation) return null;
+    items.push(relation);
+  }
+  return items;
+}
+
+function asRelation(value: unknown): RelationItem | null {
   if (!value || typeof value !== 'object') return null;
   const raw = value as Record<string, unknown>;
   const from = text(raw['from']);

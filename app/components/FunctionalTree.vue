@@ -4,14 +4,25 @@ import type { Capability } from './FunctionalTreeNode.vue';
 import type { MapSelection } from '~/utils/map-mermaid';
 import { capabilityViews } from '~/utils/functional-view';
 import {
+  HORIZONS,
+  HORIZON_LABEL,
   IMPL_LABEL,
+  NO_RELATION_MARKS,
+  PRIORITIES,
+  PRIORITY_LABEL,
   RELATION_LABEL,
   RELATION_TYPES,
   filterByStatus,
   isTreeLink,
+  queueRelationAdd,
+  relationMarkCount,
+  type CapabilityCoverage,
+  type Horizon,
   type ImplStatus,
   type Mark,
+  type Priority,
   type RelationLike,
+  type RelationMarks,
   type RelationType,
   type StatusFilter
 } from '../../server/lib/functional';
@@ -22,8 +33,9 @@ import {
  * состояния»). У вида нет свидетельства, поэтому правка обходится без похода к
  * модели — форма пишет напрямую через `POST /map/capability`, каждое
  * действие черновиком, который тут же можно подтвердить одной кнопкой.
- * Отметки состояния — иначе, пачкой: клик откладывает отметку на экране, а
- * «Сохранить отметки» заводит одну запись на все.
+ * Отметки состояния и связи — иначе, пачкой: клик откладывает отметку (или
+ * связь) на экране, а «Сохранить отметки» / «Сохранить связи» заводит одну
+ * запись на все (docs/04-ui.md, «Связи — тоже пачкой»).
  */
 
 const props = defineProps<{
@@ -32,19 +44,26 @@ const props = defineProps<{
   capabilities: Capability[];
   /** Те же возможности без отметок — то, что сейчас записано в карте. */
   saved: Capability[];
+  /** С уже наложенными несохранёнными связями (`withRelationMarks`). */
   relations: RelationLike[];
+  /** Связи, как они записаны в карте сейчас: по ним решаем, что уже стоит. */
+  savedRelations: RelationLike[];
+  /** Что стоит за возможностями в процессе; нет, пока не загружено. */
+  coverage?: Record<string, CapabilityCoverage> | undefined;
   filter: StatusFilter | null;
 }>();
 
 /** Несохранённые отметки живут у родителя: их же кладёт «Проверить по коду» и рисует граф. */
 const marks = defineModel<Record<string, Mark>>('marks', { required: true });
+/** Несохранённые связи — там же, у родителя: их видят и граф, и карточка. */
+const relationMarks = defineModel<RelationMarks>('relationMarks', { required: true });
 
 const emit = defineEmits<{
   select: [selection: MapSelection];
   changed: [];
 }>();
 
-const views = computed(() => capabilityViews(props.capabilities, props.relations));
+const views = computed(() => capabilityViews(props.capabilities, props.relations, props.coverage));
 const visible = computed(() => filterByStatus(props.capabilities, props.filter) as Capability[]);
 
 function childrenOf(id: string): Capability[] {
@@ -124,17 +143,29 @@ const formTitle = ref('');
 const formSummary = ref('');
 const formStatus = ref<ImplStatus | 'unrated'>('unrated');
 const formNote = ref('');
+const formPriority = ref<Priority | 'none'>('none');
+const formHorizon = ref<Horizon | 'none'>('none');
 const saving = ref(false);
 const failure = ref<ApiFailure | null>(null);
 
 const statusItems = (['unrated', 'implemented', 'partial', 'not_implemented'] as const)
   .map((value) => ({ label: IMPL_LABEL[value], value }));
+const priorityItems = [
+  { label: 'Без приоритета', value: 'none' as const },
+  ...PRIORITIES.map((value) => ({ label: PRIORITY_LABEL[value], value }))
+];
+const horizonItems = [
+  { label: 'Без горизонта', value: 'none' as const },
+  ...HORIZONS.map((value) => ({ label: HORIZON_LABEL[value], value }))
+];
 
 function resetForm() {
   formTitle.value = '';
   formSummary.value = '';
   formStatus.value = 'unrated';
   formNote.value = '';
+  formPriority.value = 'none';
+  formHorizon.value = 'none';
 }
 
 function openAdd(parentId: string | null) {
@@ -154,6 +185,9 @@ function openEdit(item: Capability) {
   formSummary.value = item.summary ?? '';
   formStatus.value = item.status ?? 'unrated';
   formNote.value = item.note ?? '';
+  // Свои значения, а не унаследованные: унаследованное правится у родителя.
+  formPriority.value = item.priority ?? 'none';
+  formHorizon.value = item.horizon ?? 'none';
   failure.value = null;
 }
 function closeForm() {
@@ -211,8 +245,14 @@ function onSubmit() {
     // нет, из возможности пропали бы, поэтому parent, summary и состояние едут вместе.
     const own = editingIsParent.value ? current.status : (formStatus.value === 'unrated' ? undefined : formStatus.value);
     const note = editingIsParent.value ? current.note : (formNote.value.trim() || undefined);
+    // Приоритет и горизонт едут вместе с остальным: иначе повторное объявление их потеряло бы.
     void saveCapability(
-      { id: current.id, title, parent: current.parent, summary, ...(own ? { status: own } : {}), ...(own && note ? { note } : {}) },
+      {
+        id: current.id, title, parent: current.parent, summary,
+        ...(own ? { status: own } : {}), ...(own && note ? { note } : {}),
+        ...(formPriority.value !== 'none' ? { priority: formPriority.value } : {}),
+        ...(formHorizon.value !== 'none' ? { horizon: formHorizon.value } : {})
+      },
       `изменена «${title}»`
     );
   } else {
@@ -268,16 +308,30 @@ const relateTargets = computed(() => {
     .map((item) => ({ label: item.title ?? item.id, value: item.id }));
 });
 
-async function submitRelate() {
+/** Связь откладывается в пачку на экране, а не заводит черновик: десять связей — одна запись. */
+function submitRelate() {
   const from = relateFrom.value;
   if (!from || !relateTo.value) return;
   const summary = relateSummary.value.trim() || undefined;
-  const label = `связь «${from.title ?? from.id}» ${RELATION_LABEL[relateType.value]} «${relateTargets.value.find((item) => item.value === relateTo.value)?.label ?? relateTo.value}»`;
+  relationMarks.value = queueRelationAdd(
+    relationMarks.value,
+    { from: from.id, to: relateTo.value, type: relateType.value, ...(summary ? { summary } : {}) },
+    props.savedRelations
+  );
+  relateFrom.value = null;
+}
+
+const relationCount = computed(() => relationMarkCount(relationMarks.value));
+
+async function saveRelations() {
+  const { add, remove } = relationMarks.value;
+  if (add.length + remove.length === 0) return;
   const ok = await post({
-    action: 'relate',
-    relation: { from: from.id, to: relateTo.value, type: relateType.value, ...(summary ? { summary } : {}) }
-  }, label);
-  if (ok) relateFrom.value = null;
+    action: 'relations',
+    ...(add.length ? { add: add.map(({ from, to, type, summary }) => ({ from, to, type, ...(summary ? { summary } : {}) })) } : {}),
+    ...(remove.length ? { remove } : {})
+  }, `связи (+${add.length} −${remove.length})`);
+  if (ok) relationMarks.value = NO_RELATION_MARKS;
 }
 
 const relationItems = RELATION_TYPES.map((value) => ({ label: RELATION_LABEL[value], value }));
@@ -326,19 +380,38 @@ async function confirmDraft() {
       </p>
     </div>
 
-    <!-- Отметки откладываются на экране — одна запись на все, а не черновик на каждый клик. -->
-    <div
-      v-if="markCount > 0"
-      class="sticky top-0 z-10 mb-3 flex flex-wrap items-center gap-3 rounded border border-warning bg-default p-2 text-sm"
-    >
-      <span>Отметок: {{ markCount }} — пока не сохранены</span>
-      <UButton size="xs" :loading="saving" @click="saveMarks">Сохранить отметки</UButton>
-      <UButton size="xs" variant="ghost" color="neutral" @click="marks = {}">Сбросить</UButton>
+    <!-- Отметки и связи откладываются на экране — одна запись на пачку, а не черновик на каждый клик.
+         Две пачки, а не одна: у них разный смысл и им нужны разные подтверждения. -->
+    <div v-if="markCount > 0 || relationCount > 0" class="sticky top-0 z-10 mb-3 space-y-2">
+      <div
+        v-if="markCount > 0"
+        class="flex flex-wrap items-center gap-3 rounded border border-warning bg-default p-2 text-sm"
+      >
+        <span>Отметок: {{ markCount }} — пока не сохранены</span>
+        <UButton size="xs" :loading="saving" @click="saveMarks">Сохранить отметки</UButton>
+        <UButton size="xs" variant="ghost" color="neutral" @click="marks = {}">Сбросить</UButton>
+      </div>
+      <div
+        v-if="relationCount > 0"
+        class="flex flex-wrap items-center gap-3 rounded border border-warning bg-default p-2 text-sm"
+      >
+        <span>Связей: +{{ relationMarks.add.length }} −{{ relationMarks.remove.length }} — пока не сохранены</span>
+        <UButton size="xs" :loading="saving" @click="saveRelations">Сохранить связи</UButton>
+        <UButton size="xs" variant="ghost" color="neutral" @click="relationMarks = NO_RELATION_MARKS">Сбросить</UButton>
+      </div>
     </div>
+    <UAlert
+      v-if="failure && !formOpen && !relateFrom"
+      class="mb-3"
+      color="error"
+      variant="subtle"
+      :title="failure.message"
+      :description="failure.detail"
+    />
 
     <UCard v-if="formOpen" class="mb-3">
       <p class="mb-2 text-sm text-muted">
-        {{ editingId ? 'Название, описание и состояние' : 'Название возможности' }}
+        {{ editingId ? 'Название, описание, состояние, приоритет и горизонт' : 'Название возможности' }}
       </p>
       <div class="flex flex-wrap items-center gap-3">
         <UInput
@@ -367,6 +440,11 @@ async function confirmDraft() {
           placeholder="Что сделано и чего не хватает — одна-две фразы"
         />
       </div>
+      <!-- Приоритет и горизонт — и у родителя: это решение о ветке целиком, в подпунктах оно наследуется. -->
+      <div v-if="editingId" class="mt-3 flex flex-wrap items-start gap-3">
+        <USelect v-model="formPriority" class="w-48" :items="priorityItems" />
+        <USelect v-model="formHorizon" class="w-48" :items="horizonItems" />
+      </div>
       <UAlert
         v-if="failure"
         class="mt-3"
@@ -379,7 +457,7 @@ async function confirmDraft() {
 
     <UCard v-if="relateFrom" class="mb-3">
       <p class="mb-2 text-sm text-muted">
-        Связать «{{ relateFrom.title ?? relateFrom.id }}» с другой возможностью
+        Связать «{{ relateFrom.title ?? relateFrom.id }}» с другой возможностью — связь отложится в пачку
       </p>
       <div class="flex flex-wrap items-center gap-3">
         <USelect v-model="relateType" class="w-44" :items="relationItems" />
@@ -389,7 +467,7 @@ async function confirmDraft() {
           :items="relateTargets"
           placeholder="С какой возможностью"
         />
-        <UButton :loading="saving" :disabled="!relateTo" @click="submitRelate">Связать</UButton>
+        <UButton :disabled="!relateTo" @click="submitRelate">Связать</UButton>
         <UButton variant="ghost" color="neutral" @click="relateFrom = null">Отмена</UButton>
       </div>
       <UInput

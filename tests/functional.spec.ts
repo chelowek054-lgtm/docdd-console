@@ -150,7 +150,7 @@ describe('связи', () => {
       { from: 'orders', to: 'нет', type: 'uses' },
       { from: 'orders.pay', to: 'orders', type: 'depends' },
       { from: 'account', to: 'account', type: 'depends' },
-      { from: 'orders', to: 'account', type: 'replaces' }
+      { from: 'orders', to: 'account', type: 'blocks' }
     ], tree);
     expect(drawn).toHaveLength(1);
     expect(skipped).toBe(4);
@@ -173,7 +173,7 @@ describe('карта: состояние и связи проходят схем
 
   it('незнакомое состояние и вид связи схема отвергает', () => {
     expect(parseMapRecord(body({ added: { capabilities: [{ id: 'a', status: 'almost' }] } })).problems).toHaveLength(1);
-    expect(parseMapRecord(body({ added: { relations: [{ from: 'a', to: 'b', type: 'replaces' }] } })).problems).toHaveLength(1);
+    expect(parseMapRecord(body({ added: { relations: [{ from: 'a', to: 'b', type: 'blocks' }] } })).problems).toHaveLength(1);
   });
 
   it('повторное объявление — уточнение: состояние побеждает последнее, связь с другим типом — другая связь', () => {

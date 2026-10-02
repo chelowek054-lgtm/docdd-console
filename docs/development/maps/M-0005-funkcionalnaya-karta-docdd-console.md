@@ -4,7 +4,7 @@ type: map
 title: Функциональная карта DocDD Console — вектор и возможности
 status: draft
 created: 2026-10-01
-updated: 2026-10-01
+updated: 2026-10-02
 ---
 
 # Функциональная карта DocDD Console — вектор и возможности
@@ -38,7 +38,15 @@ updated: 2026-10-01
       { "id": "validation.cli", "title": "Проверка из командной строки", "parent": "validation", "status": "implemented" },
 
       { "id": "maps", "title": "Карты устройства", "summary": "Что система умеет, из чего состоит, как текут данные и как по ней ходит пользователь — с проверкой по настоящему коду." },
-      { "id": "maps.functional", "title": "Функциональная карта: вектор, состояние, связи, история курса", "parent": "maps", "status": "partial", "note": "Состояние, связи и граф есть; вектор проекта и история курса только что добавлены и ждут сверки." },
+      { "id": "maps.functional", "title": "Функциональная карта: ядро системы", "parent": "maps", "summary": "Что система должна уметь, как далеко это зашло, что на чём стоит и что за чем идёт: по ней читают состояние будущей системы." },
+      { "id": "maps.functional.vision", "title": "Вектор проекта и история курса", "parent": "maps.functional", "status": "implemented", "priority": "must" },
+      { "id": "maps.functional.status", "title": "Состояние реализации и «Проверить по коду»", "parent": "maps.functional", "status": "implemented", "priority": "must" },
+      { "id": "maps.functional.graph", "title": "Граф состояния с легендой в схеме", "parent": "maps.functional", "status": "implemented", "note": "Три вида стрелок, «ждёт» и цикл; без уровней на десятке групп это стена узлов." },
+      { "id": "maps.functional.fill", "title": "Наполнение: связи пачкой, предложение связей, разбор входящего со связями", "parent": "maps.functional", "status": "not_implemented", "priority": "must", "horizon": "now", "note": "Связи заводятся по одной, а разбор входящего теряет связи и состояния." },
+      { "id": "maps.functional.kinds", "title": "Пять видов связей, приоритет и горизонт", "parent": "maps.functional", "status": "not_implemented", "priority": "must", "horizon": "now", "note": "Сейчас три вида связей; приоритета и горизонта нет." },
+      { "id": "maps.functional.coverage", "title": "Покрытие процессом: требования, задачи и проверки за отметкой", "parent": "maps.functional", "status": "not_implemented", "priority": "must", "horizon": "next" },
+      { "id": "maps.functional.consistency", "title": "Предупреждения о расхождении отметки с задачами и проверками", "parent": "maps.functional", "status": "not_implemented", "priority": "should", "horizon": "next" },
+      { "id": "maps.functional.levels", "title": "Уровни и режимы графа: обзор, группа, покрытие, риски, порядок, влияние", "parent": "maps.functional", "status": "not_implemented", "priority": "should", "horizon": "next" },
       { "id": "maps.code", "title": "Кодовая база и сверка свидетельств", "parent": "maps", "status": "implemented" },
       { "id": "maps.groups", "title": "Группы: обзор, группа целиком, соседи выбранного модуля", "parent": "maps", "status": "implemented" },
       { "id": "maps.data", "title": "Потоки данных", "parent": "maps", "status": "implemented", "note": "На тех же группах: обзор «группы кода ↔ виды источников»." },
@@ -63,7 +71,12 @@ updated: 2026-10-01
       { "from": "maps.groups", "to": "maps.code", "type": "depends", "summary": "группы строятся из модулей кодовой карты" },
       { "from": "maps.data", "to": "maps.groups", "type": "uses", "summary": "группы кода — те же" },
       { "from": "inbox.parse", "to": "maps.functional", "type": "feeds", "summary": "новая функция попадает в карту первой" },
-      { "from": "work.task", "to": "validation.gates", "type": "depends" }
+      { "from": "work.task", "to": "validation.gates", "type": "depends" },
+      { "from": "maps.functional.fill", "to": "inbox.parse", "type": "depends", "summary": "разбор входящего начинает нести связи и состояния" },
+      { "from": "maps.functional.coverage", "to": "validation.verified", "type": "uses", "summary": "результат проверки — последний отчёт" },
+      { "from": "maps.functional.consistency", "to": "maps.functional.coverage", "type": "depends", "summary": "расхождение считается по покрытию" },
+      { "from": "maps.functional.levels", "to": "maps.functional.coverage", "type": "depends", "summary": "режим «Покрытие» красит по покрытию" },
+      { "from": "maps.functional.levels", "to": "maps.functional.kinds", "type": "depends", "summary": "режимы читают приоритет, горизонт и новые виды связей" }
     ]
   }
 }
@@ -72,3 +85,4 @@ updated: 2026-10-01
 ## Журнал
 
 - 2026-10-01 · заведена черновиком · модель
+- 2026-10-02 · дополнена возможностями фазы 17 (ядро функциональной карты) · модель
