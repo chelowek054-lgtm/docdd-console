@@ -353,3 +353,33 @@ describe('представление возможности для экрана'
     expect(riskLevel([])).toBe('none');
   });
 });
+
+describe('легенда вне схемы', () => {
+  const caps: Caps = [
+    { id: 'a', title: 'А', status: 'implemented' },
+    { id: 'b', title: 'Б', status: 'not_implemented' },
+    { id: 'c', title: 'В', status: 'partial' }
+  ];
+  const rels: Rels = [{ from: 'b', to: 'a', type: 'triggers' }, { from: 'c', to: 'a', type: 'depends' }];
+
+  it('legendInside: false — в тексте рамки нет, данные для полосы — есть', () => {
+    const { text, legend } = graph(caps, rels, null, { legendInside: false });
+    expect(text).not.toContain('Легенда');
+    expect(text).not.toContain('legend_');
+    expect(legend?.entries.map((entry) => `${entry.label} · ${entry.count}`)).toEqual(['Реализовано · 1', 'Частично · 1', 'Не реализовано · 1']);
+    expect(legend?.entries[0]).toMatchObject({ fill: '#DCFCE7', stroke: '#16A34A' });
+    expect(legend?.kinds.map((kind) => `${kind.text} · ${kind.count}`)).toEqual(['зависит от · 1', 'запускает · 1']);
+  });
+
+  it('по умолчанию рамка в тексте остаётся, данные те же', () => {
+    const inside = graph(caps, rels);
+    expect(inside.text).toContain('subgraph legend["Легенда"]');
+    expect(inside.legend).toEqual(graph(caps, rels, null, { legendInside: false }).legend);
+  });
+
+  it('в обзоре групп и в других режимах — тоже', () => {
+    expect(graph(caps, rels, null, { level: 'groups', legendInside: false }).legend?.entries.length).toBeGreaterThan(0);
+    const order = graph(caps, rels, null, { mode: 'order', legendInside: false }).legend;
+    expect(order?.entries.map((entry) => entry.label)).toContain('Готово');
+  });
+});

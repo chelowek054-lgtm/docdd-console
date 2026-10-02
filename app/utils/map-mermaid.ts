@@ -130,8 +130,20 @@ export type MapSelection =
   | ({ kind: 'group' } & GroupCard)
   | ({ kind: 'link' } & LinkCard);
 
+/**
+ * Легенда графа состояния данными, а не рамкой в тексте: экран рисует её полосой
+ * над диаграммой, вне холста (docs/04-ui.md, «Легенда — над схемой»).
+ */
+export interface FunctionalLegend {
+  entries: { key: string; label: string; count: number; fill: string; stroke: string; dash: boolean }[];
+  kinds: { kind: string; text: string; count: number }[];
+  hints: { waits: number; cycles: number };
+}
+
 export interface MermaidOutput {
   text: string;
+  /** Только у графа состояния функциональной карты. */
+  legend?: FunctionalLegend;
   /** id узла (как в тексте mermaid) → полный текст для title при наведении. */
   details: Record<string, string>;
   /** id узла → файл, который открывает клик. Узлов без объявленного файла тут нет. */
@@ -592,6 +604,8 @@ export interface FunctionalGraphOptions {
   plan?: PlanFilter | undefined;
   /** «Только риски»: листья с признаком из режима «Риски» и их родители. */
   onlyRisks?: boolean | undefined;
+  /** Рисовать легенду рамкой внутри текста диаграммы; `false` — только данные в `legend` (так делает экран). */
+  legendInside?: boolean | undefined;
   /** Выбранная возможность: соседи из других групп «призраками» и влияние. */
   selected?: string | null | undefined;
   impact?: boolean | undefined;
@@ -769,7 +783,7 @@ export function functionalMermaid(
   if (capabilities.length === 0) return EMPTY;
 
   const relations = scope.relations.filter((relation) => !options.hiddenKinds?.has(relation.type));
-  if (level === 'groups') return functionalOverview(everything, relations, capabilities, views);
+  if (level === 'groups') return functionalOverview(everything, relations, capabilities, views, options.legendInside !== false);
 
   const details: Record<string, string> = {};
   const nodes: Record<string, MermaidNode> = {};
@@ -943,10 +957,11 @@ export function functionalMermaid(
     if (impactCount.up > 0) entries.push({ key: 'impact_up', cls: 'imp_up', label: 'На чём стоит', count: impactCount.up });
     if (impactCount.down > 0) entries.push({ key: 'impact_down', cls: 'imp_down', label: 'Что заденет', count: impactCount.down });
   }
-  lines.push(...functionalLegend(entries, kindCount, { waits, cycles }, everyLink.length));
+  if (options.legendInside !== false) lines.push(...functionalLegend(entries, kindCount, { waits, cycles }, everyLink.length));
 
   return {
     text: lines.join(LF),
+    legend: legendOf(entries, kindCount, { waits, cycles }),
     details,
     paths: {},
     nodes,
@@ -972,7 +987,8 @@ function functionalOverview(
   everything: ProjectMap['functional']['capabilities'],
   relations: ProjectMap['functional']['relations'],
   kept: ProjectMap['functional']['capabilities'],
-  views: ReadonlyMap<string, CapabilityView>
+  views: ReadonlyMap<string, CapabilityView>,
+  inside: boolean
 ): MermaidOutput {
   const level = groupLevel(everything, relations);
   const keep = new Set(kept.map((item) => rootOf(item.id, everything)));
@@ -1029,13 +1045,43 @@ function functionalOverview(
   const entries = STATE_KEYS
     .filter((key) => classCount.has(key))
     .map((key) => ({ key, cls: nodeId('st', key), label: IMPL_LABEL[key], count: classCount.get(key) as number }));
-  lines.push(...functionalLegend(entries, kindCount, { waits, cycles }, edges.length));
+  if (inside) lines.push(...functionalLegend(entries, kindCount, { waits, cycles }, edges.length));
 
-  return { text: lines.join(LF), details, paths: {}, nodes, edges: [], neighbors: neighborsOf(edges.map((edge) => ({ from: node(edge.from), to: node(edge.to) }))) };
+  return { text: lines.join(LF), legend: legendOf(entries, kindCount, { waits, cycles }), details, paths: {}, nodes, edges: [], neighbors: neighborsOf(edges.map((edge) => ({ from: node(edge.from), to: node(edge.to) }))) };
+}
+
+const KIND_NAME: Record<string, string> = {
+  depends: 'зависит от', uses: 'пользуется', feeds: 'передаёт данные в', triggers: 'запускает', replaces: 'заменяет'
+};
+
+/** Цвет класса узла: тот же, что в `classDef`, — по префиксу класса. */
+function lookOfClass(cls: string): Look {
+  const key = cls.slice(cls.indexOf('_') + 1);
+  const prefix = cls.slice(0, cls.indexOf('_'));
+  if (prefix === 'st') return { ...STATUS_STYLE[key as keyof typeof STATUS_STYLE], dash: key === 'unrated' };
+  if (cls === 'imp_up') return { fill: '#FFFFFF', stroke: '#2563EB', width: 4 };
+  if (cls === 'imp_down') return { fill: '#FFFFFF', stroke: '#7C3AED', width: 4 };
+  const mode = ({ cv: 'coverage', rk: 'risks', or: 'order' } as const)[prefix as 'cv' | 'rk' | 'or'];
+  return (mode && MODE_LOOK[mode][key]) || { fill: '#F3F4F6', stroke: '#9CA3AF' };
+}
+
+function legendOf(
+  entries: readonly { key: string; cls: string; label: string; count: number }[],
+  kinds: Record<string, number>,
+  hints: { waits: number; cycles: number }
+): FunctionalLegend {
+  return {
+    entries: entries.map((entry) => {
+      const look = lookOfClass(entry.cls);
+      return { key: entry.key, label: entry.label, count: entry.count, fill: look.fill, stroke: look.stroke, dash: !!look.dash };
+    }),
+    kinds: KIND_ORDER.filter((kind) => kinds[kind]).map((kind) => ({ kind, text: KIND_NAME[kind] as string, count: kinds[kind] as number })),
+    hints
+  };
 }
 
 /**
- * Легенда — часть самой схемы (docs/04-ui.md, «Граф состояния»): рамка внутри
+ * Легенда рамкой внутри текста диаграммы (docs/04-ui.md, «Граф состояния»): рамка внутри
  * диаграммы, поэтому уходит и в выгруженный SVG, и в «Скопировать mermaid».
  * Правило одно — в ней только то, что нарисовано, и с числом. Образцы стрелок —
  * настоящие связи между безымянными узлами, поэтому их порядок в тексте
