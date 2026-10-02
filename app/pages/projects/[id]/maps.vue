@@ -793,6 +793,14 @@ function onEdgeClick(edge: MermaidEdge) {
         </UButton>
       </div>
 
+      <!-- Вектор — над списками карт и описью: это якорь всего проекта, а не подробность одной вкладки. -->
+      <VisionCard
+        v-if="map"
+        :project-id="projectId"
+        :vision="map.functional.vision"
+        @changed="() => refresh()"
+      />
+
       <div v-if="mapRecords.length" class="space-y-1 text-sm">
         <p v-for="group in mapRecords" :key="group.label" class="flex flex-wrap items-center gap-x-4 gap-y-1">
           <span class="text-muted">{{ group.label }}:</span>
@@ -1135,11 +1143,6 @@ function onEdgeClick(edge: MermaidEdge) {
                 </template>
               </PromptPanel>
 
-              <VisionCard
-                :project-id="projectId"
-                :vision="map.functional.vision"
-                @changed="() => refresh()"
-              />
               <CourseHistory :project-id="projectId" :history="map.functional.history" />
 
               <FunctionalSummary
