@@ -3,7 +3,8 @@ import type { ComponentPublicInstance } from 'vue';
 
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import { highlightCode, type CodeToken } from '~/utils/highlight';
-import { STATUS_STYLE, statusText } from '~/utils/functional-view';
+import { COVERAGE_LABEL, HORIZON_LABEL, PRIORITY_LABEL } from '../../server/lib/functional';
+import { RISK_LABEL, STATUS_STYLE, statusText, type CapabilityLink } from '~/utils/functional-view';
 import type { MapSelection } from '~/utils/map-mermaid';
 import type { EvidenceVerdict } from '~~/server/lib/maps';
 
@@ -27,6 +28,8 @@ const props = defineProps<{
   to?: HTMLElement | null;
   /** id → название возможности функциональной карты — для карточки группы. */
   capabilityTitles?: Record<string, string>;
+  /** Влияние выбранной возможности включено на схеме. */
+  impactOn?: boolean;
 }>();
 const emit = defineEmits<{
   close: [];
@@ -34,6 +37,10 @@ const emit = defineEmits<{
   'open-group': [groupId: string];
   /** «Открыть» у узла обзора потоков: группа кода или вид источников. */
   'open-flow': [target: { type: 'code' | 'kind'; id: string }];
+  /** «Влияние» у возможности: подсветить цепочки «опирается на» и «на неё опираются». */
+  impact: [];
+  /** Убрать связь возможности — отложится в пачку связей, а не запишется сразу. */
+  unrelate: [relation: { from: string; to: string; type: string }];
 }>();
 
 const open = computed({
@@ -147,9 +154,19 @@ const capView = computed(() => (props.selection?.kind === 'node' ? props.selecti
 const capNote = computed(() => (props.selection?.kind === 'node' ? props.selection.note : undefined));
 const BADGE_COLOR = { implemented: 'success', partial: 'warning', not_implemented: 'error', unrated: 'neutral' } as const;
 const LINK_WORDS = {
-  out: { depends: 'зависит от', uses: 'пользуется', feeds: 'передаёт данные в' },
-  in: { depends: 'от неё зависит', uses: 'ею пользуется', feeds: 'передаёт ей данные' }
+  out: { depends: 'зависит от', uses: 'пользуется', feeds: 'передаёт данные в', triggers: 'запускает', replaces: 'заменяет' },
+  in: { depends: 'от неё зависит', uses: 'ею пользуется', feeds: 'передаёт ей данные', triggers: 'её запускает', replaces: 'её заменяет' }
 } as const;
+
+function removeLink(link: CapabilityLink) {
+  const self = props.selection?.kind === 'node' ? props.selection.id : '';
+  emit('unrelate', link.direction === 'out'
+    ? { from: self, to: link.id, type: link.type }
+    : { from: link.id, to: self, type: link.type });
+}
+const titleOf = (id: string) => props.capabilityTitles?.[id] ?? id;
+const capGroupOf = computed(() => (props.selection?.kind === 'node' ? props.selection.capabilityGroup : undefined));
+const coverage = computed(() => capView.value?.coverage);
 const waitingNames = computed(() => (capView.value?.waiting ?? []).map(
   (id) => capView.value?.links.find((link) => link.id === id)?.title ?? id
 ));
@@ -374,13 +391,51 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
           >
             {{ statusText(capView) }}
           </UBadge>
+          <div v-if="capView.priority || capView.horizon" class="flex flex-wrap gap-1">
+            <UBadge v-if="capView.priority" size="xs" variant="subtle" color="neutral">
+              {{ PRIORITY_LABEL[capView.priority.value] }}<template v-if="capView.priority.inherited"> · от «{{ titleOf(capView.priority.from) }}»</template>
+            </UBadge>
+            <UBadge v-if="capView.horizon" size="xs" variant="outline" color="neutral">
+              {{ HORIZON_LABEL[capView.horizon.value] }}<template v-if="capView.horizon.inherited"> · от «{{ titleOf(capView.horizon.from) }}»</template>
+            </UBadge>
+          </div>
           <p v-if="capNote" class="leading-relaxed">{{ capNote }}</p>
+          <div v-if="capView.flags.length" class="flex flex-wrap gap-1">
+            <UBadge v-for="flag in capView.flags" :key="flag" size="xs" variant="subtle" color="warning">{{ RISK_LABEL[flag] }}</UBadge>
+          </div>
           <p v-if="capView.inCycle" class="text-xs text-error">
             Две возможности ждут друг друга — по очереди их не сделать, граница проведена неверно.
           </p>
           <p v-else-if="waitingNames.length" class="text-xs text-warning">
             Ждёт: {{ waitingNames.join(', ') }} — начинать с неё нет смысла, пока зависимость не готова.
           </p>
+          <p v-if="capView.replacedBy.length" class="text-xs text-warning">
+            Заменяется на: {{ capView.replacedBy.map(titleOf).join(', ') }} — работа не должна уходить в то, что уходит.
+          </p>
+          <p class="text-xs text-muted">
+            Освободит {{ capView.unblocks }} · опирается на {{ capView.reliesOn }} · на неё опираются {{ capView.reliedOnBy }}
+          </p>
+          <div class="flex flex-wrap gap-2">
+            <UButton
+              v-if="!ghostOf"
+              size="xs"
+              variant="soft"
+              :color="impactOn ? 'primary' : 'neutral'"
+              icon="i-lucide-waypoints"
+              @click="emit('impact')"
+            >
+              {{ impactOn ? 'Снять влияние' : 'Влияние' }}
+            </UButton>
+            <UButton
+              v-if="capGroupOf && !ghostOf"
+              size="xs"
+              variant="soft"
+              icon="i-lucide-folder-open"
+              @click="emit('open-group', capGroupOf)"
+            >
+              Открыть группу
+            </UButton>
+          </div>
         </div>
 
         <p v-if="nodeSummary" class="leading-relaxed">{{ nodeSummary }}</p>
@@ -391,8 +446,62 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
             <li v-for="link in capView.links" :key="`${link.direction}:${link.type}:${link.id}`" class="text-xs">
               <span class="text-muted">{{ LINK_WORDS[link.direction][link.type] }}</span>
               {{ link.title }}<span v-if="link.summary" class="text-muted"> — {{ link.summary }}</span>
+              <UBadge v-if="link.unsaved" class="ml-1" size="xs" variant="subtle" color="warning">не сохранено</UBadge>
+              <UButton
+                class="ml-1 align-middle"
+                icon="i-lucide-x"
+                size="xs"
+                variant="ghost"
+                color="neutral"
+                title="Убрать связь (отложится в пачку)"
+                @click="removeLink(link)"
+              />
             </li>
           </ul>
+        </template>
+
+        <!-- Что стоит за возможностью в процессе: требования, задачи, проверки, код (docs/07-maps.md, «Покрытие процессом»). -->
+        <template v-if="coverage">
+          <h3 class="font-medium">Что стоит за ней в процессе</h3>
+          <UBadge size="xs" variant="subtle" :color="coverage.level === 'failing' ? 'error' : coverage.level === 'verified' ? 'success' : 'neutral'">
+            {{ COVERAGE_LABEL[coverage.level] }}
+          </UBadge>
+          <p v-if="coverage.level === 'none'" class="text-xs text-muted">Требований и задач нет.</p>
+          <ul class="space-y-1 text-xs">
+            <li v-if="coverage.requirements.ids.length">
+              <span class="text-muted">Требования:</span>
+              <NuxtLink
+                v-for="id in coverage.requirements.ids"
+                :key="id"
+                :to="`/projects/${projectId}/records/${id}`"
+                class="ml-1 hover:underline"
+              >{{ id }} · {{ coverage.requirements.statuses[id] }}</NuxtLink>
+            </li>
+            <li v-if="coverage.tasks.ids.length">
+              <span class="text-muted">Задачи:</span>
+              <NuxtLink
+                v-for="id in coverage.tasks.ids"
+                :key="id"
+                :to="`/projects/${projectId}/records/${id}`"
+                class="ml-1 hover:underline"
+              >{{ id }} · {{ coverage.tasks.statuses[id] }}</NuxtLink>
+            </li>
+            <li v-if="coverage.verifications.ids.length">
+              <span class="text-muted">Проверки:</span>
+              <NuxtLink
+                v-for="id in coverage.verifications.ids"
+                :key="id"
+                :to="`/projects/${projectId}/records/${id}`"
+                class="ml-1 hover:underline"
+              >{{ id }} · {{ coverage.verifications.results[id] === 'none' ? 'не запускалась' : coverage.verifications.results[id] }}</NuxtLink>
+            </li>
+            <li v-for="item in coverage.code" :key="item.group">
+              <span class="text-muted">Код:</span> группа <span class="font-mono">{{ item.group }}</span>, {{ plural(item.modules, 'модуль', 'модуля', 'модулей') }}
+            </li>
+          </ul>
+          <p v-if="coverage.maps.length" class="text-xs text-muted">
+            Через карты: {{ coverage.maps.join(', ') }} — связь с задачами точна до карты.
+          </p>
         </template>
 
         <template v-if="nodeApi.length">

@@ -98,6 +98,9 @@ export type ViolationCode =
   | 'task_maps_unapproved'
   | 'change_missing'
   | 'map_capability_missing'
+  | 'capability_ahead'
+  | 'capability_behind'
+  | 'capability_verification_failed'
   // выполнение
   | 'work_unreviewed'
   | 'work_branch_orphan'
@@ -163,6 +166,9 @@ export const VIOLATION_LEVELS: Readonly<Record<ViolationCode, Severity>> = {
   task_maps_unapproved: 'error',
   change_missing: 'warning',
   map_capability_missing: 'warning',
+  capability_ahead: 'warning',
+  capability_behind: 'warning',
+  capability_verification_failed: 'warning',
   work_unreviewed: 'warning',
   work_branch_orphan: 'warning',
   task_not_ready_docs: 'error',

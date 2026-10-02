@@ -1,4 +1,5 @@
 import { findDependencyCycles, incomingEdges, outgoing, type Graph } from './graph';
+import { capabilityFindings } from './coverage';
 import { checkEvidence, evidenceClaims, parseMapRecord, type MapChange } from './maps';
 import { firstHeading } from './parse';
 import {
@@ -172,6 +173,7 @@ export function checkAll(ctx: RuleContext): Violation[] {
     ...taskMapsUnapproved(ctx),
     ...changeMissing(ctx),
     ...mapCapabilityMissing(ctx),
+    ...capabilityConsistency(ctx),
     ...workUnreviewed(ctx),
     ...workBranchOrphan(ctx),
     ...taskNotReadyDocs(ctx),
@@ -477,6 +479,17 @@ export function mapCapabilityMissing(ctx: RuleContext): Violation[] {
     ));
   }
   return found;
+}
+
+/**
+ * Отметка состояния возможности и то, что за ней стоит в процессе (docs/05-validation.md,
+ * «Карты»). Висит на карте, где возможность объявлена последней: именно там стоит
+ * отметка, которую надо поправить или подтвердить.
+ */
+export function capabilityConsistency(ctx: RuleContext): Violation[] {
+  const pathOf = new Map(ctx.records.map((record) => [record.id, record.source.path]));
+  return capabilityFindings(ctx.records, ctx.verifications).map((finding) =>
+    violation(finding.code, finding.map, pathOf.get(finding.map) ?? '', finding.message));
 }
 
 /** Не сказано, что за изменение, — значит непонятно, нужна ли карта. */

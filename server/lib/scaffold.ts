@@ -96,7 +96,12 @@ export interface TemplateInput {
    * Только для карт: возможности, предложенные разбором входящего — уходят
    * блоком ```docdd-functional под текстом тела (docs/06-phases.md, фаза 12).
    */
-  capabilities?: { id: string; title?: string; parent?: string }[];
+  capabilities?: {
+    id: string; title?: string; parent?: string; summary?: string;
+    status?: string; note?: string; priority?: string; horizon?: string;
+  }[];
+  /** Только для карт: связи между возможностями — в тот же блок. */
+  relations?: { from: string; to: string; type: string; summary?: string }[];
   /** Только для карт: вектор проекта — уходит в тот же блок `docdd-functional`. */
   vision?: { problem?: string; audience?: string; outcome?: string; not?: string };
   /**
@@ -122,9 +127,14 @@ export function initialStatus(type: RecordType): string {
 function bodyWithCapabilities(
   prose: string,
   capabilities: NonNullable<TemplateInput['capabilities']>,
-  vision?: TemplateInput['vision']
+  vision?: TemplateInput['vision'],
+  relations: NonNullable<TemplateInput['relations']> = []
 ): string {
-  const added = { ...(vision ? { vision } : {}), ...(capabilities.length > 0 ? { capabilities } : {}) };
+  const added = {
+    ...(vision ? { vision } : {}),
+    ...(capabilities.length > 0 ? { capabilities } : {}),
+    ...(relations.length > 0 ? { relations } : {})
+  };
   const block = ['```docdd-functional', JSON.stringify({ added }, null, 2), '```'];
   return prose === '' ? block.join(NEW_LINE) : [prose, '', ...block].join(NEW_LINE);
 }
@@ -159,8 +169,9 @@ export function recordTemplate(input: TemplateInput, eol = '\n'): string {
 
   const said = (input.body ?? '').trim();
   const capabilities = input.capabilities ?? [];
-  const body = capabilities.length > 0 || input.vision
-    ? bodyWithCapabilities(said, capabilities, input.vision)
+  const relations = input.relations ?? [];
+  const body = capabilities.length > 0 || relations.length > 0 || input.vision
+    ? bodyWithCapabilities(said, capabilities, input.vision, relations)
     : (said === '' ? 'Зачем это, что делаем, чего не делаем, как понять, что готово.' : said);
 
   const sources = input.sources ?? [];

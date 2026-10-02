@@ -1,5 +1,6 @@
-import type { ImplStatus, RelationType } from './functional';
+import type { Horizon, ImplStatus, Priority, RelationType } from './functional';
 import { validateCodemap, validateDataflow, validateFunctional, validateSkipped, validateUserflow } from './schema';
+import type { WorkRecord } from './types';
 import { yamlSafe } from './write';
 
 const LF = String.fromCharCode(10);
@@ -95,11 +96,13 @@ export interface FunctionalPart {
     id: string; title?: string; parent?: string; summary?: string;
     /** Состояние реализации; нет поля — «не оценено» (docs/07-maps.md). */
     status?: ImplStatus; note?: string;
+    /** Насколько важна и когда нужна; нет поля — «без приоритета», «без горизонта» (docs/07-maps.md). */
+    priority?: Priority; horizon?: Horizon;
     /** След правки курса: какая карта объявила, когда и кто подтвердил (docs/07-maps.md). */
     declaredBy?: string; declaredAt?: string; declaredByRole?: string | null;
     pending?: boolean;
   }[];
-  /** Связи между возможностями: depends / uses / feeds. Свидетельства нет, как у всей карты. */
+  /** Связи между возможностями: depends / uses / feeds / triggers / replaces. Свидетельства нет, как у всей карты. */
   relations?: { from: string; to: string; type: RelationType; summary?: string; declaredBy?: string }[];
 }
 
@@ -420,6 +423,18 @@ export function annotatePending(map: ProjectMap, pendingMaps: ReadonlySet<string
   for (const item of map.userflow.transitions) markEdge(item);
   for (const item of map.userflow.calls) markEdge(item);
   for (const item of map.functional.capabilities) mark(item);
+}
+
+/**
+ * Подтверждённые карты в порядке подтверждения. Порядок известен только по дате
+ * правки; при равенстве — по идентификатору, чтобы картина не зависела от обхода
+ * папки. Один порядок для экрана и для правил, иначе они сложат разные картины.
+ */
+export function approvedMaps(records: readonly WorkRecord[]): WorkRecord[] {
+  return records
+    .filter((record) => record.type === 'map' && record.status === 'approved' && record.id)
+    .sort((a, b) => String(a.data['updated'] ?? '').localeCompare(String(b.data['updated'] ?? ''))
+      || a.id.localeCompare(b.id));
 }
 
 /** Сложенная картина проекта: производное от подтверждённых карт. */

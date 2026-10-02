@@ -1,3 +1,5 @@
+import { drawableRelations, type CapabilityLike, type RelationItem } from './functional';
+import type { Horizon, ImplStatus, Priority, RelationType } from './functional';
 import { LINK_KINDS, RECORD_TYPES, type LinkKind, type RecordType } from './types';
 import { validateRecords } from './schema';
 
@@ -24,8 +26,16 @@ export interface ProposedRecord {
    * (docs/06-phases.md, фаза 12).
    */
   notes?: string[];
-  /** Только у `type: map` — возможности для функциональной карты. */
-  capabilities?: { id: string; title?: string; parent?: string }[];
+  /**
+   * Только у `type: map` — возможности для функциональной карты. Несут всё, что
+   * есть у самой карты: состояние, приоритет и горизонт (docs/10-inbox.md).
+   */
+  capabilities?: {
+    id: string; title?: string; parent?: string; summary?: string;
+    status?: ImplStatus; note?: string; priority?: Priority; horizon?: Horizon;
+  }[];
+  /** Только у `type: map` — связи между возможностями, если заметка говорит, что на чём стоит. */
+  relations?: { from: string; to: string; type: RelationType; summary?: string }[];
   /** Только у `type: map` — вектор проекта (docs/07-maps.md, «Вектор проекта»). */
   vision?: { problem?: string; audience?: string; outcome?: string; not?: string };
   links?: Record<string, string[]>;
@@ -157,6 +167,40 @@ export function resolveLinks(
 
 function isLinkKind(value: string): value is LinkKind {
   return (LINK_KINDS as readonly string[]).includes(value);
+}
+
+export interface UsableRelations {
+  relations: RelationItem[];
+  /** Что в запись не пошло и почему: человек увидит это в ответе, а не найдёт потом. */
+  problems: string[];
+}
+
+/**
+ * Связи предложенной карты, которые можно завести: концы — возможности этого же
+ * предложения или уже стоящие в карте. Связь с несуществующей возможностью
+ * приложение в запись не пускает и называет (docs/10-inbox.md).
+ */
+export function usableRelations(
+  relations: readonly RelationItem[] | undefined,
+  proposed: readonly CapabilityLike[],
+  standing: readonly CapabilityLike[]
+): UsableRelations {
+  const all = [...standing.filter((item) => !proposed.some((other) => other.id === item.id)), ...proposed];
+  const ids = new Set(all.map((item) => item.id));
+  const usable: RelationItem[] = [];
+  const problems: string[] = [];
+
+  for (const relation of relations ?? []) {
+    const label = `«${relation.from}» → «${relation.to}» (${relation.type})`;
+    if (!ids.has(relation.from) || !ids.has(relation.to)) {
+      problems.push(`Связь ${label} пропущена: возможности нет ни в предложении, ни в карте.`);
+    } else if (drawableRelations([relation], all).drawn.length === 0) {
+      problems.push(`Связь ${label} пропущена: возможность сама с собой или предок с потомком — это уже сказано деревом.`);
+    } else {
+      usable.push(relation);
+    }
+  }
+  return { relations: usable, problems };
 }
 
 export function isProposedType(value: string): value is RecordType {

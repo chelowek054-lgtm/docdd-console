@@ -1,5 +1,5 @@
 import { contractDigest } from './contract-digest';
-import { capabilityLines, type CapabilityLike } from './functional';
+import { capabilityLines, relationLines, type CapabilityLike, type RelationLike } from './functional';
 import type { IssueDto } from './types';
 
 /**
@@ -341,6 +341,23 @@ export function functionalCheckPrompt(
   capabilities: readonly CapabilityLike[]
 ): string {
   return withoutFrontNote(template).replace(CAPABILITIES_TREE_MARKER, capabilityLines(capabilities));
+}
+
+export const RELATIONS_MARKER = '<!-- СВЯЗИ -->';
+
+/**
+ * Запрос «Предложить связи» (docs/07-maps.md, «Связи — тоже пачкой»). Модели
+ * уходят дерево возможностей и связи, которые уже стоят, — их повторять не нужно;
+ * код она читает сама. Ответ — блок `docdd-functional-relations`.
+ */
+export function relationsPrompt(
+  template: string,
+  capabilities: readonly CapabilityLike[],
+  relations: readonly RelationLike[]
+): string {
+  return withoutFrontNote(template)
+    .replace(CAPABILITIES_TREE_MARKER, () => capabilityLines(capabilities))
+    .replace(RELATIONS_MARKER, () => relationLines(relations));
 }
 
 export const GROUPS_MARKER = '<!-- ГРУППЫ -->';

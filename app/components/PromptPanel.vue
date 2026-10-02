@@ -8,7 +8,7 @@ import type { ApiFailure } from '~/composables/useProjectIndex';
  */
 const props = defineProps<{
   projectId: string;
-  kind: 'fix' | 'maps' | 'functional-check' | 'phases' | 'groups';
+  kind: 'fix' | 'maps' | 'functional-check' | 'relations' | 'phases' | 'groups';
   /** Отбор для запроса `fix`: те же фильтры, что на экране. */
   codes?: string[];
   severity?: string;
