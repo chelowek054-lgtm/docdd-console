@@ -51,6 +51,12 @@ const props = defineProps<{
   /** Что стоит за возможностями в процессе; нет, пока не загружено. */
   coverage?: Record<string, CapabilityCoverage> | undefined;
   filter: StatusFilter | null;
+  /**
+   * Режим «Граф»: само дерево прячется, а полосы «Сохранить отметки» и «Сохранить
+   * связи» остаются — несохранённое видно и на схеме, и сохранить его надо
+   * оттуда же, где его видно (docs/04-ui.md, «Отметки состояния — пачкой»).
+   */
+  treeHidden?: boolean;
 }>();
 
 /** Несохранённые отметки живут у родителя: их же кладёт «Проверить по коду» и рисует граф. */
@@ -370,7 +376,7 @@ async function confirmDraft() {
 <template>
   <div>
     <div class="mb-3 flex flex-wrap items-center gap-3">
-      <UButton size="xs" icon="i-lucide-plus" variant="soft" @click="openAdd(null)">
+      <UButton v-show="!treeHidden" size="xs" icon="i-lucide-plus" variant="soft" @click="openAdd(null)">
         Добавить возможность
       </UButton>
 
@@ -401,7 +407,7 @@ async function confirmDraft() {
       </div>
     </div>
     <UAlert
-      v-if="failure && !formOpen && !relateFrom"
+      v-if="failure && (treeHidden || (!formOpen && !relateFrom))"
       class="mb-3"
       color="error"
       variant="subtle"
@@ -409,7 +415,7 @@ async function confirmDraft() {
       :description="failure.detail"
     />
 
-    <UCard v-if="formOpen" class="mb-3">
+    <UCard v-if="formOpen" v-show="!treeHidden" class="mb-3">
       <p class="mb-2 text-sm text-muted">
         {{ editingId ? 'Название, описание, состояние, приоритет и горизонт' : 'Название возможности' }}
       </p>
@@ -455,7 +461,7 @@ async function confirmDraft() {
       />
     </UCard>
 
-    <UCard v-if="relateFrom" class="mb-3">
+    <UCard v-if="relateFrom" v-show="!treeHidden" class="mb-3">
       <p class="mb-2 text-sm text-muted">
         Связать «{{ relateFrom.title ?? relateFrom.id }}» с другой возможностью — связь отложится в пачку
       </p>
@@ -485,14 +491,14 @@ async function confirmDraft() {
       />
     </UCard>
 
-    <p v-if="allPending" class="mb-3 text-sm text-muted">
+    <p v-if="allPending" v-show="!treeHidden" class="mb-3 text-sm text-muted">
       Карта ещё не подтверждена, поэтому всё на ней помечено как план.
     </p>
 
-    <p v-if="roots.length === 0" class="rounded border border-dashed border-default p-6 text-center text-sm text-muted">
+    <p v-if="roots.length === 0" v-show="!treeHidden" class="rounded border border-dashed border-default p-6 text-center text-sm text-muted">
       {{ capabilities.length === 0 ? 'Возможностей пока нет — добавьте первую.' : 'Под этот фильтр ничего не подошло.' }}
     </p>
-    <ul v-else class="space-y-0.5">
+    <ul v-else v-show="!treeHidden" class="space-y-0.5">
       <FunctionalTreeNode
         v-for="item in roots"
         :key="item.id"
