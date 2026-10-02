@@ -653,6 +653,7 @@ const views = computed(() => {
         hiddenKinds: new Set(hiddenKinds.value),
         plan: { priority: planPriority.value, horizon: planHorizon.value },
         onlyRisks: onlyRisks.value,
+        legendInside: false,
         selected: capFocus.value,
         impact: impactOn.value
       })
@@ -1189,11 +1190,12 @@ function onEdgeClick(edge: MermaidEdge) {
                   @show-groups="showCapGroups"
                   @show-all="showCapAll"
                 />
+                <FunctionalLegendBar v-if="current.legend" :legend="current.legend" />
                 <p v-if="!current.text" class="text-sm text-muted">
                   {{ map.functional.capabilities.length ? 'Под эти фильтры ничего не подошло.' : 'В подтверждённых картах эта структура не описана.' }}
                 </p>
                 <template v-else>
-                  <!-- Легенда — внутри самой схемы (functionalMermaid), а не рядом: уходит и в SVG, и в mermaid. -->
+                  <!-- Легенда — полоса над схемой (FunctionalLegendBar), вне холста. -->
                   <MermaidDiagram
                     :key="`${capLevel}:${capGroupId}`"
                     :source="current.text"
