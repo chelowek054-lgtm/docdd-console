@@ -1173,7 +1173,7 @@ function onEdgeClick(edge: MermaidEdge) {
                 @select="(value) => (selection = value)"
                 @changed="() => refresh()"
               />
-              <template v-else>
+              <template v-if="functionalView === 'graph'">
                 <FunctionalGraphBar
                   v-if="map.functional.capabilities.length"
                   v-model:mode="capModeModel"
