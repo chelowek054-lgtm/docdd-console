@@ -1158,9 +1158,10 @@ function onEdgeClick(edge: MermaidEdge) {
                 @show-unrated="statusFilter = 'unrated'"
               />
 
+              <!-- Всегда на месте: в режиме «Граф» прячется само дерево, а полосы сохранения остаются. -->
               <FunctionalTree
-                v-if="functionalView === 'tree'"
                 v-model:marks="marks"
+                :tree-hidden="functionalView !== 'tree'"
                 v-model:relation-marks="relationMarks"
                 :project-id="projectId"
                 :capabilities="functionalEffective.capabilities"
