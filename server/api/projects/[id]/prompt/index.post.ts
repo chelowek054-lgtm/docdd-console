@@ -19,7 +19,7 @@ import { connectedPractices } from '../../../../utils/shared-service';
 import { inboxNotes } from '../../../../utils/inbox-service';
 import { mapSchemas } from '../../../../lib/map-schemas';
 import { phaseCandidates } from '../../../../lib/phase-plan';
-import { worthAsking } from '../../../../lib/inventory';
+import { portionAt, queueOf, worthAsking } from '../../../../lib/inventory';
 import { chosenIssues } from '../../../../utils/fix-service';
 import { pickedIssues } from '../../../../utils/chosen';
 import { inventoryOf } from '../../../../utils/inventory-service';
@@ -50,6 +50,8 @@ export default defineEventHandler(async (event) => {
     problems?: unknown;
     notes?: unknown;
     tasks?: unknown;
+    skip?: unknown;
+    limit?: unknown;
   }>(event);
   const kind = typeof body?.kind === 'string' ? body.kind : '';
 
@@ -81,7 +83,12 @@ export default defineEventHandler(async (event) => {
     }
 
     if (kind === 'maps') {
-      const inventory = inventoryOf(project.root);
+      const whole = inventoryOf(project.root);
+      // «Описать пачками»: заход со сдвигом по очереди (docs/07-maps.md, «Описать всё пачками»).
+      const skip = typeof body?.skip === 'number' && body.skip > 0 ? Math.floor(body.skip) : 0;
+      const inventory = skip > 0 || typeof body?.limit === 'number'
+        ? portionAt(whole, skip, typeof body?.limit === 'number' ? body.limit : whole.portion)
+        : whole;
 
       // Пустой проект — состояние, а не ошибка, и говорить о нём надо словами.
       // К модели не идём: запрос стоит времени и денег (docs/07-maps.md).
@@ -102,7 +109,7 @@ export default defineEventHandler(async (event) => {
             next: inventory.next,
             gone: inventory.gone,
             changed: inventory.changed.filter((path) => inventory.next.includes(path)),
-            left: inventory.pending.length + inventory.changed.length - inventory.next.length
+            left: Math.max(0, queueOf(inventory).length - skip - inventory.next.length)
           }
         }, mapSchemas()),
         count: inventory.next.length

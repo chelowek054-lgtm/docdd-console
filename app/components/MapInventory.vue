@@ -4,6 +4,7 @@
  * всегда с причиной: за каждой — список файлов, а не общее ощущение.
  */
 const props = defineProps<{ projectId: string }>();
+const emit = defineEmits<{ changed: [] }>();
 
 interface Inventory {
   total: number;
@@ -125,6 +126,14 @@ function toggle(which: string) {
       <ul v-if="files.length" class="mt-2 max-h-48 space-y-1 overflow-y-auto text-xs">
         <li v-for="file in files" :key="file" class="font-mono text-muted">{{ file }}</li>
       </ul>
+
+      <!-- Один раз запустить и не нажимать «Обновить карты» на каждый заход (docs/07-maps.md, «Описать всё пачками»). -->
+      <MapBatchDescribe
+        :project-id="projectId"
+        :left="left"
+        :portion="data.portion"
+        @changed="() => { void refresh(); emit('changed'); }"
+      />
     </template>
   </div>
 </template>
