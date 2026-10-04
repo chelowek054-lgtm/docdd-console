@@ -144,6 +144,8 @@ export interface MermaidOutput {
   text: string;
   /** Только у графа состояния функциональной карты. */
   legend?: FunctionalLegend;
+  /** Легенда остальных карт — полоса над схемой (`MapLegendBar.vue`). */
+  mapLegend?: MapLegendItem[];
   /** id узла (как в тексте mermaid) → полный текст для title при наведении. */
   details: Record<string, string>;
   /** id узла → файл, который открывает клик. Узлов без объявленного файла тут нет. */
@@ -329,7 +331,159 @@ export function codemapMermaid(map: ProjectMap, options: CodemapOptions = {}): M
     });
   }
   styleUnverified(lines, edges);
-  return { text: lines.join(LF), details, paths, nodes, edges, neighbors: neighborsOf(edges) };
+  return {
+    text: lines.join(LF), details, paths, nodes, edges, neighbors: neighborsOf(edges),
+    mapLegend: codemapLegend(layers, ports.length, ghosts.length, edges)
+  };
+}
+
+/**
+ * Строка легенды вкладок «Кодовая база», «Потоки данных», «Пользовательские
+ * пути» (docs/04-ui.md, «Легенда кодовой базы, потоков и путей»): полоса над
+ * схемой, вне холста. Только то, что нарисовано, и с числом.
+ */
+export interface MapLegendItem {
+  kind: 'swatch' | 'arrow' | 'note';
+  label: string;
+  count?: number;
+  fill?: string;
+  stroke?: string;
+  /** Пунктирная рамка (сосед из другой группы, не опознанный вид). */
+  dash?: boolean;
+  /** Толстая рамка (порт). */
+  thick?: boolean;
+  /** Полупрозрачный: карта, что его объявила, ещё не устоялась. */
+  faded?: boolean;
+  shape?: 'box' | 'cylinder' | 'stadium';
+  line?: 'solid' | 'dashed' | 'thick';
+  color?: string;
+}
+
+const RED = '#DC2626';
+const AMBER = '#D97706';
+const NEUTRAL = { fill: '#F3F4F6', stroke: '#9CA3AF' };
+const badEdge = (edge: { status?: EvidenceVerdict | undefined }) => !!edge.status && edge.status !== 'ok' && edge.status !== 'pending';
+
+/** Строки, общие для всех трёх карт: не сошедшееся свидетельство и «ещё не устоялось». */
+function commonLegend(pendingNodes: number, edges: readonly MermaidEdge[]): MapLegendItem[] {
+  const items: MapLegendItem[] = [];
+  const red = edges.filter(badEdge).length;
+  if (red) items.push({ kind: 'arrow', label: 'свидетельство не сошлось с файлом', count: red, line: 'solid', color: RED });
+  const faded = pendingNodes + edges.filter((edge) => edge.pending).length;
+  if (faded) {
+    items.push({ kind: 'swatch', label: 'полупрозрачный — карта, что его объявила, ещё не устоялась', count: faded, faded: true, ...NEUTRAL });
+  }
+  return items;
+}
+
+const present = (items: MapLegendItem[]) => items.filter((item) => item.kind === 'note' || (item.count ?? 0) > 0);
+
+function groupOverviewLegend(
+  groups: readonly { auto: boolean }[],
+  links: readonly { cycle: boolean; status: EvidenceVerdict }[],
+  edges: readonly MermaidEdge[]
+): MapLegendItem[] {
+  const autos = groups.filter((group) => group.auto).length;
+  const cycles = links.filter((link) => link.cycle && !badEdge(link)).length;
+  return present([
+    { kind: 'swatch', label: 'группа; число внутри — модулей, цвет только отличает группы друг от друга', count: groups.length, fill: '#DBEAFE', stroke: '#6B7280' },
+    { kind: 'note', label: '«авто» — группа выведена из путей к файлам, а не объявлена картой', count: autos },
+    { kind: 'arrow', label: 'число на стрелке — сколько импортов идёт из группы в группу', count: links.length, line: 'solid' },
+    { kind: 'arrow', label: 'группы зависят друг от друга по кругу', count: cycles, line: 'thick', color: AMBER },
+    ...commonLegend(0, edges)
+  ]);
+}
+
+/** Сколько слоёв называть поимённо: дальше легенда сама становится стеной. */
+const LEGEND_LAYERS = 8;
+
+function codemapLegend(
+  layers: ReadonlyMap<string, readonly { pending?: boolean | undefined }[]>,
+  ports: number,
+  ghosts: number,
+  edges: readonly MermaidEdge[]
+): MapLegendItem[] {
+  const named = [...layers].slice(0, LEGEND_LAYERS);
+  const rest = layers.size - named.length;
+  const modules = [...layers.values()].flat();
+  return present([
+    ...named.map(([layer, items]): MapLegendItem => ({
+      kind: 'swatch', label: `слой «${layer}»`, count: items.length, fill: colorOf(layer), stroke: '#6B7280'
+    })),
+    { kind: 'note', label: `…и ещё ${rest} ${rest === 1 ? 'слой' : 'слоёв'}`, count: rest > 0 ? rest : 0 },
+    { kind: 'swatch', label: 'толстая рамка — порт: у модуля есть связи за пределами группы', count: ports, thick: true, ...NEUTRAL },
+    { kind: 'swatch', label: 'пунктир — сосед из другой группы', count: ghosts, dash: true, ...NEUTRAL },
+    { kind: 'arrow', label: 'импорт: кто → кого', count: edges.filter((edge) => !badEdge(edge)).length, line: 'solid' },
+    ...commonLegend(modules.filter((module) => module.pending).length, edges)
+  ]).filter((item) => item.kind !== 'note' || (item.count ?? 0) > 0);
+}
+
+const directionLegend = (flows: readonly { direction: string }[]): MapLegendItem[] => [
+  { kind: 'arrow', label: 'чтение: данные идут от источника', count: flows.filter((flow) => flow.direction === 'read').length, line: 'solid' },
+  { kind: 'arrow', label: 'запись: данные идут к источнику', count: flows.filter((flow) => flow.direction === 'write').length, line: 'dashed' },
+  { kind: 'arrow', label: 'и чтение, и запись', count: flows.filter((flow) => flow.direction === 'both').length, line: 'thick' }
+];
+
+function dataflowLegend(
+  sources: readonly { kind: string; pending?: boolean | undefined }[],
+  readers: number,
+  ghosts: number,
+  flows: readonly { direction: string }[],
+  edges: readonly MermaidEdge[]
+): MapLegendItem[] {
+  const kinds = new Map<string, number>();
+  for (const source of sources) kinds.set(source.kind, (kinds.get(source.kind) ?? 0) + 1);
+  return present([
+    ...[...kinds].map(([kind, count]): MapLegendItem => ({
+      kind: 'swatch',
+      label: SOURCE_KIND_LABEL[kind] ?? kind,
+      count,
+      fill: colorOf(kind),
+      stroke: '#6B7280',
+      shape: kind === 'db' || kind === 'file' ? 'cylinder' : 'box'
+    })),
+    { kind: 'swatch', label: 'модуль или экран, что читает и пишет', count: readers, fill: '#FFFFFF', stroke: '#6B7280' },
+    { kind: 'swatch', label: 'пунктир — сосед из другой группы', count: ghosts, dash: true, ...NEUTRAL },
+    ...directionLegend(flows),
+    ...commonLegend(sources.filter((source) => source.pending).length, edges)
+  ]);
+}
+
+function flowOverviewLegend(
+  grouping: FlowGrouping,
+  edges: readonly MermaidEdge[]
+): MapLegendItem[] {
+  return present([
+    { kind: 'swatch', label: 'группа кода (слева); число внутри — потоков, цвет только отличает группы', count: grouping.codeGroups.length, fill: '#DBEAFE', stroke: '#6B7280' },
+    ...grouping.kinds.map((item): MapLegendItem => ({
+      kind: 'swatch',
+      label: `вид источников: ${kindLabel(item.kind)}`,
+      count: item.sources,
+      fill: colorOf(item.kind),
+      stroke: '#6B7280',
+      shape: item.kind === 'db' || item.kind === 'file' ? 'cylinder' : 'box'
+    })),
+    ...directionLegend(grouping.links).map((item) => ({ ...item, label: `${item.label}; число — потоков` })),
+    ...commonLegend(0, edges)
+  ]);
+}
+
+function userflowLegend(
+  screens: number,
+  routes: number,
+  transitions: readonly { trigger?: string | undefined }[],
+  calls: number,
+  edges: readonly MermaidEdge[],
+  pendingScreens: number
+): MapLegendItem[] {
+  return present([
+    { kind: 'swatch', label: 'экран', count: screens, fill: '#DBEAFE', stroke: '#2563EB' },
+    { kind: 'swatch', label: 'маршрут API', count: routes, fill: '#F3E8FF', stroke: '#7C3AED', shape: 'stadium' },
+    { kind: 'arrow', label: 'переход по действию; подпись — что его вызывает', count: transitions.filter((step) => step.trigger).length, line: 'solid' },
+    { kind: 'arrow', label: 'пунктир к экрану — переход, чем он вызывается, карта не говорит', count: transitions.filter((step) => !step.trigger).length, line: 'dashed' },
+    { kind: 'arrow', label: 'пунктир к маршруту — вызов API', count: calls, line: 'dashed' },
+    ...commonLegend(pendingScreens, edges)
+  ]);
 }
 
 const SOURCE_KIND_LABEL: Record<string, string> = {
@@ -439,7 +593,16 @@ export function dataflowMermaid(map: ProjectMap, options: DataflowOptions = {}):
     });
   }
   styleUnverified(lines, edges);
-  return { text: lines.join(LF), details, paths, nodes, edges, neighbors: neighborsOf(edges) };
+  return {
+    text: lines.join(LF), details, paths, nodes, edges, neighbors: neighborsOf(edges),
+    mapLegend: dataflowLegend(
+      sources,
+      new Set(flows.map((flow) => flow.from)).size,
+      ghosts.length,
+      [...flows, ...(options.ghostFlows ?? [])],
+      edges
+    )
+  };
 }
 
 const UNKNOWN_KIND_LABEL = 'не опознан';
@@ -519,7 +682,10 @@ export function flowOverviewMermaid(grouping: FlowGrouping, cards: ReadonlyMap<s
     }
   });
 
-  return { text: lines.join(LF), details, paths: {}, nodes, edges, neighbors: neighborsOf(edges) };
+  return {
+    text: lines.join(LF), details, paths: {}, nodes, edges, neighbors: neighborsOf(edges),
+    mapLegend: flowOverviewLegend(grouping, edges)
+  };
 }
 
 export function userflowMermaid(map: ProjectMap): MermaidOutput {
@@ -577,7 +743,17 @@ export function userflowMermaid(map: ProjectMap): MermaidOutput {
     });
   }
   styleUnverified(lines, edges);
-  return { text: lines.join(LF), details, paths, nodes, edges, neighbors: neighborsOf(edges) };
+  return {
+    text: lines.join(LF), details, paths, nodes, edges, neighbors: neighborsOf(edges),
+    mapLegend: userflowLegend(
+      screens.length,
+      new Set(calls.map((call) => call.to)).size,
+      transitions,
+      calls.length,
+      edges,
+      screens.filter((screen) => screen.pending).length
+    )
+  };
 }
 
 export type FunctionalMode = 'state' | 'coverage' | 'risks' | 'order';
@@ -1192,5 +1368,8 @@ export function groupOverviewMermaid(grouping: Grouping): MermaidOutput {
   });
   lines.push(...styled);
 
-  return { text: lines.join(LF), details, paths: {}, nodes, edges, neighbors: neighborsOf(edges) };
+  return {
+    text: lines.join(LF), details, paths: {}, nodes, edges, neighbors: neighborsOf(edges),
+    mapLegend: groupOverviewLegend(groups, links, edges)
+  };
 }
