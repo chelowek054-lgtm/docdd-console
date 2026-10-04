@@ -134,6 +134,33 @@ export function inventoryState(
   };
 }
 
+/** Потолок размера одного запроса: больше — ответ не поместится (docs/07-maps.md). */
+export const MAX_REQUEST_FILES = 200;
+
+/** Очередь на описание: сперва изменившееся (карта врёт про него прямо сейчас), потом неописанное. */
+export function queueOf(state: Pick<InventoryState, 'changed' | 'pending'>): string[] {
+  return [...state.changed, ...state.pending];
+}
+
+/**
+ * Порция очереди со сдвигом — для «Описать пачками» (docs/07-maps.md): каждый
+ * следующий заход пропускает уже взятое в этом прогоне, потому что файлы
+ * выходят из очереди только при подтверждении карты, а черновики прогона ещё
+ * не подтверждены. Исчезнувшие файлы называет только первый заход.
+ */
+export function portionAt(state: InventoryState, skip: number, limit: number): InventoryState {
+  const size = Math.min(MAX_REQUEST_FILES, Math.max(1, Math.floor(limit)));
+  const from = Math.max(0, Math.floor(skip));
+  return { ...state, next: queueOf(state).slice(from, from + size), gone: from > 0 ? [] : state.gone };
+}
+
+/** Во сколько запросов обойдётся прогон: человек видит число до нажатия, а не по счёту. */
+export function batchPlan(left: number, size: number, total: number): { files: number; steps: number } {
+  const per = Math.max(1, Math.floor(size));
+  const files = Math.max(0, Math.min(Math.floor(total), left));
+  return { files, steps: Math.ceil(files / per) };
+}
+
 /** Есть ли смысл идти к модели. Нет — незачем тратить время и деньги. */
 export function worthAsking(state: InventoryState): boolean {
   return state.next.length > 0 || state.gone.length > 0;

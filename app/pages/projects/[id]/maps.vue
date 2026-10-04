@@ -815,7 +815,7 @@ function onEdgeClick(edge: MermaidEdge) {
         </p>
       </div>
 
-      <MapInventory :project-id="projectId" />
+      <MapInventory :project-id="projectId" @changed="() => refresh()" />
 
       <PromptPanel
         :project-id="projectId"
