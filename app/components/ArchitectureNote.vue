@@ -15,6 +15,7 @@ interface Finding {
   message: string;
   evidence?: { path: string; line: number } | undefined;
   map?: string | undefined;
+  rule?: { key?: string; source: string } | undefined;
 }
 
 const props = defineProps<{
@@ -148,7 +149,8 @@ const uncheckedText = computed(() => Object.entries(props.report?.unchecked ?? {
             <span v-else class="w-4 shrink-0" />
             <span><code>{{ item.code }}</code>
             <span v-if="item.evidence" class="font-mono"> {{ item.evidence.path }}:{{ item.evidence.line }}</span>
-            — {{ item.message }}</span>
+            — {{ item.message }}
+            <span v-if="item.rule" class="text-violet-600"> · нарушает {{ item.rule.source }}</span></span>
           </li>
         </ul>
       </details>

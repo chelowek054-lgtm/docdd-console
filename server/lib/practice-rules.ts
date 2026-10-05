@@ -228,6 +228,8 @@ export function resolveRules(input: {
     }
   }
 
+  config.sources = Object.fromEntries(rules.map((rule) => [rule.key, rule.source]));
+
   const seen = new Set<string>();
   const sources: RulesResolution['sources'] = [];
   for (const item of placed) {

@@ -522,7 +522,7 @@ export function architectureRules(ctx: RuleContext): Violation[] {
     finding.code,
     finding.declaredBy ?? null,
     (finding.declaredBy && pathOf.get(finding.declaredBy)) || '',
-    finding.message
+    finding.rule ? `${finding.message} Правило: ${finding.rule.source}${finding.rule.key ? ` (${finding.rule.key})` : ''}.` : finding.message
   ));
 }
 

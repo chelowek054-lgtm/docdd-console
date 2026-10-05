@@ -21,6 +21,8 @@ export interface ArchitectureReport {
     to: string;
     evidence?: { path: string; line: number; fragment: string } | undefined;
     map?: string | undefined;
+    /** Какое правило и чья запись: «нарушает A-0023». */
+    rule?: { key?: string | undefined; source: string } | undefined;
     message: string;
   }[];
   checked?: number;
@@ -55,6 +57,7 @@ export function buildArchitecture(root: string): ArchitectureReport {
       to: finding.to,
       evidence: finding.evidence,
       map: finding.declaredBy,
+      rule: finding.rule,
       message: finding.message
     })),
     checked: result.checked,

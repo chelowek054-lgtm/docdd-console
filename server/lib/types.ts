@@ -298,6 +298,8 @@ export interface ArchitectureConfig {
   independent?: string[];
   /** Запрет «откуда → куда» с причиной. */
   forbidden?: { from: string; to: string[]; why?: string; source?: string }[];
+  /** Ключ правила → запись-источник (`A-0023`, `[docdd] A-0003`); нет у секции манифеста. */
+  sources?: Record<string, string>;
 }
 
 export interface ProjectManifest {
