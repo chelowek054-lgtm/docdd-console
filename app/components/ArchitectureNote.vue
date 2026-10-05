@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ApiFailure } from '~/composables/useProjectIndex';
-import { fixTaskOf } from '../../server/lib/architecture';
+import { fixTaskOf, selectionState } from '../../server/lib/architecture';
 
 /**
  * Строка проверки архитектуры над схемой кода (docs/04-ui.md, «Архитектура на
@@ -45,6 +45,12 @@ function toggle(item: Finding, value: boolean | 'indeterminate') {
   if (value === true) next.delete(keyOf(item));
   else next.add(keyOf(item));
   unchecked.value = next;
+}
+
+/** «Выбрать все»: из промежуточного состояния нажатие отмечает всё, из полного — снимает. */
+const allState = computed(() => selectionState(violations.value.length, chosen.value.length));
+function toggleAll(value: boolean | 'indeterminate') {
+  unchecked.value = value === true ? new Set() : new Set(violations.value.map(keyOf));
 }
 
 const creating = ref(false);
@@ -121,6 +127,12 @@ const uncheckedText = computed(() => Object.entries(props.report?.unchecked ?? {
         </ul>
       </details>
       <div class="mt-2 flex flex-wrap items-center gap-3">
+        <UCheckbox
+          v-if="violations.length"
+          :model-value="allState"
+          label="Выбрать все"
+          @update:model-value="toggleAll"
+        />
         <UButton size="xs" variant="soft" icon="i-lucide-wrench" :loading="creating" :disabled="chosen.length === 0" @click="fix">
           Починить нарушения · {{ chosen.length }}
         </UButton>

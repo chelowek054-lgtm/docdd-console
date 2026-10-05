@@ -442,6 +442,12 @@ export interface FixableFinding {
   message: string;
 }
 
+/** Состояние общей галочки «Выбрать все»: все отмечены, ни одной или часть. */
+export function selectionState(total: number, chosen: number): boolean | 'indeterminate' {
+  if (total > 0 && chosen >= total) return true;
+  return chosen === 0 ? false : 'indeterminate';
+}
+
 export interface FixTask {
   title: string;
   /** Готовый текст раздела задачи: список из проверки, а не пересказ модели. */

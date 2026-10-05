@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { checkArchitecture, fixTaskOf, parseArchitectureAudit, type ArchImport } from '../server/lib/architecture';
+import { checkArchitecture, fixTaskOf, parseArchitectureAudit, selectionState, type ArchImport } from '../server/lib/architecture';
 import { FOUND_MARKER, MODULES_MARKER, RULES_MARKER, architecturePrompt } from '../server/lib/prompt';
 import { architectureRules } from '../server/lib/rules';
 import { recordTemplate } from '../server/lib/scaffold';
@@ -430,6 +430,18 @@ describe('аудит моделью: сборка запроса', () => {
   it('настоящий шаблон из репозитория содержит все три места подстановки', () => {
     const real = readFileSync(new URL('../docs/prompts/architecture-audit.md', import.meta.url), 'utf8');
     for (const marker of [RULES_MARKER, MODULES_MARKER, FOUND_MARKER]) expect(real).toContain(marker);
+  });
+});
+
+describe('галочка «Выбрать все»', () => {
+  it('все, ни одной или часть', () => {
+    expect(selectionState(5, 5)).toBe(true);
+    expect(selectionState(5, 0)).toBe(false);
+    expect(selectionState(5, 2)).toBe('indeterminate');
+  });
+
+  it('нарушений нет — не «отмечено»', () => {
+    expect(selectionState(0, 0)).toBe(false);
   });
 });
 
