@@ -755,7 +755,8 @@ export function userflowMermaid(map: ProjectMap): MermaidOutput {
   for (const step of transitions) {
     // Известен триггер — сплошная стрелка с подписью; неизвестен —
     // пунктиром: переход есть, а чем он вызывается, карта не говорит.
-    const via = step.trigger ? `|${label(step.trigger, 24)}|` : '';
+    // Подпись в кавычках: скобки и знаки в названии кнопки иначе ломают разбор mermaid.
+    const via = step.trigger ? `|"${label(step.trigger, 24)}"|` : '';
     const arrow = step.trigger ? '-->' : '-.->';
     const from = nodeId('u', step.from);
     const to = nodeId('u', step.to);

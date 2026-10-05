@@ -287,8 +287,22 @@ describe('userflowMermaid', () => {
         calls: []
       }
     }));
-    expect(text).toContain('|ссылка в навигации|');
-    expect(text).toContain('u__a -->|ссылка в навигации| u__b');
+    expect(text).toContain('|"ссылка в навигации"|');
+    expect(text).toContain('u__a -->|"ссылка в навигации"| u__b');
+  });
+
+  it('подпись со скобками берётся в кавычки: иначе mermaid не разберёт текст', () => {
+    const { text } = userflowMermaid(mapWith({
+      userflow: {
+        screens: [{ id: '/a' }, { id: '/b' }],
+        transitions: [{
+          from: '/a', to: '/b', trigger: 'кнопка (onOpenReview)',
+          evidence: { path: 'a', line: 1, fragment: 'x' }
+        }],
+        calls: []
+      }
+    }));
+    expect(text).toContain('u__a -->|"кнопка (onOpenReview)"| u__b');
   });
 
   it('переход без известного триггера рисуется пунктиром — карта не выдумывает, чем он вызван', () => {
