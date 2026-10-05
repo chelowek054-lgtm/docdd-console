@@ -260,7 +260,7 @@ export function checkArchitecture(input: ArchInput): ArchResult {
     // `@x` — явный публичный вход соседа в FSD (кросс-импорт у entities), а не внутренность.
     const publicCross = outerTo !== undefined && toPath.slice(outerTo.length + 1).split('/')[0] === '@x';
     if (outerTo !== undefined && !publicCross && !(dirname(toPath) === outerTo && isEntry(toPath, language))) {
-      at('arch_entry_bypassed', `Импорт \`${toPath}\` идёт в глубину модуля \`${outerTo}\`, в обход его входа (${names}). Обращайтесь к входу \`${outerTo}\` — или опубликуйте нужное через него.`);
+      at('arch_entry_bypassed', `Импорт \`${toPath}\` идёт в глубину модуля \`${outerTo}\`, в обход его входа (\`${names}\`). Обращайтесь к входу \`${outerTo}\` — или опубликуйте нужное через него.`);
       continue;
     }
     const outerFrom = crossedFrom.at(-1);
@@ -429,4 +429,59 @@ export function parseArchitectureAudit(answer: string, files: Iterable<string>):
     });
   }
   return { findings: [...findings.values()], skipped };
+}
+
+// --- задача «Починить нарушения» ---
+
+export interface FixableFinding {
+  code: string;
+  from: string;
+  to: string;
+  evidence?: { path: string; line: number } | undefined;
+  map?: string | undefined;
+  message: string;
+}
+
+/** Состояние общей галочки «Выбрать все»: все отмечены, ни одной или часть. */
+export function selectionState(total: number, chosen: number): boolean | 'indeterminate' {
+  if (total > 0 && chosen >= total) return true;
+  return chosen === 0 ? false : 'indeterminate';
+}
+
+export interface FixTask {
+  title: string;
+  /** Готовый текст раздела задачи: список из проверки, а не пересказ модели. */
+  body: string;
+  /** Карты, объявившие эти импорты: на них висят нарушения. */
+  affects: string[];
+  count: number;
+}
+
+/**
+ * Задача на отмеченные нарушения (docs/04-ui.md, «Архитектура на карте кода»).
+ * Подсказка «поднять» (`arch_promote`) в неё не входит — это решение человека, а не
+ * нарушение. Пусто — `null`: кнопка неактивна и называет причину.
+ */
+export function fixTaskOf(findings: readonly FixableFinding[]): FixTask | null {
+  const chosen = findings.filter((item) => item.code !== 'arch_promote');
+  if (chosen.length === 0) return null;
+
+  const lines = chosen.map((item) => {
+    const where = item.evidence ? `\`${item.evidence.path}:${item.evidence.line}\`` : `\`${item.from}\``;
+    return `- \`${item.code}\` — ${where}: ${item.message}`;
+  });
+  const body = [
+    'Нарушения правил архитектуры из точной проверки по подтверждённой карте кода',
+    '(docs/07-maps.md, «Модули и публичный вход»). Правится код, а не карты: после правки',
+    'импорты в картах нужно переописать.',
+    '',
+    ...lines
+  ].join('\n');
+
+  return {
+    title: `Починить нарушения архитектуры: ${chosen.length}`,
+    body,
+    affects: [...new Set(chosen.map((item) => item.map).filter((id): id is string => !!id))].sort(),
+    count: chosen.length
+  };
 }

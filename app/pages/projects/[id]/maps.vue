@@ -1262,7 +1262,7 @@ function onEdgeClick(edge: MermaidEdge) {
 
             <template v-else>
               <!-- Легенда — полоса над схемой, вне холста (docs/04-ui.md, «Легенда кодовой базы, потоков и путей»). -->
-              <ArchitectureNote v-if="shown === 'codemap'" :report="architecture" />
+              <ArchitectureNote v-if="shown === 'codemap'" :project-id="projectId" :report="architecture" />
               <MapLegendBar v-if="current.mapLegend" :items="current.mapLegend" />
               <p v-if="!current.text" class="text-sm text-muted">
                 В подтверждённых картах эта структура не описана.

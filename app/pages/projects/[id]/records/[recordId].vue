@@ -101,6 +101,16 @@ function entries(
         @changed="reload"
       />
 
+      <!-- Привести задачу в порядок: нет `implements` — выбрать или завести требование тут же (docs/04-ui.md, «Запись»). -->
+      <TaskRequirement
+        v-if="detail.record.type === 'task'"
+        :project-id="projectId"
+        :task="detail.record"
+        :actions="detail.actions"
+        :records="index?.records ?? []"
+        @changed="reload"
+      />
+
       <!-- Ручная проверка: флажок «Проверено» фиксирует прогон (docs/04-ui.md). -->
       <UCard v-if="detail.record.type === 'verification'">
         <template #header>
