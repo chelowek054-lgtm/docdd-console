@@ -1,0 +1,11 @@
+contract: docdd.workspace/1
+project:
+  id: docdd
+  name: Практики DocDD
+  description: Встроенный набор практик консоли. Подключается каждому проекту по пути builtin (docs/11-shared-sources.md).
+paths:
+  decisions: decisions
+  design: design
+roles:
+  - id: architect
+    name: Архитектор

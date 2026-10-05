@@ -2,7 +2,9 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { dropCache } from '../lib/cache';
-import { toggleSharedTag } from '../lib/manifest-write';
+import { BUILTIN_SOURCE } from '../lib/builtin';
+import { ensureBuiltinEntry, toggleSharedTag } from '../lib/manifest-write';
+import { sourceRoot } from './source-root';
 import { parseRecord } from '../lib/parse';
 import { normalizeRoot, resolveInside } from '../lib/paths';
 import { availableTagsOf, narrowDomainTypes, recordIdsByTag, sharedRecordsOf, type SharedRecord } from '../lib/shared';
@@ -54,7 +56,7 @@ export function sharedSourcesOf(sources: readonly SharedSource[], registered: re
   return sources.map((source) => {
     const tags = source.tags ?? [];
     try {
-      const root = normalizeRoot(source.path);
+      const root = sourceRoot(source.path);
       const index = loadIndex(root);
       const match = registered.find((project) => {
         try {
@@ -117,7 +119,7 @@ export function connectedPractices(sources: readonly SharedSource[]): ConnectedP
     if (tags.length === 0) continue;
 
     try {
-      const root = normalizeRoot(source.path);
+      const root = sourceRoot(source.path);
       const index = loadIndex(root);
       const matched = sharedRecordsOf(index.records, tags);
 
@@ -177,7 +179,9 @@ export function toggleSourceTag(root: string, sourcePath: string, tag: string, e
     return { ok: false, code: 'manifest_unreadable', message: `Не удалось прочитать манифест: ${String(error)}` };
   }
 
-  const outcome = toggleSharedTag(text, sourcePath, tag, enabled);
+  // Неявный встроенный набор становится явной записью с первой же галочкой.
+  const prepared = sourcePath === BUILTIN_SOURCE ? ensureBuiltinEntry(text) : text;
+  const outcome = toggleSharedTag(prepared, sourcePath, tag, enabled);
   if (!outcome.ok) {
     return { ok: false, code: 'source_not_found', message: outcome.message };
   }

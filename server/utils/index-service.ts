@@ -2,6 +2,7 @@ import { readCache, writeCache } from '../lib/cache';
 import { buildIndex } from '../lib/indexer';
 import type { ProjectIndex } from '../lib/types';
 import { readManifest, readWorkspace } from '../lib/workspace';
+import { withBuiltin } from '../lib/builtin';
 import { generalRuleRecords } from './rules-service';
 
 /**
@@ -17,7 +18,7 @@ export function loadIndex(root: string, refresh = false): ProjectIndex {
   }
 
   // Правила из общих практик складываются с локальными: источники читаются здесь, а не в чистом разборе.
-  const { index } = buildIndex(root, new Date(), generalRuleRecords(readManifest(root).sources?.shared ?? []));
+  const { index } = buildIndex(root, new Date(), generalRuleRecords(withBuiltin(readManifest(root).sources?.shared ?? [])));
   writeCache(root, index);
   return index;
 }
