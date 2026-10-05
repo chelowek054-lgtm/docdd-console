@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { checkArchitecture, fixTaskOf, parseArchitectureAudit, selectionState, type ArchImport } from '../server/lib/architecture';
-import { FOUND_MARKER, MODULES_MARKER, RULES_MARKER, architecturePrompt } from '../server/lib/prompt';
+import { FOUND_MARKER, MODULES_MARKER, PRACTICES_MARKER, RULES_MARKER, architecturePrompt } from '../server/lib/prompt';
 import { architectureRules } from '../server/lib/rules';
 import { recordTemplate } from '../server/lib/scaffold';
 import { validateProject } from '../server/lib/schema';
@@ -428,13 +428,24 @@ describe('аудит моделью: сборка запроса', () => {
     expect(text).not.toContain('<!--');
   });
 
+  it('подключённые практики уходят в запрос текстом; нет практик — так и сказано', () => {
+    const template = ['# З', '', '---', '', '<!-- ПРАКТИКИ -->', ''].join(String.fromCharCode(10));
+    const withPractices = architecturePrompt(template, {
+      rules: {}, modules, found: [],
+      practices: [{ label: 'docdd', id: 'A-0004', title: 'Принципы кода', body: 'SOLID и DRY.' }]
+    });
+    expect(withPractices).toContain('### [docdd] A-0004: Принципы кода');
+    expect(withPractices).toContain('SOLID и DRY.');
+    expect(architecturePrompt(template, { rules: {}, modules, found: [] })).toContain('Практик не подключено.');
+  });
+
   it('ничего не нашли — так и говорит', () => {
     expect(architecturePrompt(template, { rules: {}, modules, found: [] })).toContain('Точная проверка ничего не нашла.');
   });
 
   it('настоящий шаблон из репозитория содержит все три места подстановки', () => {
     const real = readFileSync(new URL('../docs/prompts/architecture-audit.md', import.meta.url), 'utf8');
-    for (const marker of [RULES_MARKER, MODULES_MARKER, FOUND_MARKER]) expect(real).toContain(marker);
+    for (const marker of [RULES_MARKER, MODULES_MARKER, FOUND_MARKER, PRACTICES_MARKER]) expect(real).toContain(marker);
   });
 });
 

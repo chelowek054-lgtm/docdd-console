@@ -404,6 +404,7 @@ export function groupsPrompt(
 export const RULES_MARKER = '<!-- ПРАВИЛА -->';
 export const MODULES_MARKER = '<!-- МОДУЛИ -->';
 export const FOUND_MARKER = '<!-- НАХОДКИ -->';
+export const PRACTICES_MARKER = '<!-- ПРАКТИКИ -->';
 
 /** Сколько модулей и находок называть поимённо: дальше запрос сам становится стеной. */
 const AUDIT_MODULE_LIMIT = 300;
@@ -420,6 +421,8 @@ export function architecturePrompt(
     rules: ArchitectureConfig;
     modules: readonly { dir: string; entry: string | null; parent: string | null }[];
     found: readonly { code: string; from: string; to: string }[];
+    /** Подключённые общие практики с текстом — те же, что уходят в запрос на выполнение задачи. */
+    practices?: readonly { label: string; id: string; title: string; body: string }[];
   }
 ): string {
   const { rules } = input;
@@ -458,5 +461,9 @@ export function architecturePrompt(
   return withoutFrontNote(template)
     .replace(RULES_MARKER, () => rulesText)
     .replace(MODULES_MARKER, () => modulesText)
-    .replace(FOUND_MARKER, () => foundText);
+    .replace(FOUND_MARKER, () => foundText)
+    .replace(PRACTICES_MARKER, () => {
+      const practices = input.practices ?? [];
+      return practices.length ? practicesSection(practices).slice(4).join(LF) : 'Практик не подключено.';
+    });
 }
