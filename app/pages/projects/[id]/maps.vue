@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ApiFailure } from '~/composables/useProjectIndex';
-import type { FunctionalMode, MapSelection, MermaidEdge } from '~/utils/map-mermaid';
+import type { ArchViolationView, FunctionalMode, MapSelection, MermaidEdge } from '~/utils/map-mermaid';
 import { capabilityViews } from '~/utils/functional-view';
 import {
   NO_RELATION_MARKS,
@@ -50,9 +50,36 @@ const { data: coverageData, refresh: refreshCoverage } = useFetch<{ coverage: Re
 );
 const coverage = computed(() => (coverageData.value && 'coverage' in coverageData.value ? coverageData.value.coverage : undefined));
 
-/** Перечитать карту и покрытие вместе: отметка или связь меняет оба. */
+interface ArchitectureResponse {
+  enabled: boolean;
+  findings?: { code: string; from: string; to: string; message: string; evidence?: { path: string; line: number }; map?: string }[];
+  checked?: number;
+  total?: number;
+  unchecked?: Record<string, number>;
+  reconcile?: { enabled: boolean; modulesWithoutCapability: string[]; capabilitiesWithoutModule: { id: string; title: string }[] };
+}
+
+/** Нарушения архитектуры по подтверждённой карте кода (docs/03-server-api.md, `GET /architecture`). */
+const { data: architectureData, refresh: refreshArchitecture } = useFetch<ArchitectureResponse | { error: ApiFailure }>(
+  () => `/api/projects/${projectId.value}/architecture`,
+  { key: () => `architecture:${projectId.value}` }
+);
+const architecture = computed(() => (architectureData.value && 'enabled' in architectureData.value ? architectureData.value : undefined));
+
+/** Стрелкой рисуются нарушения; подсказка «поднять» (`arch_promote`) — только строкой над схемой. */
+const violations = computed<ReadonlyMap<string, ArchViolationView>>(() => {
+  const found = new Map<string, ArchViolationView>();
+  for (const item of architecture.value?.findings ?? []) {
+    if (item.code === 'arch_promote') continue;
+    const key = violationKey(item.from, item.to);
+    if (!found.has(key)) found.set(key, { code: item.code, message: item.message });
+  }
+  return found;
+});
+
+/** Перечитать карту, покрытие и архитектуру вместе: подтверждённая карта или отметка меняет все три. */
 async function refresh() {
-  await Promise.all([refreshMap(), refreshCoverage()]);
+  await Promise.all([refreshMap(), refreshCoverage(), refreshArchitecture()]);
 }
 
 const saving = ref(false);
@@ -382,16 +409,17 @@ const codemapView = computed(() => {
   const value = map.value;
   const found = grouping.value;
   if (!value || !found) return null;
-  if (codemapMode.value === 'groups') return groupOverviewMermaid(found);
+  if (codemapMode.value === 'groups') return groupOverviewMermaid(found, violations.value);
 
   const base = filteredCodemap.value ?? value.codemap;
-  if (codemapMode.value === 'all') return codemapMermaid({ ...value, codemap: base });
+  if (codemapMode.value === 'all') return codemapMermaid({ ...value, codemap: base }, { violations: violations.value });
 
   const selected = ghostFor.value && base.modules.some((item) => item.id === ghostFor.value) ? ghostFor.value : null;
   const near = selected
     ? ghostNeighbors(found, openGroupId.value, selected, value.codemap.modules, value.codemap.imports)
     : { ghosts: [], imports: [] };
   return codemapMermaid({ ...value, codemap: base }, {
+    violations: violations.value,
     ports: portsOf(found, openGroupId.value, value.codemap.imports),
     ghosts: near.ghosts,
     ghostImports: near.imports,
@@ -1059,6 +1087,20 @@ function onEdgeClick(edge: MermaidEdge) {
               </div>
             </template>
 
+            <!-- Аудит архитектуры — мнение модели о том, чего граф импортов не видит; ничего не пишет (docs/07-maps.md). -->
+            <PromptPanel
+              v-if="shown === 'codemap' && map.codemap.modules.length > 0 && architecture?.enabled"
+              class="mb-3"
+              :project-id="projectId"
+              kind="architecture"
+              label="Аудит архитектуры"
+              hint="Ответ — таблица замечаний: ничего не пишется, в задачи их превращаете вы"
+            >
+              <template #answer="{ answer }">
+                <ArchitectureAudit :project-id="projectId" :answer="answer" />
+              </template>
+            </PromptPanel>
+
             <!-- Модель предлагает границы, человек их утверждает (docs/07-maps.md, «Группы: уровень над модулями»). -->
             <PromptPanel
               v-if="shown === 'codemap' && map.codemap.modules.length > 0"
@@ -1220,6 +1262,7 @@ function onEdgeClick(edge: MermaidEdge) {
 
             <template v-else>
               <!-- Легенда — полоса над схемой, вне холста (docs/04-ui.md, «Легенда кодовой базы, потоков и путей»). -->
+              <ArchitectureNote v-if="shown === 'codemap'" :report="architecture" />
               <MapLegendBar v-if="current.mapLegend" :items="current.mapLegend" />
               <p v-if="!current.text" class="text-sm text-muted">
                 В подтверждённых картах эта структура не описана.

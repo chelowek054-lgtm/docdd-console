@@ -1,6 +1,6 @@
 import { contractDigest } from './contract-digest';
 import { capabilityLines, relationLines, type CapabilityLike, type RelationLike } from './functional';
-import type { IssueDto } from './types';
+import type { ArchitectureConfig, IssueDto } from './types';
 
 /**
  * Сборка запроса к модели: шаблон из репозитория плюс данные проекта.
@@ -399,4 +399,61 @@ export function groupsPrompt(
   return withoutFrontNote(template)
     .replace(GROUPS_MARKER, () => groupsText)
     .replace(GROUP_MODULES_MARKER, () => modulesText);
+}
+
+export const RULES_MARKER = '<!-- ПРАВИЛА -->';
+export const MODULES_MARKER = '<!-- МОДУЛИ -->';
+export const FOUND_MARKER = '<!-- НАХОДКИ -->';
+
+/** Сколько модулей и находок называть поимённо: дальше запрос сам становится стеной. */
+const AUDIT_MODULE_LIMIT = 300;
+const AUDIT_FOUND_LIMIT = 40;
+
+/**
+ * Запрос «Аудит архитектуры» (docs/07-maps.md, «Аудит моделью»). Модели уходят
+ * правила проекта, дерево модулей и то, что точная проверка уже нашла, — повторять
+ * это ей не нужно. Ответ ничего не меняет: человек читает таблицу замечаний.
+ */
+export function architecturePrompt(
+  template: string,
+  input: {
+    rules: ArchitectureConfig;
+    modules: readonly { dir: string; entry: string | null; parent: string | null }[];
+    found: readonly { code: string; from: string; to: string }[];
+  }
+): string {
+  const { rules } = input;
+  const rulesText = [
+    rules.entries ? `- вход модуля по языкам: ${Object.entries(rules.entries).map(([language, names]) => `${language} — ${names.join(', ')}`).join('; ')}` : '- вход модуля — по соглашению языка',
+    rules.shared?.length ? `- shared (технический общий код, без домена): ${rules.shared.join(', ')}` : '',
+    rules.kernel?.length ? `- kernel (общие бизнес-понятия, импортируют только shared): ${rules.kernel.join(', ')}` : '',
+    `- соседи: ${(rules.siblings ?? 'via-entry') === 'via-parent' ? 'не знают друг друга, связывает родитель' : 'обращаются через вход соседа'}`,
+    ...(rules.layers ?? []).map((profile) => `- слои в \`${profile.root}\` сверху вниз: ${profile.order.join(' → ')}; срезы ${(profile.slices ?? 'isolated') === 'isolated' ? 'друг друга не знают' : 'обращаются через вход'}`)
+  ].filter(Boolean).join(LF);
+
+  const depth = (dir: string): number => {
+    let level = 0;
+    for (let up = input.modules.find((module) => module.dir === dir)?.parent ?? null; up; up = input.modules.find((module) => module.dir === up)?.parent ?? null) level += 1;
+    return level;
+  };
+  const shown = input.modules.slice(0, AUDIT_MODULE_LIMIT);
+  const modulesText = shown.length
+    ? [
+      ...shown.map((module) => `${'  '.repeat(depth(module.dir))}- \`${module.dir}\`${module.entry ? ` (вход: ${module.entry.slice(module.dir.length + 1)})` : ''}`),
+      ...(input.modules.length > shown.length ? [`…и ещё ${input.modules.length - shown.length}`] : [])
+    ].join(LF)
+    : 'Модулей с входом не найдено.';
+
+  const foundShown = input.found.slice(0, AUDIT_FOUND_LIMIT);
+  const foundText = foundShown.length
+    ? [
+      ...foundShown.map((item) => `- \`${item.code}\`: \`${item.from}\` → \`${item.to}\``),
+      ...(input.found.length > foundShown.length ? [`…и ещё ${input.found.length - foundShown.length}`] : [])
+    ].join(LF)
+    : 'Точная проверка ничего не нашла.';
+
+  return withoutFrontNote(template)
+    .replace(RULES_MARKER, () => rulesText)
+    .replace(MODULES_MARKER, () => modulesText)
+    .replace(FOUND_MARKER, () => foundText);
 }

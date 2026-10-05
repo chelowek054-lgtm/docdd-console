@@ -80,6 +80,7 @@ export function analyze(input: AnalyzeInput): AnalyzeResult {
     records,
     graph,
     policy: input.manifest?.policy ?? {},
+    ...(input.manifest?.architecture ? { architecture: input.manifest.architecture } : {}),
     verifications: latestVerificationResults(input.reports ?? []),
     now: input.now ?? new Date(),
     code: {

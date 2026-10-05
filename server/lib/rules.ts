@@ -1,6 +1,7 @@
 import { findDependencyCycles, incomingEdges, outgoing, type Graph } from './graph';
+import { checkArchitecture } from './architecture';
 import { capabilityFindings } from './coverage';
-import { checkEvidence, evidenceClaims, parseMapRecord, type MapChange } from './maps';
+import { approvedMaps, checkEvidence, evidenceClaims, foldMaps, parseMapRecord, type MapChange } from './maps';
 import { firstHeading } from './parse';
 import {
   DEFAULT_POLICY,
@@ -10,6 +11,7 @@ import {
   RETIRED_STATUSES,
   SECTION_BY_TYPE,
   violation,
+  type ArchitectureConfig,
   type LinkKind,
   type Policy,
   type RecordType,
@@ -22,6 +24,8 @@ export interface RuleContext {
   records: readonly WorkRecord[];
   graph: Graph;
   policy: Policy;
+  /** Правила архитектуры из манифеста; нет секции — нет проверки (docs/07-maps.md). */
+  architecture?: ArchitectureConfig;
   /** Результаты последних прогонов; отсутствие ключа — прогонов не было. */
   verifications: ReadonlyMap<string, VerificationResult>;
   /** «Сегодня» приходит снаружи, иначе тест на `task_stale` зависит от календаря. */
@@ -174,6 +178,7 @@ export function checkAll(ctx: RuleContext): Violation[] {
     ...changeMissing(ctx),
     ...mapCapabilityMissing(ctx),
     ...capabilityConsistency(ctx),
+    ...architectureRules(ctx),
     ...workUnreviewed(ctx),
     ...workBranchOrphan(ctx),
     ...taskNotReadyDocs(ctx),
@@ -490,6 +495,31 @@ export function capabilityConsistency(ctx: RuleContext): Violation[] {
   const pathOf = new Map(ctx.records.map((record) => [record.id, record.source.path]));
   return capabilityFindings(ctx.records, ctx.verifications).map((finding) =>
     violation(finding.code, finding.map, pathOf.get(finding.map) ?? '', finding.message));
+}
+
+/**
+ * Архитектура по подтверждённой карте кода (docs/05-validation.md, «Архитектура»).
+ * Нарушение висит на карте, объявившей импорт: именно её надо поправить или
+ * подтвердить заново. Нет секции `architecture` — нет проверки.
+ */
+export function architectureRules(ctx: RuleContext): Violation[] {
+  if (!ctx.architecture) return [];
+  const codemap = foldMaps(approvedMaps(ctx.records).map((record) => ({ id: record.id, change: parseMapRecord(record.body).change }))).codemap;
+  if (codemap.imports.length === 0) return [];
+
+  const pathOf = new Map(ctx.records.map((record) => [record.id, record.source.path]));
+  const result = checkArchitecture({
+    config: ctx.architecture,
+    files: ctx.code.files,
+    modules: codemap.modules,
+    imports: codemap.imports
+  });
+  return result.findings.map((finding) => violation(
+    finding.code,
+    finding.declaredBy ?? null,
+    (finding.declaredBy && pathOf.get(finding.declaredBy)) || '',
+    finding.message
+  ));
 }
 
 /** Не сказано, что за изменение, — значит непонятно, нужна ли карта. */
