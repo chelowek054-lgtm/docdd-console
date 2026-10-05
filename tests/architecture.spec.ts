@@ -42,6 +42,8 @@ describe('вход модуля: «через вход»', () => {
     expect(result.findings.map((item) => item.code)).toEqual(['arch_entry_bypassed']);
     expect(result.findings[0]?.declaredBy).toBe('M-0001');
     expect(result.findings[0]?.message).toContain('app/knowledge');
+    // Имя входа в обратных кавычках: иначе markdown съест подчёркивания в `__init__.py`.
+    expect(result.findings[0]?.message).toContain('(`__init__.py`)');
   });
 
   it('внутри модуля вход обходить можно', () => {
