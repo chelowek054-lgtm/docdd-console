@@ -4,6 +4,7 @@ import { useStorage } from 'nitropack/runtime';
 
 import { checkEvidence, evidenceClaims, parseMapRecord } from '../../../../lib/maps';
 import {
+  architecturePrompt,
   fixPrompt,
   functionalCheckPrompt,
   groupsPrompt,
@@ -15,6 +16,7 @@ import {
   verifyPrompt,
   type MapsState
 } from '../../../../lib/prompt';
+import { buildArchitecture } from '../../../../utils/architecture-service';
 import { connectedPractices } from '../../../../utils/shared-service';
 import { inboxNotes } from '../../../../utils/inbox-service';
 import { mapSchemas } from '../../../../lib/map-schemas';
@@ -229,7 +231,27 @@ export default defineEventHandler(async (event) => {
       return { prompt: groupsPrompt(await template('groups.md'), modules, groups), count: modules.length };
     }
 
-    return fail(event, 400, 'kind_invalid', 'Известны запросы: `fix`, `maps`, `map-fix`, `inbox`, `verify`, `functional-check`, `relations`, `phases`, `groups`');
+    if (kind === 'architecture') {
+      const rules = readWorkspace(project.root).manifest.architecture;
+      if (!rules) {
+        return fail(event, 422, 'architecture_disabled', 'В манифесте нет секции `architecture`: правил, по которым судить, нет');
+      }
+      const report = buildArchitecture(project.root);
+      const modules = report.modules ?? [];
+      if (modules.length === 0) {
+        return fail(event, 422, 'architecture_no_modules', 'Не найдено ни одного модуля с входом: проверьте `architecture.entries` и `sources.code`');
+      }
+      return {
+        prompt: architecturePrompt(await template('architecture-audit.md'), {
+          rules,
+          modules: modules.map((module) => ({ dir: module.id, entry: module.entry, parent: module.parent })),
+          found: report.findings ?? []
+        }),
+        count: modules.length
+      };
+    }
+
+    return fail(event, 400, 'kind_invalid', 'Известны запросы: `fix`, `maps`, `map-fix`, `inbox`, `verify`, `functional-check`, `relations`, `phases`, `groups`, `architecture`');
   } catch (error) {
     if (error instanceof WorkspaceError) {
       return fail(event, 422, error.code, error.message, error.detail);

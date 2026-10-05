@@ -101,6 +101,16 @@ export type ViolationCode =
   | 'capability_ahead'
   | 'capability_behind'
   | 'capability_verification_failed'
+  // архитектура (docs/05-validation.md, «Архитектура»)
+  | 'arch_entry_bypassed'
+  | 'arch_parent_import'
+  | 'arch_sibling_import'
+  | 'arch_cycle'
+  | 'arch_shared_imports_domain'
+  | 'arch_kernel_imports_domain'
+  | 'arch_layer_up'
+  | 'arch_slice_cross'
+  | 'arch_promote'
   // выполнение
   | 'work_unreviewed'
   | 'work_branch_orphan'
@@ -169,6 +179,15 @@ export const VIOLATION_LEVELS: Readonly<Record<ViolationCode, Severity>> = {
   capability_ahead: 'warning',
   capability_behind: 'warning',
   capability_verification_failed: 'warning',
+  arch_entry_bypassed: 'warning',
+  arch_parent_import: 'warning',
+  arch_sibling_import: 'warning',
+  arch_cycle: 'warning',
+  arch_shared_imports_domain: 'warning',
+  arch_kernel_imports_domain: 'warning',
+  arch_layer_up: 'warning',
+  arch_slice_cross: 'warning',
+  arch_promote: 'warning',
   work_unreviewed: 'warning',
   work_branch_orphan: 'warning',
   task_not_ready_docs: 'error',
@@ -248,6 +267,21 @@ export interface SharedSource {
   tags?: string[];
 }
 
+/**
+ * Правила архитектуры проекта (docs/07-maps.md, «Модули и публичный вход»).
+ * Нет секции — нет проверки. Пути — от корня проекта.
+ */
+export interface ArchitectureConfig {
+  /** Вход модуля по языкам; нет ключа — соглашение языка. */
+  entries?: Record<string, string[]>;
+  /** Технический общий код: домена не знает. */
+  shared?: string[];
+  /** Общие бизнес-понятия с несколькими владельцами: импортируют только shared. */
+  kernel?: string[];
+  siblings?: 'via-entry' | 'via-parent';
+  layers?: { root: string; order: string[]; slices?: 'isolated' | 'via-entry' }[];
+}
+
 export interface ProjectManifest {
   contract: string;
   project: { id: string; name: string; description?: string };
@@ -255,6 +289,7 @@ export interface ProjectManifest {
   sources?: { code?: string[]; docs?: string[]; client?: string[]; inbox?: string[]; shared?: SharedSource[] };
   roles?: { id: string; name: string }[];
   policy?: Policy;
+  architecture?: ArchitectureConfig;
 }
 
 /** Умолчания политики повторяют `default` из project.schema.json. */

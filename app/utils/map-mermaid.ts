@@ -73,6 +73,14 @@ export interface MermaidEdge {
   pending?: boolean;
   /** Связь между группами: исходные импорты, свёрнутые в эту стрелку (`evidence` — первого из них). */
   link?: LinkCard;
+  /** Нарушение правил архитектуры (docs/07-maps.md): фиолетовая толстая стрелка и правило словами в карточке. */
+  arch?: ArchViolationView;
+}
+
+/** Нарушение архитектуры на ребре: код правила и объяснение по-русски. */
+export interface ArchViolationView {
+  code: string;
+  message: string;
 }
 
 /** Свёрнутая связь «группа → группа»: клик по стрелке на обзоре (docs/04-ui.md, «Группы кодовой карты»). */
@@ -88,6 +96,8 @@ export interface LinkCard {
   direction?: FlowDirection;
   directionText?: string;
   imports: { from: string; to: string; evidence: Evidence; status?: EvidenceVerdict | undefined }[];
+  /** Сколько из этих импортов нарушают правила архитектуры. */
+  archCount?: number;
 }
 
 export interface MermaidNode {
@@ -126,7 +136,7 @@ export interface MermaidNode {
 /** Что показывает `MapInspector.vue` — узел, ребро, группа или свёрнутая связь между группами. */
 export type MapSelection =
   | ({ kind: 'node' } & MermaidNode)
-  | ({ kind: 'edge' } & Pick<MermaidEdge, 'evidence' | 'status' | 'declaredBy'>)
+  | ({ kind: 'edge' } & Pick<MermaidEdge, 'evidence' | 'status' | 'declaredBy' | 'arch'>)
   | ({ kind: 'group' } & GroupCard)
   | ({ kind: 'link' } & LinkCard);
 
@@ -238,6 +248,17 @@ function styleUnverified(lines: string[], edges: readonly MermaidEdge[]): void {
   });
 }
 
+const VIOLET = '#7C3AED';
+
+/** Нарушение архитектуры — фиолетовая толстая стрелка; красное «свидетельство не сошлось» важнее и остаётся красным. */
+function styleArchitecture(lines: string[], edges: readonly MermaidEdge[]): void {
+  edges.forEach((edge, index) => {
+    if (edge.arch && !(edge.status && edge.status !== 'ok' && edge.status !== 'pending')) {
+      lines.push(`    linkStyle ${index} stroke:${VIOLET},stroke-width:4px;`);
+    }
+  });
+}
+
 /** Вид группы поверх обычной кодовой карты: порты и призраки выбранного модуля. */
 export interface CodemapOptions {
   /** id модулей-портов — обведены толстой рамкой. */
@@ -248,6 +269,13 @@ export interface CodemapOptions {
   ghostImports?: readonly GroupImport[];
   /** Карточки групп — для свёрнутых призраков, у которых клик ведёт к группе. */
   ghostCards?: ReadonlyMap<string, GroupCard>;
+  /** Нарушения архитектуры по ключу `from>to` (id модулей карты). */
+  violations?: ReadonlyMap<string, ArchViolationView>;
+}
+
+/** Ключ нарушения: тот же у импорта карты и у находки проверки. */
+export function violationKey(from: string, to: string): string {
+  return `${from}>${to}`;
 }
 
 /** id узла модуля — по нему экран находит узел в SVG и держит фокус на выбранном. */
@@ -326,11 +354,14 @@ export function codemapMermaid(map: ProjectMap, options: CodemapOptions = {}): M
     const from = nodeId('m', edge.from);
     const to = nodeId('m', edge.to);
     lines.push(`    ${from} --> ${to}`);
+    const arch = options.violations?.get(violationKey(edge.from, edge.to));
     edges.push({
-      from, to, evidence: edge.evidence, status: edge.status, declaredBy: edge.declaredBy, pending: edge.pending
+      from, to, evidence: edge.evidence, status: edge.status, declaredBy: edge.declaredBy, pending: edge.pending,
+      ...(arch ? { arch } : {})
     });
   }
   styleUnverified(lines, edges);
+  styleArchitecture(lines, edges);
   return {
     text: lines.join(LF), details, paths, nodes, edges, neighbors: neighborsOf(edges),
     mapLegend: codemapLegend(layers, ports.length, ghosts.length, edges)
@@ -390,6 +421,7 @@ function groupOverviewLegend(
     { kind: 'note', label: '«авто» — группа выведена из путей к файлам, а не объявлена картой', count: autos },
     { kind: 'arrow', label: 'число на стрелке — сколько импортов идёт из группы в группу', count: links.length, line: 'solid' },
     { kind: 'arrow', label: 'группы зависят друг от друга по кругу', count: cycles, line: 'thick', color: AMBER },
+    { kind: 'arrow', label: 'нарушение архитектуры', count: edges.filter((edge) => edge.arch && !badEdge(edge)).length, line: 'thick', color: VIOLET },
     ...commonLegend(0, edges)
   ]);
 }
@@ -413,7 +445,8 @@ function codemapLegend(
     { kind: 'note', label: `…и ещё ${rest} ${rest === 1 ? 'слой' : 'слоёв'}`, count: rest > 0 ? rest : 0 },
     { kind: 'swatch', label: 'толстая рамка — порт: у модуля есть связи за пределами группы', count: ports, thick: true, ...NEUTRAL },
     { kind: 'swatch', label: 'пунктир — сосед из другой группы', count: ghosts, dash: true, ...NEUTRAL },
-    { kind: 'arrow', label: 'импорт: кто → кого', count: edges.filter((edge) => !badEdge(edge)).length, line: 'solid' },
+    { kind: 'arrow', label: 'импорт: кто → кого', count: edges.filter((edge) => !badEdge(edge) && !edge.arch).length, line: 'solid' },
+    { kind: 'arrow', label: 'нарушение архитектуры', count: edges.filter((edge) => edge.arch && !badEdge(edge)).length, line: 'thick', color: VIOLET },
     ...commonLegend(modules.filter((module) => module.pending).length, edges)
   ]).filter((item) => item.kind !== 'note' || (item.count ?? 0) > 0);
 }
@@ -1320,7 +1353,7 @@ function modulesWord(count: number): string {
  * свидетельств не растворяется в сумме — стрелка краснеет, если не сошёлся
  * хоть один из её импортов.
  */
-export function groupOverviewMermaid(grouping: Grouping): MermaidOutput {
+export function groupOverviewMermaid(grouping: Grouping, violations?: ReadonlyMap<string, ArchViolationView>): MermaidOutput {
   const { groups, links } = grouping;
   if (groups.length === 0) return EMPTY;
 
@@ -1350,6 +1383,7 @@ export function groupOverviewMermaid(grouping: Grouping): MermaidOutput {
     lines.push(`    ${from} -->|${link.imports.length}| ${to}`);
     const first = link.imports[0];
     if (!first) return;
+    const archCount = violations ? link.imports.filter((item) => violations.has(violationKey(item.from, item.to))).length : 0;
     edges.push({
       from, to, evidence: first.evidence, status: link.status,
       link: {
@@ -1359,11 +1393,14 @@ export function groupOverviewMermaid(grouping: Grouping): MermaidOutput {
         toTitle: grouping.byId.get(link.to)?.title ?? link.to,
         status: link.status,
         cycle: link.cycle,
-        imports: link.imports.map((item) => ({ from: item.from, to: item.to, evidence: item.evidence, status: item.status }))
-      }
+        imports: link.imports.map((item) => ({ from: item.from, to: item.to, evidence: item.evidence, status: item.status })),
+        ...(archCount > 0 ? { archCount } : {})
+      },
+      ...(archCount > 0 ? { arch: { code: 'arch_group', message: `${archCount} из ${link.imports.length} импортов этой связи нарушают правила архитектуры: откройте группу и найдите фиолетовые стрелки.` } } : {})
     });
     const bad = link.status !== 'ok' && link.status !== 'pending';
     if (bad) styled.push(`    linkStyle ${at} stroke:#DC2626,stroke-width:3px;`);
+    else if (archCount > 0) styled.push(`    linkStyle ${at} stroke:${VIOLET},stroke-width:4px;`);
     else if (link.cycle) styled.push(`    linkStyle ${at} stroke:#D97706,stroke-width:3px;`);
   });
   lines.push(...styled);

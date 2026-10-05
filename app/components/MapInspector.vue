@@ -247,6 +247,9 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
           >
             {{ STATUS_LABEL[selection.status] }}
           </UBadge>
+          <p v-if="selection.arch" class="rounded border border-violet-400 bg-violet-50 p-2 text-xs text-violet-900 dark:bg-violet-950 dark:text-violet-200">
+            <span class="font-semibold">Нарушение архитектуры.</span> {{ selection.arch.message }}
+          </p>
         </div>
 
         <!-- Узел обзора потоков: группа кода или вид источников. -->
