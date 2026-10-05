@@ -453,7 +453,7 @@ updated: 2026-09-10
         {"from":"server/utils/index-service.ts","to":"server/lib/cache.ts","evidence":{"path":"server/utils/index-service.ts","line":1,"fragment":"import { readCache, writeCache } from '../lib/cache';"}},
         {"from":"server/utils/index-service.ts","to":"server/lib/indexer.ts","evidence":{"path":"server/utils/index-service.ts","line":2,"fragment":"import { buildIndex } from '../lib/indexer';"}},
         {"from":"server/utils/index-service.ts","to":"server/lib/types.ts","evidence":{"path":"server/utils/index-service.ts","line":3,"fragment":"import type { ProjectIndex } from '../lib/types';"}},
-        {"from":"server/utils/index-service.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/utils/index-service.ts","line":4,"fragment":"import { readWorkspace } from '../lib/workspace';"}},
+        {"from":"server/utils/index-service.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/utils/index-service.ts","line":4,"fragment":"import { readManifest, readWorkspace } from '../lib/workspace';"}},
         {"from":"server/utils/inventory-service.ts","to":"server/lib/inventory.ts","evidence":{"path":"server/utils/inventory-service.ts","line":11,"fragment":"} from '../lib/inventory';"}},
         {"from":"server/utils/inventory-service.ts","to":"server/lib/maps.ts","evidence":{"path":"server/utils/inventory-service.ts","line":12,"fragment":"import { parseMapRecord } from '../lib/maps';"}},
         {"from":"server/utils/inventory-service.ts","to":"server/lib/paths.ts","evidence":{"path":"server/utils/inventory-service.ts","line":13,"fragment":"import { normalizeRoot } from '../lib/paths';"}},
