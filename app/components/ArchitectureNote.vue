@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import type { ApiFailure } from '~/composables/useProjectIndex';
+import { fixTaskOf } from '../../server/lib/architecture';
+
 /**
  * Строка проверки архитектуры над схемой кода (docs/04-ui.md, «Архитектура на
  * карте кода»): сколько импортов проверено из скольких — чтобы тишина не
@@ -15,6 +18,7 @@ interface Finding {
 }
 
 const props = defineProps<{
+  projectId: string;
   report?: {
     enabled: boolean;
     findings?: Finding[];
@@ -31,6 +35,45 @@ const UNCHECKED_LABEL: Record<string, string> = {
 };
 
 const violations = computed(() => (props.report?.findings ?? []).filter((item) => item.code !== 'arch_promote'));
+
+/** Отмеченные нарушения: по умолчанию все; снятая галочка выводит нарушение из задачи. */
+const unchecked = ref<Set<string>>(new Set());
+const keyOf = (item: Finding) => `${item.code}|${item.from}|${item.to}`;
+const chosen = computed(() => violations.value.filter((item) => !unchecked.value.has(keyOf(item))));
+function toggle(item: Finding, value: boolean | 'indeterminate') {
+  const next = new Set(unchecked.value);
+  if (value === true) next.delete(keyOf(item));
+  else next.add(keyOf(item));
+  unchecked.value = next;
+}
+
+const creating = ref(false);
+const taskId = ref('');
+const failure = ref<ApiFailure | null>(null);
+
+/** Одна задача `fix` на отмеченное; модель не зовётся — дальше обычный путь задачи (docs/04-ui.md). */
+async function fix() {
+  const task = fixTaskOf(chosen.value);
+  if (!task) return;
+  creating.value = true;
+  failure.value = null;
+  taskId.value = '';
+  try {
+    const response = await $fetch(`/api/projects/${props.projectId}/records`, {
+      method: 'POST',
+      body: { type: 'task', title: task.title, change: 'fix', body: task.body, links: { affects: task.affects } },
+      ignoreResponseError: true
+    });
+    const problem = failureOf(response);
+    if (problem) {
+      failure.value = problem;
+      return;
+    }
+    taskId.value = (response as { record?: { id: string } }).record?.id ?? '';
+  } finally {
+    creating.value = false;
+  }
+}
 const hints = computed(() => (props.report?.findings ?? []).filter((item) => item.code === 'arch_promote'));
 const uncheckedText = computed(() => Object.entries(props.report?.unchecked ?? {})
   .map(([reason, count]) => `${UNCHECKED_LABEL[reason] ?? reason} — ${count}`)
@@ -63,13 +106,31 @@ const uncheckedText = computed(() => Object.entries(props.report?.unchecked ?? {
       <details v-if="violations.length || hints.length" class="mt-1">
         <summary class="cursor-pointer">Показать находки</summary>
         <ul class="mt-1 space-y-1">
-          <li v-for="(item, at) in [...violations, ...hints]" :key="at">
-            <code>{{ item.code }}</code>
+          <li v-for="(item, at) in [...violations, ...hints]" :key="at" class="flex items-start gap-2">
+            <UCheckbox
+              v-if="item.code !== 'arch_promote'"
+              :model-value="!unchecked.has(keyOf(item))"
+              :aria-label="`Починить: ${item.code}`"
+              @update:model-value="toggle(item, $event)"
+            />
+            <span v-else class="w-4 shrink-0" />
+            <span><code>{{ item.code }}</code>
             <span v-if="item.evidence" class="font-mono"> {{ item.evidence.path }}:{{ item.evidence.line }}</span>
-            — {{ item.message }}
+            — {{ item.message }}</span>
           </li>
         </ul>
       </details>
+      <div class="mt-2 flex flex-wrap items-center gap-3">
+        <UButton size="xs" variant="soft" icon="i-lucide-wrench" :loading="creating" :disabled="chosen.length === 0" @click="fix">
+          Починить нарушения · {{ chosen.length }}
+        </UButton>
+        <!-- Неактивная кнопка обязана назвать причину (docs/04-ui.md). -->
+        <span v-if="chosen.length === 0">{{ violations.length === 0 ? 'Нарушений нет — чинить нечего.' : 'Ни одно нарушение не отмечено.' }}</span>
+        <NuxtLink v-if="taskId" :to="`/projects/${projectId}/records/${taskId}`" class="font-medium hover:underline">
+          Задача {{ taskId }} заведена — открыть
+        </NuxtLink>
+        <span v-if="failure" class="text-red-600">{{ failure.message }}</span>
+      </div>
     </template>
   </div>
 </template>

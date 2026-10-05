@@ -27,7 +27,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody<{
-    type?: unknown; title?: unknown; owner?: unknown; links?: unknown; kind?: unknown; change?: unknown;
+    type?: unknown; title?: unknown; owner?: unknown; links?: unknown; kind?: unknown; change?: unknown; body?: unknown;
   }>(event);
   const type = typeof body?.type === 'string' ? body.type : '';
   const title = typeof body?.title === 'string' ? body.title.trim() : '';
@@ -61,6 +61,8 @@ export default defineEventHandler(async (event) => {
       ...(typeof body?.owner === 'string' && body.owner ? { owner: body.owner } : {}),
       ...(typeof body?.kind === 'string' && body.kind ? { kind: body.kind } : {}),
       ...(typeof body?.change === 'string' && body.change ? { change: body.change } : {}),
+      // Готовый текст раздела — только у задачи: так «Починить нарушения» кладёт список из проверки.
+      ...(type === 'task' && typeof body?.body === 'string' && body.body.trim() ? { body: body.body } : {}),
       links: asLinks(body?.links)
     });
 

@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { checkArchitecture, parseArchitectureAudit, type ArchImport } from '../server/lib/architecture';
+import { checkArchitecture, fixTaskOf, parseArchitectureAudit, type ArchImport } from '../server/lib/architecture';
 import { FOUND_MARKER, MODULES_MARKER, RULES_MARKER, architecturePrompt } from '../server/lib/prompt';
 import { architectureRules } from '../server/lib/rules';
+import { recordTemplate } from '../server/lib/scaffold';
 import { validateProject } from '../server/lib/schema';
 import type { ArchitectureConfig, WorkRecord } from '../server/lib/types';
 import { codes as codesOf, context, rec } from './helpers';
@@ -429,5 +430,45 @@ describe('аудит моделью: сборка запроса', () => {
   it('настоящий шаблон из репозитория содержит все три места подстановки', () => {
     const real = readFileSync(new URL('../docs/prompts/architecture-audit.md', import.meta.url), 'utf8');
     for (const marker of [RULES_MARKER, MODULES_MARKER, FOUND_MARKER]) expect(real).toContain(marker);
+  });
+});
+
+describe('задача «Починить нарушения»', () => {
+  const found = [
+    { code: 'arch_entry_bypassed', from: 'app/main.py', to: 'app/knowledge/engine.py', evidence: { path: 'app/main.py', line: 3 }, map: 'M-0002', message: 'в обход входа' },
+    { code: 'arch_layer_up', from: 'a.ts', to: 'b.ts', map: 'M-0001', message: 'вверх по слоям' },
+    { code: 'arch_cycle', from: 'c.ts', to: 'd.ts', map: 'M-0002', message: 'цикл' },
+    { code: 'arch_promote', from: 'e.ts', to: 'f.ts', map: 'M-0005', message: 'поднять' }
+  ];
+
+  it('подсказка «поднять» в задачу не входит, карты — без повторов и по порядку', () => {
+    const task = fixTaskOf(found);
+    expect(task?.count).toBe(3);
+    expect(task?.title).toBe('Починить нарушения архитектуры: 3');
+    expect(task?.affects).toEqual(['M-0001', 'M-0002']);
+    expect(task?.body).not.toContain('arch_promote');
+  });
+
+  it('в теле — код правила, файл и строка, объяснение; без строки — файл-источник', () => {
+    const body = fixTaskOf(found)?.body ?? '';
+    expect(body).toContain('- `arch_entry_bypassed` — `app/main.py:3`: в обход входа');
+    expect(body).toContain('- `arch_layer_up` — `a.ts`: вверх по слоям');
+  });
+
+  it('нечего чинить — null: кнопка неактивна', () => {
+    expect(fixTaskOf([])).toBeNull();
+    expect(fixTaskOf([found[3] as (typeof found)[number]])).toBeNull();
+  });
+
+  it('текст попадает в тело задачи шаблона, а не заменяется подсказкой', () => {
+    const task = fixTaskOf(found);
+    const text = recordTemplate({
+      id: 'T-0001', type: 'task', title: task?.title ?? '', today: '2026-10-05', change: 'fix',
+      body: task?.body ?? '', links: { affects: task?.affects ?? [] }
+    });
+    expect(text).toContain('change: fix');
+    expect(text).toContain('affects: [M-0001, M-0002]');
+    expect(text).toContain('- `arch_cycle` — `c.ts`: цикл');
+    expect(text).not.toContain('Зачем это, что делаем');
   });
 });
