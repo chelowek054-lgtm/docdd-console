@@ -111,6 +111,10 @@ export type ViolationCode =
   | 'arch_layer_up'
   | 'arch_slice_cross'
   | 'arch_promote'
+  | 'arch_private_import'
+  | 'arch_not_independent'
+  | 'arch_forbidden'
+  | 'rules_conflict'
   // выполнение
   | 'work_unreviewed'
   | 'work_branch_orphan'
@@ -188,6 +192,10 @@ export const VIOLATION_LEVELS: Readonly<Record<ViolationCode, Severity>> = {
   arch_layer_up: 'warning',
   arch_slice_cross: 'warning',
   arch_promote: 'warning',
+  arch_private_import: 'warning',
+  arch_not_independent: 'warning',
+  arch_forbidden: 'warning',
+  rules_conflict: 'warning',
   work_unreviewed: 'warning',
   work_branch_orphan: 'warning',
   task_not_ready_docs: 'error',
@@ -279,7 +287,17 @@ export interface ArchitectureConfig {
   /** Общие бизнес-понятия с несколькими владельцами: импортируют только shared. */
   kernel?: string[];
   siblings?: 'via-entry' | 'via-parent';
-  layers?: { root: string; order: string[]; slices?: 'isolated' | 'via-entry' }[];
+  layers?: { root: string; order: string[]; slices?: 'isolated' | 'via-entry'; unsliced?: string[] }[];
+  /** Файлы вне проверки границ (docs/12-practice-rules.md); дополняет встроенный список. */
+  ignore?: string[];
+  /** Снять часть встроенного `ignore`. */
+  unignore?: string[];
+  /** Вид входа: `closed` — снаружи только вход, `open` — публичны подмодули без `_`. */
+  modules?: { path: string; entry: 'open' | 'closed' }[];
+  /** Модули под этими путями друг друга не знают. */
+  independent?: string[];
+  /** Запрет «откуда → куда» с причиной. */
+  forbidden?: { from: string; to: string[]; why?: string; source?: string }[];
 }
 
 export interface ProjectManifest {

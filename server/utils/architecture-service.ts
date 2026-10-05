@@ -2,6 +2,8 @@ import { checkArchitecture, type ArchCode } from '../lib/architecture';
 import { reconcileCapabilities, type CapabilityReconcile } from '../lib/architecture-capabilities';
 import { buildProjectMap } from './map-service';
 import { readWorkspace } from '../lib/workspace';
+import { resolveProjectRules } from './rules-service';
+import type { RulesResolution } from '../lib/practice-rules';
 
 /**
  * Нарушения архитектуры по подтверждённой карте кода и правилам `architecture`
@@ -26,11 +28,14 @@ export interface ArchitectureReport {
   unchecked?: Record<string, number>;
   /** Сверка модулей с функциональной картой: замечания, а не нарушения. */
   reconcile?: CapabilityReconcile;
+  /** По каким правилам судили: записи-источники или секция манифеста (docs/04-ui.md, «Правила в практиках»). */
+  rules?: { manifest: RulesResolution['manifest']; sources: RulesResolution['sources'] };
 }
 
 export function buildArchitecture(root: string): ArchitectureReport {
   const workspace = readWorkspace(root);
-  const config = workspace.manifest.architecture;
+  const resolution = resolveProjectRules(root);
+  const config = resolution.config;
   if (!config) return { enabled: false };
 
   const { codemap, functional } = buildProjectMap(root);
@@ -55,6 +60,7 @@ export function buildArchitecture(root: string): ArchitectureReport {
     checked: result.checked,
     total: result.total,
     unchecked: result.unchecked,
+    rules: { manifest: resolution.manifest, sources: resolution.sources },
     reconcile: reconcileCapabilities({
       modules: result.modules,
       mapModules: codemap.modules,

@@ -17,6 +17,7 @@ import {
   type MapsState
 } from '../../../../lib/prompt';
 import { buildArchitecture } from '../../../../utils/architecture-service';
+import { resolveProjectRules } from '../../../../utils/rules-service';
 import { connectedPractices } from '../../../../utils/shared-service';
 import { inboxNotes } from '../../../../utils/inbox-service';
 import { mapSchemas } from '../../../../lib/map-schemas';
@@ -232,7 +233,7 @@ export default defineEventHandler(async (event) => {
     }
 
     if (kind === 'architecture') {
-      const rules = readWorkspace(project.root).manifest.architecture;
+      const rules = resolveProjectRules(project.root).config;
       if (!rules) {
         return fail(event, 422, 'architecture_disabled', 'В манифесте нет секции `architecture`: правил, по которым судить, нет');
       }

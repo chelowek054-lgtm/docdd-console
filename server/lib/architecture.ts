@@ -1,3 +1,4 @@
+import { globCovers, globMatch } from './glob';
 import type { ArchitectureConfig } from './types';
 
 /**
@@ -20,7 +21,10 @@ export type ArchCode =
   | 'arch_kernel_imports_domain'
   | 'arch_layer_up'
   | 'arch_slice_cross'
-  | 'arch_promote';
+  | 'arch_promote'
+  | 'arch_private_import'
+  | 'arch_not_independent'
+  | 'arch_forbidden';
 
 export interface ArchModuleRef {
   id: string;
@@ -89,6 +93,11 @@ export const DEFAULT_ENTRIES: Readonly<Record<string, readonly string[]>> = {
   go: ['*']
 };
 
+/** Что по общей конвенции не подлежит проверке границ: тесты, скрипты, миграции (docs/12-practice-rules.md). */
+export const BUILTIN_IGNORE: readonly string[] = [
+  '**/tests/**', '**/test/**', '**/*.spec.*', '**/*.test.*', '**/migrations/**', '**/scripts/**'
+];
+
 export function normalizePath(path: string): string {
   return path.replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/+$/, '');
 }
@@ -131,6 +140,19 @@ export function checkArchitecture(input: ArchInput): ArchResult {
     if (module.path) known.add(normalizePath(module.path));
     else if (pathLike(module.id)) known.add(normalizePath(module.id));
   }
+
+  const unignore = new Set(config.unignore ?? []);
+  const ignorePatterns = [...BUILTIN_IGNORE.filter((pattern) => !unignore.has(pattern)), ...(config.ignore ?? [])];
+  const ignored = (path: string) => ignorePatterns.some((pattern) => globCovers(pattern, path));
+
+  /** Вид входа модуля: правило ближайшего каталога вверх, иначе по языку — Python открыт, остальные закрыты. */
+  const kindOf = (dir: string, language: string): 'open' | 'closed' => {
+    for (let at = dir; at !== ''; at = dirname(at)) {
+      const rule = config.modules?.filter((item) => globMatch(item.path, at)).at(-1);
+      if (rule) return rule.entry;
+    }
+    return language === 'python' ? 'open' : 'closed';
+  };
 
   const entryNames = (language: string): readonly string[] | null => config.entries?.[language] ?? DEFAULT_ENTRIES[language] ?? null;
   const isEntry = (path: string, language: string): boolean => {
@@ -188,7 +210,9 @@ export function checkArchitecture(input: ArchInput): ArchResult {
   const layerPosition = (path: string, profile: NonNullable<ArchitectureConfig['layers']>[number]) => {
     const rest = path.slice(normalizePath(profile.root).length + 1).split('/');
     const layer = rest[0] ?? '';
-    return { index: profile.order.indexOf(layer), layer, slice: rest.length > 2 ? rest[1] : null, rest };
+    // Слои без срезов (по FSD — app и shared): сегменты внутри друг друга видят.
+    const sliced = !(profile.unsliced ?? []).includes(layer);
+    return { index: profile.order.indexOf(layer), layer, slice: sliced && rest.length > 2 ? rest[1] : null, rest };
   };
 
   const via = config.siblings ?? 'via-entry';
@@ -204,6 +228,7 @@ export function checkArchitecture(input: ArchInput): ArchResult {
     const fromPath = resolve(item.from);
     const toPath = resolve(item.to);
     if (!fromPath || !toPath || !known.has(fromPath) || !known.has(toPath)) { skip('missing'); continue; }
+    if (ignored(fromPath) || ignored(toPath)) { skip('ignored'); continue; }
     const language = languageOf(fromPath);
     if (!language || language !== languageOf(toPath)) { skip(language ?? 'unknown'); continue; }
     const fromChain = chainOf(fromPath, language);
@@ -225,6 +250,12 @@ export function checkArchitecture(input: ArchInput): ArchResult {
     }
     if (fromClass === 'kernel' && toClass === 'domain') {
       at('arch_kernel_imports_domain', `Бизнес-ядро \`${fromPath}\` импортирует доменный модуль \`${toPath}\`. \`kernel\` зависит только от \`shared\`: доменное должно идти к нему, а не от него.`);
+      continue;
+    }
+
+    const banned = config.forbidden?.find((rule) => globCovers(rule.from, fromPath) && rule.to.some((to) => globCovers(to, toPath)));
+    if (banned) {
+      at('arch_forbidden', `Импорт \`${fromPath}\` → \`${toPath}\` запрещён правилом${banned.source ? ` ${banned.source}` : ''}${banned.why ? `: ${banned.why}` : ''}.`);
       continue;
     }
 
@@ -257,12 +288,36 @@ export function checkArchitecture(input: ArchInput): ArchResult {
     const crossedTo = toChain.filter((dir) => !fromChain.includes(dir));
     const crossedFrom = fromChain.filter((dir) => !toChain.includes(dir));
     const outerTo = crossedTo.at(-1);
-    // `@x` — явный публичный вход соседа в FSD (кросс-импорт у entities), а не внутренность.
-    const publicCross = outerTo !== undefined && toPath.slice(outerTo.length + 1).split('/')[0] === '@x';
-    if (outerTo !== undefined && !publicCross && !(dirname(toPath) === outerTo && isEntry(toPath, language))) {
-      at('arch_entry_bypassed', `Импорт \`${toPath}\` идёт в глубину модуля \`${outerTo}\`, в обход его входа (\`${names}\`). Обращайтесь к входу \`${outerTo}\` — или опубликуйте нужное через него.`);
+    const outerFrom0 = crossedFrom.at(-1);
+
+    // Независимые модули друг друга не знают, даже через вход.
+    if (outerFrom0 !== undefined && outerTo !== undefined && outerFrom0 !== outerTo
+      && config.independent?.some((pattern) => globMatch(pattern, outerFrom0) && globMatch(pattern, outerTo))) {
+      at('arch_not_independent', `Модули \`${outerFrom0}\` и \`${outerTo}\` объявлены независимыми, а один обращается к другому. Их связывает родитель или общий код ниже.`);
       continue;
     }
+
+    // Снаружи внутрь: закрытый модуль пускает только во вход, открытый — в публичные подмодули.
+    let handled = false;
+    for (const dir of [...crossedTo].reverse()) {
+      if (kindOf(dir, language) === 'closed') {
+        // `@x` — явный публичный вход соседа в FSD (кросс-импорт у entities), а не внутренность.
+        const publicCross = toPath.slice(dir.length + 1).split('/')[0] === '@x';
+        if (!publicCross && !(dirname(toPath) === dir && isEntry(toPath, language))) {
+          at('arch_entry_bypassed', `Импорт \`${toPath}\` идёт в глубину модуля \`${dir}\`, в обход его входа (\`${names}\`). Обращайтесь к входу \`${dir}\` — или опубликуйте нужное через него.`);
+          handled = true;
+        }
+        break;
+      }
+      const inside = toPath.slice(dir.length + 1).split('/').map((part, index, all) => (index === all.length - 1 ? part.replace(/\.[^.]+$/, '') : part));
+      const privatePart = inside.find((part) => part.startsWith('_') && !part.startsWith('__'));
+      if (privatePart) {
+        at('arch_private_import', `Импорт \`${toPath}\` берёт приватное (\`${privatePart}\`) из модуля \`${dir}\`. Публично только то, что без \`_\` в имени: используйте публичный подмодуль или вход.`);
+        handled = true;
+        break;
+      }
+    }
+    if (handled) continue;
     const outerFrom = crossedFrom.at(-1);
     if (via === 'via-parent' && !governed && fromClass === 'domain' && toClass === 'domain'
       && outerFrom !== undefined && outerTo !== undefined) {

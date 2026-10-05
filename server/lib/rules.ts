@@ -1,5 +1,6 @@
 import { findDependencyCycles, incomingEdges, outgoing, type Graph } from './graph';
 import { checkArchitecture } from './architecture';
+import type { RulesResolution } from './practice-rules';
 import { capabilityFindings } from './coverage';
 import { approvedMaps, checkEvidence, evidenceClaims, foldMaps, parseMapRecord, type MapChange } from './maps';
 import { firstHeading } from './parse';
@@ -26,6 +27,8 @@ export interface RuleContext {
   policy: Policy;
   /** Правила архитектуры из манифеста; нет секции — нет проверки (docs/07-maps.md). */
   architecture?: ArchitectureConfig;
+  /** Откуда взялись правила: источники, перекрытия, конфликты (docs/12-practice-rules.md). */
+  rules?: RulesResolution;
   /** Результаты последних прогонов; отсутствие ключа — прогонов не было. */
   verifications: ReadonlyMap<string, VerificationResult>;
   /** «Сегодня» приходит снаружи, иначе тест на `task_stale` зависит от календаря. */
@@ -179,6 +182,7 @@ export function checkAll(ctx: RuleContext): Violation[] {
     ...mapCapabilityMissing(ctx),
     ...capabilityConsistency(ctx),
     ...architectureRules(ctx),
+    ...rulesConflict(ctx),
     ...workUnreviewed(ctx),
     ...workBranchOrphan(ctx),
     ...taskNotReadyDocs(ctx),
@@ -520,6 +524,27 @@ export function architectureRules(ctx: RuleContext): Violation[] {
     (finding.declaredBy && pathOf.get(finding.declaredBy)) || '',
     finding.message
   ));
+}
+
+/**
+ * Спор правил одного уровня и блок, который не разобрался (docs/12-practice-rules.md):
+ * правило не должно молча выбираться или молча пропадать.
+ */
+export function rulesConflict(ctx: RuleContext): Violation[] {
+  const resolution = ctx.rules;
+  if (!resolution) return [];
+  const pathOf = new Map(ctx.records.map((record) => [record.id, record.source.path]));
+  const idOf = (source: string) => source.replace(/^\[[^\]]*\]\s*/, '');
+  const found: Violation[] = [];
+  for (const conflict of resolution.conflicts) {
+    const id = idOf(conflict.records[conflict.records.length - 1] ?? '');
+    found.push(violation('rules_conflict', pathOf.has(id) ? id : null, pathOf.get(id) ?? '',
+      `Записи ${conflict.records.join(' и ')} задают разное для \`${conflict.key}\`: действует поздняя. Сведите правило в одну запись или заменяйте старую через \`supersedes\`.`));
+  }
+  for (const problem of resolution.problems) {
+    found.push(violation('rules_conflict', pathOf.has(problem.record) ? problem.record : null, pathOf.get(problem.record) ?? '', problem.message));
+  }
+  return found;
 }
 
 /** Не сказано, что за изменение, — значит непонятно, нужна ли карта. */

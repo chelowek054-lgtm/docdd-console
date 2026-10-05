@@ -137,6 +137,9 @@ async function toggleTag(source: SharedSourceView, tag: string) {
     <template v-else>
       <h1 class="text-xl font-semibold">Практики</h1>
 
+      <!-- Правила проверки архитектуры: этого проекта и итог сложения (docs/12-practice-rules.md). -->
+      <PracticeRules :project-id="projectId" />
+
       <UAlert
         v-if="sources.length === 0"
         color="neutral"
