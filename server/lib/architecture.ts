@@ -42,6 +42,8 @@ export interface ArchImport {
 
 export interface ArchFinding {
   code: ArchCode;
+  /** Какое правило и чья запись это требует: «нарушает A-0023» (docs/04-ui.md). */
+  rule?: { key?: string | undefined; source: string };
   from: string;
   to: string;
   declaredBy?: string | undefined;
@@ -145,6 +147,20 @@ export function checkArchitecture(input: ArchInput): ArchResult {
   const ignorePatterns = [...BUILTIN_IGNORE.filter((pattern) => !unignore.has(pattern)), ...(config.ignore ?? [])];
   const ignored = (path: string) => ignorePatterns.some((pattern) => globCovers(pattern, path));
 
+  /** Чья запись задала правило: ключ из сложения практик; структурные правила — встроенный минимум; секция манифеста — «манифест». */
+  const sourceOf = (key: string | undefined): { key?: string | undefined; source: string } => {
+    if (key === undefined) return { source: 'встроенный минимум' };
+    if (!config.sources) return { key, source: 'манифест' };
+    return { key, source: config.sources[key] ?? 'встроенный минимум' };
+  };
+  const moduleRuleKey = (dir: string): string | undefined => {
+    for (let at = dir; at !== ''; at = dirname(at)) {
+      const rule = config.modules?.filter((item) => globMatch(item.path, at)).at(-1);
+      if (rule) return `modules:${rule.path}`;
+    }
+    return undefined;
+  };
+
   /** Вид входа модуля: правило ближайшего каталога вверх, иначе по языку — Python открыт, остальные закрыты. */
   const kindOf = (dir: string, language: string): 'open' | 'closed' => {
     for (let at = dir; at !== ''; at = dirname(at)) {
@@ -238,24 +254,24 @@ export function checkArchitecture(input: ArchInput): ArchResult {
     if (fromPath === toPath) continue;
     crossings.push({ import: item, fromPath, toPath, fromChain, toChain });
 
-    const at = (code: ArchCode, message: string) =>
-      findings.push({ code, from: item.from, to: item.to, declaredBy: item.declaredBy, evidence: item.evidence, message });
+    const at = (code: ArchCode, message: string, key?: string) =>
+      findings.push({ code, from: item.from, to: item.to, declaredBy: item.declaredBy, evidence: item.evidence, message, rule: sourceOf(key) });
     const names = (entryNames(language) ?? []).join(', ');
 
     const fromClass = classOf(fromPath);
     const toClass = classOf(toPath);
     if (fromClass === 'shared' && toClass !== 'shared') {
-      at('arch_shared_imports_domain', `Технический общий код \`${fromPath}\` импортирует \`${toPath}\` — ${toClass === 'kernel' ? 'общее бизнес-ядро' : 'доменный модуль'}. \`shared\` домена не знает: вынесите нужное в \`shared\` или переверните зависимость.`);
+      at('arch_shared_imports_domain', `Технический общий код \`${fromPath}\` импортирует \`${toPath}\` — ${toClass === 'kernel' ? 'общее бизнес-ядро' : 'доменный модуль'}. \`shared\` домена не знает: вынесите нужное в \`shared\` или переверните зависимость.`, `shared:${config.shared?.find((prefix) => under(fromPath, prefix)) ?? ''}`);
       continue;
     }
     if (fromClass === 'kernel' && toClass === 'domain') {
-      at('arch_kernel_imports_domain', `Бизнес-ядро \`${fromPath}\` импортирует доменный модуль \`${toPath}\`. \`kernel\` зависит только от \`shared\`: доменное должно идти к нему, а не от него.`);
+      at('arch_kernel_imports_domain', `Бизнес-ядро \`${fromPath}\` импортирует доменный модуль \`${toPath}\`. \`kernel\` зависит только от \`shared\`: доменное должно идти к нему, а не от него.`, `kernel:${config.kernel?.find((prefix) => under(fromPath, prefix)) ?? ''}`);
       continue;
     }
 
     const banned = config.forbidden?.find((rule) => globCovers(rule.from, fromPath) && rule.to.some((to) => globCovers(to, toPath)));
     if (banned) {
-      at('arch_forbidden', `Импорт \`${fromPath}\` → \`${toPath}\` запрещён правилом${banned.source ? ` ${banned.source}` : ''}${banned.why ? `: ${banned.why}` : ''}.`);
+      at('arch_forbidden', `Импорт \`${fromPath}\` → \`${toPath}\` запрещён правилом${banned.source ? ` ${banned.source}` : ''}${banned.why ? `: ${banned.why}` : ''}.`, `forbidden:${banned.from}>${banned.to.join(',')}`);
       continue;
     }
 
@@ -268,12 +284,12 @@ export function checkArchitecture(input: ArchInput): ArchResult {
       if (a.index >= 0 && b.index >= 0) {
         governed = true;
         if (b.index < a.index) {
-          at('arch_layer_up', `Слой \`${a.layer}\` импортирует вышележащий слой \`${b.layer}\` (\`${toPath}\`). Порядок сверху вниз: ${profile.order.join(' → ')}, импорт идёт только вниз.`);
+          at('arch_layer_up', `Слой \`${a.layer}\` импортирует вышележащий слой \`${b.layer}\` (\`${toPath}\`). Порядок сверху вниз: ${profile.order.join(' → ')}, импорт идёт только вниз.`, `layers:${profile.root}`);
           continue;
         }
         if (b.index === a.index && a.slice && b.slice && a.slice !== b.slice
           && (profile.slices ?? 'isolated') === 'isolated' && !b.rest.includes('@x')) {
-          at('arch_slice_cross', `Срез \`${a.layer}/${a.slice}\` импортирует соседний срез \`${b.layer}/${b.slice}\` того же слоя. Срезы одного слоя друг друга не знают (исключение — каталог \`@x\`): общее поднимите на слой ниже.`);
+          at('arch_slice_cross', `Срез \`${a.layer}/${a.slice}\` импортирует соседний срез \`${b.layer}/${b.slice}\` того же слоя. Срезы одного слоя друг друга не знают (исключение — каталог \`@x\`): общее поднимите на слой ниже.`, `layers:${profile.root}`);
           continue;
         }
       }
@@ -293,7 +309,7 @@ export function checkArchitecture(input: ArchInput): ArchResult {
     // Независимые модули друг друга не знают, даже через вход.
     if (outerFrom0 !== undefined && outerTo !== undefined && outerFrom0 !== outerTo
       && config.independent?.some((pattern) => globMatch(pattern, outerFrom0) && globMatch(pattern, outerTo))) {
-      at('arch_not_independent', `Модули \`${outerFrom0}\` и \`${outerTo}\` объявлены независимыми, а один обращается к другому. Их связывает родитель или общий код ниже.`);
+      at('arch_not_independent', `Модули \`${outerFrom0}\` и \`${outerTo}\` объявлены независимыми, а один обращается к другому. Их связывает родитель или общий код ниже.`, `independent:${config.independent?.find((pattern) => globMatch(pattern, outerFrom0) && globMatch(pattern, outerTo)) ?? ''}`);
       continue;
     }
 
@@ -304,7 +320,7 @@ export function checkArchitecture(input: ArchInput): ArchResult {
         // `@x` — явный публичный вход соседа в FSD (кросс-импорт у entities), а не внутренность.
         const publicCross = toPath.slice(dir.length + 1).split('/')[0] === '@x';
         if (!publicCross && !(dirname(toPath) === dir && isEntry(toPath, language))) {
-          at('arch_entry_bypassed', `Импорт \`${toPath}\` идёт в глубину модуля \`${dir}\`, в обход его входа (\`${names}\`). Обращайтесь к входу \`${dir}\` — или опубликуйте нужное через него.`);
+          at('arch_entry_bypassed', `Импорт \`${toPath}\` идёт в глубину модуля \`${dir}\`, в обход его входа (\`${names}\`). Обращайтесь к входу \`${dir}\` — или опубликуйте нужное через него.`, moduleRuleKey(dir));
           handled = true;
         }
         break;
@@ -312,7 +328,7 @@ export function checkArchitecture(input: ArchInput): ArchResult {
       const inside = toPath.slice(dir.length + 1).split('/').map((part, index, all) => (index === all.length - 1 ? part.replace(/\.[^.]+$/, '') : part));
       const privatePart = inside.find((part) => part.startsWith('_') && !part.startsWith('__'));
       if (privatePart) {
-        at('arch_private_import', `Импорт \`${toPath}\` берёт приватное (\`${privatePart}\`) из модуля \`${dir}\`. Публично только то, что без \`_\` в имени: используйте публичный подмодуль или вход.`);
+        at('arch_private_import', `Импорт \`${toPath}\` берёт приватное (\`${privatePart}\`) из модуля \`${dir}\`. Публично только то, что без \`_\` в имени: используйте публичный подмодуль или вход.`, moduleRuleKey(dir));
         handled = true;
         break;
       }
@@ -321,7 +337,7 @@ export function checkArchitecture(input: ArchInput): ArchResult {
     const outerFrom = crossedFrom.at(-1);
     if (via === 'via-parent' && !governed && fromClass === 'domain' && toClass === 'domain'
       && outerFrom !== undefined && outerTo !== undefined) {
-      at('arch_sibling_import', `Соседние модули \`${outerFrom}\` и \`${outerTo}\` обращаются друг к другу, а в проекте \`siblings: via-parent\`. Их связывает родитель: пусть он передаёт нужное.`);
+      at('arch_sibling_import', `Соседние модули \`${outerFrom}\` и \`${outerTo}\` обращаются друг к другу, а в проекте \`siblings: via-parent\`. Их связывает родитель: пусть он передаёт нужное.`, 'siblings');
     }
   }
 
@@ -359,7 +375,7 @@ export function checkArchitecture(input: ArchInput): ArchResult {
     if (!reaches(edge.parent, edge.b, edge.a)) continue;
     const { import: item } = edge.crossing;
     findings.push({
-      code: 'arch_cycle', from: item.from, to: item.to, declaredBy: item.declaredBy, evidence: item.evidence,
+      code: 'arch_cycle', from: item.from, to: item.to, declaredBy: item.declaredBy, evidence: item.evidence, rule: sourceOf(undefined),
       message: `Модули \`${edge.a}\` и \`${edge.b}\` зависят друг от друга по кругу. Разорвите цикл: общее вынесите в третий модуль или оставьте зависимость в одну сторону.`
     });
   }
@@ -403,7 +419,7 @@ export function checkArchitecture(input: ArchInput): ArchResult {
       ? 'в `shared` (если код технический) или в `kernel` (если это общее бизнес-понятие)'
       : `к \`${ancestor}\``;
     findings.push({
-      code: 'arch_promote', from: entry.first.from, to: entry.to, declaredBy: entry.first.declaredBy, evidence: entry.first.evidence,
+      code: 'arch_promote', from: entry.first.from, to: entry.to, declaredBy: entry.first.declaredBy, evidence: entry.first.evidence, rule: sourceOf(undefined),
       message: `Модуль \`${dir}\` лежит внутри родителя, а им пользуются и снаружи (${[...entry.consumers].slice(0, 3).map((path) => `\`${path}\``).join(', ')}). Поднимите его ${target}: ближайший общий предок всех, кто им пользуется.`
     });
   }
@@ -489,6 +505,7 @@ export function parseArchitectureAudit(answer: string, files: Iterable<string>):
 // --- задача «Починить нарушения» ---
 
 export interface FixableFinding {
+  rule?: { source: string } | undefined;
   code: string;
   from: string;
   to: string;
@@ -523,7 +540,7 @@ export function fixTaskOf(findings: readonly FixableFinding[]): FixTask | null {
 
   const lines = chosen.map((item) => {
     const where = item.evidence ? `\`${item.evidence.path}:${item.evidence.line}\`` : `\`${item.from}\``;
-    return `- \`${item.code}\` — ${where}: ${item.message}`;
+    return `- \`${item.code}\` — ${where}: ${item.message}${item.rule ? ` Правило: ${item.rule.source}.` : ''}`;
   });
   const body = [
     'Нарушения правил архитектуры из точной проверки по подтверждённой карте кода',

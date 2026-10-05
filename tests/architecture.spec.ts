@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { checkArchitecture, fixTaskOf, parseArchitectureAudit, selectionState, type ArchImport } from '../server/lib/architecture';
 import { FOUND_MARKER, MODULES_MARKER, PRACTICES_MARKER, RULES_MARKER, architecturePrompt } from '../server/lib/prompt';
 import { architectureRules } from '../server/lib/rules';
+import { resolveRules } from '../server/lib/practice-rules';
 import { recordTemplate } from '../server/lib/scaffold';
 import { validateProject } from '../server/lib/schema';
 import type { ArchitectureConfig, WorkRecord } from '../server/lib/types';
@@ -543,5 +544,45 @@ describe('правила из практик: словарь', () => {
     const config: ArchitectureConfig = { layers: [{ root: 'src', order: ['features', 'shared'], slices: 'isolated', unsliced: ['shared'] }] };
     expect(codes(config, files, [edge('src/shared/ui/index.ts', 'src/shared/lib/index.ts')])).toEqual([]);
     expect(codes(config, files, [edge('src/features/a/index.ts', 'src/features/b/index.ts')])).toEqual(['arch_slice_cross']);
+  });
+});
+
+describe('источник у каждого нарушения', () => {
+  const FENCE = String.fromCharCode(96).repeat(3);
+  const local = (id: string, value: unknown) => ({ id, body: [FENCE + 'docdd-rules', JSON.stringify(value), FENCE].join(String.fromCharCode(10)) });
+  const files = [...PY, 'src/shared/ui/index.ts', 'src/shared/api/index.ts'];
+
+  const config = resolveRules({
+    general: [],
+    local: [
+      local('A-0020', { modules: [{ path: 'app/**', entry: 'closed' }], independent: ['app/*'] }),
+      local('A-0023', { forbidden: [{ from: 'src/shared/ui', to: ['src/shared/api'], why: 'UI не знает про API' }] })
+    ]
+  }).config as ArchitectureConfig;
+
+  it('вход — правило modules и его запись', () => {
+    const found = run(config, files, [edge('app/main.py', 'app/knowledge/engine.py')]).findings[0];
+    expect(found?.code).toBe('arch_entry_bypassed');
+    expect(found?.rule).toEqual({ key: 'modules:app/**', source: 'A-0020' });
+  });
+
+  it('независимость и запрет называют свои записи', () => {
+    const independent = run(config, files, [edge('app/billing/invoice.py', 'app/knowledge/__init__.py')]).findings[0];
+    expect(independent?.rule).toEqual({ key: 'independent:app/*', source: 'A-0020' });
+    const forbidden = run(config, files, [edge('src/shared/ui/index.ts', 'src/shared/api/index.ts')]).findings[0];
+    expect(forbidden?.rule?.source).toBe('A-0023');
+  });
+
+  it('структурные правила — встроенный минимум; секция манифеста — «манифест»', () => {
+    const parent = run({ modules: [{ path: 'app/**', entry: 'closed' }] }, PY, [edge('app/knowledge/repeat/cards.py', 'app/knowledge/__init__.py')]).findings[0];
+    expect(parent?.code).toBe('arch_parent_import');
+    expect(parent?.rule?.source).toBe('встроенный минимум');
+    const bypass = run(CLOSED, PY, [edge('app/main.py', 'app/knowledge/engine.py')]).findings[0];
+    expect(bypass?.rule?.source).toBe('манифест');
+  });
+
+  it('источник попадает в нарушение общего прохода и в задачу «Починить»', () => {
+    const task = fixTaskOf([{ code: 'arch_cycle', from: 'a', to: 'b', message: 'цикл', rule: { source: 'A-0020' } }]);
+    expect(task?.body).toContain('цикл Правило: A-0020.');
   });
 });
