@@ -260,7 +260,7 @@ export function checkArchitecture(input: ArchInput): ArchResult {
     // `@x` — явный публичный вход соседа в FSD (кросс-импорт у entities), а не внутренность.
     const publicCross = outerTo !== undefined && toPath.slice(outerTo.length + 1).split('/')[0] === '@x';
     if (outerTo !== undefined && !publicCross && !(dirname(toPath) === outerTo && isEntry(toPath, language))) {
-      at('arch_entry_bypassed', `Импорт \`${toPath}\` идёт в глубину модуля \`${outerTo}\`, в обход его входа (`${names}`). Обращайтесь к входу \`${outerTo}\` — или опубликуйте нужное через него.`);
+      at('arch_entry_bypassed', `Импорт \`${toPath}\` идёт в глубину модуля \`${outerTo}\`, в обход его входа (\`${names}\`). Обращайтесь к входу \`${outerTo}\` — или опубликуйте нужное через него.`);
       continue;
     }
     const outerFrom = crossedFrom.at(-1);
