@@ -91,8 +91,9 @@ const uncheckedText = computed(() => Object.entries(props.report?.unchecked ?? {
 <template>
   <div v-if="report" class="mb-2 text-xs text-muted">
     <p v-if="!report.enabled">
-      Правила архитектуры не заданы: добавьте секцию <code>architecture</code> в <code>docs/development/project.yaml</code> —
+      Правила архитектуры не заданы: заведите в подтверждённом решении блок <code>docdd-rules</code> (экран «Практики») —
       тогда импорты карты проверятся на «через вход», слои и общий код.
+      <NuxtLink :to="`/projects/${projectId}/shared`" class="hover:underline">Открыть «Практики»</NuxtLink>
     </p>
     <template v-else>
       <p>

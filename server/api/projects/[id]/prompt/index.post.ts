@@ -247,7 +247,9 @@ export default defineEventHandler(async (event) => {
         prompt: architecturePrompt(await template('architecture-audit.md'), {
           rules,
           modules: modules.map((module) => ({ dir: module.id, entry: module.entry, parent: module.parent })),
-          found: report.findings ?? []
+          found: report.findings ?? [],
+          // Те же практики, что идут в запрос на выполнение задачи: суд по ним, а не по привычкам модели.
+          practices: connectedPractices(withBuiltin(readWorkspace(project.root).manifest.sources?.shared ?? []))
         }),
         count: modules.length
       };
