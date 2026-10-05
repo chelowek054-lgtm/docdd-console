@@ -22,6 +22,9 @@ function run(config: ArchitectureConfig, files: string[], imports: ArchImport[])
 const codes = (config: ArchitectureConfig, files: string[], imports: ArchImport[]) =>
   run(config, files, imports).findings.map((finding) => finding.code);
 
+/** Подключаемые модули — «закрытые»: снаружи только вход (в Python по умолчанию пакеты открыты). */
+const CLOSED: ArchitectureConfig = { modules: [{ path: 'app/**', entry: 'closed' }] };
+
 const PY = [
   'app/main.py',
   'app/knowledge/__init__.py',
@@ -38,7 +41,7 @@ describe('вход модуля: «через вход»', () => {
   });
 
   it('импорт в глубину, мимо входа, — arch_entry_bypassed', () => {
-    const result = run({}, PY, [edge('app/main.py', 'app/knowledge/engine.py')]);
+    const result = run(CLOSED, PY, [edge('app/main.py', 'app/knowledge/engine.py')]);
     expect(result.findings.map((item) => item.code)).toEqual(['arch_entry_bypassed']);
     expect(result.findings[0]?.declaredBy).toBe('M-0001');
     expect(result.findings[0]?.message).toContain('app/knowledge');
@@ -51,7 +54,7 @@ describe('вход модуля: «через вход»', () => {
   });
 
   it('требуется вход самого внешнего пересечённого модуля, а не вложенного', () => {
-    const found = codes({}, PY, [edge('app/main.py', 'app/knowledge/repeat/__init__.py')]);
+    const found = codes(CLOSED, PY, [edge('app/main.py', 'app/knowledge/repeat/__init__.py')]);
     expect(found).toContain('arch_entry_bypassed');
     expect(found).not.toContain('arch_parent_import');
   });
@@ -87,7 +90,7 @@ describe('языки без соглашения и dotted-имена', () => {
 
   it('dotted-имя пакета находится по файлам', () => {
     const result = checkArchitecture({
-      config: {},
+      config: CLOSED,
       files: PY,
       modules: [],
       imports: [edge('app/main.py', 'knowledge.engine')]
@@ -324,7 +327,7 @@ describe('правило в общем проходе', () => {
   });
 
   it('нарушение висит на карте, объявившей импорт', () => {
-    const found = architectureRules(withConfig([codemap('approved')], {}));
+    const found = architectureRules(withConfig([codemap('approved')], CLOSED));
     expect(codesOf(found)).toEqual(['arch_entry_bypassed']);
     expect(found[0]?.id).toBe('M-0001');
     expect(found[0]?.path).toBe('docs/development/maps/M-0001-karta.md');
@@ -484,5 +487,50 @@ describe('задача «Починить нарушения»', () => {
     expect(text).toContain('affects: [M-0001, M-0002]');
     expect(text).toContain('- `arch_cycle` — `c.ts`: цикл');
     expect(text).not.toContain('Зачем это, что делаем');
+  });
+});
+
+describe('правила из практик: словарь', () => {
+  it('Python по умолчанию открыт: публичный подмодуль можно, приватный (_) нельзя', () => {
+    const files = [...PY, 'app/knowledge/_cache.py'];
+    expect(codes({}, files, [edge('app/main.py', 'app/knowledge/engine.py')])).toEqual([]);
+    expect(codes({}, files, [edge('app/main.py', 'app/knowledge/_cache.py')])).toEqual(['arch_private_import']);
+  });
+
+  it('closed для части путей, остальное по языку', () => {
+    const config: ArchitectureConfig = { modules: [{ path: 'app/billing', entry: 'closed' }] };
+    expect(codes(config, PY, [edge('app/main.py', 'app/billing/invoice.py')])).toEqual(['arch_entry_bypassed']);
+    expect(codes(config, PY, [edge('app/main.py', 'app/knowledge/engine.py')])).toEqual([]);
+  });
+
+  it('тесты, скрипты и миграции вне проверки; unignore возвращает', () => {
+    const files = [...PY, 'app/tests/test_x.py', 'app/migrations/0001.py'];
+    const config: ArchitectureConfig = { modules: [{ path: 'app/**', entry: 'closed' }] };
+    const result = run(config, files, [edge('app/tests/test_x.py', 'app/knowledge/engine.py'), edge('app/migrations/0001.py', 'app/knowledge/engine.py')]);
+    expect(result.findings).toEqual([]);
+    expect(result.unchecked['ignored']).toBe(2);
+    expect(codes({ ...config, unignore: ['**/tests/**'] }, files, [edge('app/tests/test_x.py', 'app/knowledge/engine.py')])).toEqual(['arch_entry_bypassed']);
+  });
+
+  it('independent: соседи не знают друг друга даже через вход', () => {
+    const config: ArchitectureConfig = { independent: ['app/*'] };
+    expect(codes(config, PY, [edge('app/billing/invoice.py', 'app/knowledge/__init__.py')])).toEqual(['arch_not_independent']);
+    expect(codes(config, PY, [edge('app/main.py', 'app/knowledge/__init__.py')])).toEqual([]);
+  });
+
+  it('forbidden: запрет «откуда → куда» называет причину и запись', () => {
+    const files = ['src/shared/ui/index.ts', 'src/shared/api/index.ts', 'src/shared/lib/index.ts'];
+    const config: ArchitectureConfig = { forbidden: [{ from: 'src/shared/ui', to: ['src/shared/api'], why: 'UI-кит не знает про API', source: 'A-0020' }] };
+    const found = run(config, files, [edge('src/shared/ui/index.ts', 'src/shared/api/index.ts'), edge('src/shared/ui/index.ts', 'src/shared/lib/index.ts')]).findings;
+    expect(found.map((item) => item.code)).toEqual(['arch_forbidden']);
+    expect(found[0]?.message).toContain('UI-кит не знает про API');
+    expect(found[0]?.message).toContain('A-0020');
+  });
+
+  it('unsliced: сегменты shared друг друга видят, срезы features — нет', () => {
+    const files = ['src/shared/ui/index.ts', 'src/shared/lib/index.ts', 'src/features/a/index.ts', 'src/features/b/index.ts'];
+    const config: ArchitectureConfig = { layers: [{ root: 'src', order: ['features', 'shared'], slices: 'isolated', unsliced: ['shared'] }] };
+    expect(codes(config, files, [edge('src/shared/ui/index.ts', 'src/shared/lib/index.ts')])).toEqual([]);
+    expect(codes(config, files, [edge('src/features/a/index.ts', 'src/features/b/index.ts')])).toEqual(['arch_slice_cross']);
   });
 });

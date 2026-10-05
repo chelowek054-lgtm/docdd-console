@@ -31,7 +31,8 @@ const props = defineProps<{
 
 const UNCHECKED_LABEL: Record<string, string> = {
   missing: 'файл не найден',
-  unknown: 'язык не опознан'
+  unknown: 'язык не опознан',
+  ignored: 'вне проверки границ (тесты, скрипты, миграции, ignore)'
 };
 
 const violations = computed(() => (props.report?.findings ?? []).filter((item) => item.code !== 'arch_promote'));

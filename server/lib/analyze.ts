@@ -1,5 +1,6 @@
 import { buildGraph, type Graph } from './graph';
 import { looksLikeRecord, parseRecord } from './parse';
+import { resolveRules, type RuleRecord, type RulesResolution } from './practice-rules';
 import { latestVerificationResults } from './reports';
 import { checkAll, checkRecordIdentity, type RuleContext } from './rules';
 import { validateFrontMatter, type SchemaIssue } from './schema';
@@ -31,6 +32,8 @@ export interface AnalyzeInput {
   readSource?: (path: string) => string | null;
   /** Состояние работы над задачами: git смотрит вызывающая сторона. */
   work?: { unreviewed: ReadonlySet<string>; orphanBranches: ReadonlySet<string> };
+  /** Подтверждённые общие практики с их текстом: правила из них складываются с локальными (docs/12-practice-rules.md). */
+  generalRules?: readonly RuleRecord[];
   now?: Date;
 }
 
@@ -76,11 +79,17 @@ export function analyze(input: AnalyzeInput): AnalyzeResult {
   }
 
   const graph = buildGraph(records);
+  // Правила архитектуры: встроенный минимум → общие практики → локальные решения.
+  const local: RuleRecord[] = records
+    .filter((record) => (record.type === 'decision' || record.type === 'design') && record.status === 'approved')
+    .map((record) => ({ id: record.id, body: record.body }));
+  const rules: RulesResolution = resolveRules({ manifest: input.manifest?.architecture, general: input.generalRules ?? [], local });
   const ctx: RuleContext = {
     records,
     graph,
     policy: input.manifest?.policy ?? {},
-    ...(input.manifest?.architecture ? { architecture: input.manifest.architecture } : {}),
+    ...(rules.config ? { architecture: rules.config } : {}),
+    rules,
     verifications: latestVerificationResults(input.reports ?? []),
     now: input.now ?? new Date(),
     code: {

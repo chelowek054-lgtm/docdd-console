@@ -2,6 +2,7 @@ import { checkArchitecture, type ArchCode } from '../lib/architecture';
 import { reconcileCapabilities, type CapabilityReconcile } from '../lib/architecture-capabilities';
 import { buildProjectMap } from './map-service';
 import { readWorkspace } from '../lib/workspace';
+import { resolveProjectRules } from './rules-service';
 
 /**
  * Нарушения архитектуры по подтверждённой карте кода и правилам `architecture`
@@ -30,7 +31,7 @@ export interface ArchitectureReport {
 
 export function buildArchitecture(root: string): ArchitectureReport {
   const workspace = readWorkspace(root);
-  const config = workspace.manifest.architecture;
+  const config = resolveProjectRules(root).config;
   if (!config) return { enabled: false };
 
   const { codemap, functional } = buildProjectMap(root);

@@ -428,6 +428,9 @@ export function architecturePrompt(
     rules.shared?.length ? `- shared (технический общий код, без домена): ${rules.shared.join(', ')}` : '',
     rules.kernel?.length ? `- kernel (общие бизнес-понятия, импортируют только shared): ${rules.kernel.join(', ')}` : '',
     `- соседи: ${(rules.siblings ?? 'via-entry') === 'via-parent' ? 'не знают друг друга, связывает родитель' : 'обращаются через вход соседа'}`,
+    rules.modules?.length ? `- вид входа: ${rules.modules.map((item) => `${item.path} — ${item.entry === 'closed' ? 'только вход' : 'публичны подмодули без _'}`).join('; ')}` : '',
+    rules.independent?.length ? `- независимые модули (друг друга не знают): ${rules.independent.join(', ')}` : '',
+    ...(rules.forbidden ?? []).map((item) => `- запрещено: ${item.from} → ${item.to.join(', ')}${item.why ? ` (${item.why})` : ''}`),
     ...(rules.layers ?? []).map((profile) => `- слои в \`${profile.root}\` сверху вниз: ${profile.order.join(' → ')}; срезы ${(profile.slices ?? 'isolated') === 'isolated' ? 'друг друга не знают' : 'обращаются через вход'}`)
   ].filter(Boolean).join(LF);
 
