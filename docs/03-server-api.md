@@ -437,6 +437,36 @@
 экран мог дать ссылку на запись. `level` — `failing`, `verified`,
 `unchecked`, `no_check` или `none`, по правилу из 07-maps.md.
 
+### `GET /api/projects/:id/architecture`
+
+Нарушения архитектуры по подтверждённой карте кода и правилам `architecture`
+манифеста ([07-maps.md](07-maps.md), «Модули и публичный вход»). Производное:
+нигде не хранится.
+
+```json
+{
+  "enabled": true,
+  "modules": [{ "id": "learningBack/knowledge", "entry": "learningBack/knowledge/__init__.py", "parent": null }],
+  "findings": [{ "code": "arch_entry_bypassed", "from": "…", "to": "…", "evidence": { "path": "…", "line": 3, "fragment": "…" }, "map": "M-0007", "message": "…" }],
+  "checked": 412,
+  "total": 479,
+  "unchecked": { "kotlin": 18 }
+}
+```
+
+Секции `architecture` нет — `{ "enabled": false }`, и это состояние, а не ошибка.
+`checked`/`total` — сколько импортов карты проверено; `unchecked` — языки без входа.
+Запрос `kind: "architecture"` (`POST /prompt`) собирает аудит моделью; без секции
+`architecture` — отказ `architecture_disabled`.
+Без модулей с входом — отказ `architecture_no_modules`.
+
+### `POST /api/projects/:id/architecture`
+
+Тело `{ "answer": "…" }` — ответ модели на аудит. Достаёт блок `docdd-architecture`
+и возвращает `{ "findings": [{ "path", "kind", "note" }], "skipped": [{ "path", "reason" }] }`.
+В `skipped` — то, что не взято: вид не из списка, нет такого пути в проекте. Ничего не
+пишет. Блока нет — `422 architecture_unparsed`, экран показывает ответ текстом.
+
 ## Общие практики
 
 ### `GET /api/projects/:id/shared`

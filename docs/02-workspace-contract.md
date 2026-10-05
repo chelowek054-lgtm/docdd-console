@@ -40,6 +40,18 @@ policy:
   require_verification_before_done: true
   stale_in_progress_days: 14
   map_portion_files: 40
+architecture:
+  entries: { python: [__init__.py], typescript: [index.ts, index.tsx] }
+  shared: [learningBack/platform, learningFront/src/shared]
+  kernel: [learningBack/kernel]
+  siblings: via-entry
+  layers:
+    - root: learningFront/src
+      order: [app, pages, widgets, features, entities, shared]
+      slices: isolated
+    - root: learningBack
+      order: [api, modules, platform]
+      slices: via-entry
 ```
 
 `paths.*` — относительно `docs/development`; `sources.code`/`docs`/`client`/
@@ -50,6 +62,13 @@ policy:
 `sources.shared[].path` — не относительный путь внутри этого проекта, а свой
 корень: другой DocDD-проект, обычно отдельным репозиторием
 ([11-shared-sources.md](11-shared-sources.md)).
+
+`architecture` — необязательная секция правил архитектуры
+([07-maps.md](07-maps.md), «Модули и публичный вход»): `entries` — какие файлы
+считаются входом модуля по языкам (по умолчанию — соглашения языков), `shared` —
+технический общий код без домена, `kernel` — общие бизнес-понятия с несколькими
+владельцами, `siblings` — `via-entry` или `via-parent`, `layers` — профили слоёв
+(корень, порядок сверху вниз, срезы `isolated` или `via-entry`). Пути — относительно корня проекта. Секции нет — проверки нет.
 
 Поколение контракта проверяется до всего остального. `docdd.workspace/2` —
 отказ с понятной причиной, а не попытка прочитать половину.
