@@ -350,7 +350,7 @@ describe('секция architecture манифеста', () => {
         shared: ['app/shared'],
         kernel: ['app/kernel'],
         siblings: 'via-parent',
-        layers: [{ root: 'src', order: ['app', 'shared'], slices: 'isolated' }]
+        layers: [{ root: 'src', order: ['app', 'shared'], slices: 'isolated', unsliced: ['app', 'shared'] }]
       }
     })).toEqual([]);
   });

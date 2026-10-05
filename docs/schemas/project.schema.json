@@ -180,6 +180,11 @@
                 "enum": ["isolated", "via-entry"],
                 "default": "isolated",
                 "description": "isolated — срезы одного слоя друг друга не импортируют (кроме @x); via-entry — через вход соседа."
+              },
+              "unsliced": {
+                "type": "array",
+                "description": "Слои без срезов (по FSD — app и shared): сегменты внутри них друг друга видят.",
+                "items": { "type": "string", "minLength": 1 }
               }
             }
           }
