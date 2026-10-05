@@ -26,6 +26,7 @@ const props = defineProps<{
     total?: number;
     unchecked?: Record<string, number>;
     reconcile?: { enabled: boolean; modulesWithoutCapability: string[]; capabilitiesWithoutModule: { id: string; title: string }[] };
+    rules?: { manifest: 'used' | 'ignored' | 'absent'; sources: { id: string; level: 'general' | 'local' }[] };
   } | undefined;
 }>();
 
@@ -99,6 +100,14 @@ const uncheckedText = computed(() => Object.entries(props.report?.unchecked ?? {
         <span :class="violations.length ? 'font-semibold text-violet-600' : ''">нарушений {{ violations.length }}</span>
         <template v-if="hints.length"> · подсказок «поднять» {{ hints.length }}</template>
         <template v-if="uncheckedText"> · не проверено: {{ uncheckedText }}</template>
+      </p>
+      <!-- По каким правилам судили: запись-источник, а не безымянное «нарушение» (docs/04-ui.md). -->
+      <p v-if="report.rules">
+        Правила:
+        <template v-if="report.rules.sources.length">{{ report.rules.sources.map((source) => source.id).join(', ') }}</template>
+        <template v-else-if="report.rules.manifest === 'used'">секция architecture манифеста</template>
+        <template v-else>встроенный минимум</template>
+        — <NuxtLink :to="`/projects/${projectId}/shared`" class="hover:underline">подробнее на экране «Практики»</NuxtLink>
       </p>
       <!-- Замечания сверки с функциональной картой — не нарушения: связь идёт через группы кода с полем capability. -->
       <p v-if="report.reconcile?.enabled && (report.reconcile.modulesWithoutCapability.length || report.reconcile.capabilitiesWithoutModule.length)" class="mt-1">
