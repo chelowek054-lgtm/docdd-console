@@ -474,6 +474,23 @@
 В `skipped` — то, что не взято: вид не из списка, нет такого пути в проекте. Ничего не
 пишет. Блока нет — `422 architecture_unparsed`, экран показывает ответ текстом.
 
+### `GET /api/projects/:id/rules`
+
+Действующие правила архитектуры после сложения ([12-practice-rules.md](12-practice-rules.md)):
+каждое с записью-источником и перекрытыми. Производное — нигде не хранится.
+
+```json
+{
+  "rules": [{ "key": "modules:learningBack/modules/*", "value": { "entry": "closed" }, "source": "A-0020", "overrides": ["practices:A-0003"] }],
+  "sources": [{ "id": "A-0020", "level": "local" }],
+  "conflicts": [{ "key": "layers:learningBack", "records": ["A-0020", "A-0023"] }],
+  "manifest": "ignored"
+}
+```
+
+`manifest` — `used` (секция `architecture` читается: блоков правил нет), `ignored`
+(есть блоки, секция не читается) или `absent`. Правил нет и секции нет — `{ "rules": [] }`.
+
 ## Общие практики
 
 ### `GET /api/projects/:id/shared`
