@@ -1,8 +1,10 @@
 import { analyze } from '../lib/analyze';
+import { withBuiltin } from '../lib/builtin';
 import { normalizeRoot } from '../lib/paths';
 import { resolveRules, type RuleRecord, type RulesResolution } from '../lib/practice-rules';
 import type { SharedSource } from '../lib/types';
 import { readManifest, readWorkspace } from '../lib/workspace';
+import { sourceRoot } from './source-root';
 
 /**
  * Правила проверки из практик (docs/12-practice-rules.md, ADR-0014). Общие
@@ -19,7 +21,7 @@ export function generalRuleRecords(sources: readonly SharedSource[]): RuleRecord
     const wanted = new Set(source.tags ?? []);
     if (wanted.size === 0) continue;
     try {
-      const root = normalizeRoot(source.path);
+      const root = sourceRoot(source.path);
       const workspace = readWorkspace(root);
       const { records } = analyze({ files: workspace.files, manifest: workspace.manifest });
       for (const record of records) {
@@ -47,7 +49,7 @@ export function resolveProjectRules(root: string): RulesResolution {
     .map((record) => ({ id: record.id, body: record.body }));
   return resolveRules({
     manifest: manifest.architecture,
-    general: generalRuleRecords(manifest.sources?.shared ?? []),
+    general: generalRuleRecords(withBuiltin(manifest.sources?.shared ?? [])),
     local
   });
 }

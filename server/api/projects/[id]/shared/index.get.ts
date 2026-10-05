@@ -1,5 +1,6 @@
 import { defineEventHandler, getRouterParam } from 'h3';
 
+import { withBuiltin } from '../../../../lib/builtin';
 import { normalizeRoot } from '../../../../lib/paths';
 import { WorkspaceError, readWorkspace } from '../../../../lib/workspace';
 import { fail } from '../../../../utils/http';
@@ -20,7 +21,8 @@ export default defineEventHandler(async (event) => {
 
   try {
     const root = normalizeRoot(project.root);
-    const sources = readWorkspace(root).manifest.sources?.shared ?? [];
+    // Встроенный набор есть всегда и первым (ADR-0015).
+    const sources = withBuiltin(readWorkspace(root).manifest.sources?.shared ?? []);
     const registered = await listProjects();
     return { sources: sharedSourcesOf(sources, registered) };
   } catch (error) {

@@ -44,6 +44,31 @@ function parseFlowTags(inside: string): string[] {
   return trimmed.split(',').map((item) => unquote(item)).filter((item) => item !== '');
 }
 
+/**
+ * Вносит запись `builtin` с тегом `general` в `sources.shared`, если её там ещё нет:
+ * первая же галочка на экране «Практики» делает неявное подключение явным. Правит
+ * файл точечно и не трогает остальное, включая комментарии человека.
+ */
+export function ensureBuiltinEntry(manifestText: string): string {
+  const eol = manifestText.includes('\r\n') ? '\r\n' : NEW_LINE;
+  const lines = manifestText.split(/\r?\n/);
+  if (lines.some((line) => { const match = PATH_LINE.exec(line); return match !== null && unquote(match[1] ?? '') === 'builtin'; })) return manifestText;
+
+  const entry = (indent: string) => [`${indent}- path: builtin`, `${indent}  tags: [general]`];
+  const shared = lines.findIndex((line) => /^\s{2}shared:\s*(\[\s*\])?\s*$/.test(line));
+  if (shared >= 0) {
+    const empty = /\[\s*\]/.test(lines[shared] ?? '');
+    const next = empty ? [lines[shared]?.replace(/\s*\[\s*\]\s*$/, '') ?? '  shared:', ...entry('    ')] : [lines[shared] ?? '  shared:', ...entry('    ')];
+    return [...lines.slice(0, shared), ...next, ...lines.slice(shared + 1)].join(eol);
+  }
+  const sources = lines.findIndex((line) => /^sources:\s*$/.test(line));
+  if (sources >= 0) {
+    return [...lines.slice(0, sources + 1), '  shared:', ...entry('    '), ...lines.slice(sources + 1)].join(eol);
+  }
+  const trimmed = lines[lines.length - 1] === '' ? lines.slice(0, -1) : lines;
+  return [...trimmed, 'sources:', '  shared:', ...entry('    '), ''].join(eol);
+}
+
 const PATH_LINE = /^\s*-\s*path:\s*(.+?)\s*$/;
 const FLOW_TAGS_LINE = /^(\s*)tags:\s*\[(.*)\]\s*$/;
 

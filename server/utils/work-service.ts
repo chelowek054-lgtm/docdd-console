@@ -26,6 +26,7 @@ import type { ModelEvent } from '../lib/stream-events';
 import { buildProjectMap } from './map-service';
 import { openRecord, saveRecord, today } from './record-write';
 import { forgetSession, rememberSession, sessionOf } from './sessions';
+import { withBuiltin } from '../lib/builtin';
 import { connectedPractices } from './shared-service';
 
 /**
@@ -251,7 +252,7 @@ export function taskContext(
   // решения вроде «FastAPI + чистая архитектура», принятые для всего стека.
   let shared: ReturnType<typeof connectedPractices> = [];
   try {
-    shared = connectedPractices(readWorkspace(root).manifest.sources?.shared ?? []);
+    shared = connectedPractices(withBuiltin(readWorkspace(root).manifest.sources?.shared ?? []));
   } catch {
     // Манифест не прочитался — задача всё равно должна собираться, просто без практик.
   }

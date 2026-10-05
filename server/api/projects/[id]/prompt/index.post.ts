@@ -16,6 +16,7 @@ import {
   verifyPrompt,
   type MapsState
 } from '../../../../lib/prompt';
+import { withBuiltin } from '../../../../lib/builtin';
 import { buildArchitecture } from '../../../../utils/architecture-service';
 import { resolveProjectRules } from '../../../../utils/rules-service';
 import { connectedPractices } from '../../../../utils/shared-service';
@@ -195,7 +196,7 @@ export default defineEventHandler(async (event) => {
 
     if (kind === 'verify') {
       const workspace = readWorkspace(project.root);
-      const practices = connectedPractices(workspace.manifest.sources?.shared ?? []);
+      const practices = connectedPractices(withBuiltin(workspace.manifest.sources?.shared ?? []));
       if (practices.length === 0) {
         return fail(event, 422, 'no_practices', 'Ни один источник в `sources.shared` не подключает ни одного тега: сверять код не с чем');
       }
