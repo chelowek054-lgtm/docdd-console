@@ -110,15 +110,30 @@ const uncheckedText = computed(() => Object.entries(props.report?.unchecked ?? {
         — <NuxtLink :to="`/projects/${projectId}/shared`" class="hover:underline">подробнее на экране «Практики»</NuxtLink>
       </p>
       <!-- Замечания сверки с функциональной картой — не нарушения: связь идёт через группы кода с полем capability. -->
-      <p v-if="report.reconcile?.enabled && (report.reconcile.modulesWithoutCapability.length || report.reconcile.capabilitiesWithoutModule.length)" class="mt-1">
-        Сверка с функциональной картой:
-        <template v-if="report.reconcile.modulesWithoutCapability.length">
-          модули без возможности — {{ report.reconcile.modulesWithoutCapability.map((dir) => `\`${dir}\``).join(', ') }}.
-        </template>
-        <template v-if="report.reconcile.capabilitiesWithoutModule.length">
-          Возможности без модуля — {{ report.reconcile.capabilitiesWithoutModule.map((item) => item.title).join(', ') }}.
-        </template>
-      </p>
+      <details
+        v-if="report.reconcile?.enabled && (report.reconcile.modulesWithoutCapability.length || report.reconcile.capabilitiesWithoutModule.length)"
+        class="mt-1"
+      >
+        <summary class="cursor-pointer">
+          Сверка с функциональной картой:
+          модулей без возможности — {{ report.reconcile.modulesWithoutCapability.length }},
+          возможностей без модуля — {{ report.reconcile.capabilitiesWithoutModule.length }}
+        </summary>
+        <div class="mt-1 grid gap-x-6 gap-y-2 sm:grid-cols-2">
+          <div v-if="report.reconcile.modulesWithoutCapability.length">
+            <p class="font-medium">Модули без возможности</p>
+            <ul class="mt-0.5 max-h-48 overflow-y-auto font-mono">
+              <li v-for="dir in report.reconcile.modulesWithoutCapability" :key="dir">{{ dir }}</li>
+            </ul>
+          </div>
+          <div v-if="report.reconcile.capabilitiesWithoutModule.length">
+            <p class="font-medium">Возможности без модуля</p>
+            <ul class="mt-0.5 max-h-48 overflow-y-auto">
+              <li v-for="item in report.reconcile.capabilitiesWithoutModule" :key="item.id">{{ item.title }}</li>
+            </ul>
+          </div>
+        </div>
+      </details>
       <details v-if="violations.length || hints.length" class="mt-1">
         <summary class="cursor-pointer">Показать находки</summary>
         <ul class="mt-1 space-y-1">
