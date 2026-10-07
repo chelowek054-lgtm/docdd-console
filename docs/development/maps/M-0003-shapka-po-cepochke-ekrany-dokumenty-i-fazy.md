@@ -75,7 +75,7 @@ updated: 2026-09-13
       {"id":"/projects/:id/phases","title":"phases","file":"app/pages/projects/[id]/phases.vue"}
     ],
     "transitions": [
-      {"from":"/projects/:id/documents","to":"/projects/:id/records/:recordId","trigger":"ссылка","evidence":{"path":"app/pages/projects/[id]/documents.vue","line":168,"fragment":":to=\"`/projects/${projectId}/records/${id}`\""}},
+      {"from":"/projects/:id/documents","to":"/projects/:id/records/:recordId","trigger":"ссылка","evidence":{"path":"app/pages/projects/[id]/documents.vue","line":195,"fragment":":to=\"`/projects/${projectId}/records/${id}`\""}},
       {"from":"/projects/:id/phases","to":"/projects/:id/records/:recordId","trigger":"ссылка","evidence":{"path":"app/pages/projects/[id]/phases.vue","line":57,"fragment":"<NuxtLink :to=\"`/projects/${projectId}/records/${task.id}`\""}}
     ]
   }

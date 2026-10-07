@@ -187,7 +187,6 @@ updated: 2026-09-10
         {"from":"app/pages/projects/[id]/maps.vue","to":"app/utils/map-mermaid.ts","evidence":{"path":"app/pages/projects/[id]/maps.vue","line":3,"fragment":"import type { ArchViolationView, FunctionalMode, MapSelection, MermaidEdge } from '~/utils/map-mermaid';"}},
         {"from":"app/pages/projects/[id]/maps.vue","to":"server/lib/maps.ts","evidence":{"path":"app/pages/projects/[id]/maps.vue","line":34,"fragment":"import type { ProjectMap } from '~~/server/lib/maps';"}},
         {"from":"app/pages/projects/[id]/records/[recordId].vue","to":"server/lib/types.ts","evidence":{"path":"app/pages/projects/[id]/records/[recordId].vue","line":2,"fragment":"import type { LinkKind } from '~~/server/lib/types';"}},
-        {"from":"app/pages/projects/[id]/requirements.vue","to":"server/lib/types.ts","evidence":{"path":"app/pages/projects/[id]/requirements.vue","line":2,"fragment":"import type { IndexRecord } from '~~/server/lib/types';"}},
         {"from":"app/pages/projects/[id]/shared.vue","to":"app/composables/useProjectIndex.ts","evidence":{"path":"app/pages/projects/[id]/shared.vue","line":2,"fragment":"import type { ApiFailure } from '~/composables/useProjectInd"}},
         {"from":"app/pages/projects/[id]/shared.vue","to":"server/lib/inbox.ts","evidence":{"path":"app/pages/projects/[id]/shared.vue","line":4,"fragment":"import type { ProposedRecord } from '~~/server/lib/inbox';"}},
         {"from":"app/pages/projects/[id]/shared.vue","to":"server/utils/inbox-service.ts","evidence":{"path":"app/pages/projects/[id]/shared.vue","line":3,"fragment":"import type { CreatedRecord } from '~~/server/utils/inbox-se"}},
@@ -570,7 +569,6 @@ updated: 2026-09-10
         {"from":"/projects/:id","to":"/projects/:id/issues","trigger":"ссылка","evidence":{"path":"app/pages/projects/[id]/index.vue","line":67,"fragment":"<NuxtLink :to=\"`/projects/${projectId}/issues`\" class=\"block"}},
         {"from":"/projects/:id","to":"/projects/:id/tasks","trigger":"ссылка","evidence":{"path":"app/pages/projects/[id]/index.vue","line":83,"fragment":"<NuxtLink :to=\"`/projects/${projectId}/tasks`\" class=\"block\""}},
         {"from":"/projects/:id","to":"/projects/:id/records/:recordId","trigger":"ссылка","evidence":{"path":"app/pages/projects/[id]/index.vue","line":138,"fragment":":to=\"`/projects/${projectId}/records/${issue.recordId}`\""}},
-        {"from":"/projects/:id/requirements","to":"/projects/:id/records/:id","trigger":"ссылка","evidence":{"path":"app/pages/projects/[id]/requirements.vue","line":101,"fragment":":to=\"`/projects/${projectId}/records/${id}`\""}},
         {"from":"/projects/:id/tasks","to":"/projects/:id/records/:id","trigger":"ссылка","evidence":{"path":"app/pages/projects/[id]/tasks.vue","line":150,"fragment":":to=\"`/projects/${projectId}/records/${id}`\""}}
       ],
       "calls": [

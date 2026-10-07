@@ -67,7 +67,7 @@ const entries = computed<NavEntry[]>(() => {
       kind: 'group',
       label: 'Документы',
       links: [
-        { label: 'Требования', to: `${base}/requirements`, count: unconfirmed('requirement') },
+        { label: 'Требования', to: `${base}/documents?type=requirement`, count: unconfirmed('requirement') },
         { label: 'Проектные документы', to: `${base}/documents?type=design`, count: unconfirmed('design') },
         { label: 'Решения', to: `${base}/documents?type=decision`, count: unconfirmed('decision') },
         { label: 'Контракты', to: `${base}/documents?type=contract`, count: unconfirmed('contract') },
