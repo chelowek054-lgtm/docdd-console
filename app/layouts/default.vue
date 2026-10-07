@@ -86,10 +86,10 @@ const entries = computed<NavEntry[]>(() => {
       kind: 'group',
       label: 'Сверка',
       links: [
-        { label: 'Проверки', to: `${base}/checks`, count: openChecks.value },
-        { label: 'Результат', to: `${base}/results` },
-        { label: 'Нарушения', to: `${base}/issues`, count: openIssues.value },
-        { label: 'Граф', to: `${base}/graph` }
+        { label: 'Проверки', to: `${base}/verify?tab=checks`, count: openChecks.value },
+        { label: 'Результат', to: `${base}/verify?tab=results` },
+        { label: 'Нарушения', to: `${base}/verify?tab=issues`, count: openIssues.value },
+        { label: 'Граф', to: `${base}/verify?tab=graph` }
       ]
     },
     { kind: 'link', label: 'Карты', to: `${base}/maps`, count: unconfirmed('map') },
@@ -97,8 +97,8 @@ const entries = computed<NavEntry[]>(() => {
       kind: 'group',
       label: 'Наполнение',
       links: [
-        { label: 'Входящее', to: `${base}/inbox` },
-        { label: 'Импорт', to: `${base}/import` }
+        { label: 'Входящее', to: `${base}/fill?tab=inbox` },
+        { label: 'Импорт', to: `${base}/fill?tab=import` }
       ]
     },
     { kind: 'link', label: 'Практики', to: `${base}/shared` }
@@ -178,7 +178,7 @@ function isActive(to: string): boolean {
           </template>
         </nav>
 
-        <div class="ml-auto flex items-center gap-1">
+        <div class="ml-auto flex shrink-0 items-center gap-1">
           <!-- Доступно всегда: инструкция нужна раньше, чем выбран проект. -->
           <ModelJobsBar />
           <UButton
