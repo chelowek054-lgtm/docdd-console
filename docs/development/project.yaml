@@ -13,6 +13,7 @@ paths:
   tests: tests
   diagrams: diagrams
   maps: maps
+  reference: reference
 sources:
   # Код, на который ссылаются документы и свидетельства карт.
   code: [server, cli, app]
