@@ -24,6 +24,7 @@
 | [functional-check.md](functional-check.md) | Состояние реализации возможностей по коду | Кнопка «Проверить по коду» |
 | [relations.md](relations.md) | Связи между возможностями функциональной карты | Кнопка «Предложить связи» |
 | [task.md](task.md), [inbox-plan.md](inbox-plan.md), [architecture-audit.md](architecture-audit.md) | Получают индекс справочника: сначала проверь, что уже есть ([../13-reference.md](../13-reference.md)) | Те же кнопки |
+| [prioritize.md](prioritize.md) | Порядок фаз и задач по важности | Кнопка «Сортировать по важности» |
 | [architecture-audit.md](architecture-audit.md) | Аудит архитектуры: логика в `ui`, повторы, лишние задачи модуля | Кнопка «Аудит архитектуры» |
 
 Два последних приложение подставляет данными и копирует в буфер. Отправить

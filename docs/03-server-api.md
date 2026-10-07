@@ -315,7 +315,20 @@
 фазы»). Два маршрута — тем же порядком, что у входящего: разобрать ответ в
 список, затем завести то, что человек оставил.
 
-### `POST /api/projects/:id/phases/preview`
+### `POST /api/projects/:id/priority/preview`
+
+Тело `{ "answer": "…ответ модели с блоком docdd-order…" }`. Разбирает ответ в порядок, ничего не пишет:
+`{ "phases": [{ "id": "P-0003", "why": "…", "tasks": [{ "id": "T-0001", "why": "…" }] }], "problems": [], "fixed": [...] }`.
+Неизвестные номера отброшены, пропущенные дописаны в хвост, порядок `depends_on` восстановлен —
+всё это названо в `problems` и `fixed`. Запрос к модели собирается через `POST /prompt` с `kind: "priority"`.
+
+### `POST /api/projects/:id/priority/apply`
+
+Тело `{ "phases": [{ "id": "P-0003", "tasks": ["T-0001", "T-0002"] }], "actor": "architect" }` — порядок,
+который человек подтвердил. Пишет каждой фазе `rank` (по месту в списке) и `covers` в новом порядке,
+строку в журнал; результат — перечень изменённых фаз. Незнакомая фаза или задача — отказ целиком.
+
+### `POST /api/projects/:id/phases/preview`### `POST /api/projects/:id/phases/preview`
 
 ```json
 { "answer": "…ответ модели с блоком docdd-records…", "tasks": ["T-0001", "T-0002"] }
