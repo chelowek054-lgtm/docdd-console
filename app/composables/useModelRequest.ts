@@ -1,164 +1,86 @@
 import type { ApiFailure } from '~/composables/useProjectIndex';
+import { useModelJobs, type JobMeta } from '~/stores/modelJobs';
+
+export type { LogLine, ModelOutcome } from '~/stores/modelJobs';
 
 /**
  * Ожидание ответа модели (docs/04-ui.md, раздел «Запрос к модели»). Модель
  * думает минутами, и всё это время экран обязан отвечать на один вопрос: идёт
- * запрос или отвалился. Отсюда счётчик, срок и отмена — одни на все места,
- * откуда зовут модель.
+ * запрос или отвалился. Счётчик, срок и отмена — одни на все места, откуда зовут
+ * модель.
+ *
+ * Состояние живёт в общем хранилище заданий (`stores/modelJobs.ts`, ADR-0017), а
+ * здесь — привязка страницы к своему заданию по ключу. Уход со страницы запрос не
+ * обрывает; страница, открытая позже, видит идущее и принимает готовое.
  */
-
-/** Строка ленты: то же, что человек увидел бы в чате модели. */
-export interface LogLine {
-  kind: 'text' | 'action' | 'result';
-  text: string;
-  failed?: boolean;
+export interface ModelRequestOptions {
+  /** Что это, по-человечески: строка в общем списке заданий. */
+  label: string;
+  /**
+   * Ответ пришёл, пока страницы не было, а её следующий экземпляр открылся. Зовётся
+   * один раз и делает то же, что страница делает с ответом на месте.
+   */
+  onRecovered?: (answer: unknown) => void;
 }
 
-export type ModelOutcome =
-  | { kind: 'answer'; ms: number }
-  | { kind: 'failure'; ms: number; failure: ApiFailure }
-  | { kind: 'cancelled'; ms: number };
+export function useModelRequest(key: MaybeRefOrGetter<string>, options: ModelRequestOptions) {
+  const store = useModelJobs();
+  const route = useRoute();
+  const jobKey = computed(() => toValue(key));
+  const job = computed(() => store.jobs[jobKey.value]);
 
-export function useModelRequest() {
-  const running = ref(false);
-  /** Сколько идёт запрос, в секундах: по этому счётчику видно, что ожидание живо. */
-  const elapsed = ref(0);
-  const outcome = ref<ModelOutcome | null>(null);
-  /** Лента работы модели: копится по ходу и остаётся рядом с ответом. */
-  const log = ref<LogLine[]>([]);
+  /** Этот экземпляр начал задание — только его продолжение ждёт ответ на месте. */
+  let started = false;
+  const meta = (): JobMeta => ({ label: options.label, to: route.fullPath });
 
-  let controller: AbortController | null = null;
-  let ticker: ReturnType<typeof setInterval> | null = null;
+  const running = computed(() => job.value?.running ?? false);
+  const elapsed = computed(() => job.value?.elapsed ?? 0);
+  const outcome = computed(() => job.value?.outcome ?? null);
+  const log = computed(() => job.value?.log ?? []);
 
-  function stopTicking() {
-    if (ticker) clearInterval(ticker);
-    ticker = null;
+  /** Ответ, пришедший без нас: принимаем один раз; итог без ответа (отказ, отмена) только показывается. */
+  function recover() {
+    const current = job.value;
+    if (!current || current.running || !current.orphaned || current.delivered) return;
+    const answer = current.answer;
+    store.acknowledge(jobKey.value);
+    if (answer !== null && answer !== undefined) options.onRecovered?.(answer);
   }
+  // После монтирования, а не сразу: обработчик страницы замыкает её состояние, которое в setup ещё не объявлено.
+  onMounted(recover);
+  watch(() => job.value && !job.value.running && job.value.orphaned && !job.value.delivered, (ready) => { if (ready) recover(); });
 
-  /**
-   * Запускает вызов и ведёт его до конца. Возвращает ответ или `null`, если
-   * запрос не удался: разбирать неудачу вызывающему не нужно — она уже в
-   * `outcome` и на экране.
-   */
-  async function run<T>(call: (signal: AbortSignal) => Promise<T | { error: ApiFailure }>): Promise<T | null> {
-    // Новый запрос стирает прошлый итог, и это видно: старый ответ рядом с
-    // новым ожиданием сбивал бы с толку.
-    outcome.value = null;
-    log.value = [];
-    running.value = true;
-    elapsed.value = 0;
-    controller = new AbortController();
-
-    const started = Date.now();
-    ticker = setInterval(() => {
-      elapsed.value = Math.round((Date.now() - started) / 1000);
-    }, 1000);
-
-    try {
-      const response = await call(controller.signal);
-      const problem = failureOf(response);
-      if (problem) {
-        outcome.value = { kind: 'failure', ms: Date.now() - started, failure: problem };
-        return null;
-      }
-      outcome.value = { kind: 'answer', ms: Date.now() - started };
-      return response as T;
-    } catch (error) {
-      // Отмена — не ошибка: человек передумал ждать.
-      if (controller.signal.aborted) {
-        outcome.value = { kind: 'cancelled', ms: Date.now() - started };
-        return null;
-      }
-      outcome.value = {
-        kind: 'failure',
-        ms: Date.now() - started,
-        failure: { code: 'network', message: 'Связь с сервером оборвалась', detail: String(error) }
-      };
-      return null;
-    } finally {
-      stopTicking();
-      running.value = false;
-      controller = null;
-    }
-  }
-
-  function cancel() {
-    controller?.abort();
-  }
-
-  onScopeDispose(() => {
-    stopTicking();
-    controller?.abort();
+  onBeforeUnmount(() => {
+    const current = job.value;
+    if (!current) return;
+    // Идёт — продолжает идти, а ответ примет следующая страница; кончилось и принято — убираем след.
+    if (current.running && started) store.orphan(jobKey.value);
+    else if (!current.running && current.delivered) store.drop(jobKey.value);
   });
 
   /**
-   * Запрос лентой событий. Возвращает содержимое события `done` — то же,
-   * что раньше приходило одним ответом, только после показанной работы.
+   * Запрос лентой событий: возвращает ответ, если страница дождалась его, иначе `null` —
+   * тогда ответ примет `onRecovered` следующей страницы. `background` — для цикла, который
+   * живёт дольше страницы (пакетный прогон): ответ нужен ему самому, страницы не ждём.
    */
-  async function stream<T>(url: string, body: unknown): Promise<T | null> {
-    outcome.value = null;
-    log.value = [];
-    running.value = true;
-    elapsed.value = 0;
-    controller = new AbortController();
-
-    const started = Date.now();
-    ticker = setInterval(() => {
-      elapsed.value = Math.round((Date.now() - started) / 1000);
-    }, 1000);
-
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        signal: controller.signal
-      });
-
-      // Отказ до первого события приходит обычным кодом ответа.
-      if (!response.body) throw new Error('сервер не отдал ленту');
-      if (!response.headers.get('content-type')?.includes('text/event-stream')) {
-        const payload = await response.json();
-        const problem = failureOf(payload);
-        if (problem) {
-          outcome.value = { kind: 'failure', ms: Date.now() - started, failure: problem };
-          return null;
-        }
-        outcome.value = { kind: 'answer', ms: Date.now() - started };
-        return payload as T;
-      }
-
-      let done: T | null = null;
-      let failure: ApiFailure | null = null;
-
-      await readEvents(response.body, (name, payload) => {
-        if (name === 'done') { done = payload as T; return; }
-        if (name === 'error') { failure = failureOf(payload); return; }
-        add(log.value, name, payload as LogLine);
-      });
-
-      if (failure) {
-        outcome.value = { kind: 'failure', ms: Date.now() - started, failure };
-        return null;
-      }
-      outcome.value = { kind: 'answer', ms: Date.now() - started };
-      return done;
-    } catch (error) {
-      if (controller.signal.aborted) {
-        outcome.value = { kind: 'cancelled', ms: Date.now() - started };
-        return null;
-      }
-      outcome.value = {
-        kind: 'failure',
-        ms: Date.now() - started,
-        failure: { code: 'network', message: 'Связь с сервером оборвалась', detail: String(error) }
-      };
-      return null;
-    } finally {
-      stopTicking();
-      running.value = false;
-      controller = null;
+  async function stream<T>(url: string, body: unknown, settings: { background?: boolean } = {}): Promise<T | null> {
+    started = true;
+    const answer = await store.stream<T>(jobKey.value, meta(), url, body);
+    if (settings.background) {
+      store.acknowledge(jobKey.value);
+      return answer;
     }
+    return store.jobs[jobKey.value]?.orphaned ? null : answer;
+  }
+
+  async function run<T>(call: (signal: AbortSignal) => Promise<T | { error: ApiFailure }>): Promise<T | null> {
+    started = true;
+    const answer = await store.run<T>(jobKey.value, meta(), call);
+    return store.jobs[jobKey.value]?.orphaned ? null : answer;
+  }
+
+  function cancel() {
+    store.cancel(jobKey.value);
   }
 
   return { running, elapsed, outcome, log, run, stream, cancel };

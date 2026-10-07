@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ModelOutcome } from '~/composables/useModelRequest';
+import type { ModelOutcome } from '~/stores/modelJobs';
 
 /**
  * Ход запроса к модели и его итог (docs/04-ui.md, раздел «Запрос к модели»).

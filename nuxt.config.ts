@@ -2,7 +2,7 @@ import { fileURLToPath } from 'node:url';
 
 export default defineNuxtConfig({
   compatibilityDate: '2026-08-30',
-  modules: ['@nuxt/ui'],
+  modules: ['@nuxt/ui', '@pinia/nuxt'],
   css: ['~/assets/css/main.css'],
 
   // Приложение локальное: слушает localhost, аутентификации нет, потому что

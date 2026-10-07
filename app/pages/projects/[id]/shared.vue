@@ -42,7 +42,10 @@ function togglePreview(path: string) {
  * только доводит её ответ до предложенной записи и заводит её после
  * подтверждения человеком.
  */
-const { running: verifying, elapsed: verifyElapsed, outcome: verifyOutcome, log: verifyLog, stream: verifyStream, cancel: cancelVerify } = useModelRequest();
+const { running: verifying, elapsed: verifyElapsed, outcome: verifyOutcome, log: verifyLog, stream: verifyStream, cancel: cancelVerify } = useModelRequest(() => `${projectId.value}:verify`, {
+  label: 'Сверка кода с практиками',
+  onRecovered: (answer) => afterVerify(answer as { answer: string })
+});
 const verifyTrouble = ref<ApiFailure | null>(null);
 const verifyProposed = ref<ProposedRecord[]>([]);
 const verifySaid = ref('');
@@ -70,7 +73,11 @@ async function verify() {
     projectId: projectId.value
   });
   if (!answer) return;
+  await afterVerify(answer);
+}
 
+/** Разбор ответа сверки в список записей: на месте или после возвращения на страницу. */
+async function afterVerify(answer: { answer: string }) {
   const parsed = await $fetch<{ records: ProposedRecord[]; problems: string[] } | { error: ApiFailure }>(
     `/api/projects/${projectId.value}/inbox/preview`,
     { method: 'POST', body: { answer: answer.answer }, ignoreResponseError: true }

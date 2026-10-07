@@ -36,7 +36,10 @@ const failure = ref<ApiFailure | null>(null);
 const { data: llm } = useFetch<{ available: boolean; reason: string | null }>('/api/llm', { key: 'llm' });
 
 // Ожидание с counterом и отменой — одно на все места, откуда зовут модель.
-const { running: asking, elapsed, outcome, log, stream, cancel: cancelAsk } = useModelRequest();
+const { running: asking, elapsed, outcome, log, stream, cancel: cancelAsk } = useModelRequest(() => `${props.projectId}:prompt:${props.kind}`, {
+  label: props.label,
+  onRecovered: (result) => accept(result as { answer: string })
+});
 
 async function build() {
   open.value = true;
@@ -87,6 +90,12 @@ async function send() {
   });
   if (!result) return;
 
+  accept(result);
+}
+
+/** Ответ принят: на месте или после возвращения на страницу. */
+function accept(result: { answer: string }) {
+  open.value = true;
   answer.value = result.answer;
   emit('answered', answer.value);
 }
