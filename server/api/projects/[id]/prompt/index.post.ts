@@ -17,6 +17,8 @@ import {
   type MapsState
 } from '../../../../lib/prompt';
 import { withBuiltin } from '../../../../lib/builtin';
+import { priorityInput } from '../../../../utils/priority-service';
+import { priorityPrompt } from '../../../../lib/prompt';
 import { referenceIndexText } from '../../../../utils/reference-service';
 import { buildArchitecture } from '../../../../utils/architecture-service';
 import { resolveProjectRules } from '../../../../utils/rules-service';
@@ -257,7 +259,15 @@ export default defineEventHandler(async (event) => {
       };
     }
 
-    return fail(event, 400, 'kind_invalid', 'Известны запросы: `fix`, `maps`, `map-fix`, `inbox`, `verify`, `functional-check`, `relations`, `phases`, `groups`, `architecture`');
+    if (kind === 'priority') {
+      const input = priorityInput(project.root);
+      if (input.phases.length === 0) {
+        return fail(event, 422, 'priority_no_phases', 'В проекте нет фаз: расставлять нечего. Сначала «Разбить на фазы»');
+      }
+      return { prompt: priorityPrompt(await template('prioritize.md'), input), count: input.phases.length };
+    }
+
+    return fail(event, 400, 'kind_invalid', 'Известны запросы: `fix`, `maps`, `map-fix`, `inbox`, `verify`, `functional-check`, `relations`, `phases`, `groups`, `architecture`, `priority`');
   } catch (error) {
     if (error instanceof WorkspaceError) {
       return fail(event, 422, error.code, error.message, error.detail);

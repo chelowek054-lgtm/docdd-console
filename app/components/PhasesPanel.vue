@@ -1,14 +1,14 @@
 <script setup lang="ts">
+import { rankOf, sortPhases } from '~~/server/lib/work-order';
 // Вкладка «Фазы» экрана «Работа» (docs/04-ui.md, «Работа: задачи и фазы на одном экране»).
 const route = useRoute();
 const projectId = computed(() => String(route.params['id'] ?? ''));
 
 const { failure, records, refresh } = useProjectIndex(projectId);
+const { mode } = useOrderMode(records);
 
 /** Статус фазы — посчитанный по задачам, а не из файла (docs/04-ui.md, «Фазы»). */
-const phases = computed(() => records.value
-  .filter((record) => record.type === 'phase')
-  .sort((a, b) => a.id.localeCompare(b.id))
+const phases = computed(() => sortPhases(records.value.filter((record) => record.type === 'phase'), rankOf, mode.value)
   .map((phase) => phaseProgress(phase, records.value)));
 </script>
 
@@ -35,6 +35,7 @@ const phases = computed(() => records.value
         <li v-for="item in phases" :key="item.phase.path">
           <UCard>
             <div class="flex flex-wrap items-center gap-3">
+              <span v-if="mode === 'importance' && rankOf(item.phase)" class="font-mono text-xs text-muted" title="Место по важности">№{{ rankOf(item.phase) }}</span>
               <RecordLink :project-id="projectId" :record-id="item.phase.id" :record="item.phase" />
               <UBadge :color="statusColor(item.state)" variant="subtle" size="sm">{{ statusLabel(item.state) }}</UBadge>
               <span v-if="item.total" class="ml-auto text-sm text-muted">

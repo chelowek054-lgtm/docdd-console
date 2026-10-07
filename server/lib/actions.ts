@@ -39,7 +39,7 @@ const JOURNAL_ACTIONS: Record<string, string> = {
 export const STATUS_FIELDS = ['status', 'updated'] as const;
 
 /** Правка полей: тело документа не трогается вовсе, журнал не пишется. */
-export const PATCH_FIELDS = ['owner', 'phase', 'tags', 'links', 'change', 'reuse', 'updated'] as const;
+export const PATCH_FIELDS = ['owner', 'phase', 'tags', 'links', 'change', 'reuse', 'rank', 'updated'] as const;
 
 export interface WriteOutcome {
   text: string;
@@ -106,6 +106,8 @@ export interface PatchFields {
   change?: string | null;
   /** `none` — «подходящего в справочнике нет»; `null` убирает запись. */
   reuse?: string | null;
+  /** Место фазы по важности (docs/04-ui.md, «Порядок по важности»). */
+  rank?: number | null;
   phase?: string | null;
   tags?: string[];
   links?: Partial<Record<LinkKind, string[]>>;
@@ -125,6 +127,7 @@ export function applyFieldPatch(
   if (fields.owner !== undefined) changes.owner = fields.owner;
   if (fields.change !== undefined) changes.change = fields.change;
   if (fields.reuse !== undefined) changes.reuse = fields.reuse;
+  if (fields.rank !== undefined) changes.rank = fields.rank;
   if (fields.phase !== undefined) changes.phase = fields.phase;
   if (fields.tags !== undefined) changes.tags = fields.tags;
   if (fields.links !== undefined) changes.links = fields.links;
