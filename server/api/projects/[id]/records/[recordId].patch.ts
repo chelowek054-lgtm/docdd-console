@@ -21,19 +21,20 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody<Record<string, unknown>>(event);
-  const unknown = Object.keys(body ?? {}).filter((key) => !['owner', 'phase', 'tags', 'links', 'change'].includes(key));
+  const unknown = Object.keys(body ?? {}).filter((key) => !['owner', 'phase', 'tags', 'links', 'change', 'reuse'].includes(key));
   if (unknown.length > 0) {
     return fail(
       event,
       400,
       'field_not_editable',
-      `Полей \`${unknown.join('`, `')}\` этот маршрут не меняет: правке подлежат owner, phase, tags, links и change`
+      `Полей \`${unknown.join('`, `')}\` этот маршрут не меняет: правке подлежат owner, phase, tags, links, change и reuse`
     );
   }
 
   const fields: PatchFields = {};
   if ('owner' in body) fields.owner = asStringOrNull(body['owner']);
   if ('change' in body) fields.change = asStringOrNull(body['change']);
+  if ('reuse' in body) fields.reuse = asStringOrNull(body['reuse']);
   if ('phase' in body) fields.phase = asStringOrNull(body['phase']);
   if ('tags' in body) fields.tags = asStrings(body['tags']);
   if ('links' in body) fields.links = asLinks(body['links']);

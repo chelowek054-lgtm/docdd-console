@@ -13,6 +13,7 @@ const NEXT_STATUSES: Record<string, readonly string[]> = {
   contract: ['review', 'approved', 'draft', 'superseded', 'dropped'],
   verification: ['review', 'approved', 'draft', 'superseded', 'dropped'],
   map: ['review', 'approved', 'draft', 'superseded', 'dropped'],
+  reference: ['review', 'approved', 'draft', 'superseded', 'dropped'],
   decision: ['review', 'approved', 'draft', 'superseded', 'rejected'],
   task: ['ready', 'in_progress', 'in_review', 'done', 'backlog', 'dropped']
 };

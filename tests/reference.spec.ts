@@ -8,6 +8,7 @@ import { buildReferenceIndex, INDEX_LINE_LIMIT, sameIndex, type ReferenceEntry }
 import { referenceEntries, referenceRules, taskReuseUnchecked } from '../server/lib/rules';
 import { validateFrontMatter } from '../server/lib/schema';
 import { recordTemplate } from '../server/lib/scaffold';
+import { referenceChoices, withReuses } from '../server/lib/task-order';
 import { codes, context, rec } from './helpers';
 
 /** Справочник (docs/13-reference.md, ADR-0016): тип reference, индекс, предупреждения. */
@@ -179,5 +180,26 @@ describe('индекс в запросах модели', () => {
     for (const name of ['inbox-plan.md', 'architecture-audit.md']) {
       expect(readFileSync(new URL(`../docs/prompts/${name}`, import.meta.url), 'utf8')).toContain(REFERENCE_MARKER);
     }
+  });
+});
+
+describe('справка в карточке задачи', () => {
+  const records = [
+    { id: 'S-0002', type: 'reference', title: 'Flex', status: 'approved', extra: { summary: 'дешевле на 50%' } },
+    { id: 'S-0001', type: 'reference', title: 'RouterAI', status: 'approved', extra: { summary: 'шлюз LLM' } },
+    { id: 'S-0003', type: 'reference', title: 'Черновик', status: 'draft', extra: {} },
+    { id: 'R-0001', type: 'requirement', title: 'RouterAI в требовании', status: 'approved', extra: {} }
+  ];
+
+  it('предлагаются только подтверждённые справки; поиск и по строке «что решает»', () => {
+    expect(referenceChoices(records, '').map((item) => item.id)).toEqual(['S-0001', 'S-0002']);
+    expect(referenceChoices(records, '50%').map((item) => item.id)).toEqual(['S-0002']);
+    expect(referenceChoices(records, 'router').map((item) => item.id)).toEqual(['S-0001']);
+  });
+
+  it('связи с новой справкой: прежние уходят вместе, повтор не задваивается', () => {
+    expect(withReuses({ affects: ['M-0001'] }, 'S-0001')).toEqual({ affects: ['M-0001'], reuses: ['S-0001'] });
+    expect(withReuses({ reuses: ['S-0001'] }, 'S-0001').reuses).toEqual(['S-0001']);
+    expect(withReuses({ reuses: ['S-0001'] }, 'S-0002').reuses).toEqual(['S-0001', 'S-0002']);
   });
 });

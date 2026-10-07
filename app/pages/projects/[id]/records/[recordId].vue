@@ -103,6 +103,15 @@ function entries(
         @changed="reload"
       />
 
+      <!-- Справочник: feature без reuses — выбрать справку или записать «подходящего нет» (docs/13-reference.md). -->
+      <TaskReuse
+        v-if="detail.record.type === 'task'"
+        :project-id="projectId"
+        :task="detail.record"
+        :records="index?.records ?? []"
+        @changed="reload"
+      />
+
       <!-- Привести задачу в порядок: нет `implements` — выбрать или завести требование тут же (docs/04-ui.md, «Запись»). -->
       <TaskRequirement
         v-if="detail.record.type === 'task'"

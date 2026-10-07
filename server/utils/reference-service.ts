@@ -31,7 +31,7 @@ export interface ReferenceReport {
   /** Нет `paths.reference` в манифесте — справочника в проекте нет: экран зовёт завести. */
   enabled: boolean;
   items?: ReferenceItem[];
-  index?: { path: string; fresh: boolean; lines: number; undescribedModules: number; exists: boolean };
+  index?: { path: string; fresh: boolean; lines: number; undescribedModules: number; exists: boolean; text: string };
 }
 
 function compute(root: string) {
@@ -86,7 +86,8 @@ export function referenceReport(root: string): ReferenceReport {
       exists: onDisk !== null,
       fresh: sameIndex(onDisk, built.index.text),
       lines: built.index.lines,
-      undescribedModules: built.index.undescribedModules
+      undescribedModules: built.index.undescribedModules,
+      text: built.index.text
     }
   };
 }
