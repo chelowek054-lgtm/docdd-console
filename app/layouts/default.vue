@@ -78,8 +78,8 @@ const entries = computed<NavEntry[]>(() => {
       kind: 'group',
       label: 'Работа',
       links: [
-        { label: 'Задачи', to: `${base}/tasks`, count: openTasks.value },
-        { label: 'Фазы', to: `${base}/phases`, count: openPhases.value }
+        { label: 'Задачи', to: `${base}/work?tab=tasks`, count: openTasks.value },
+        { label: 'Фазы', to: `${base}/work?tab=phases`, count: openPhases.value }
       ]
     },
     {
