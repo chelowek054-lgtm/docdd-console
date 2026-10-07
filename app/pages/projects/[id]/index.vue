@@ -80,14 +80,14 @@ function days(record: IndexRecord): string {
           </UCard>
         </NuxtLink>
 
-        <NuxtLink :to="`/projects/${projectId}/tasks`" class="block">
+        <NuxtLink :to="`/projects/${projectId}/work?tab=tasks`" class="block">
           <UCard :ui="{ body: 'p-4' }">
             <p class="text-3xl font-semibold">{{ ready.length }}</p>
             <p class="text-sm text-muted">можно брать</p>
           </UCard>
         </NuxtLink>
 
-        <NuxtLink :to="`/projects/${projectId}/tasks`" class="block">
+        <NuxtLink :to="`/projects/${projectId}/work?tab=tasks`" class="block">
           <UCard :ui="{ body: 'p-4' }">
             <p class="text-3xl font-semibold">{{ inWork.length }}</p>
             <p class="text-sm text-muted">в работе</p>
