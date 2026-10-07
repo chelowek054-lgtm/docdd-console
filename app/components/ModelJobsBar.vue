@@ -27,9 +27,17 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', warn));
 
 <template>
   <div v-if="store.visible.length" class="relative">
-    <UButton size="xs" variant="soft" color="primary" icon="i-lucide-sparkles" @click="open = !open">
-      <template v-if="store.runningCount">Модель работает: {{ store.runningCount }}</template>
-      <template v-else>Ответ ждёт: {{ waiting }}</template>
+    <!-- Компактно: значок и число. Длинная подпись не помещалась в шапку и роняла её на вторую строку. -->
+    <UButton
+      size="sm"
+      variant="soft"
+      :color="store.runningCount ? 'primary' : 'warning'"
+      icon="i-lucide-sparkles"
+      :title="store.runningCount ? `Модель работает: ${store.runningCount}` : `Ответ ждёт: ${waiting}`"
+      :aria-label="store.runningCount ? `Модель работает: ${store.runningCount}` : `Ответ ждёт: ${waiting}`"
+      @click="open = !open"
+    >
+      {{ store.runningCount || waiting }}
     </UButton>
 
     <div v-if="open" class="absolute right-0 z-50 mt-2 w-96 space-y-2 rounded-lg border border-default bg-default p-3 shadow-lg">

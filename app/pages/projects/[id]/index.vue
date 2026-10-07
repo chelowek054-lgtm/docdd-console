@@ -64,7 +64,7 @@ function days(record: IndexRecord): string {
 
       <!-- Цифра всегда с причиной: каждая ведёт к списку, а не висит в воздухе. -->
       <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <NuxtLink :to="`/projects/${projectId}/issues`" class="block">
+        <NuxtLink :to="`/projects/${projectId}/verify?tab=issues`" class="block">
           <UCard :ui="{ body: 'p-4' }">
             <p class="text-3xl font-semibold" :class="errors.length ? 'text-error' : 'text-success'">
               {{ errors.length }}
@@ -73,7 +73,7 @@ function days(record: IndexRecord): string {
           </UCard>
         </NuxtLink>
 
-        <NuxtLink :to="`/projects/${projectId}/issues`" class="block">
+        <NuxtLink :to="`/projects/${projectId}/verify?tab=issues`" class="block">
           <UCard :ui="{ body: 'p-4' }">
             <p class="text-3xl font-semibold">{{ warnings.length }}</p>
             <p class="text-sm text-muted">{{ plural(warnings.length, 'предупреждение', 'предупреждения', 'предупреждений') }}</p>
