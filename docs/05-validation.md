@@ -115,6 +115,10 @@ flowchart LR
 | `arch_private_import` | warning | Импорт приватного (`_`) подмодуля `open`-модуля снаружи |
 | `arch_not_independent` | warning | Модули из `independent` обращаются друг к другу |
 | `arch_forbidden` | warning | Импорт нарушает правило `forbidden` (называет `why` и запись-источник) |
+| `reference_no_summary` | warning | У справки нет `summary`: в индекс она попадёт безымянной |
+| `reference_stale` | warning | Справка получена давно (`policy.reference_stale_days`, по умолчанию 180) |
+| `reference_index_stale` | warning | `INDEX.md` расходится с тем, что собралось бы сейчас |
+| `task_reuse_unchecked` | warning | Задача `feature` в `ready` и дальше без `reuses` и без `reuse: none` |
 | `rules_conflict` | warning | Два правила одного уровня спорят об одном ключе, либо `use` называет запись без блока правил |
 | `arch_promote` | warning | Внутренность модуля используется из двух веток: пора поднять к ближайшему общему предку. Самый тихий: на карточке модуля, в счёт нарушений не входит |
 
