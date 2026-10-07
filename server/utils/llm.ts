@@ -253,7 +253,7 @@ const LOST_SESSION = /no conversation found|session .*not found|invalid session/
  * `full` — работа над задачей: там нужны и тесты, и сборка. Идёт в отдельном
  *   рабочем дереве, и её результат человек читает диффом.
  */
-export type Access = 'read' | 'edits' | 'full';
+export type Access = 'none' | 'read' | 'edits' | 'full';
 
 const READING = ['Read', 'Glob', 'Grep'];
 const WRITING = ['Edit', 'Write', 'NotebookEdit'];
@@ -264,6 +264,8 @@ const WRITING = ['Edit', 'Write', 'NotebookEdit'];
  * другой путь и правит его всё равно. Белый список держит.
  */
 const ACCESS_ARGS: Readonly<Record<Access, readonly string[]>> = {
+  // Без инструментов: запрос вмещает всё нужное, и ходить по репозиторию — тратить время и токены зря.
+  none: ['--disallowed-tools', ...READING, ...WRITING, 'Bash', 'WebFetch', 'WebSearch', 'Task', 'Agent'],
   read: ['--allowed-tools', ...READING, '--disallowed-tools', ...WRITING, 'Bash'],
   edits: ['--allowed-tools', ...READING, 'Edit', 'Write', '--disallowed-tools', 'Bash'],
   full: ['--permission-mode', 'bypassPermissions']

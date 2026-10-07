@@ -41,6 +41,11 @@ const { running: asking, elapsed, outcome, log, stream, cancel: cancelAsk } = us
   onRecovered: (result) => accept(result as { answer: string })
 });
 
+// Страницу открыли заново, а задание этого запроса есть (идёт или кончилось без неё): показываем его, а не кнопку одну.
+onMounted(() => {
+  if (asking.value || outcome.value) open.value = true;
+});
+
 async function build() {
   open.value = true;
   building.value = true;
@@ -86,7 +91,9 @@ async function send() {
   // Проект называем идентификатором: путь к нему сервер знает сам.
   const result = await stream<{ answer: string }>('/api/llm/ask', {
     prompt: prompt.value,
-    projectId: props.projectId
+    projectId: props.projectId,
+    // Порядок по важности ставится по краткому описанию из самого запроса: читать репозиторий модели незачем.
+    ...(props.kind === 'priority' ? { tools: false } : {})
   });
   if (!result) return;
 
@@ -148,6 +155,22 @@ function accept(result: { answer: string }) {
         :description="(failure.blockers ?? []).map((blocker) => blocker.message).join(' ') || failure.detail"
       />
 
+      <!-- Ход запроса показывается и тогда, когда страницу открыли заново, а запрос идёт или кончился без неё:
+           текста запроса у такой страницы уже нет, а счётчик, лента и «Отменить» нужны (docs/04-ui.md). -->
+      <template v-if="asking || outcome">
+        <!-- Ожидание без счётчика неотличимо от зависшего (docs/04-ui.md). -->
+        <ModelProgress
+          class="mb-3"
+          :running="asking"
+          :elapsed="elapsed"
+          :outcome="outcome"
+          @cancel="cancelAsk"
+        />
+
+        <ModelLog class="mb-3" :lines="log" :running="asking" />
+
+      </template>
+
       <template v-if="prompt">
         <div class="mb-3 flex flex-wrap items-center gap-3">
           <UButton size="sm" variant="outline" color="neutral" icon="i-lucide-copy" @click="copy">
@@ -163,17 +186,6 @@ function accept(result: { answer: string }) {
             {{ llm?.reason }}
           </p>
         </div>
-
-        <!-- Ожидание без счётчика неотличимо от зависшего (docs/04-ui.md). -->
-        <ModelProgress
-          class="mb-3"
-          :running="asking"
-          :elapsed="elapsed"
-          :outcome="outcome"
-          @cancel="cancelAsk"
-        />
-
-        <ModelLog class="mb-3" :lines="log" :running="asking" />
 
         <pre class="max-h-64 overflow-auto rounded bg-elevated p-3 text-xs whitespace-pre-wrap">{{ prompt }}</pre>
       </template>

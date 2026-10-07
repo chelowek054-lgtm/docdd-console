@@ -202,6 +202,8 @@ export interface PriorityTask {
 export interface PriorityPhase {
   id: string;
   title: string;
+  /** Одна строка о фазе: по ней судят, не читая код. */
+  brief?: string;
   tasks: PriorityTask[];
 }
 
@@ -211,21 +213,27 @@ export interface PriorityPhase {
  * ничего не пишет, пока человек не применит порядок.
  */
 export function priorityPrompt(template: string, input: { vision: string; phases: readonly PriorityPhase[] }): string {
-  const phasesText = input.phases.length
-    ? input.phases.map((phase) => [
-      `### ${phase.id} — ${phase.title}`,
+  // В запрос идёт только незакрытое: закрытое встанет в конец само (docs/04-ui.md, «Порядок по важности»).
+  const open = input.phases
+    .map((phase) => ({ ...phase, tasks: phase.tasks.filter((task) => task.status !== 'done' && task.status !== 'dropped') }))
+    .filter((phase) => phase.tasks.length > 0);
+  const short = (text: string, limit: number) => (text.length > limit ? `${text.slice(0, limit - 1)}…` : text);
+
+  const phasesText = open.length
+    ? open.map((phase) => [
+      `### ${phase.id} — ${short(phase.title, 90)}${phase.brief ? ` — ${short(phase.brief, 140)}` : ''}`,
       ...(phase.tasks.length ? phase.tasks.map((task) => {
         const facts = [
           task.status,
           task.change ? `change: ${task.change}` : '',
-          task.requirement ? `ради: ${task.requirement}` : '',
+          task.requirement ? `ради: ${short(task.requirement, 60)}` : '',
           task.dependsOn.length ? `зависит от ${task.dependsOn.join(', ')}` : '',
-          task.blockers.length ? `мешает: ${task.blockers.join('; ')}` : ''
+          task.blockers.length ? `мешает: ${task.blockers.slice(0, 2).map((blocker) => short(blocker, 70)).join('; ')}` : ''
         ].filter(Boolean).join(' · ');
-        return `- ${task.id} — ${task.title} (${facts})`;
+        return `- ${task.id} — ${short(task.title, 90)} (${facts})`;
       }) : ['Состава нет.'])
     ].join(LF)).join(LF + LF)
-    : 'Фаз в проекте нет.';
+    : 'Незакрытой работы нет: расставлять нечего.';
 
   return withoutFrontNote(template)
     .replace(VISION_MARKER, () => input.vision.trim() || 'Вектор продукта не записан: суди по названиям и связям.')
