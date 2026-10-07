@@ -14,11 +14,13 @@ const { index, failure, records, byId, refresh } = useProjectIndex(projectId);
  */
 const TABS = [
   { label: 'Все', value: 'all' },
+  { label: 'Требования', value: 'requirement' },
   { label: 'Проектные документы', value: 'design' },
   { label: 'Решения', value: 'decision' },
-  { label: 'Контракты', value: 'contract' }
+  { label: 'Контракты', value: 'contract' },
+  { label: 'Справки', value: 'reference' }
 ];
-const DOCUMENT_TYPES = ['design', 'decision', 'contract'];
+const DOCUMENT_TYPES = ['requirement', 'design', 'decision', 'contract', 'reference'];
 
 /** Вкладка живёт в адресе: пункт шапки ведёт сразу на свою, а не на выбор. */
 const type = computed({
@@ -70,7 +72,9 @@ function reliedOnBy(document: IndexRecord): string[] {
 }
 
 const EMPTY: Record<string, string> = {
-  all: 'Проектных документов, решений и контрактов в проекте нет.',
+  all: 'Требований, проектных документов, решений, контрактов и справок в проекте нет.',
+  requirement: 'Требований в проекте нет.',
+  reference: 'Справок в проекте нет.',
   design: 'Проектных документов в проекте нет.',
   decision: 'Решений в проекте нет.',
   contract: 'Контрактов в проекте нет.'
@@ -98,6 +102,12 @@ const EMPTY: Record<string, string> = {
       </div>
 
       <UTabs v-model="type" :items="TABS" :content="false" />
+      <p v-if="type === 'requirement'" class="text-sm text-muted">
+        Покрытие проверками и задачами — на экране <NuxtLink :to="`/projects/${projectId}/requirements`" class="hover:underline">«Требования»</NuxtLink>.
+      </p>
+      <p v-else-if="type === 'reference'" class="text-sm text-muted">
+        Индекс и устаревшие справки — на экране <NuxtLink :to="`/projects/${projectId}/reference`" class="hover:underline">«Справочник»</NuxtLink>.
+      </p>
 
       <StatusTabs v-model="status" :statuses="statuses" :order="DOCUMENT_STATUS_ORDER" />
 
