@@ -22,7 +22,8 @@ const LINK_LABELS: Record<LinkKind, string> = {
   verified_by: 'проверяется',
   verifies: 'проверяет',
   documents: 'правит документ',
-  covers: 'состав'
+  covers: 'состав',
+  reuses: 'переиспользует справку'
 };
 
 const BACKLINK_LABELS: Record<LinkKind, string> = {
@@ -34,7 +35,8 @@ const BACKLINK_LABELS: Record<LinkKind, string> = {
   verified_by: 'проверяет',
   verifies: 'проверяется',
   documents: 'правится задачами',
-  covers: 'входит в фазу'
+  covers: 'входит в фазу',
+  reuses: 'переиспользуется задачами'
 };
 
 const links = computed(() => entries(detail.value?.record.links ?? {}, LINK_LABELS));

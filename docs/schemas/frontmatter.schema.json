@@ -11,11 +11,11 @@
   "properties": {
     "id": {
       "type": "string",
-      "pattern": "^[RDACTPVM]-[0-9]{4}$",
+      "pattern": "^[RDACTPVMS]-[0-9]{4}$",
       "description": "Префикс типа, дефис, четыре цифры. Номера не переиспользуются."
     },
     "type": {
-      "enum": ["requirement", "design", "decision", "contract", "task", "phase", "verification", "map"]
+      "enum": ["requirement", "design", "decision", "contract", "task", "phase", "verification", "map", "reference"]
     },
     "title": { "type": "string", "minLength": 1 },
     "status": { "type": "string" },
@@ -38,7 +38,8 @@
         "verifies": { "$ref": "#/$defs/idList" },
         "documents": { "$ref": "#/$defs/idList" },
         "covers": { "$ref": "#/$defs/idList" },
-        "affects": { "$ref": "#/$defs/idList" }
+        "affects": { "$ref": "#/$defs/idList" },
+        "reuses": { "$ref": "#/$defs/idList" }
       }
     }
   },
@@ -95,6 +96,10 @@
           "change": {
             "enum": ["feature", "fix", "rename", "format"],
             "description": "Что за изменение. `feature` требует подтверждённой карты; остальное — исключение с подписью."
+          },
+          "reuse": {
+            "enum": ["none"],
+            "description": "«Заглянул в индекс справочника, подходящего нет» (docs/13-reference.md): запись вместо связи reuses."
           }
         },
         "required": ["links"]
@@ -111,6 +116,20 @@
             "description": "Пока true — сверка со свидетельствами не запускается независимо от задач: карта описывает код, которого ещё нет (docs/07-maps.md)."
           }
         }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "reference" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "id": { "pattern": "^S-[0-9]{4}$" },
+          "status": { "enum": ["draft", "review", "approved", "superseded", "dropped"] },
+          "summary": { "type": "string", "description": "Одна строка: что решает. Попадает в индекс справочника (docs/13-reference.md)." },
+          "kind": { "enum": ["component", "api", "technique", "data"] },
+          "source": { "type": "string" },
+          "fetched": { "type": "string", "format": "date" }
+        },
+        "required": ["summary"]
       }
     },
     {
@@ -143,7 +162,7 @@
   "$defs": {
     "idList": {
       "type": "array",
-      "items": { "type": "string", "pattern": "^[RDACTPVM]-[0-9]{4}$" },
+      "items": { "type": "string", "pattern": "^[RDACTPVMS]-[0-9]{4}$" },
       "uniqueItems": true
     }
   }

@@ -15,7 +15,8 @@ export type RecordType =
   | 'task'
   | 'phase'
   | 'verification'
-  | 'map';
+  | 'map'
+  | 'reference';
 
 export const RECORD_TYPES: readonly RecordType[] = [
   'requirement',
@@ -25,7 +26,8 @@ export const RECORD_TYPES: readonly RecordType[] = [
   'task',
   'phase',
   'verification',
-  'map'
+  'map',
+  'reference'
 ];
 
 /**
@@ -46,7 +48,8 @@ export type SectionKey =
   | 'phases'
   | 'tests'
   | 'diagrams'
-  | 'maps';
+  | 'maps'
+  | 'reference';
 
 export type LinkKind =
   | 'implements'
@@ -58,7 +61,8 @@ export type LinkKind =
   | 'verifies'
   | 'documents'
   | 'covers'
-  | 'affects';
+  | 'affects'
+  | 'reuses';
 
 export const LINK_KINDS: readonly LinkKind[] = [
   'implements',
@@ -70,7 +74,8 @@ export const LINK_KINDS: readonly LinkKind[] = [
   'verifies',
   'documents',
   'covers',
-  'affects'
+  'affects',
+  'reuses'
 ];
 
 export type Severity = 'error' | 'warning';
@@ -111,6 +116,10 @@ export type ViolationCode =
   | 'arch_layer_up'
   | 'arch_slice_cross'
   | 'arch_promote'
+  | 'reference_no_summary'
+  | 'reference_stale'
+  | 'reference_index_stale'
+  | 'task_reuse_unchecked'
   | 'arch_private_import'
   | 'arch_not_independent'
   | 'arch_forbidden'
@@ -139,7 +148,8 @@ export const PREFIX_BY_TYPE: Readonly<Record<RecordType, string>> = {
   task: 'T',
   phase: 'P',
   verification: 'V',
-  map: 'M'
+  map: 'M',
+  reference: 'S'
 };
 
 /** Раздел, в котором живёт тип. Имя папки берётся из манифеста, ключ — отсюда. */
@@ -151,7 +161,8 @@ export const SECTION_BY_TYPE: Readonly<Record<RecordType, SectionKey>> = {
   task: 'tasks',
   phase: 'phases',
   verification: 'tests',
-  map: 'maps'
+  map: 'maps',
+  reference: 'reference'
 };
 
 /** Что за изменение вносит задача (docs/02-workspace-contract.md). */
@@ -192,6 +203,10 @@ export const VIOLATION_LEVELS: Readonly<Record<ViolationCode, Severity>> = {
   arch_layer_up: 'warning',
   arch_slice_cross: 'warning',
   arch_promote: 'warning',
+  reference_no_summary: 'warning',
+  reference_stale: 'warning',
+  reference_index_stale: 'warning',
+  task_reuse_unchecked: 'warning',
   arch_private_import: 'warning',
   arch_not_independent: 'warning',
   arch_forbidden: 'warning',
@@ -261,6 +276,8 @@ export interface Policy {
   stale_in_progress_days?: number;
   /** Сколько файлов уходит в один запрос на карты (docs/07-maps.md). */
   map_portion_files?: number;
+  /** Через сколько дней справка считается устаревшей (docs/13-reference.md); по умолчанию 180. */
+  reference_stale_days?: number;
 }
 
 /**

@@ -18,7 +18,8 @@ export const DEFAULT_PATHS: Readonly<Record<SectionKey, string>> = {
   phases: 'phases',
   tests: 'tests',
   diagrams: 'diagrams',
-  maps: 'maps'
+  maps: 'maps',
+  reference: 'reference'
 };
 
 const CYRILLIC: Readonly<Record<string, string>> = {
@@ -76,8 +77,14 @@ export interface TemplateInput {
   today: string;
   owner?: string;
   links?: Partial<Record<LinkKind, string[]>>;
-  /** Вид проверки: схема требует его у записей типа `verification`. */
+  /** Вид проверки: схема требует его у записей типа `verification`; у справки — вид (`component`, `api`, `technique`, `data`). */
   kind?: string;
+  /** Только у справки: одна строка — что решает; она попадает в индекс (docs/13-reference.md). */
+  summary?: string;
+  /** Только у справки: откуда взято. */
+  source?: string;
+  /** Только у справки: дата получения. */
+  fetched?: string;
   /** Что за изменение: `feature` потребует карты ещё до `ready`. */
   change?: string;
   /**
@@ -156,6 +163,12 @@ export function recordTemplate(input: TemplateInput, eol = '\n'): string {
   lines.push(`created: ${input.today}`, `updated: ${input.today}`);
   if (input.type === 'map' && input.intent) lines.push('intent: true');
   if (input.type === 'verification') lines.push(`kind: ${yamlSafe(input.kind ?? 'manual')}`);
+  if (input.type === 'reference') {
+    lines.push(`summary: ${yamlSafe(input.summary ?? '')}`);
+    if (input.kind) lines.push(`kind: ${yamlSafe(input.kind)}`);
+    if (input.source) lines.push(`source: ${yamlSafe(input.source)}`);
+    lines.push(`fetched: ${input.fetched ?? input.today}`);
+  }
 
   const links = input.links ?? {};
   const kinds = (Object.keys(links) as LinkKind[]).filter((kind) => (links[kind]?.length ?? 0) > 0);
@@ -172,7 +185,9 @@ export function recordTemplate(input: TemplateInput, eol = '\n'): string {
   const relations = input.relations ?? [];
   const body = capabilities.length > 0 || relations.length > 0 || input.vision
     ? bodyWithCapabilities(said, capabilities, input.vision, relations)
-    : (said === '' ? 'Зачем это, что делаем, чего не делаем, как понять, что готово.' : said);
+    : (said === ''
+      ? (input.type === 'reference' ? 'Что это, когда брать, ограничения, примеры использования.' : 'Зачем это, что делаем, чего не делаем, как понять, что готово.')
+      : said);
 
   const sources = input.sources ?? [];
   const action = sources.length > 0 ? `заведена из ${sources.join(', ')}` : 'заведена';
@@ -338,6 +353,7 @@ export function claudeMd(input: ManifestInput, eol = NEW_LINE): string {
     '| task | `T-` | Что делаем сейчас |',
     '| phase | `P-` | Из чего состоит этап |',
     '| verification | `V-` | Чем проверяется |',
+    '| reference | `S-` | Справка: что уже есть внутри и снаружи |',
     '| map | `M-` | Устройство: код, потоки, пути |',
     '',
     'Номера не переиспользуются: удалённая запись оставляет дыру, и это',

@@ -10,6 +10,7 @@ import type { IndexRecord, Violation, WorkRecord } from '../lib/types';
 import { readWorkspace, type Workspace } from '../lib/workspace';
 import type { WriteOutcome } from '../lib/actions';
 import { loadIndex } from './index-service';
+import { refreshReferenceIndex } from './reference-service';
 
 /**
  * Общая часть действий процесса: прочитать запись, спросить правила, записать
@@ -109,6 +110,8 @@ export function writeRecord(
   writeFileSync(context.absolute, outcome.text, 'utf8');
   // Кэш производный, но устаревший кэш показал бы прежний статус: сбрасываем.
   dropCache(root);
+  // Справка или карта изменились — индекс справочника пересобирается сам (docs/13-reference.md).
+  if (context.record.type === 'reference' || context.record.type === 'map') refreshReferenceIndex(root);
   return { ok: true };
 }
 

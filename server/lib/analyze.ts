@@ -5,6 +5,7 @@ import { latestVerificationResults } from './reports';
 import { checkAll, checkRecordIdentity, type RuleContext } from './rules';
 import { validateFrontMatter, type SchemaIssue } from './schema';
 import {
+  DEVELOPMENT_DIR,
   violation,
   RETIRED_STATUSES,
   type ProjectManifest,
@@ -89,6 +90,9 @@ export function analyze(input: AnalyzeInput): AnalyzeResult {
     graph,
     policy: input.manifest?.policy ?? {},
     ...(rules.config ? { architecture: rules.config } : {}),
+    ...(input.manifest?.paths?.reference
+      ? { reference: { path: `${DEVELOPMENT_DIR}/${input.manifest.paths.reference}/INDEX.md`, staleDays: input.manifest.policy?.reference_stale_days ?? 180 } }
+      : {}),
     rules,
     verifications: latestVerificationResults(input.reports ?? []),
     now: input.now ?? new Date(),
