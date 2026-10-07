@@ -30,5 +30,5 @@ export default defineEventHandler(async (event) => {
     return fail(event, 422, 'records_invalid', 'Ответ модели не прошёл схему', parsed.problems.join(' '));
   }
 
-  return { records: parsed.records, problems: parsed.problems };
+  return { records: parsed.records, problems: parsed.problems, skipped: parsed.skipped };
 });

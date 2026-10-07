@@ -499,7 +499,7 @@
 
 Справки и индекс: `{ "items": [{ "id": "S-0003", "title": "…", "summary": "…", "kind": "api", "fetched": "2026-10-07", "status": "approved", "stale": false, "source": null }], "index": { "path": "reference/INDEX.md", "fresh": true, "lines": 142, "undescribedModules": 12 } }`. `fresh: false` — файл расходится с тем, что собралось бы сейчас.
 
-### `POST /api/projects/:id/reference/index`
+### `POST /api/projects/:id/reference/rebuild`
 
 Пересобирает `INDEX.md` из подтверждённых справок и карты кода (источники практик — с меткой). Возвращает то же, что `GET …/reference` → `index`. Файл — производное: правка руками пропадёт.
 
@@ -554,7 +554,7 @@ Decision и design из источников, названных в `sources.sha
 ## Входящее
 
 Сырые заметки и заведение записей по ним — `GET /api/projects/:id/inbox`
-(список), `POST .../inbox/preview` (разбор ответа модели), `POST
+(список), `POST .../inbox/preview` (разбор ответа модели; кроме `records` и `problems` отдаёт `skipped` — заметки, из которых заводить нечего), `POST .../inbox/accept` (принять заметки без записей: тело `{ "notes": [...] }`, ответ `{ "accepted", "problems" }`), `POST
 .../inbox/records` (завести подтверждённое) ([10-inbox.md](10-inbox.md)).
 
 ### `POST /api/projects/:id/inbox/notes`

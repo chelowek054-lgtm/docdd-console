@@ -2,6 +2,7 @@ import { analyze } from '../lib/analyze';
 import { withBuiltin } from '../lib/builtin';
 import { normalizeRoot } from '../lib/paths';
 import { resolveRules, type RuleRecord, type RulesResolution } from '../lib/practice-rules';
+import type { ReferenceEntry } from '../lib/reference';
 import type { SharedSource } from '../lib/types';
 import { readManifest, readWorkspace } from '../lib/workspace';
 import { sourceRoot } from './source-root';
@@ -33,6 +34,41 @@ export function generalRuleRecords(sources: readonly SharedSource[]): RuleRecord
       }
     } catch {
       // Источник не открылся — экран «Практики» покажет это у самого источника; правил из него просто нет.
+    }
+  }
+  return result;
+}
+
+/**
+ * Подтверждённые `reference` источников по тем же тегам, что и практики
+ * (docs/11-shared-sources.md, «Справочник из источника»): в индекс идут строкой с
+ * меткой источника. Путь — абсолютный: источник лежит вне корня проекта.
+ */
+export function generalReferenceEntries(sources: readonly SharedSource[]): ReferenceEntry[] {
+  const result: ReferenceEntry[] = [];
+  for (const source of sources) {
+    const wanted = new Set(source.tags ?? []);
+    if (wanted.size === 0) continue;
+    try {
+      const root = sourceRoot(source.path);
+      const workspace = readWorkspace(root);
+      const { records } = analyze({ files: workspace.files, manifest: workspace.manifest });
+      for (const record of records) {
+        if (record.type !== 'reference' || record.status !== 'approved') continue;
+        const tags = Array.isArray(record.data['tags']) ? (record.data['tags'] as unknown[]) : [];
+        if (!tags.some((tag) => typeof tag === 'string' && wanted.has(tag))) continue;
+        result.push({
+          id: record.id,
+          title: record.title,
+          summary: typeof record.data['summary'] === 'string' ? record.data['summary'] : '',
+          kind: typeof record.data['kind'] === 'string' ? record.data['kind'] : '',
+          fetched: record.data['fetched'] ? String(record.data['fetched']).slice(0, 10) : '',
+          path: `${root.replace(/\\/g, '/')}/${record.source.path}`,
+          label: workspace.manifest.project.id
+        });
+      }
+    } catch {
+      // Источник не открылся — у самого источника на экране «Практики» это видно; справок из него нет.
     }
   }
   return result;

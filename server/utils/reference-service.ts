@@ -7,7 +7,9 @@ import { normalizeRoot, resolveInside } from '../lib/paths';
 import { buildReferenceIndex, sameIndex } from '../lib/reference';
 import { referenceEntries } from '../lib/rules';
 import { DEVELOPMENT_DIR, RETIRED_STATUSES } from '../lib/types';
+import { withBuiltin } from '../lib/builtin';
 import { readWorkspace, sourceReader } from '../lib/workspace';
+import { generalReferenceEntries } from './rules-service';
 
 /**
  * Справочник проекта (docs/13-reference.md): справки и индекс. Индекс — производное
@@ -42,7 +44,8 @@ function compute(root: string) {
   const { records } = analyze({ files: workspace.files, manifest: workspace.manifest });
   const codemap = foldMaps(approvedMaps(records).map((record) => ({ id: record.id, change: parseMapRecord(record.body).change }))).codemap;
   const index = buildReferenceIndex({
-    references: referenceEntries(records),
+    // Свои справки и справки подключённых источников (с меткой): один индекс на проект.
+    references: [...referenceEntries(records), ...generalReferenceEntries(withBuiltin(workspace.manifest.sources?.shared ?? []))],
     modules: codemap.modules,
     imports: codemap.imports,
     groups: codemap.groups

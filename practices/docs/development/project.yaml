@@ -6,6 +6,7 @@ project:
 paths:
   decisions: decisions
   design: design
+  reference: reference
 roles:
   - id: architect
     name: Архитектор

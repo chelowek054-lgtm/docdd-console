@@ -85,6 +85,8 @@ export interface TemplateInput {
   source?: string;
   /** Только у справки: дата получения. */
   fetched?: string;
+  /** Только у задачи: `none` — «заглянул в справочник, подходящего нет» (docs/13-reference.md). */
+  reuse?: string;
   /** Что за изменение: `feature` потребует карты ещё до `ready`. */
   change?: string;
   /**
@@ -160,6 +162,7 @@ export function recordTemplate(input: TemplateInput, eol = '\n'): string {
   ];
   if (input.owner) lines.push(`owner: ${yamlSafe(input.owner)}`);
   if (input.type === 'task' && input.change) lines.push(`change: ${input.change}`);
+  if (input.type === 'task' && input.reuse === 'none') lines.push('reuse: none');
   lines.push(`created: ${input.today}`, `updated: ${input.today}`);
   if (input.type === 'map' && input.intent) lines.push('intent: true');
   if (input.type === 'verification') lines.push(`kind: ${yamlSafe(input.kind ?? 'manual')}`);

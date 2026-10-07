@@ -1,7 +1,12 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { parseProposal, resolveLinks } from '../server/lib/inbox';
+import { acceptNotes } from '../server/utils/inbox-service';
+import { generalReferenceEntries } from '../server/utils/rules-service';
 import { architecturePrompt, inboxPrompt, REFERENCE_MARKER, taskPrompt } from '../server/lib/prompt';
 
 import { buildReferenceIndex, INDEX_LINE_LIMIT, sameIndex, type ReferenceEntry } from '../server/lib/reference';
@@ -201,5 +206,88 @@ describe('справка в карточке задачи', () => {
     expect(withReuses({ affects: ['M-0001'] }, 'S-0001')).toEqual({ affects: ['M-0001'], reuses: ['S-0001'] });
     expect(withReuses({ reuses: ['S-0001'] }, 'S-0001').reuses).toEqual(['S-0001']);
     expect(withReuses({ reuses: ['S-0001'] }, 'S-0002').reuses).toEqual(['S-0001', 'S-0002']);
+  });
+});
+
+describe('справка из входящего', () => {
+  const FENCE = String.fromCharCode(96).repeat(3);
+  const answer = (value: unknown) => [FENCE + 'docdd-records', JSON.stringify(value), FENCE].join(String.fromCharCode(10));
+
+  it('справка с summary и kind разбирается; skipped приходит рядом', () => {
+    const parsed = parseProposal(answer({
+      records: [{ key: 'jev', type: 'reference', title: 'Jev', summary: 'решения вместо текста', kind: 'api', source: 'RouterAI', fetched: '2026-10-07', notes: ['docs/inbox/a.md'] }],
+      skipped: [{ note: 'docs/inbox/b.md', why: 'черновик без содержания' }]
+    }));
+    expect(parsed.problems).toEqual([]);
+    expect(parsed.records[0]?.summary).toBe('решения вместо текста');
+    expect(parsed.skipped).toEqual([{ note: 'docs/inbox/b.md', why: 'черновик без содержания' }]);
+  });
+
+  it('справка без summary и вид не из списка не проходят схему', () => {
+    expect(parseProposal(answer({ records: [{ key: 'x', type: 'reference', title: 'X' }] })).problems).not.toEqual([]);
+    expect(parseProposal(answer({ records: [{ key: 'x', type: 'reference', title: 'X', summary: 's', kind: 'wizard' }] })).problems).not.toEqual([]);
+  });
+
+  it('пустой список с skipped — ответ, а не сбой; skipped без причины — нет', () => {
+    const empty = parseProposal(answer({ records: [], skipped: [{ note: 'docs/inbox/b.md', why: 'нечего' }] }));
+    expect(empty.records).toEqual([]);
+    expect(empty.problems).toEqual([]);
+    expect(parseProposal(answer({ records: [], skipped: [{ note: 'docs/inbox/b.md' }] })).problems).not.toEqual([]);
+  });
+
+  it('задача с reuse: none попадает в файл строкой reuse', () => {
+    const text = recordTemplate({ id: 'T-0001', type: 'task', title: 'T', today: '2026-10-07', change: 'feature', reuse: 'none' });
+    expect(text).toContain('reuse: none');
+  });
+
+  it('связь reuses на справку S-… разрешается как уже заведённая', () => {
+    const resolved = resolveLinks({ reuses: ['S-0003'] }, new Map());
+    expect(resolved.links).toEqual({ reuses: ['S-0003'] });
+    expect(resolved.problems).toEqual([]);
+  });
+});
+
+describe('принять заметки без записей', () => {
+  it('заметка из входящего переезжает в принятое; чужая — претензия', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'docdd-accept-'));
+    try {
+      mkdirSync(join(dir, 'docs/development'), { recursive: true });
+      mkdirSync(join(dir, 'docs/inbox'), { recursive: true });
+      writeFileSync(join(dir, 'docs/development/project.yaml'), 'contract: docdd.workspace/1\nproject:\n  id: t\n  name: T\npaths: {}\nsources:\n  inbox: [docs/inbox]\n');
+      writeFileSync(join(dir, 'docs/inbox/a.md'), '# Справка\n\nФакты.\n');
+      const result = acceptNotes(dir, ['docs/inbox/a.md', 'docs/inbox/нет.md']);
+      expect(result.accepted).toEqual(['docs/inbox/a.md']);
+      expect(result.problems).toHaveLength(1);
+      expect(existsSync(join(dir, 'docs/inbox/a.md'))).toBe(false);
+      expect(existsSync(join(dir, 'docs/inbox/принятое/a.md'))).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('справки из подключённых источников', () => {
+  it('подтверждённые справки с подключённым тегом идут с меткой источника и абсолютным путём', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'docdd-refsrc-'));
+    try {
+      mkdirSync(join(dir, 'docs/development/reference'), { recursive: true });
+      writeFileSync(join(dir, 'docs/development/project.yaml'), 'contract: docdd.workspace/1\nproject:\n  id: refsrc\n  name: Источник\npaths:\n  reference: reference\n');
+      const note = (id: string, status: string, tags: string) => [
+        '---', `id: ${id}`, 'type: reference', `title: ${id}`, `status: ${status}`, 'summary: что решает', 'kind: component',
+        'fetched: 2026-10-07', `tags: ${tags}`, 'created: 2026-10-07', 'updated: 2026-10-07', '---', '', `# ${id}`, '', '## Журнал', ''
+      ].join('\n');
+      writeFileSync(join(dir, 'docs/development/reference/S-0001-a.md'), note('S-0001', 'approved', '[diagrams]'));
+      writeFileSync(join(dir, 'docs/development/reference/S-0002-b.md'), note('S-0002', 'draft', '[diagrams]'));
+      writeFileSync(join(dir, 'docs/development/reference/S-0003-c.md'), note('S-0003', 'approved', '[other]'));
+
+      const found = generalReferenceEntries([{ path: dir, tags: ['diagrams'] }]);
+      expect(found.map((item) => item.id)).toEqual(['S-0001']);
+      expect(found[0]?.label).toBe('refsrc');
+      expect(found[0]?.path).toContain('/docs/development/reference/S-0001-a.md');
+      expect(generalReferenceEntries([{ path: dir, tags: [] }])).toEqual([]);
+      expect(generalReferenceEntries([{ path: join(dir, 'нет') }])).toEqual([]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

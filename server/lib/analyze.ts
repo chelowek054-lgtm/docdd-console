@@ -1,6 +1,7 @@
 import { buildGraph, type Graph } from './graph';
 import { looksLikeRecord, parseRecord } from './parse';
 import { resolveRules, type RuleRecord, type RulesResolution } from './practice-rules';
+import type { ReferenceEntry } from './reference';
 import { latestVerificationResults } from './reports';
 import { checkAll, checkRecordIdentity, type RuleContext } from './rules';
 import { validateFrontMatter, type SchemaIssue } from './schema';
@@ -35,6 +36,8 @@ export interface AnalyzeInput {
   work?: { unreviewed: ReadonlySet<string>; orphanBranches: ReadonlySet<string> };
   /** Подтверждённые общие практики с их текстом: правила из них складываются с локальными (docs/12-practice-rules.md). */
   generalRules?: readonly RuleRecord[];
+  /** Подтверждённые справки подключённых источников: в индекс справочника идут с меткой (docs/13-reference.md). */
+  sharedReferences?: readonly ReferenceEntry[];
   now?: Date;
 }
 
@@ -94,6 +97,7 @@ export function analyze(input: AnalyzeInput): AnalyzeResult {
       ? { reference: { path: `${DEVELOPMENT_DIR}/${input.manifest.paths.reference}/INDEX.md`, staleDays: input.manifest.policy?.reference_stale_days ?? 180 } }
       : {}),
     rules,
+    ...(input.sharedReferences ? { sharedReferences: input.sharedReferences } : {}),
     verifications: latestVerificationResults(input.reports ?? []),
     now: input.now ?? new Date(),
     code: {

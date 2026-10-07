@@ -20,6 +20,13 @@ export interface ProposedRecord {
   title: string;
   body?: string;
   change?: string;
+  /** Только у `reference`: строка для индекса, вид, источник, дата (docs/13-reference.md). */
+  summary?: string;
+  kind?: string;
+  source?: string;
+  fetched?: string;
+  /** Только у задачи: `none` — «заглянул в справочник, подходящего нет». */
+  reuse?: 'none';
   /**
    * Заметки, из которых взялась запись: уходят в журнал. Одна запись может
    * опираться на несколько, если знание было разбросано по нескольким файлам
@@ -49,6 +56,8 @@ export interface ProposedRecord {
 export interface ParsedProposal {
   records: ProposedRecord[];
   problems: string[];
+  /** Заметки, из которых заводить нечего, с причиной: человек принимает их без записей. */
+  skipped: { note: string; why: string }[];
 }
 
 /** Блок ```docdd-records — тем же способом, что и блоки карт. */
@@ -65,7 +74,7 @@ export function recordsBlock(answer: string): string | null {
 export function parseProposal(answer: string): ParsedProposal {
   const raw = recordsBlock(answer);
   if (raw === null) {
-    return { records: [], problems: ['В ответе нет блока `docdd-records`: заводить нечего.'] };
+    return { records: [], problems: ['В ответе нет блока `docdd-records`: заводить нечего.'], skipped: [] };
   }
 
   let parsed: unknown;
@@ -74,7 +83,8 @@ export function parseProposal(answer: string): ParsedProposal {
   } catch (error) {
     return {
       records: [],
-      problems: [`Блок \`docdd-records\` не разбирается как JSON: ${error instanceof Error ? error.message : String(error)}`]
+      problems: [`Блок \`docdd-records\` не разбирается как JSON: ${error instanceof Error ? error.message : String(error)}`],
+      skipped: []
     };
   }
 
@@ -85,11 +95,11 @@ export function parseProposal(answer: string): ParsedProposal {
 
   const issues = validateRecords(parsed);
   if (issues.length > 0) {
-    return { records: [], problems: issues.map((issue) => issue.message) };
+    return { records: [], problems: issues.map((issue) => issue.message), skipped: [] };
   }
 
-  const records = (parsed as { records: ProposedRecord[] }).records;
-  return { records, problems: duplicateKeys(records) };
+  const { records, skipped } = parsed as { records: ProposedRecord[]; skipped?: { note: string; why: string }[] };
+  return { records, problems: duplicateKeys(records), skipped: skipped ?? [] };
 }
 
 /** `"implements": "ключ"` — та же связь, что и `["ключ"]`. */
@@ -125,7 +135,7 @@ export interface ResolvedLinks {
 }
 
 /** Идентификатор записи: `R-0001` и подобные. */
-const RECORD_ID = /^[RDACTPVM]-\d{4}$/;
+const RECORD_ID = /^[RDACTPVMS]-\d{4}$/;
 
 /**
  * Связи предложенной записи в настоящие идентификаторы. Модель называет

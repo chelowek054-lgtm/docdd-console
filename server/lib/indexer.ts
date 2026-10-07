@@ -1,5 +1,6 @@
 import { analyze } from './analyze';
 import type { RuleRecord } from './practice-rules';
+import type { ReferenceEntry } from './reference';
 import { incomingEdges } from './graph';
 import { latestVerificationDetails } from './reports';
 import type {
@@ -38,7 +39,7 @@ function workState(root: string): { unreviewed: Set<string>; orphanBranches: Set
  * Индекс — результат прохода: записи, связи, нарушения, время сборки.
  * Форма ответа задана docs/03-server-api.md.
  */
-export function buildIndex(root: string, now = new Date(), generalRules: readonly RuleRecord[] = []): { index: ProjectIndex; workspace: Workspace } {
+export function buildIndex(root: string, now = new Date(), generalRules: readonly RuleRecord[] = [], sharedReferences: readonly ReferenceEntry[] = []): { index: ProjectIndex; workspace: Workspace } {
   const workspace = readWorkspace(root);
   const result = analyze({
     files: workspace.files,
@@ -51,6 +52,7 @@ export function buildIndex(root: string, now = new Date(), generalRules: readonl
     // остались чистыми функциями над данными.
     work: workState(root),
     generalRules,
+    sharedReferences,
     now
   });
 

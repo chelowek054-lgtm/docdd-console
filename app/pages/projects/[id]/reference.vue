@@ -24,7 +24,7 @@ async function rebuild() {
   busy.value = true;
   trouble.value = null;
   try {
-    const response = await $fetch(`/api/projects/${projectId.value}/reference/index`, { method: 'POST', ignoreResponseError: true });
+    const response = await $fetch(`/api/projects/${projectId.value}/reference/rebuild`, { method: 'POST', ignoreResponseError: true });
     const problem = failureOf(response);
     if (problem) trouble.value = problem;
     await refresh();
