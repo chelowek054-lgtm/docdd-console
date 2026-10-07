@@ -137,7 +137,8 @@
       "then": {
         "properties": {
           "id": { "pattern": "^P-[0-9]{4}$" },
-          "status": { "enum": ["planned", "active", "done"] }
+          "status": { "enum": ["planned", "active", "done"] },
+          "rank": { "type": "integer", "minimum": 1, "description": "Место фазы по важности: меньше — важнее (docs/04-ui.md, «Порядок по важности»)." }
         }
       }
     },

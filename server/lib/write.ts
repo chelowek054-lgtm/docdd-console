@@ -25,6 +25,8 @@ export interface FrontMatterChanges {
   change?: string | null;
   /** «Заглянул в индекс справочника, подходящего нет» — `none` (docs/13-reference.md). */
   reuse?: string | null;
+  /** Место фазы по важности: целое от 1 (docs/02-workspace-contract.md, «Порядок фаз»); `null` убирает. */
+  rank?: number | null;
   updated?: string;
   owner?: string | null;
   phase?: string | null;
@@ -65,6 +67,7 @@ export function applyFrontMatter(file: RecordFile, changes: FrontMatterChanges):
   if (changes.status !== undefined) lines = setScalar(lines, 'status', changes.status);
   if (changes.change !== undefined) lines = setScalar(lines, 'change', changes.change);
   if (changes.reuse !== undefined) lines = setScalar(lines, 'reuse', changes.reuse);
+  if (changes.rank !== undefined) lines = setScalar(lines, 'rank', changes.rank === null ? null : String(changes.rank));
   if (changes.updated !== undefined) lines = setScalar(lines, 'updated', changes.updated);
   if (changes.owner !== undefined) lines = setScalar(lines, 'owner', changes.owner === null ? null : yamlSafe(changes.owner));
   if (changes.phase !== undefined) lines = setScalar(lines, 'phase', changes.phase);

@@ -1,11 +1,13 @@
 <script setup lang="ts">
+import { sortTasks } from '~~/server/lib/work-order';
 // Вкладка «Задачи» экрана «Работа» (docs/04-ui.md, «Работа: задачи и фазы на одном экране»).
 const route = useRoute();
 const projectId = computed(() => String(route.params['id'] ?? ''));
 
 const { index, failure, records, byId, refresh } = useProjectIndex(projectId);
 
-const tasks = computed(() => records.value.filter((record) => record.type === 'task'));
+const { mode } = useOrderMode(records);
+const tasks = computed(() => sortTasks(records.value.filter((record) => record.type === 'task'), records.value, mode.value));
 
 const statuses = computed(() => tasks.value.map((task) => task.status));
 const status = useStatusFilter(statuses);

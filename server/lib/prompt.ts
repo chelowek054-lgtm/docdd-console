@@ -184,6 +184,53 @@ export function mapsPrompt(template: string, state: MapsState, schemas = ''): st
 }
 
 export const REFERENCE_MARKER = '<!-- СПРАВОЧНИК -->';
+export const VISION_MARKER = '<!-- ВЕКТОР -->';
+export const ORDER_PHASES_MARKER = '<!-- ФАЗЫ -->';
+
+export interface PriorityTask {
+  id: string;
+  title: string;
+  status: string;
+  change: string;
+  /** Требование, ради которого задача, — одной фразой. */
+  requirement: string;
+  dependsOn: string[];
+  /** Что мешает начать: неподтверждённые документы и карты, нет требования. */
+  blockers: string[];
+}
+
+export interface PriorityPhase {
+  id: string;
+  title: string;
+  tasks: PriorityTask[];
+}
+
+/**
+ * Запрос «Сортировать по важности» (docs/04-ui.md, «Порядок по важности»). Модели уходят
+ * вектор продукта и фазы с задачами в текущем порядке; ответ — блок `docdd-order`, он
+ * ничего не пишет, пока человек не применит порядок.
+ */
+export function priorityPrompt(template: string, input: { vision: string; phases: readonly PriorityPhase[] }): string {
+  const phasesText = input.phases.length
+    ? input.phases.map((phase) => [
+      `### ${phase.id} — ${phase.title}`,
+      ...(phase.tasks.length ? phase.tasks.map((task) => {
+        const facts = [
+          task.status,
+          task.change ? `change: ${task.change}` : '',
+          task.requirement ? `ради: ${task.requirement}` : '',
+          task.dependsOn.length ? `зависит от ${task.dependsOn.join(', ')}` : '',
+          task.blockers.length ? `мешает: ${task.blockers.join('; ')}` : ''
+        ].filter(Boolean).join(' · ');
+        return `- ${task.id} — ${task.title} (${facts})`;
+      }) : ['Состава нет.'])
+    ].join(LF)).join(LF + LF)
+    : 'Фаз в проекте нет.';
+
+  return withoutFrontNote(template)
+    .replace(VISION_MARKER, () => input.vision.trim() || 'Вектор продукта не записан: суди по названиям и связям.')
+    .replace(ORDER_PHASES_MARKER, () => phasesText);
+}
 
 /**
  * Индекс справочника для запроса (docs/13-reference.md): модуль проекта или внешнее
