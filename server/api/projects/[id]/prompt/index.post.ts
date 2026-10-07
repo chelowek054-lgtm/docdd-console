@@ -17,6 +17,7 @@ import {
   type MapsState
 } from '../../../../lib/prompt';
 import { withBuiltin } from '../../../../lib/builtin';
+import { referenceIndexText } from '../../../../utils/reference-service';
 import { buildArchitecture } from '../../../../utils/architecture-service';
 import { resolveProjectRules } from '../../../../utils/rules-service';
 import { connectedPractices } from '../../../../utils/shared-service';
@@ -143,7 +144,7 @@ export default defineEventHandler(async (event) => {
       const capabilities = buildProjectMap(project.root).functional.capabilities;
 
       return {
-        prompt: inboxPrompt(await template('inbox-plan.md'), notes, known, capabilities),
+        prompt: inboxPrompt(await template('inbox-plan.md'), notes, known, capabilities, referenceIndexText(project.root)),
         count: notes.length
       };
     }
@@ -248,6 +249,7 @@ export default defineEventHandler(async (event) => {
           rules,
           modules: modules.map((module) => ({ dir: module.id, entry: module.entry, parent: module.parent })),
           found: report.findings ?? [],
+          referenceIndex: referenceIndexText(project.root),
           // Те же практики, что идут в запрос на выполнение задачи: суд по ним, а не по привычкам модели.
           practices: connectedPractices(withBuiltin(readWorkspace(project.root).manifest.sources?.shared ?? []))
         }),

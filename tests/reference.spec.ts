@@ -1,4 +1,8 @@
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
+
+import { architecturePrompt, inboxPrompt, REFERENCE_MARKER, taskPrompt } from '../server/lib/prompt';
 
 import { buildReferenceIndex, INDEX_LINE_LIMIT, sameIndex, type ReferenceEntry } from '../server/lib/reference';
 import { referenceEntries, referenceRules, taskReuseUnchecked } from '../server/lib/rules';
@@ -139,5 +143,41 @@ describe('предупреждения справочника', () => {
       reference
     };
     expect(taskReuseUnchecked(ctx).map((item) => item.id)).toEqual(['T-0001']);
+  });
+});
+
+describe('индекс в запросах модели', () => {
+  const index = buildReferenceIndex({ references: [entry()], modules: [], imports: [] }).text;
+  const base = { id: 'T-0001', title: 'Задача', body: 'Сделать.', requirements: [], documents: [], map: '', modules: [], practices: [], rework: '', round: 1 };
+
+  it('запрос на выполнение: индекс без пометки «сгенерировано», правило «не писать заново», справки задачи текстом', () => {
+    const text = taskPrompt('# З\n\n---\n\n<!-- ЗАДАЧА -->\n', {
+      ...base, referenceIndex: index, reused: [{ id: 'S-0001', title: 'RouterAI Jev', body: 'POST /api/v1/decisions' }]
+    });
+    expect(text).toContain('## Справочник: что уже есть');
+    expect(text).toContain('найди в этом индексе, что уже решает то же самое');
+    expect(text).toContain('- **RouterAI Jev** (S-0001, api, 2026-10-07)');
+    expect(text).not.toContain('Сгенерировано приложением');
+    expect(text).not.toContain('\n# Справочник проекта');
+    expect(text).toContain('### Справка S-0001: RouterAI Jev (задача её переиспользует)');
+    expect(text).toContain('POST /api/v1/decisions');
+  });
+
+  it('справочника нет и справок у задачи нет — раздела в запросе нет', () => {
+    expect(taskPrompt('# З\n\n---\n\n<!-- ЗАДАЧА -->\n', { ...base, referenceIndex: null })).not.toContain('Справочник');
+  });
+
+  it('разбор входящего и аудит подставляют индекс; без него говорят прямо', () => {
+    const inbox = inboxPrompt('# З\n\n---\n\n<!-- СПРАВОЧНИК -->\n', [], [], [], index);
+    expect(inbox).toContain('RouterAI Jev');
+    expect(inboxPrompt('# З\n\n---\n\n<!-- СПРАВОЧНИК -->\n', [], [], [], null)).toContain('Справочника в проекте пока нет');
+    const audit = architecturePrompt('# З\n\n---\n\n<!-- СПРАВОЧНИК -->\n', { rules: {}, modules: [], found: [], referenceIndex: index });
+    expect(audit).toContain('RouterAI Jev');
+  });
+
+  it('настоящие шаблоны содержат место для индекса', () => {
+    for (const name of ['inbox-plan.md', 'architecture-audit.md']) {
+      expect(readFileSync(new URL(`../docs/prompts/${name}`, import.meta.url), 'utf8')).toContain(REFERENCE_MARKER);
+    }
   });
 });

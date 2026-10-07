@@ -91,6 +91,18 @@ export function referenceReport(root: string): ReferenceReport {
   };
 }
 
+/**
+ * Свежий текст индекса для запросов модели: собирается заново, а не читается с диска,
+ * чтобы устаревший файл не уехал в запрос. `null` — справочника в проекте нет.
+ */
+export function referenceIndexText(root: string): string | null {
+  try {
+    return compute(normalizeRoot(root))?.index.text ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** Собирает индекс и пишет файл. Справочника нет — `null`, и ничего не пишется. */
 export function rebuildReferenceIndex(root: string): ReferenceReport | null {
   const normalized = normalizeRoot(root);
