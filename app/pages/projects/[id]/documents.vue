@@ -71,6 +71,29 @@ function reliedOnBy(document: IndexRecord): string[] {
   ])].sort();
 }
 
+/**
+ * Вкладка «Требования»: вместо «Кто опирается» и «Изменён» — таблица покрытия
+ * (docs/04-ui.md, «Требования»): задачи, проверки и факт — результат прогонов.
+ * Строка без проверки видна сразу — это главный дефект, который вкладка ищет.
+ */
+const results = computed(() => index.value?.verificationResults ?? {});
+
+function verificationsOf(requirement: IndexRecord): string[] {
+  return [...new Set([
+    ...(requirement.links.verified_by ?? []),
+    ...(requirement.backlinks.verifies ?? [])
+  ])];
+}
+
+function tasksOf(requirement: IndexRecord): string[] {
+  return requirement.backlinks.implements ?? [];
+}
+
+/** Факт — результат прогонов; «подтверждён» в колонке статуса — другое (docs/04-ui.md). */
+function outcome(requirement: IndexRecord) {
+  return requirementFact(verificationsOf(requirement), results.value, requirement.status);
+}
+
 const EMPTY: Record<string, string> = {
   all: 'Требований, проектных документов, решений, контрактов и справок в проекте нет.',
   requirement: 'Требований в проекте нет.',
@@ -102,10 +125,7 @@ const EMPTY: Record<string, string> = {
       </div>
 
       <UTabs v-model="type" :items="TABS" :content="false" />
-      <p v-if="type === 'requirement'" class="text-sm text-muted">
-        Покрытие проверками и задачами — на экране <NuxtLink :to="`/projects/${projectId}/requirements`" class="hover:underline">«Требования»</NuxtLink>.
-      </p>
-      <p v-else-if="type === 'reference'" class="text-sm text-muted">
+      <p v-if="type === 'reference'" class="text-sm text-muted">
         Индекс и устаревшие справки — на экране <NuxtLink :to="`/projects/${projectId}/reference`" class="hover:underline">«Справочник»</NuxtLink>.
       </p>
 
@@ -137,11 +157,18 @@ const EMPTY: Record<string, string> = {
                   @update:model-value="selection.toggleAll()"
                 />
               </th>
-              <th class="p-3 font-medium">Документ</th>
+              <th class="p-3 font-medium">{{ type === 'requirement' ? 'Требование' : 'Документ' }}</th>
               <th v-if="type === 'all'" class="p-3 font-medium">Тип</th>
               <th class="p-3 font-medium">Статус</th>
-              <th class="p-3 font-medium">Кто опирается</th>
-              <th class="p-3 font-medium">Изменён</th>
+              <template v-if="type === 'requirement'">
+                <th class="p-3 font-medium">Задачи</th>
+                <th class="p-3 font-medium">Проверки</th>
+                <th class="p-3 font-medium">Факт</th>
+              </template>
+              <template v-else>
+                <th class="p-3 font-medium">Кто опирается</th>
+                <th class="p-3 font-medium">Изменён</th>
+              </template>
             </tr>
           </thead>
           <tbody class="divide-y divide-default">
@@ -170,6 +197,34 @@ const EMPTY: Record<string, string> = {
                   >{{ id }}</NuxtLink>
                 </span>
               </td>
+              <template v-if="type === 'requirement'">
+                <td class="p-3">
+                  <template v-if="tasksOf(document).length">
+                    <NuxtLink
+                      v-for="id in tasksOf(document)"
+                      :key="id"
+                      :to="`/projects/${projectId}/records/${id}`"
+                      class="mr-2 font-mono text-xs hover:underline"
+                    >{{ id }}</NuxtLink>
+                  </template>
+                  <span v-else class="text-muted">ни одной</span>
+                </td>
+                <td class="p-3">
+                  <template v-if="verificationsOf(document).length">
+                    <NuxtLink
+                      v-for="id in verificationsOf(document)"
+                      :key="id"
+                      :to="`/projects/${projectId}/records/${id}`"
+                      class="mr-2 font-mono text-xs hover:underline"
+                    >{{ id }}</NuxtLink>
+                  </template>
+                  <span v-else class="text-muted">нет</span>
+                </td>
+                <td class="p-3">
+                  <UBadge :color="outcome(document).color" variant="subtle" size="sm">{{ outcome(document).label }}</UBadge>
+                </td>
+              </template>
+              <template v-else>
               <td class="p-3">
                 <template v-if="reliedOnBy(document).length">
                   <NuxtLink
@@ -184,6 +239,7 @@ const EMPTY: Record<string, string> = {
                 <span v-else class="text-muted">никто</span>
               </td>
               <td class="p-3 text-muted">{{ document.updated ?? '—' }}</td>
+              </template>
             </tr>
           </tbody>
         </table>
