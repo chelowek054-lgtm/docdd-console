@@ -1,5 +1,6 @@
 import { findDependencyCycles, incomingEdges, outgoing, type Graph } from './graph';
 import { checkArchitecture } from './architecture';
+import { buildReferenceIndex, sameIndex, type ReferenceEntry } from './reference';
 import type { RulesResolution } from './practice-rules';
 import { capabilityFindings } from './coverage';
 import { approvedMaps, checkEvidence, evidenceClaims, foldMaps, parseMapRecord, type MapChange } from './maps';
@@ -29,6 +30,10 @@ export interface RuleContext {
   architecture?: ArchitectureConfig;
   /** Откуда взялись правила: источники, перекрытия, конфликты (docs/12-practice-rules.md). */
   rules?: RulesResolution;
+  /** Справочник включён (`paths.reference`): путь к индексу и порог устаревания (docs/13-reference.md). */
+  reference?: { path: string; staleDays: number };
+  /** Справки из подключённых источников — в индекс идут с меткой. */
+  sharedReferences?: readonly ReferenceEntry[];
   /** Результаты последних прогонов; отсутствие ключа — прогонов не было. */
   verifications: ReadonlyMap<string, VerificationResult>;
   /** «Сегодня» приходит снаружи, иначе тест на `task_stale` зависит от календаря. */
@@ -67,7 +72,8 @@ const LINK_RULES: Readonly<Record<LinkKind, { from: readonly RecordType[]; to: r
   verifies: { from: ['verification'], to: ['requirement', 'task'] },
   documents: { from: ['task'], to: ['design', 'contract'] },
   covers: { from: ['phase'], to: ['task'] },
-  affects: { from: ['task'], to: ['map'] }
+  affects: { from: ['task'], to: ['map'] },
+  reuses: { from: ['task', 'design'], to: ['reference'] }
 };
 
 const LINK_TITLES: Readonly<Record<LinkKind, string>> = {
@@ -80,7 +86,8 @@ const LINK_TITLES: Readonly<Record<LinkKind, string>> = {
   verifies: 'проверяет',
   documents: 'правит документ',
   covers: 'входит в состав',
-  affects: 'меняет карту'
+  affects: 'меняет карту',
+  reuses: 'переиспользует справку'
 };
 
 // Из любого статуса, кроме начального `draft`, есть путь назад
@@ -183,6 +190,8 @@ export function checkAll(ctx: RuleContext): Violation[] {
     ...capabilityConsistency(ctx),
     ...architectureRules(ctx),
     ...rulesConflict(ctx),
+    ...referenceRules(ctx),
+    ...taskReuseUnchecked(ctx),
     ...workUnreviewed(ctx),
     ...workBranchOrphan(ctx),
     ...taskNotReadyDocs(ctx),
@@ -526,6 +535,73 @@ export function architectureRules(ctx: RuleContext): Violation[] {
   ));
 }
 
+/** Справки проекта в виде, пригодном для индекса: подтверждённые, с названным видом и датой. */
+export function referenceEntries(records: readonly WorkRecord[]): ReferenceEntry[] {
+  return records
+    .filter((record) => record.type === 'reference' && record.status === 'approved' && record.id)
+    .map((record) => ({
+      id: record.id,
+      title: record.title,
+      summary: typeof record.data['summary'] === 'string' ? record.data['summary'] : '',
+      kind: typeof record.data['kind'] === 'string' ? record.data['kind'] : '',
+      fetched: record.data['fetched'] ? String(record.data['fetched']).slice(0, 10) : '',
+      path: record.source.path
+    }));
+}
+
+/**
+ * Справочник (docs/13-reference.md): справка без `summary`, справка, которая давно не
+ * обновлялась, и индекс, расходящийся с тем, что собралось бы сейчас. Нет
+ * `paths.reference` — справочника нет, и проверять нечего.
+ */
+export function referenceRules(ctx: RuleContext): Violation[] {
+  if (!ctx.reference) return [];
+  const found: Violation[] = [];
+  const staleMs = ctx.reference.staleDays * 86_400_000;
+
+  for (const record of ctx.records) {
+    if (record.type !== 'reference' || !record.id || RETIRED_STATUSES.has(record.status)) continue;
+    const summary = record.data['summary'];
+    if (typeof summary !== 'string' || summary.trim() === '') {
+      found.push(violation('reference_no_summary', record.id, record.source.path,
+        `У справки ${record.id} нет \`summary\`: в индекс она попадёт безымянной, и по ней нельзя будет понять, что уже есть. Допишите одну строку — что она решает.`));
+    }
+    const fetched = Date.parse(String(record.data['fetched'] ?? '').slice(0, 10));
+    if (!Number.isNaN(fetched) && ctx.now.getTime() - fetched > staleMs) {
+      found.push(violation('reference_stale', record.id, record.source.path,
+        `Справка ${record.id} получена ${String(record.data['fetched']).slice(0, 10)}, больше ${ctx.reference.staleDays} дней назад: сверьте её с источником и обновите дату.`));
+    }
+  }
+
+  const codemap = foldMaps(approvedMaps(ctx.records).map((record) => ({ id: record.id, change: parseMapRecord(record.body).change }))).codemap;
+  const references = [...referenceEntries(ctx.records), ...(ctx.sharedReferences ?? [])];
+  if (references.length === 0 && codemap.modules.length === 0) return found;
+
+  const expected = buildReferenceIndex({ references, modules: codemap.modules, imports: codemap.imports, groups: codemap.groups }).text;
+  if (ctx.readSource && !sameIndex(ctx.readSource(ctx.reference.path), expected)) {
+    found.push(violation('reference_index_stale', null, ctx.reference.path,
+      `Индекс справочника ${ctx.reference.path} расходится с тем, что собралось бы сейчас из справок и карты кода. Нажмите «Обновить индекс» на экране «Справочник»: руками файл не правится.`));
+  }
+  return found;
+}
+
+/**
+ * Задача `feature` дошла до `ready` и дальше, а справочник не просмотрен: ни `reuses`,
+ * ни записи «подходящего нет» (`reuse: none`). Напоминание, не запрет
+ * (docs/13-reference.md, «Где справочник работает в процессе»).
+ */
+export function taskReuseUnchecked(ctx: RuleContext): Violation[] {
+  if (!ctx.reference) return [];
+  const found: Violation[] = [];
+  for (const task of tasks(ctx)) {
+    if (!TASK_READY_AND_BEYOND.includes(task.status) || task.data['change'] !== 'feature') continue;
+    if ((task.links.reuses ?? []).length > 0 || task.data['reuse'] === 'none') continue;
+    found.push(violation('task_reuse_unchecked', task.id, task.source.path,
+      `Задача ${task.id} (\`feature\`) в статусе \`${task.status}\` не смотрела справочник: нет ни \`reuses\`, ни \`reuse: none\`. Загляните в \`reference/INDEX.md\`: если что-то подходит — привяжите справку; нет — запишите «подходящего нет».`));
+  }
+  return found;
+}
+
 /**
  * Спор правил одного уровня и блок, который не разобрался (docs/12-practice-rules.md):
  * правило не должно молча выбираться или молча пропадать.
@@ -839,6 +915,7 @@ function transitionsFor(type: string): Readonly<Record<string, readonly string[]
     case 'design':
     case 'contract':
     case 'verification':
+    case 'reference':
     // Карта подтверждается тем же порядком, что документ: без этого её нельзя
     // утвердить, а без утверждения не начинается работа (docs/07-maps.md).
     case 'map':

@@ -522,7 +522,7 @@ updated: 2026-09-10
         {"from":"server/api/projects/[id]/import/index.post.ts","to":"project-files","direction":"write","evidence":{"path":"server/api/projects/[id]/import/index.post.ts","line":69,"fragment":"mkdirSync(dirname(to), { recursive: true });"}},
         {"from":"server/api/projects/[id]/records/[recordId].get.ts","to":"project-files","direction":"read","evidence":{"path":"server/api/projects/[id]/records/[recordId].get.ts","line":1,"fragment":"import { readFileSync } from 'node:fs';"}},
         {"from":"server/api/projects/[id]/records/index.post.ts","to":"project-files","direction":"read","evidence":{"path":"server/api/projects/[id]/records/index.post.ts","line":1,"fragment":"import { existsSync, mkdirSync, writeFileSync } from 'node:f"}},
-        {"from":"server/api/projects/[id]/records/index.post.ts","to":"project-files","direction":"write","evidence":{"path":"server/api/projects/[id]/records/index.post.ts","line":69,"fragment":"mkdirSync(dirname(absolute), { recursive: true });"}},
+        {"from":"server/api/projects/[id]/records/index.post.ts","to":"project-files","direction":"write","evidence":{"path":"server/api/projects/[id]/records/index.post.ts","line":74,"fragment":"mkdirSync(dirname(absolute), { recursive: true });"}},
         {"from":"server/api/projects/init.post.ts","to":"project-files","direction":"read","evidence":{"path":"server/api/projects/init.post.ts","line":1,"fragment":"import { existsSync, mkdirSync, readFileSync, writeFileSync }"}},
         {"from":"server/api/projects/init.post.ts","to":"project-files","direction":"write","evidence":{"path":"server/api/projects/init.post.ts","line":57,"fragment":"mkdirSync(development, { recursive: true });"}},
         {"from":"server/lib/cache.ts","to":"index-cache","direction":"both","evidence":{"path":"server/lib/cache.ts","line":16,"fragment":"return join(normalizeRoot(root), '.docdd', 'index.json');"}},
@@ -540,7 +540,7 @@ updated: 2026-09-10
         {"from":"server/utils/record-write.ts","to":"project-files","direction":"write","evidence":{"path":"server/utils/record-write.ts","line":109,"fragment":"writeFileSync(context.absolute, outcome.text, 'utf8');"}},
         {"from":"server/utils/sessions.ts","to":"session-memory","direction":"both","evidence":{"path":"server/utils/sessions.ts","line":15,"fragment":"const FILE = '.docdd/sessions.json';"}},
         {"from":"server/utils/work-service.ts","to":"git-repo","direction":"both","evidence":{"path":"server/utils/work-service.ts","line":114,"fragment":"  const created = await ensureWorktree(normalized, branch, r"}},
-        {"from":"server/utils/work-service.ts","to":"project-files","direction":"write","evidence":{"path":"server/utils/work-service.ts","line":298,"fragment":"  const saved = saveRecord(context, outcome, root);"}}
+        {"from":"server/utils/work-service.ts","to":"project-files","direction":"write","evidence":{"path":"server/utils/work-service.ts","line":303,"fragment":"  const saved = saveRecord(context, outcome, root);"}}
       ]
     }
 }
@@ -578,9 +578,9 @@ updated: 2026-09-10
         {"from":"/","to":"POST /api/projects","evidence":{"path":"app/pages/index.vue","line":55,"fragment":"const response = await $fetch<ProjectEntry | { error: ApiFai"}},
         {"from":"/","to":"POST /api/projects/init","evidence":{"path":"app/pages/index.vue","line":31,"fragment":"const response = await $fetch<ProjectEntry | { error: ApiFai"}},
         {"from":"/projects/:id/import","to":"POST /api/projects/:id/import","evidence":{"path":"app/pages/projects/[id]/import.vue","line":76,"fragment":"const response = await $fetch(`/api/projects/${projectId.val"}},
-        {"from":"/projects/:id/inbox","to":"POST /api/projects/:id/inbox/preview","evidence":{"path":"app/pages/projects/[id]/inbox.vue","line":136,"fragment":"    `/api/projects/${projectId.value}/inbox/preview`,"}},
-        {"from":"/projects/:id/inbox","to":"POST /api/projects/:id/inbox/records","evidence":{"path":"app/pages/projects/[id]/inbox.vue","line":156,"fragment":"      `/api/projects/${projectId.value}/inbox/records`,"}},
-        {"from":"/projects/:id/inbox","to":"POST /api/projects/:id/prompt","evidence":{"path":"app/pages/projects/[id]/inbox.vue","line":120,"fragment":"    { method: 'POST', body: { kind: 'inbox', notes: notes.va"}},
+        {"from":"/projects/:id/inbox","to":"POST /api/projects/:id/inbox/preview","evidence":{"path":"app/pages/projects/[id]/inbox.vue","line":140,"fragment":"    `/api/projects/${projectId.value}/inbox/preview`,"}},
+        {"from":"/projects/:id/inbox","to":"POST /api/projects/:id/inbox/records","evidence":{"path":"app/pages/projects/[id]/inbox.vue","line":183,"fragment":"      `/api/projects/${projectId.value}/inbox/records`,"}},
+        {"from":"/projects/:id/inbox","to":"POST /api/projects/:id/prompt","evidence":{"path":"app/pages/projects/[id]/inbox.vue","line":124,"fragment":"    { method: 'POST', body: { kind: 'inbox', notes: notes.va"}},
         {"from":"/projects/:id/inbox","to":"POST /api/projects/:id/inbox/notes","evidence":{"path":"app/pages/projects/[id]/inbox.vue","line":45,"fragment":"      `/api/projects/${projectId.value}/inbox/notes`,"}},
         {"from":"/projects/:id/issues","to":"POST /api/projects/:id/fix","evidence":{"path":"app/components/FixWork.vue","line":45,"fragment":"  const result = await stream<{ state: FixState }>(`/api/pro"}},
         {"from":"/projects/:id/issues","to":"POST /api/projects/:id/fix/work","evidence":{"path":"app/components/FixWork.vue","line":59,"fragment":"      `/api/projects/${props.projectId}/fix/work`,"}},

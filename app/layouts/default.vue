@@ -97,6 +97,7 @@ const entries = computed<NavEntry[]>(() => {
       label: 'Наполнение',
       links: [
         { label: 'Входящее', to: `${base}/inbox` },
+        { label: 'Справочник', to: `${base}/reference` },
         { label: 'Импорт', to: `${base}/import` }
       ]
     },

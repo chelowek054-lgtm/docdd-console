@@ -27,6 +27,7 @@ import { buildProjectMap } from './map-service';
 import { openRecord, saveRecord, today } from './record-write';
 import { forgetSession, rememberSession, sessionOf } from './sessions';
 import { withBuiltin } from '../lib/builtin';
+import { referenceIndexText } from './reference-service';
 import { connectedPractices } from './shared-service';
 
 /**
@@ -266,6 +267,9 @@ export function taskContext(
     map: mapId ? mapChange(root, index, mapId) : '',
     // Сжатая карта: где что лежит — вместо обхода всех файлов проекта.
     modules: buildProjectMap(root).codemap.modules,
+    // Что уже есть (docs/13-reference.md): индекс целиком, справки задачи — текстом.
+    referenceIndex: referenceIndexText(root),
+    reused: (record.links.reuses ?? []).map(linked),
     practices: shared,
     rework,
     round

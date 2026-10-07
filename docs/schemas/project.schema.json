@@ -64,6 +64,10 @@
         },
         "maps": {
           "type": "string"
+        },
+        "reference": {
+          "type": "string",
+          "description": "Справочник: справки типа reference и индекс INDEX.md (docs/13-reference.md). Нет ключа — справочника в проекте нет."
         }
       }
     },
@@ -215,6 +219,12 @@
           "minimum": 1,
           "default": 40,
           "description": "Сколько файлов уходит в один запрос на карты. Больше — меньше заходов, но выше риск, что ответ не поместится."
+        },
+        "reference_stale_days": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 180,
+          "description": "Через сколько дней справка считается устаревшей (docs/13-reference.md)."
         }
       }
     }

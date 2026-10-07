@@ -65,6 +65,9 @@ const created = ref<CreatedRecord[]>([]);
 /** Что модель сказала словами: при пустом списке это и есть весь ответ. */
 const said = ref('');
 const problems = ref<string[]>([]);
+/** Заметки, из которых модель заводить ничего не стала, и причина: принимаются без записей. */
+const skipped = ref<{ note: string; why: string }[]>([]);
+const accepting = ref(false);
 const trouble = ref<ApiFailure | null>(null);
 const saving = ref(false);
 
@@ -113,6 +116,7 @@ async function analyse() {
   proposed.value = [];
   created.value = [];
   problems.value = [];
+  skipped.value = [];
   said.value = '';
 
   const built = await $fetch<{ prompt: string } | { error: ApiFailure }>(
@@ -132,7 +136,7 @@ async function analyse() {
   if (!answer) return;
 
   // Разбираем ответ здесь же, чтобы человек правил список, а не текст.
-  const parsed = await $fetch<{ records: ProposedRecord[]; problems: string[] } | { error: ApiFailure }>(
+  const parsed = await $fetch<{ records: ProposedRecord[]; problems: string[]; skipped: { note: string; why: string }[] } | { error: ApiFailure }>(
     `/api/projects/${projectId.value}/inbox/preview`,
     { method: 'POST', body: { answer: answer.answer }, ignoreResponseError: true }
   );
@@ -142,10 +146,33 @@ async function analyse() {
     return;
   }
 
-  const result = parsed as { records: ProposedRecord[]; problems: string[] };
+  const result = parsed as { records: ProposedRecord[]; problems: string[]; skipped: { note: string; why: string }[] };
   proposed.value = result.records;
+  skipped.value = result.skipped ?? [];
   problems.value = result.problems;
   said.value = answer.answer;
+}
+
+/** «Принять без записей»: решение человека, а не модели (docs/10-inbox.md). */
+async function acceptSkipped() {
+  accepting.value = true;
+  trouble.value = null;
+  try {
+    const response = await $fetch<{ accepted: string[]; problems: string[] } | { error: ApiFailure }>(
+      `/api/projects/${projectId.value}/inbox/accept`,
+      { method: 'POST', body: { notes: skipped.value.map((item) => item.note) }, ignoreResponseError: true }
+    );
+    const problem = failureOf(response);
+    if (problem) {
+      trouble.value = problem;
+      return;
+    }
+    problems.value = (response as { problems: string[] }).problems;
+    skipped.value = [];
+    await refresh();
+  } finally {
+    accepting.value = false;
+  }
 }
 
 async function create() {
@@ -279,6 +306,15 @@ async function create() {
         <div v-if="said && !proposed.length && !running" class="rounded border border-default p-3">
           <p class="mb-2 text-sm font-medium">Модель не нашла, что заводить</p>
           <DocumentText :body="said" />
+          <!-- Модель назвала заметки, из которых заводить нечего: человек принимает их без записей. -->
+          <div v-if="skipped.length" class="mt-3 space-y-2 border-t border-default pt-3">
+            <p class="text-sm font-medium">Заводить нечего:</p>
+            <ul class="space-y-1 text-sm">
+              <li v-for="item in skipped" :key="item.note"><span class="font-mono text-xs">{{ item.note }}</span> — {{ item.why }}</li>
+            </ul>
+            <UButton size="sm" variant="soft" :loading="accepting" @click="acceptSkipped">Принять без записей</UButton>
+            <p class="text-xs text-muted">Заметки переедут в «принятое»; записей не появится.</p>
+          </div>
         </div>
 
         <template v-if="proposed.length">

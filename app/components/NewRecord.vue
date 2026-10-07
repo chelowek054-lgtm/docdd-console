@@ -10,6 +10,15 @@ const title = ref('');
 const owner = ref('');
 const implementsIds = ref<string[]>([]);
 const change = ref('fix');
+/** Справка (docs/13-reference.md): строка для индекса обязательна, вид — из четырёх. */
+const summary = ref('');
+const kind = ref('component');
+const KINDS = [
+  { label: 'Компонент или библиотека', value: 'component' },
+  { label: 'Внешний сервис, API', value: 'api' },
+  { label: 'Приём (оптимизация, паттерн)', value: 'technique' },
+  { label: 'Данные', value: 'data' }
+];
 
 /**
  * Что за изменение: от этого зависит, потребует ли задача карты
@@ -33,6 +42,7 @@ const requirements = computed(() => props.records
 
 async function create() {
   if (!title.value.trim()) return;
+  if (props.type === 'reference' && !summary.value.trim()) return;
   busy.value = true;
   failure.value = null;
   try {
@@ -43,6 +53,8 @@ async function create() {
         title: title.value.trim(),
         owner: owner.value.trim() || undefined,
         change: props.type === 'task' ? change.value : undefined,
+        summary: props.type === 'reference' ? summary.value.trim() : undefined,
+        kind: props.type === 'reference' ? kind.value : undefined,
         links: implementsIds.value.length ? { implements: implementsIds.value } : undefined
       },
       ignoreResponseError: true
@@ -54,6 +66,7 @@ async function create() {
     }
     title.value = '';
     owner.value = '';
+    summary.value = '';
     implementsIds.value = [];
     open.value = false;
     emit('created');
@@ -74,6 +87,10 @@ async function create() {
         <UInput v-model="title" placeholder="Заголовок записи" @keyup.enter="create" />
         <UInput v-model="owner" placeholder="Исполнитель — необязательно" />
         <USelect v-if="props.type === 'task'" v-model="change" :items="CHANGES" />
+        <template v-if="props.type === 'reference'">
+          <UInput v-model="summary" placeholder="Одна строка: что решает (попадёт в индекс)" />
+          <USelect v-model="kind" :items="KINDS" />
+        </template>
         <USelectMenu
           v-if="props.type === 'task' && requirements.length"
           v-model="implementsIds"
@@ -89,7 +106,7 @@ async function create() {
           статус меняется действиями на её экране.
         </p>
         <div class="flex gap-2">
-          <UButton :loading="busy" :disabled="!title.trim()" @click="create">Создать</UButton>
+          <UButton :loading="busy" :disabled="!title.trim() || (props.type === 'reference' && !summary.trim())" @click="create">Создать</UButton>
           <UButton variant="ghost" color="neutral" @click="open = false">Отмена</UButton>
         </div>
 

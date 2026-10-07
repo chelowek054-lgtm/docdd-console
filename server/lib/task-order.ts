@@ -51,6 +51,27 @@ export function unapprovedRequirements(links: Links, statusOf: (id: string) => s
   });
 }
 
+/** Справки для выбора: подтверждённые, поиск по номеру, названию и строке «что решает». */
+export function referenceChoices(
+  records: readonly (RequirementOption & { type: string; extra?: Record<string, unknown> })[],
+  query: string,
+  limit = REQUIREMENT_CHOICES
+): (RequirementOption & { summary: string })[] {
+  const needle = query.trim().toLowerCase();
+  return records
+    .filter((record) => record.type === 'reference' && record.status === 'approved')
+    .map((record) => ({ id: record.id, title: record.title, status: record.status, summary: typeof record.extra?.['summary'] === 'string' ? record.extra['summary'] : '' }))
+    .filter((item) => needle === '' || [item.id, item.title, item.summary].some((text) => text.toLowerCase().includes(needle)))
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .slice(0, limit);
+}
+
+/** Связи с добавленной справкой: правка полей заменяет `links` целиком, прежние уходят вместе с новой. */
+export function withReuses(links: Links, referenceId: string): Links {
+  const present = links.reuses ?? [];
+  return { ...links, reuses: present.includes(referenceId) ? [...present] : [...present, referenceId] };
+}
+
 /** Блокирует ли шаг вперёд именно отсутствие `implements` — единственное, что форма умеет чинить. */
 export function lacksRequirement(actions: readonly { blockers: readonly { code: string }[] }[]): boolean {
   return actions.some((action) => action.blockers.some((blocker) => blocker.code === 'task_no_requirement'));

@@ -86,7 +86,8 @@ export function inboxPrompt(
   template: string,
   notes: readonly { path: string; title: string; text: string }[],
   known: readonly { id: string; type: string; title: string }[],
-  capabilities: readonly { id: string; title?: string; parent?: string }[] = []
+  capabilities: readonly { id: string; title?: string; parent?: string }[] = [],
+  referenceIndex: string | null = null
 ): string {
   const said = notes.length
     ? notes.map((note) => [`### ${note.title}`, '', `Файл: \`${note.path}\``, '', note.text.trim()].join(LF)).join(LF + LF)
@@ -105,7 +106,8 @@ export function inboxPrompt(
   return withoutFrontNote(template)
     .replace(NOTES_MARKER, said)
     .replace(KNOWN_MARKER, already)
-    .replace(CAPABILITIES_MARKER, map);
+    .replace(CAPABILITIES_MARKER, map)
+    .replace(REFERENCE_MARKER, () => referenceIndexBlock(referenceIndex));
 }
 
 /** Места, куда подставляется прошлый ответ и претензии схемы к нему. */
@@ -181,6 +183,39 @@ export function mapsPrompt(template: string, state: MapsState, schemas = ''): st
   return body.replace(STATE_MARKER, lines.join(LF)).replace(SCHEMAS_MARKER, schemas);
 }
 
+export const REFERENCE_MARKER = '<!-- СПРАВОЧНИК -->';
+
+/**
+ * Индекс справочника для запроса (docs/13-reference.md): модуль проекта или внешнее
+ * решение называется одной строкой, подробности модель открывает сама по пути из
+ * строки. Заголовок и пометка «сгенерировано» отсекаются — они для человека.
+ */
+export function referenceIndexBlock(indexText: string | null | undefined): string {
+  if (!indexText) return 'Справочника в проекте пока нет: проверять, что уже написано, придётся по карте кода.';
+  return indexText
+    .split(LF)
+    .filter((line) => !line.startsWith('# ') && !line.startsWith('Сгенерировано приложением'))
+    .map((line) => (line.startsWith('#') ? `#${line}` : line))
+    .join(LF)
+    .trim();
+}
+
+/** Правило «не писать заново»: одно на все запросы, где ставится или выполняется задача. */
+const REUSE_RULE =
+  'Прежде чем писать новый модуль, выбирать библиотеку или приём, найди в этом индексе, что уже решает то же самое. Нашёл — используй это и ссылайся на него, а не создавай параллельное. Ничего не подходит — скажи, почему, в журнале задачи; молча писать своё не нужно.';
+
+export function referenceSection(
+  indexText: string | null | undefined,
+  linked: readonly { id: string; title: string; body: string }[] = []
+): string[] {
+  if (!indexText && linked.length === 0) return [];
+  const lines = ['## Справочник: что уже есть', '', REUSE_RULE, '', referenceIndexBlock(indexText), ''];
+  for (const item of linked) {
+    lines.push(`### Справка ${item.id}: ${item.title} (задача её переиспользует)`, '', item.body.trim(), '');
+  }
+  return lines;
+}
+
 export interface TaskContext {
   id: string;
   title: string;
@@ -192,6 +227,10 @@ export interface TaskContext {
   map: string;
   /** Сжатая карта проекта: где что лежит, без обхода всех файлов. */
   modules: { id: string; title?: string; layer?: string }[];
+  /** Индекс справочника (docs/13-reference.md); `null` — справочника нет. */
+  referenceIndex?: string | null;
+  /** Справки, на которые задача ссылается через `reuses`: текстом, а не только строкой индекса. */
+  reused?: { id: string; title: string; body: string }[];
   /** Общие практики, подключённые в sources.shared (docs/11-shared-sources.md). */
   practices: { label: string; id: string; title: string; body: string }[];
   /** Что человек сказал по прошлому заходу. Пусто — заход первый. */
@@ -230,6 +269,8 @@ export function taskPrompt(template: string, task: TaskContext): string {
     }
     lines.push('');
   }
+
+  lines.push(...referenceSection(task.referenceIndex, task.reused ?? []));
 
   lines.push(...practicesSection(task.practices));
 
@@ -423,6 +464,8 @@ export function architecturePrompt(
     found: readonly { code: string; from: string; to: string }[];
     /** Подключённые общие практики с текстом — те же, что уходят в запрос на выполнение задачи. */
     practices?: readonly { label: string; id: string; title: string; body: string }[];
+    /** Индекс справочника: что уже написано — чтобы `duplicate` проверялся по названному. */
+    referenceIndex?: string | null;
   }
 ): string {
   const { rules } = input;
@@ -462,6 +505,7 @@ export function architecturePrompt(
     .replace(RULES_MARKER, () => rulesText)
     .replace(MODULES_MARKER, () => modulesText)
     .replace(FOUND_MARKER, () => foundText)
+    .replace(REFERENCE_MARKER, () => referenceIndexBlock(input.referenceIndex))
     .replace(PRACTICES_MARKER, () => {
       const practices = input.practices ?? [];
       return practices.length ? practicesSection(practices).slice(4).join(LF) : 'Практик не подключено.';

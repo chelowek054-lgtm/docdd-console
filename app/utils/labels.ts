@@ -13,7 +13,8 @@ export const TYPE_LABELS: Record<string, string> = {
   task: 'Задача',
   phase: 'Фаза',
   verification: 'Проверка',
-  map: 'Карта'
+  map: 'Карта',
+  reference: 'Справка'
 };
 
 export const STATUS_LABELS: Record<string, string> = {

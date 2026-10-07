@@ -158,7 +158,8 @@ export const TYPE_COLORS: Record<string, string> = {
   decision: 'var(--ui-color-neutral-500)',
   task: 'var(--ui-color-warning-500)',
   verification: 'var(--ui-color-success-500)',
-  phase: 'var(--ui-color-neutral-400)'
+  phase: 'var(--ui-color-neutral-400)',
+  reference: 'var(--ui-color-info-300)'
 };
 
 /**

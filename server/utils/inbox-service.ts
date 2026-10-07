@@ -256,7 +256,13 @@ export function createRecords(root: string, original: readonly ProposedRecord[],
       ...(relations.relations.length ? { relations: relations.relations } : {}),
       ...(vision && Object.keys(vision).length ? { vision } : {}),
       ...(record.type === 'map' && record.intent ? { intent: true } : {}),
-      ...(record.type === 'task' && record.change ? { change: record.change } : {})
+      ...(record.type === 'task' && record.change ? { change: record.change } : {}),
+      ...(record.type === 'task' && record.reuse === 'none' ? { reuse: 'none' } : {}),
+      // Справка (docs/13-reference.md): строка для индекса, вид, источник, дата.
+      ...(record.type === 'reference' ? { summary: record.summary ?? '' } : {}),
+      ...(record.type === 'reference' && record.kind ? { kind: record.kind } : {}),
+      ...(record.type === 'reference' && record.source ? { source: record.source } : {}),
+      ...(record.type === 'reference' && record.fetched ? { fetched: record.fetched } : {})
     });
 
     mkdirSync(dirname(absolute), { recursive: true });
@@ -272,6 +278,29 @@ export function createRecords(root: string, original: readonly ProposedRecord[],
 
   dropCache(normalized);
   return { ok: true, created, problems };
+}
+
+/**
+ * «Принять без записей» (docs/10-inbox.md): модель сказала, что из заметки заводить
+ * нечего, и человек с этим согласен. Заметка переезжает в «принятое», как и
+ * разобранная; называются только заметки, которые сейчас лежат во входящем.
+ */
+export function acceptNotes(root: string, notes: readonly string[]): { accepted: string[]; problems: string[] } {
+  const normalized = normalizeRoot(root);
+  const waiting = new Set(inboxNotes(normalized).map((note) => note.path));
+  const accepted: string[] = [];
+  const problems: string[] = [];
+  for (const note of notes) {
+    if (!waiting.has(note)) {
+      problems.push(`Заметки \`${note}\` во входящем нет: принимать нечего.`);
+      continue;
+    }
+    const failed = archive(normalized, note);
+    if (failed.length > 0) problems.push(...failed);
+    else accepted.push(note);
+  }
+  dropCache(normalized);
+  return { accepted, problems };
 }
 
 /** Разобранная заметка переезжает в `принятое`, а не удаляется. */

@@ -14,6 +14,19 @@
       "items": {
         "$ref": "#/$defs/record"
       }
+    },
+    "skipped": {
+      "type": "array",
+      "description": "Заметки, из которых заводить нечего, и почему. Человек принимает их без записей: заметка переезжает в «принятое».",
+      "items": {
+        "type": "object",
+        "required": ["note", "why"],
+        "additionalProperties": false,
+        "properties": {
+          "note": { "type": "string", "minLength": 1 },
+          "why": { "type": "string", "minLength": 1 }
+        }
+      }
     }
   },
   "$defs": {
@@ -23,6 +36,12 @@
         "key",
         "type",
         "title"
+      ],
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "reference" } }, "required": ["type"] },
+          "then": { "required": ["summary"] }
+        }
       ],
       "additionalProperties": false,
       "properties": {
@@ -40,7 +59,8 @@
             "task",
             "phase",
             "verification",
-            "map"
+            "map",
+            "reference"
           ]
         },
         "title": {
@@ -60,6 +80,11 @@
           ],
           "description": "Что за изменение вносит задача."
         },
+        "summary": { "type": "string", "description": "Только у type: reference — одна строка, что решает; попадает в индекс справочника." },
+        "kind": { "enum": ["component", "api", "technique", "data"], "description": "Только у type: reference." },
+        "source": { "type": "string", "description": "Только у type: reference — откуда взято." },
+        "fetched": { "type": "string", "description": "Только у type: reference — дата получения, ГГГГ-ММ-ДД." },
+        "reuse": { "enum": ["none"], "description": "Только у task — «заглянул в справочник, подходящего нет»." },
         "links": {
           "type": "object",
           "additionalProperties": {

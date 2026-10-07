@@ -301,7 +301,7 @@
 Сервер выдаёт следующий свободный идентификатор, собирает имя файла из слага,
 пишет файл и возвращает запись. Занятый идентификатор — `409`.
 
-Необязательное `body` — готовый текст раздела задачи (строка Markdown): так экран
+Тип `reference` создаётся тем же маршрутом (`type: "reference"`, поля `summary`, `kind`, `source`, `fetched` — в теле запроса, как `kind` у проверки). Необязательное `body` — готовый текст раздела задачи (строка Markdown): так экран
 «Починить нарушения» кладёт в задачу список нарушений из проверки, а не пересказ
 модели. Для типов, кроме `task`, и пустого `body` ничего не меняется.
 
@@ -491,6 +491,18 @@
 `manifest` — `used` (секция `architecture` читается: блоков правил нет), `ignored`
 (есть блоки, секция не читается) или `absent`. Правил нет и секции нет — `{ "rules": [] }`.
 
+## Справочник
+
+([13-reference.md](13-reference.md))
+
+### `GET /api/projects/:id/reference`
+
+Справки и индекс: `{ "items": [{ "id": "S-0003", "title": "…", "summary": "…", "kind": "api", "fetched": "2026-10-07", "status": "approved", "stale": false, "source": null }], "index": { "path": "reference/INDEX.md", "fresh": true, "lines": 142, "undescribedModules": 12 } }`. `fresh: false` — файл расходится с тем, что собралось бы сейчас.
+
+### `POST /api/projects/:id/reference/rebuild`
+
+Пересобирает `INDEX.md` из подтверждённых справок и карты кода (источники практик — с меткой). Возвращает то же, что `GET …/reference` → `index`. Файл — производное: правка руками пропадёт.
+
 ## Общие практики
 
 ### `GET /api/projects/:id/shared`
@@ -542,7 +554,7 @@ Decision и design из источников, названных в `sources.sha
 ## Входящее
 
 Сырые заметки и заведение записей по ним — `GET /api/projects/:id/inbox`
-(список), `POST .../inbox/preview` (разбор ответа модели), `POST
+(список), `POST .../inbox/preview` (разбор ответа модели; кроме `records` и `problems` отдаёт `skipped` — заметки, из которых заводить нечего), `POST .../inbox/accept` (принять заметки без записей: тело `{ "notes": [...] }`, ответ `{ "accepted", "problems" }`), `POST
 .../inbox/records` (завести подтверждённое) ([10-inbox.md](10-inbox.md)).
 
 ### `POST /api/projects/:id/inbox/notes`
