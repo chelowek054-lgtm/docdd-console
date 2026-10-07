@@ -180,6 +180,7 @@ function isActive(to: string): boolean {
 
         <div class="ml-auto flex items-center gap-1">
           <!-- Доступно всегда: инструкция нужна раньше, чем выбран проект. -->
+          <ModelJobsBar />
           <UButton
             to="/usage"
             :variant="route.path === '/usage' ? 'soft' : 'ghost'"

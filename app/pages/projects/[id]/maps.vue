@@ -90,7 +90,10 @@ const taskId = ref('');
 /** Ответ, поправленный моделью: заменяет прошлый, пока его не сохранили. */
 const fixed = ref('');
 
-const { running: fixing, elapsed, outcome, log, stream, cancel } = useModelRequest();
+const { running: fixing, elapsed, outcome, log, stream, cancel } = useModelRequest(() => `${projectId.value}:map-fix`, {
+  label: 'Поправить ответ по картам',
+  onRecovered: (answer) => acceptFix(answer as { answer: string })
+});
 
 /** Претензии схемы дословно: их и получит модель. */
 const problems = computed(() => (draftFailure.value?.blockers ?? []).map((blocker) => blocker.message));
@@ -116,6 +119,10 @@ async function askToFix(answer: string) {
   });
   if (!result) return;
 
+  acceptFix(result);
+}
+
+function acceptFix(result: { answer: string }) {
   fixed.value = result.answer;
   draftFailure.value = null;
 }

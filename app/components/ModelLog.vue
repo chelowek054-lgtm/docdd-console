@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { LogLine } from '~/composables/useModelRequest';
+import type { LogLine } from '~/stores/modelJobs';
 
 /**
  * Лента работы модели (docs/04-ui.md, раздел «Что модель делает прямо сейчас»).

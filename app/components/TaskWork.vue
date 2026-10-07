@@ -34,7 +34,10 @@ const canHandOver = computed(() => props.status === 'ready' || props.status === 
 const { data: llm } = useFetch<{ available: boolean; reason: string | null }>('/api/llm', { key: 'llm' });
 
 // Отдать модели — работа на много минут: ожидание со счётчиком и отменой.
-const { running: working, elapsed, outcome, log, stream, cancel: cancelWork } = useModelRequest();
+const { running: working, elapsed, outcome, log, stream, cancel: cancelWork } = useModelRequest(() => `${props.projectId}:${props.recordId}:work`, {
+  label: `Работа над ${props.recordId}`,
+  onRecovered: (answer) => afterWork(answer as { answer?: string }, 'handover')
+});
 
 async function act(action: 'handover' | 'rework' | 'accept' | 'reject') {
   failure.value = null;
@@ -70,6 +73,11 @@ async function act(action: 'handover' | 'rework' | 'accept' | 'reject') {
   }
 
   if (!result) return;
+  await afterWork(result, action);
+}
+
+/** Что делает страница с ответом модели; то же самое — когда ответ пришёл без неё. */
+async function afterWork(result: { answer?: string }, action: string) {
   if (result.answer) answer.value = result.answer;
   if (action === 'rework') comment.value = '';
   await refresh();

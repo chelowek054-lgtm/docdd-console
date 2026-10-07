@@ -19,7 +19,10 @@ const props = defineProps<{
 
 const emit = defineEmits<{ changed: [] }>();
 
-const { running, elapsed, outcome, log, stream, cancel } = useModelRequest();
+const { running, elapsed, outcome, log, stream, cancel } = useModelRequest(() => `${props.projectId}:fix`, {
+  label: 'Починка нарушений',
+  onRecovered: (answer) => accept(answer as { state: FixState })
+});
 
 const actor = ref(props.roles[0]?.id ?? '');
 const state = ref<FixState | null>(null);
@@ -48,6 +51,10 @@ async function apply() {
   });
   if (!result) return;
 
+  accept(result);
+}
+
+function accept(result: { state: FixState }) {
   state.value = result.state;
 }
 

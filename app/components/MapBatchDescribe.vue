@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ApiFailure } from '~/composables/useProjectIndex';
-import { describeBatch, type BatchRun, type BatchStep } from '~/utils/batch-describe';
+import { useModelJobs } from '~/stores/modelJobs';
+import { describeBatch, type BatchStep } from '~/utils/batch-describe';
 import { MAX_REQUEST_FILES, batchPlan } from '../../server/lib/inventory';
 
 /**
@@ -34,12 +35,13 @@ const valid = computed(() => Number.isInteger(size.value) && size.value >= 1 && 
   && Number.isInteger(total.value) && total.value >= 1);
 
 const { data: llm } = useFetch<{ available: boolean; reason: string | null }>('/api/llm', { key: 'llm' });
-const { running: asking, elapsed, outcome, stream, cancel } = useModelRequest();
+const { running: asking, elapsed, outcome, stream, cancel } = useModelRequest(() => `${props.projectId}:maps-batch`, { label: 'Описать пачками' });
 
-const running = ref(false);
-const progress = ref<BatchRun | null>(null);
-const finished = ref<BatchRun | null>(null);
-let stopRequested = false;
+// Состояние прогона — в хранилище: цикл переживает страницу, и страница, открытая позже, видит его ход.
+const batch = useModelJobs().batchOf(`${props.projectId}:maps-batch`);
+const running = computed(() => batch.running);
+const progress = computed(() => batch.progress);
+const finished = computed(() => batch.finished);
 
 async function step(skip: number, limit: number): Promise<BatchStep> {
   const number = Math.floor(skip / size.value) + 1;
@@ -51,10 +53,11 @@ async function step(skip: number, limit: number): Promise<BatchStep> {
   if (problem) return { ok: false, reason: problem.message, empty: problem.code === 'nothing_to_describe' };
   const { prompt, count } = built as { prompt: string; count: number };
 
-  const result = await stream<{ answer: string }>('/api/llm/ask', { prompt, projectId: props.projectId });
+  // Цикл дольше страницы: ответ нужен ему самому, уход со страницы его не останавливает.
+  const result = await stream<{ answer: string }>('/api/llm/ask', { prompt, projectId: props.projectId }, { background: true });
   if (!result) {
     const said = outcome.value;
-    if (stopRequested || said?.kind === 'cancelled') return { ok: false, reason: 'остановлено вручную' };
+    if (batch.stop || said?.kind === 'cancelled') return { ok: false, reason: 'остановлено вручную' };
     return { ok: false, reason: said?.kind === 'failure' ? said.failure.message : 'модель не ответила' };
   }
 
@@ -69,34 +72,34 @@ async function step(skip: number, limit: number): Promise<BatchStep> {
 }
 
 async function start() {
-  if (!valid.value || running.value) return;
-  running.value = true;
-  stopRequested = false;
-  finished.value = null;
-  progress.value = { planned: plan.value.steps, done: 0, files: 0, drafts: [], reason: null };
+  if (!valid.value || batch.running) return;
+  batch.running = true;
+  batch.stop = false;
+  batch.finished = null;
+  batch.progress = { planned: plan.value.steps, done: 0, files: 0, drafts: [], reason: null };
   try {
-    finished.value = await describeBatch({
+    batch.finished = await describeBatch({
       size: size.value,
       total: total.value,
       left: props.left,
       step,
-      stopped: () => stopRequested,
-      onProgress: (run) => { progress.value = run; }
+      stopped: () => batch.stop,
+      onProgress: (run) => { batch.progress = run; }
     });
   } finally {
-    running.value = false;
-    progress.value = null;
+    batch.running = false;
+    batch.progress = null;
     emit('changed');
   }
 }
 
 function stop() {
-  stopRequested = true;
+  batch.stop = true;
   cancel();
 }
 
-// Закрыли страницу — прогон остановлен, как будто нажали «Остановить»: фоновых процессов нет.
-onBeforeUnmount(stop);
+// Закрыли страницу — прогон продолжается в фоне (docs/04-ui.md, «Запрос к модели»): остановить его
+// можно кнопкой здесь или «Отменить» в списке заданий в шапке.
 
 const summary = computed(() => {
   const run = finished.value;

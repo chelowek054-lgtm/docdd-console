@@ -71,7 +71,10 @@ const accepting = ref(false);
 const trouble = ref<ApiFailure | null>(null);
 const saving = ref(false);
 
-const { running, elapsed, outcome, log, stream, cancel } = useModelRequest();
+const { running, elapsed, outcome, log, stream, cancel } = useModelRequest(() => `${projectId.value}:inbox`, {
+  label: 'Разбор входящего',
+  onRecovered: (answer) => afterAnswer(answer as { answer: string })
+});
 
 /** Не выбрали ничего — разбираем всё: так чаще всего и нужно. */
 const notes = computed(() => (chosen.value.length ? chosen.value : (inbox.value?.notes ?? []).map((note) => note.path)));
@@ -134,7 +137,11 @@ async function analyse() {
     projectId: projectId.value
   });
   if (!answer) return;
+  await afterAnswer(answer);
+}
 
+/** Ответ модели разбирается в список здесь же: на месте или после возвращения на страницу. */
+async function afterAnswer(answer: { answer: string }) {
   // Разбираем ответ здесь же, чтобы человек правил список, а не текст.
   const parsed = await $fetch<{ records: ProposedRecord[]; problems: string[]; skipped: { note: string; why: string }[] } | { error: ApiFailure }>(
     `/api/projects/${projectId.value}/inbox/preview`,
