@@ -70,7 +70,8 @@ const entries = computed<NavEntry[]>(() => {
         { label: 'Требования', to: `${base}/requirements`, count: unconfirmed('requirement') },
         { label: 'Проектные документы', to: `${base}/documents?type=design`, count: unconfirmed('design') },
         { label: 'Решения', to: `${base}/documents?type=decision`, count: unconfirmed('decision') },
-        { label: 'Контракты', to: `${base}/documents?type=contract`, count: unconfirmed('contract') }
+        { label: 'Контракты', to: `${base}/documents?type=contract`, count: unconfirmed('contract') },
+        { label: 'Справочник', to: `${base}/reference`, count: unconfirmed('reference') }
       ]
     },
     {
@@ -97,7 +98,6 @@ const entries = computed<NavEntry[]>(() => {
       label: 'Наполнение',
       links: [
         { label: 'Входящее', to: `${base}/inbox` },
-        { label: 'Справочник', to: `${base}/reference` },
         { label: 'Импорт', to: `${base}/import` }
       ]
     },
