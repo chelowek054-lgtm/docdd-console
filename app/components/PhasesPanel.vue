@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { rankOf, sortPhases } from '~~/server/lib/work-order';
+import { matchesPhaseFilter, parsePhaseFilter, PHASE_FILTERS, type PhaseFilter } from '~/utils/phases';
 // Вкладка «Фазы» экрана «Работа» (docs/04-ui.md, «Работа: задачи и фазы на одном экране»).
 const route = useRoute();
 const projectId = computed(() => String(route.params['id'] ?? ''));
@@ -8,8 +9,17 @@ const { failure, records, refresh } = useProjectIndex(projectId);
 const { mode } = useOrderMode(records);
 
 /** Статус фазы — посчитанный по задачам, а не из файла (docs/04-ui.md, «Фазы»). */
-const phases = computed(() => sortPhases(records.value.filter((record) => record.type === 'phase'), rankOf, mode.value)
+const router = useRouter();
+const filter = computed(() => parsePhaseFilter(route.query['show']));
+function setFilter(value: PhaseFilter) {
+  const { show: _dropped, ...rest } = route.query;
+  router.replace({ query: value === 'all' ? rest : { ...rest, show: value } });
+}
+
+const all = computed(() => sortPhases(records.value.filter((record) => record.type === 'phase'), rankOf, mode.value)
   .map((phase) => phaseProgress(phase, records.value)));
+const phases = computed(() => all.value.filter((item) => matchesPhaseFilter(item.state, filter.value)));
+const counts = computed(() => Object.fromEntries(PHASE_FILTERS.map((item) => [item.value, all.value.filter((phase) => matchesPhaseFilter(phase.state, item.value)).length])));
 </script>
 
 <template>
@@ -20,18 +30,25 @@ const phases = computed(() => sortPhases(records.value.filter((record) => record
       <div class="flex flex-wrap items-center gap-3">
         <h2 class="text-lg font-semibold">Фазы</h2>
         <p class="text-sm text-muted">{{ phases.length }}</p>
+        <div class="ml-auto flex flex-wrap items-center gap-1">
+          <UButton v-for="item in PHASE_FILTERS" :key="item.value" size="xs" color="neutral" :variant="filter === item.value ? 'solid' : 'ghost'" @click="setFilter(item.value)">{{ item.label }} {{ counts[item.value] }}</UButton>
+        </div>
       </div>
 
       <OverallProgress :records="records" />
 
       <PhasePlanner :project-id="projectId" :records="records" @changed="refresh" />
 
-      <div v-if="phases.length === 0" class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted">
+      <div v-if="phases.length === 0 && all.length > 0" class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted">
+        Под этот фильтр фаз нет. <UButton size="xs" variant="link" @click="setFilter('all')">Показать все</UButton>
+      </div>
+
+      <div v-else-if="phases.length === 0" class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted">
         Фаз в проекте нет. Фаза — запись типа <code>phase</code>; задачи входят в неё
         связью <code>covers</code> у фазы или полем <code>phase</code> у задачи.
       </div>
 
-      <ul v-else class="space-y-3">
+      <ul v-if="phases.length" class="space-y-3">
         <li v-for="item in phases" :key="item.phase.path">
           <UCard>
             <div class="flex flex-wrap items-center gap-3">

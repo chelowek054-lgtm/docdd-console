@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { overallProgress, percent, phaseProgress, phaseState } from '../app/utils/phases';
+import { matchesPhaseFilter, overallProgress, parsePhaseFilter, percent, phaseProgress, phaseState } from '../app/utils/phases';
 import type { IndexRecord, LinkKind } from '../server/lib/types';
 
 /**
@@ -125,5 +125,20 @@ describe('overallProgress', () => {
     expect(overallProgress([])).toEqual({ tasks: { done: 0, total: 0 }, phases: { done: 0, total: 0 } });
     expect(percent(0, 0)).toBe(0);
     expect(percent(1, 3)).toBe(33);
+  });
+
+  it('фильтр по готовности: не закрытые — planned и active, закрытые — done', () => {
+    const states = ['planned', 'active', 'done'] as const;
+    expect(states.filter((state) => matchesPhaseFilter(state, 'all'))).toEqual(['planned', 'active', 'done']);
+    expect(states.filter((state) => matchesPhaseFilter(state, 'open'))).toEqual(['planned', 'active']);
+    expect(states.filter((state) => matchesPhaseFilter(state, 'active'))).toEqual(['active']);
+    expect(states.filter((state) => matchesPhaseFilter(state, 'planned'))).toEqual(['planned']);
+    expect(states.filter((state) => matchesPhaseFilter(state, 'done'))).toEqual(['done']);
+  });
+
+  it('незнакомое значение фильтра — «все»', () => {
+    expect(parsePhaseFilter('open')).toBe('open');
+    expect(parsePhaseFilter('что-то')).toBe('all');
+    expect(parsePhaseFilter(undefined)).toBe('all');
   });
 });

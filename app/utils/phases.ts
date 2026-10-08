@@ -23,6 +23,27 @@ export interface PhaseProgress {
   open: IndexRecord[];
 }
 
+/** Фильтр списка фаз по готовности (docs/04-ui.md, «Фазы»). */
+export type PhaseFilter = 'all' | 'open' | 'active' | 'planned' | 'done';
+
+export const PHASE_FILTERS: readonly { value: PhaseFilter; label: string }[] = [
+  { value: 'all', label: 'Все' },
+  { value: 'open', label: 'Не закрытые' },
+  { value: 'active', label: 'В работе' },
+  { value: 'planned', label: 'Не начатые' },
+  { value: 'done', label: 'Закрытые' }
+];
+
+export function parsePhaseFilter(value: unknown): PhaseFilter {
+  return PHASE_FILTERS.some((item) => item.value === value) ? (value as PhaseFilter) : 'all';
+}
+
+export function matchesPhaseFilter(state: PhaseState, filter: PhaseFilter): boolean {
+  if (filter === 'all') return true;
+  if (filter === 'open') return state !== 'done';
+  return state === filter;
+}
+
 const STARTED = new Set(['in_progress', 'in_review', 'done']);
 const CLOSED = new Set(['done', 'dropped']);
 
