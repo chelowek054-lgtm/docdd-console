@@ -13,7 +13,7 @@ import { findProject } from '../../utils/projects';
  * (docs/adr/0008-llm-through-claude-code.md).
  */
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ prompt?: unknown; projectId?: unknown }>(event);
+  const body = await readBody<{ prompt?: unknown; projectId?: unknown; tools?: unknown }>(event);
   const prompt = typeof body?.prompt === 'string' ? body.prompt.trim() : '';
   const projectId = typeof body?.projectId === 'string' ? body.projectId : '';
 
@@ -35,7 +35,10 @@ export default defineEventHandler(async (event) => {
     signal,
     // Этот запрос спрашивает, а не чинит: до подтверждения человеком в
     // проекте не должно измениться ничего (adr/0010).
-    access: 'read',
+    // Запрос, которому всё нужное уже подставлено (порядок по важности), идёт без инструментов.
+    access: body?.tools === false ? 'none' : 'read',
+    // Там же рассуждать долго незачем: 115 с на запросе в 14 тысяч знаков против 19 с при низком усилии.
+    ...(body?.tools === false ? { effort: 'low' as const } : {}),
     onEvent: (modelEvent) => stream.send(modelEvent.kind, modelEvent)
   });
 

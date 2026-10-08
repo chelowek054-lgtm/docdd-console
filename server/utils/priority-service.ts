@@ -1,6 +1,10 @@
+import { readFileSync } from 'node:fs';
+
 import { applyFieldPatch, applyJournalNote } from '../lib/actions';
 import { dropCache } from '../lib/cache';
-import { normalizeRoot } from '../lib/paths';
+import { normalizeRoot, resolveInside } from '../lib/paths';
+import { parseRecord } from '../lib/parse';
+import { withoutJournal } from '../lib/write';
 import type { PriorityPhase } from '../lib/prompt';
 import type { IndexRecord, LinkKind } from '../lib/types';
 import { membersOf, normalizePlan, rankOf, sortPhases, type PriorityPlan } from '../lib/work-order';
@@ -15,6 +19,19 @@ import { openRecord, today, writeRecord } from './record-write';
 
 /** Что мешает задаче начаться: коды нарушений, о которых человеку стоит знать при расстановке. */
 const BLOCKER_CODES = new Set(['task_not_ready_docs', 'task_maps_unapproved', 'task_no_requirement']);
+
+/** Одна строка о фазе: первое предложение первого абзаца её текста. */
+function briefOf(root: string, phase: IndexRecord): string {
+  try {
+    const parsed = parseRecord(readFileSync(resolveInside(root, phase.path), 'utf8'), { path: phase.path });
+    if (!parsed.ok) return '';
+    const paragraphs = withoutJournal(parsed.record.body).split(/\n\s*\n/).map((part) => part.replace(/\s+/g, ' ').trim());
+    const first = paragraphs.find((part) => part && !part.startsWith('#')) ?? '';
+    return first.split(/(?<=[.!?])\s/)[0] ?? '';
+  } catch {
+    return '';
+  }
+}
 
 export function priorityInput(root: string): { vision: string; phases: PriorityPhase[] } {
   const normalized = normalizeRoot(root);
@@ -39,7 +56,7 @@ export function priorityInput(root: string): { vision: string; phases: PriorityP
   });
 
   const phases = sortPhases(records.filter((record) => record.type === 'phase'), rankOf, 'importance')
-    .map((phase) => ({ id: phase.id, title: phase.title, tasks: membersOf(phase, records).map(taskLine) }));
+    .map((phase) => ({ id: phase.id, title: phase.title, brief: briefOf(normalized, phase), tasks: membersOf(phase, records).map(taskLine) }));
 
   const vision = buildProjectMap(normalized).functional.vision;
   const text = vision ? [vision.problem, vision.outcome ? `Успех: ${vision.outcome}` : '', vision.not ? `Не делает: ${vision.not}` : ''].filter(Boolean).join('\n') : '';

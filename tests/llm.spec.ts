@@ -532,6 +532,31 @@ describe('запрос, который ничего не меняет', () => {
     expect(asked[0]).toContain('Bash');
   });
 
+  it('запрос, которому всё подставлено, идёт без инструментов', async () => {
+    const asked: string[][] = [];
+    const run: Runner = (_command, args) => {
+      asked.push([...args]);
+      return Promise.resolve({ stdout: 'ответ', stderr: '', code: 0 });
+    };
+
+    await ask('вопрос', { run, access: 'none' });
+    const line = (asked[0] ?? []).join(' ');
+    for (const tool of ['Read', 'Glob', 'Grep', 'Edit', 'Write', 'Bash']) expect(line).toContain(tool);
+    expect(asked[0]).toContain('--disallowed-tools');
+    expect(asked[0]).not.toContain('--allowed-tools');
+  });
+
+  it('низкое усилие передаётся флагом', async () => {
+    const asked: string[][] = [];
+    const run: Runner = (_command, args) => {
+      asked.push([...args]);
+      return Promise.resolve({ stdout: 'ответ', stderr: '', code: 0 });
+    };
+    await ask('вопрос', { run, effort: 'low' });
+    expect(asked[0]).toContain('--effort');
+    expect(asked[0]?.[(asked[0]?.indexOf('--effort') ?? 0) + 1]).toBe('low');
+  });
+
   it('починка правит файлы без вопросов, но команды ей не позволены', async () => {
     const asked: string[][] = [];
     const run: Runner = (_command, args) => {

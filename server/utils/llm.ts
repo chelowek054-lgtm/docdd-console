@@ -182,6 +182,8 @@ export interface AskOptions {
    * спрашиваются, а спросить некого, поэтому задавать это стоит всегда.
    */
   access?: Access;
+  /** Усилие рассуждения: у запроса, где всё уже в тексте, низкое — ответ в разы быстрее. */
+  effort?: 'low';
 }
 
 export interface RunOptions {
@@ -253,7 +255,7 @@ const LOST_SESSION = /no conversation found|session .*not found|invalid session/
  * `full` — работа над задачей: там нужны и тесты, и сборка. Идёт в отдельном
  *   рабочем дереве, и её результат человек читает диффом.
  */
-export type Access = 'read' | 'edits' | 'full';
+export type Access = 'none' | 'read' | 'edits' | 'full';
 
 const READING = ['Read', 'Glob', 'Grep'];
 const WRITING = ['Edit', 'Write', 'NotebookEdit'];
@@ -264,6 +266,8 @@ const WRITING = ['Edit', 'Write', 'NotebookEdit'];
  * другой путь и правит его всё равно. Белый список держит.
  */
 const ACCESS_ARGS: Readonly<Record<Access, readonly string[]>> = {
+  // Без инструментов: запрос вмещает всё нужное, и ходить по репозиторию — тратить время и токены зря.
+  none: ['--disallowed-tools', ...READING, ...WRITING, 'Bash', 'WebFetch', 'WebSearch', 'Task', 'Agent'],
   read: ['--allowed-tools', ...READING, '--disallowed-tools', ...WRITING, 'Bash'],
   edits: ['--allowed-tools', ...READING, 'Edit', 'Write', '--disallowed-tools', 'Bash'],
   full: ['--permission-mode', 'bypassPermissions']
@@ -311,6 +315,7 @@ export async function ask(prompt: string, options: AskOptions = {}): Promise<Llm
     if (options.onEvent) args.push(...STREAM_ARGS);
     if (options.resume) args.push('--resume', options.resume);
     if (options.access) args.push(...ACCESS_ARGS[options.access]);
+    if (options.effort) args.push('--effort', options.effort);
 
     const parser = createStreamParser();
     let streamed = '';

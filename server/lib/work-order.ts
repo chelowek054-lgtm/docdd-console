@@ -135,7 +135,10 @@ export function normalizePlan(input: PriorityPlan, records: readonly IndexRecord
   }
   for (const phase of current) {
     if (seenPhase.has(phase.id)) continue;
-    problems.push(`Фаза ${phase.id} не названа в ответе — поставлена в конец в прежнем порядке.`);
+    // Фаза, где закрыто всё, в запрос не шла: она встаёт в конец сама, и шуметь об этом незачем.
+    const members = membersOf(phase, records);
+    const finished = members.length > 0 && members.every((task) => CLOSED.has(task.status));
+    if (!finished) problems.push(`Фаза ${phase.id} не названа в ответе — поставлена в конец в прежнем порядке.`);
     phases.push({ id: phase.id, why: '', tasks: [] });
   }
 
@@ -155,7 +158,8 @@ export function normalizePlan(input: PriorityPlan, records: readonly IndexRecord
     for (const task of members) {
       if (placed.has(task.id)) continue;
       placed.add(task.id);
-      problems.push(`Задача ${task.id} не названа в ответе — поставлена в конец ${phase.id} в прежнем порядке.`);
+      // Закрытое в запрос не шло: оно и так уходит в конец фазы.
+      if (!CLOSED.has(task.status)) problems.push(`Задача ${task.id} не названа в ответе — поставлена в конец ${phase.id} в прежнем порядке.`);
       ordered.push({ id: task.id, why: '' });
     }
     // Закрытое и отменённое — в конце своей фазы, остальное в порядке ответа.
