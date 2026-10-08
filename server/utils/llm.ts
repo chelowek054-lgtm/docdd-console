@@ -182,6 +182,8 @@ export interface AskOptions {
    * спрашиваются, а спросить некого, поэтому задавать это стоит всегда.
    */
   access?: Access;
+  /** Усилие рассуждения: у запроса, где всё уже в тексте, низкое — ответ в разы быстрее. */
+  effort?: 'low';
 }
 
 export interface RunOptions {
@@ -313,6 +315,7 @@ export async function ask(prompt: string, options: AskOptions = {}): Promise<Llm
     if (options.onEvent) args.push(...STREAM_ARGS);
     if (options.resume) args.push('--resume', options.resume);
     if (options.access) args.push(...ACCESS_ARGS[options.access]);
+    if (options.effort) args.push('--effort', options.effort);
 
     const parser = createStreamParser();
     let streamed = '';

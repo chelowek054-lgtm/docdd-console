@@ -546,6 +546,17 @@ describe('запрос, который ничего не меняет', () => {
     expect(asked[0]).not.toContain('--allowed-tools');
   });
 
+  it('низкое усилие передаётся флагом', async () => {
+    const asked: string[][] = [];
+    const run: Runner = (_command, args) => {
+      asked.push([...args]);
+      return Promise.resolve({ stdout: 'ответ', stderr: '', code: 0 });
+    };
+    await ask('вопрос', { run, effort: 'low' });
+    expect(asked[0]).toContain('--effort');
+    expect(asked[0]?.[(asked[0]?.indexOf('--effort') ?? 0) + 1]).toBe('low');
+  });
+
   it('починка правит файлы без вопросов, но команды ей не позволены', async () => {
     const asked: string[][] = [];
     const run: Runner = (_command, args) => {

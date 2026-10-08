@@ -37,6 +37,8 @@ export default defineEventHandler(async (event) => {
     // проекте не должно измениться ничего (adr/0010).
     // Запрос, которому всё нужное уже подставлено (порядок по важности), идёт без инструментов.
     access: body?.tools === false ? 'none' : 'read',
+    // Там же рассуждать долго незачем: 115 с на запросе в 14 тысяч знаков против 19 с при низком усилии.
+    ...(body?.tools === false ? { effort: 'low' as const } : {}),
     onEvent: (modelEvent) => stream.send(modelEvent.kind, modelEvent)
   });
 
