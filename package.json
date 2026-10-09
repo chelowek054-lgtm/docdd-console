@@ -2,6 +2,9 @@
   "name": "docdd-console",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
   "description": "Инструмент контроля разработки по правилу «документ ведёт код»",
   "scripts": {
     "dev": "nuxt dev",
