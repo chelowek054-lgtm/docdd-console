@@ -3,6 +3,22 @@ import { fileURLToPath } from 'node:url';
 export default defineNuxtConfig({
   compatibilityDate: '2026-08-30',
   modules: ['@nuxt/ui', '@pinia/nuxt'],
+
+  // Приложение локальное и работает без сети. @nuxt/fonts при старте ходит за
+  // шрифтами к внешним провайдерам; если сеть их не отдаёт (ECONNRESET), рабочий
+  // процесс vite-node падает и каждая страница отвечает 500 «IPC connection
+  // closed». Поэтому внешние провайдеры отключены — шрифт берётся системный.
+  fonts: {
+    providers: {
+      adobe: false,
+      bunny: false,
+      fontshare: false,
+      fontsource: false,
+      google: false,
+      googleicons: false
+    }
+  },
+
   css: ['~/assets/css/main.css'],
 
   // Приложение локальное: слушает localhost, аутентификации нет, потому что
