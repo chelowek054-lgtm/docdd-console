@@ -25,6 +25,14 @@ export default defineNuxtConfig({
   // нет удалённого доступа (docs/01-architecture.md, раздел «Безопасность»).
   devServer: { host: '127.0.0.1' },
 
+  vite: {
+    // Серверной сборке Vite свой WebSocket не нужен: клиентский HMR висит на
+    // основном сервере, а серверный код обновляет vite-node. Порт ему Nuxt берёт
+    // через get-port-please, и тот первым пробует $PORT — тогда WebSocket
+    // занимает [::]:PORT, а localhost (::1) получает 426 Upgrade Required.
+    $server: { server: { ws: false } }
+  },
+
   nitro: {
     // Шаблоны запросов лежат в docs/prompts и попадают в сборку оттуда же:
     // второй копии в server/assets не заводим, спорить о запросе нужно в дифф.

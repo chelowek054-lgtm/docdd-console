@@ -2,7 +2,7 @@
 id: T-0005
 type: task
 title: 'dev-сервер — localhost:3000 отвечает 426 Upgrade Required'
-status: backlog
+status: in_review
 change: fix
 created: 2026-10-10
 updated: 2026-10-10
@@ -19,3 +19,6 @@ links:
 ## Журнал
 
 - 2026-10-10 · заведена: план «Платформа команды вместо Jira и Confluence» (docs/15-team-platform.md) · модель
+- 2026-10-10 · готова к работе · модель
+- 2026-10-10 · в разработку · модель
+- 2026-10-10 · на проверку · модель
