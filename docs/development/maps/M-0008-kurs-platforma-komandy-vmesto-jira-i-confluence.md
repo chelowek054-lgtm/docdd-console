@@ -2,7 +2,7 @@
 id: M-0008
 type: map
 title: Курс — платформа команды вместо Jira и Confluence
-status: draft
+status: approved
 created: 2026-10-10
 updated: 2026-10-10
 ---
@@ -74,3 +74,5 @@ updated: 2026-10-10
 ## Журнал
 
 - 2026-10-10 · заведена: план «Платформа команды вместо Jira и Confluence» (docs/15-team-platform.md) · модель
+- 2026-10-10 · на подтверждение · architect
+- 2026-10-10 · подтверждён · architect

@@ -2,7 +2,7 @@
 id: R-0002
 type: requirement
 title: Документы консоли не расходятся с кодом и друг с другом
-status: draft
+status: approved
 created: 2026-10-10
 updated: 2026-10-10
 links:
@@ -16,3 +16,5 @@ links:
 ## Журнал
 
 - 2026-10-10 · заведена: план «Платформа команды вместо Jira и Confluence» (docs/15-team-platform.md) · модель
+- 2026-10-10 · на подтверждение · architect
+- 2026-10-10 · подтверждён · architect

@@ -2,7 +2,7 @@
 id: R-0003
 type: requirement
 title: Общий сервер не даёт опасных действий без прав
-status: draft
+status: approved
 created: 2026-10-10
 updated: 2026-10-10
 links:
@@ -16,3 +16,5 @@ links:
 ## Журнал
 
 - 2026-10-10 · заведена: план «Платформа команды вместо Jira и Confluence» (docs/15-team-platform.md) · модель
+- 2026-10-10 · на подтверждение · architect
+- 2026-10-10 · подтверждён · architect

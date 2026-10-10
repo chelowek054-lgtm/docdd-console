@@ -7,15 +7,16 @@
 
 ### app/composables
 - `app/composables/useProjectIndex.ts` — описания нет
-- `app/composables/useModelRequest.ts` — описания нет
+### app/stores
+- `app/stores/modelJobs.ts` — описания нет
 ### app/utils
 - `app/utils/map-mermaid.ts` — Перевод карт в текст mermaid вместе с данными для карточки, подсказок, соседей, порядком узлов mindmap и pending.
 - `app/utils/highlight.ts` — описания нет
 ### server/lib
 - `server/lib/types.ts` — описания нет
 - `server/lib/maps.ts` — Разбор блоков карт, сверка свидетельств, свод подтверждённых карт в общую картину и пометка pending у ещё не устоявшихся.
-- `server/lib/import.ts` — описания нет
 - `server/lib/inbox.ts` — описания нет
+- `server/lib/import.ts` — описания нет
 - `server/lib/workspace.ts` — описания нет
 - `server/lib/actions.ts` — описания нет
 - `server/lib/analyze.ts` — описания нет
@@ -37,8 +38,8 @@
 - `server/lib/stream-events.ts` — описания нет
 - `server/lib/transitions.ts` — описания нет
 ### server/utils
-- `server/utils/fix-service.ts` — описания нет
 - `server/utils/inbox-service.ts` — описания нет
+- `server/utils/fix-service.ts` — описания нет
 - `server/utils/shared-service.ts` — описания нет
 - `server/utils/work-service.ts` — описания нет
 - `server/utils/abort.ts` — описания нет
