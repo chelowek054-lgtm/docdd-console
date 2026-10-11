@@ -2,7 +2,7 @@
 id: T-0080
 type: task
 title: Конструкторы форм и таблиц с заготовкой словаря на два языка
-status: backlog
+status: in_review
 change: feature
 created: 2026-10-11
 updated: 2026-10-11
@@ -18,3 +18,6 @@ links:
 ## Журнал
 
 - 2026-10-11 · заведена · приложение
+- 2026-10-11 · готова к работе · architect
+- 2026-10-11 · в разработку · architect
+- 2026-10-11 · на проверку · architect

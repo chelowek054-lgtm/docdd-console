@@ -28,6 +28,8 @@ interface GlobalDesign {
   projects: ProjectRow[];
 }
 
+const { t } = useT();
+
 const { data } = useFetch<GlobalDesign | { error: ApiFailure }>('/api/design', { key: 'design:global' });
 const failure = computed(() => failureOf(data.value));
 const design = computed(() => (failure.value ? null : (data.value as GlobalDesign | null)));
@@ -37,33 +39,35 @@ const count = (bag: object) => Object.keys(bag).length;
 
 <template>
   <div class="space-y-6">
-    <h1 class="text-xl font-semibold">Дизайн</h1>
+    <h1 class="text-xl font-semibold">{{ t('nav.design') }}</h1>
 
     <ProjectFailure v-if="failure" :failure="failure" />
 
     <template v-else-if="design">
       <section class="space-y-3">
-        <h2 class="font-medium">Эталон</h2>
+        <h2 class="font-medium">{{ t('dg.standard') }}</h2>
 
         <UAlert
           v-if="!design.standard"
           color="neutral"
           variant="subtle"
           icon="i-lucide-palette"
-          title="Эталона пока нет"
-          description="Заведите запись design с блоком docdd-design и тегом design во встроенном источнике practices/, подтвердите её — и она появится здесь."
+          :title="t('dg.none.title')"
+          :description="t('dg.none.text')"
         />
 
         <template v-else>
           <p class="text-sm">
             <span v-for="(source, at) in design.standard.sources" :key="source.id" class="font-mono text-xs">{{ source.id }}<span v-if="at < design.standard.sources.length - 1">, </span></span>
-            · ролей палитры: {{ count(design.standard.tokens.palette.light) }} / {{ count(design.standard.tokens.palette.dark) }}
-            · кеглей: {{ count(design.standard.tokens.typography) }}
-            · отступов: {{ count(design.standard.tokens.spacing) }}
-            · компонентов: {{ design.standard.tokens.components.length }}
+            <template v-if="design.standard.tokens.version"> · v{{ design.standard.tokens.version.value }}</template>
+            · {{ t('dg.roles', { light: count(design.standard.tokens.palette.light), dark: count(design.standard.tokens.palette.dark) }) }}
+            · {{ t('dg.themes', { count: count(design.standard.tokens.themes) }) }}
+            · {{ t('dg.type', { count: count(design.standard.tokens.typography) }) }}
+            · {{ t('dg.spacing', { count: count(design.standard.tokens.spacing) }) }}
+            · {{ t('dg.components', { count: design.standard.tokens.components.length }) }}
             ·
             <span :class="design.standard.checks.length ? 'font-semibold text-warning' : 'text-success'">
-              находок: {{ design.standard.checks.length }}
+              {{ t('dg.findings', { count: design.standard.checks.length }) }}
             </span>
           </p>
           <DesignTokens :tokens="design.standard.tokens" :contrast="design.standard.contrast" :checks="design.standard.checks" />
@@ -71,14 +75,17 @@ const count = (bag: object) => Object.keys(bag).length;
       </section>
 
       <section class="space-y-3">
-        <h2 class="font-medium">Проекты</h2>
-        <p v-if="!design.projects.length" class="text-sm text-muted">Проектов в консоли пока нет.</p>
+        <h2 class="font-medium">{{ t('dg.projects') }}</h2>
+        <p v-if="!design.projects.length" class="text-sm text-muted">{{ t('dg.projects.none') }}</p>
         <div v-else class="overflow-x-auto">
           <table class="w-full min-w-[32rem] text-left text-sm">
             <thead class="text-xs text-muted">
               <tr>
-                <th class="pr-3">Проект</th><th class="pr-3">Дизайн</th>
-                <th class="pr-3">Токены</th><th class="pr-3">Файлы темы</th><th>Экраны</th>
+                <th class="pr-3">{{ t('dg.col.project') }}</th>
+                <th class="pr-3">{{ t('nav.design') }}</th>
+                <th class="pr-3">{{ t('dg.col.tokens') }}</th>
+                <th class="pr-3">{{ t('dg.col.files') }}</th>
+                <th>{{ t('dg.col.screens') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -88,9 +95,9 @@ const count = (bag: object) => Object.keys(bag).length;
                   <p v-if="project.error" class="text-xs text-error">{{ project.error }}</p>
                 </td>
                 <td class="py-1.5 pr-3">
-                  <UBadge v-if="project.connected" color="success" variant="subtle" size="sm">подключил эталон</UBadge>
-                  <UBadge v-else-if="project.hasDesign" color="neutral" variant="subtle" size="sm">только своё</UBadge>
-                  <UBadge v-else color="neutral" variant="outline" size="sm">не подключён</UBadge>
+                  <UBadge v-if="project.connected" color="success" variant="subtle" size="sm">{{ t('dg.connected') }}</UBadge>
+                  <UBadge v-else-if="project.hasDesign" color="neutral" variant="subtle" size="sm">{{ t('dg.ownOnly') }}</UBadge>
+                  <UBadge v-else color="neutral" variant="outline" size="sm">{{ t('dg.notConnected') }}</UBadge>
                 </td>
                 <td class="py-1.5 pr-3" :class="project.tokenIssues ? 'text-warning' : 'text-muted'">{{ project.tokenIssues || '—' }}</td>
                 <td class="py-1.5 pr-3" :class="project.driftIssues ? 'text-warning' : 'text-muted'">{{ project.driftIssues || '—' }}</td>

@@ -84,6 +84,26 @@ export const DEFAULT_GRID = {
   containers: { sm: 33.75, md: 45, lg: 60, xl: 71.25, xxl: 82.5 } as Record<string, number>
 };
 
+/** Запись в списке изменений: версия, что изменилось, когда (по желанию). */
+export interface DesignChange {
+  version: string;
+  summary: string;
+  date?: string;
+}
+
+const SEMVER = /^\d+\.\d+\.\d+$/;
+
+/** Сравнение версий `MAJOR.MINOR.PATCH` числами, а не строками: `1.10.0` новее `1.9.0`. */
+export function compareVersions(a: string, b: string): number {
+  const left = a.split('.').map(Number);
+  const right = b.split('.').map(Number);
+  for (let at = 0; at < 3; at += 1) {
+    const difference = (left[at] ?? 0) - (right[at] ?? 0);
+    if (difference !== 0) return difference;
+  }
+  return 0;
+}
+
 /** Длина строки по умолчанию, пока блок её не назвал (проверка об этом скажет). */
 export const DEFAULT_MEASURE = 70;
 
@@ -125,6 +145,8 @@ export interface Sourced<T> {
 export interface ThemeToken {
   mode: Sourced<BaseTheme>;
   label: Sourced<string> | null;
+  /** Название по языкам, если блок назвал его словарём: `{ "ru": "…", "en": "…" }`. */
+  labels: Sourced<Record<string, string>> | null;
   /** Порог контраста текста темы; `null` — общий 4.5. У контрастной темы — 7. */
   minContrast: Sourced<number> | null;
   colors: Record<string, Sourced<string>>;
@@ -133,6 +155,10 @@ export interface ThemeToken {
 export interface DesignTokens {
   /** Пикселей в `1rem` для платформ без rem; `null` — не названо, действует 16. */
   root: Sourced<number> | null;
+  /** Версия токенов `MAJOR.MINOR.PATCH`: выше из названных; `null` — не названа. */
+  version: Sourced<string> | null;
+  /** Список изменений между версиями: новые сверху. */
+  changes: Sourced<DesignChange>[];
   principles: Sourced<string>[];
   typography: Record<string, Sourced<TypographyToken>>;
   spacing: Record<string, Sourced<number>>;
@@ -215,6 +241,8 @@ const COLOR = /^#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
 
 interface ParsedBlock {
   root: number | null;
+  version: string | null;
+  changes: DesignChange[];
   principles: string[];
   typography: Record<string, TypographyToken>;
   spacing: Record<string, number>;
@@ -231,7 +259,7 @@ interface ParsedBlock {
     containers: Record<string, number>;
   };
   palette: Record<BaseTheme, Record<string, string>>;
-  themes: Record<string, { mode: BaseTheme; label: string | null; minContrast: number | null; palette: Record<string, string> }>;
+  themes: Record<string, { mode: BaseTheme; label: string | null; labels: Record<string, string> | null; minContrast: number | null; palette: Record<string, string> }>;
   i18n: { default: string | null; fallback: string | null; locales: string[] };
   components: DesignComponent[];
   overrides: string[];
@@ -239,7 +267,7 @@ interface ParsedBlock {
 }
 
 const KNOWN_KEYS = new Set([
-  'unit', 'root', 'principles', 'typography', 'spacing', 'radius', 'border', 'icon', 'motion', 'fonts', 'measure',
+  'unit', 'root', 'version', 'changes', 'principles', 'typography', 'spacing', 'radius', 'border', 'icon', 'motion', 'fonts', 'measure',
   'grid', 'palette', 'themes', 'i18n', 'components', 'overrides'
 ]);
 
@@ -251,6 +279,8 @@ const label = (record: DesignRecord) => (record.label ? `[${record.label}] ${rec
 function emptyBlock(): ParsedBlock {
   return {
     root: null,
+    version: null,
+    changes: [],
     principles: [],
     typography: {},
     spacing: {},
@@ -306,6 +336,24 @@ export function parseDesignBlocks(record: DesignRecord): { blocks: ParsedBlock[]
       const root = numeric(raw['root']);
       if (root === null || root === 0) bad('`root` — положительное число пикселей в 1rem.');
       else block.root = root;
+    }
+
+    if (raw['version'] !== undefined) {
+      if (typeof raw['version'] === 'string' && SEMVER.test(raw['version'])) block.version = raw['version'];
+      else bad('`version` — версия вида `1.2.0`.');
+    }
+    if (raw['changes'] !== undefined) {
+      if (Array.isArray(raw['changes'])) {
+        for (const item of raw['changes']) {
+          if (isObject(item) && typeof item['version'] === 'string' && SEMVER.test(item['version']) && typeof item['summary'] === 'string' && item['summary'].trim() !== '') {
+            block.changes.push({
+              version: item['version'],
+              summary: item['summary'].trim(),
+              ...(typeof item['date'] === 'string' ? { date: item['date'] } : {})
+            });
+          } else bad('запись в `changes` — `{ "version": "1.2.0", "summary": "что изменилось" }`.');
+        }
+      } else bad('`changes` должен быть списком.');
     }
 
     if (raw['principles'] !== undefined) {
@@ -418,9 +466,20 @@ export function parseDesignBlocks(record: DesignRecord): { blocks: ParsedBlock[]
         if (item['minContrast'] !== undefined && (minContrast === null || minContrast < MIN_CONTRAST || minContrast > 21)) {
           bad(`у темы \`${name}\` \`minContrast\` — число от ${MIN_CONTRAST} до 21.`);
         }
-        const theme: { mode: BaseTheme; label: string | null; minContrast: number | null; palette: Record<string, string> } = {
+        // Название — строка или словарь по языкам: { "ru": "Океан", "en": "Ocean" }.
+        const rawLabel = item['label'];
+        const labels = isObject(rawLabel)
+          ? Object.fromEntries(Object.entries(rawLabel).filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].trim() !== ''))
+          : null;
+        if (isObject(rawLabel) && (!labels || Object.keys(labels).length === 0)) {
+          bad(`у темы \`${name}\` \`label\` — строка или словарь язык → название.`);
+        }
+        const theme: { mode: BaseTheme; label: string | null; labels: Record<string, string> | null; minContrast: number | null; palette: Record<string, string> } = {
           mode: item['mode'],
-          label: typeof item['label'] === 'string' && item['label'].trim() !== '' ? item['label'].trim() : null,
+          label: typeof rawLabel === 'string' && rawLabel.trim() !== ''
+            ? rawLabel.trim()
+            : labels && Object.keys(labels).length > 0 ? (labels['en'] ?? Object.values(labels)[0] ?? null) : null,
+          labels: labels && Object.keys(labels).length > 0 ? labels : null,
           minContrast: minContrast !== null && minContrast >= MIN_CONTRAST && minContrast <= 21 ? minContrast : null,
           palette: {}
         };
@@ -567,6 +626,8 @@ export function resolveDesign(input: { general: readonly DesignRecord[]; local: 
 
   const tokens: DesignTokens = {
     root: null,
+    version: null,
+    changes: [],
     principles: [],
     typography: {},
     spacing: {},
@@ -622,6 +683,7 @@ export function resolveDesign(input: { general: readonly DesignRecord[]; local: 
 
   const modeBags: Record<string, Record<string, Sourced<BaseTheme>>> = {};
   const labelBags: Record<string, Record<string, Sourced<string>>> = {};
+  const labelsBags: Record<string, Record<string, Sourced<Record<string, string>>>> = {};
   const colorBags: Record<string, Record<string, Sourced<string>>> = {};
   const contrastBags: Record<string, Record<string, Sourced<number>>> = {};
 
@@ -629,6 +691,20 @@ export function resolveDesign(input: { general: readonly DesignRecord[]; local: 
     const { block } = from;
 
     if (block.root !== null) tokens.root = single(tokens.root, 'root', block.root, from);
+    // Версия — не спор, а «какая новее»: действует наибольшая из названных.
+    if (block.version !== null && (!tokens.version || compareVersions(block.version, tokens.version.value) > 0)) {
+      tokens.version = {
+        value: block.version,
+        source: from.source,
+        level: from.level,
+        overrides: tokens.version ? [...tokens.version.overrides, tokens.version.source] : []
+      };
+    }
+    for (const change of block.changes) {
+      if (!tokens.changes.some((item) => item.value.version === change.version && item.value.summary === change.summary)) {
+        tokens.changes.push({ value: change, source: from.source, level: from.level, overrides: [] });
+      }
+    }
 
     for (const text of block.principles) {
       if (!tokens.principles.some((item) => item.value === text)) {
@@ -658,6 +734,7 @@ export function resolveDesign(input: { general: readonly DesignRecord[]; local: 
     for (const [name, theme] of Object.entries(block.themes)) {
       set((modeBags[name] ??= {}), 'mode', `themes.${name}.mode`, theme.mode, from);
       if (theme.label !== null) set((labelBags[name] ??= {}), 'label', `themes.${name}.label`, theme.label, from);
+      if (theme.labels !== null) set((labelsBags[name] ??= {}), 'labels', `themes.${name}.labels`, theme.labels, from);
       if (theme.minContrast !== null) set((contrastBags[name] ??= {}), 'minContrast', `themes.${name}.minContrast`, theme.minContrast, from);
       for (const [role, value] of Object.entries(theme.palette)) {
         set((colorBags[name] ??= {}), role, `themes.${name}.${role}`, value, from);
@@ -686,10 +763,13 @@ export function resolveDesign(input: { general: readonly DesignRecord[]; local: 
     for (const [key, value] of Object.entries(block.extra)) set(tokens.extra, key, key, value, from);
   }
 
+  tokens.changes.sort((a, b) => compareVersions(b.value.version, a.value.version));
+
   for (const name of Object.keys(modeBags)) {
     tokens.themes[name] = {
       mode: modeBags[name]!['mode'] as Sourced<BaseTheme>,
       label: labelBags[name]?.['label'] ?? null,
+      labels: labelsBags[name]?.['labels'] ?? null,
       minContrast: contrastBags[name]?.['minContrast'] ?? null,
       colors: colorBags[name] ?? {}
     };
@@ -741,36 +821,46 @@ export function resolveDesign(input: { general: readonly DesignRecord[]; local: 
   return { tokens, checks, contrast, conflicts, problems, sources, empty };
 }
 
+/**
+ * Контраст палитры одной темы: текстовые пары по порогу темы (у контрастной он
+ * выше), фокус — не текстовый элемент, 3:1 (у AAA-темы 4.5:1). Общая для
+ * проверки токенов и для конструктора тем, чтобы число на экране и число в
+ * нарушении не могли разойтись.
+ */
+export function paletteContrast(palette: Record<string, string>, minContrast: number | null): Omit<ContrastRow, 'theme'>[] {
+  const rows: Omit<ContrastRow, 'theme'>[] = [];
+  const base = palette['bg'];
+  const strict = minContrast ?? MIN_CONTRAST;
+  const groups: { pairs: readonly (readonly [string, string])[]; min: number }[] = [
+    { pairs: CONTRAST_PAIRS, min: Math.max(MIN_CONTRAST, strict) },
+    { pairs: NON_TEXT_PAIRS, min: strict >= 7 ? 4.5 : MIN_NON_TEXT_CONTRAST }
+  ];
+  for (const group of groups) {
+    for (const pair of group.pairs) {
+      const foreground = palette[pair[0]];
+      const background = palette[pair[1]];
+      // Нет роли в теме — это `design_theme_incomplete`, а не нулевой контраст.
+      if (!foreground || !background) continue;
+      const ratio = contrastRatio(foreground, background, base);
+      const resolved = over(toRgb(background), base ? toRgb(base) : { r: 255, g: 255, b: 255, a: 1 });
+      rows.push({
+        pair: [pair[0], pair[1]],
+        ratio,
+        ok: ratio >= group.min,
+        min: group.min,
+        fg: hexOf(over(toRgb(foreground), resolved)),
+        bg: hexOf(resolved)
+      });
+    }
+  }
+  return rows;
+}
+
 function contrastRows(tokens: DesignTokens): ContrastRow[] {
   const rows: ContrastRow[] = [];
   for (const theme of themeNames(tokens)) {
-    const palette = themePalette(tokens, theme);
-    const base = palette['bg']?.value;
-    const strict = tokens.themes[theme]?.minContrast?.value ?? MIN_CONTRAST;
-    // Текст — по порогу темы (у контрастной он выше); фокус — не текстовый элемент: 3:1, а у AAA-темы 4.5:1.
-    const groups: { pairs: readonly (readonly [string, string])[]; min: number }[] = [
-      { pairs: CONTRAST_PAIRS, min: Math.max(MIN_CONTRAST, strict) },
-      { pairs: NON_TEXT_PAIRS, min: strict >= 7 ? 4.5 : MIN_NON_TEXT_CONTRAST }
-    ];
-    for (const group of groups) {
-      for (const pair of group.pairs) {
-        const foreground = palette[pair[0]]?.value;
-        const background = palette[pair[1]]?.value;
-        // Нет роли в теме — это `design_theme_incomplete`, а не нулевой контраст.
-        if (!foreground || !background) continue;
-        const ratio = contrastRatio(foreground, background, base);
-        const resolved = over(toRgb(background), base ? toRgb(base) : { r: 255, g: 255, b: 255, a: 1 });
-        rows.push({
-          theme,
-          pair: [pair[0], pair[1]],
-          ratio,
-          ok: ratio >= group.min,
-          min: group.min,
-          fg: hexOf(over(toRgb(foreground), resolved)),
-          bg: hexOf(resolved)
-        });
-      }
-    }
+    const palette = Object.fromEntries(Object.entries(themePalette(tokens, theme)).map(([role, item]) => [role, item.value]));
+    for (const row of paletteContrast(palette, tokens.themes[theme]?.minContrast?.value ?? null)) rows.push({ theme, ...row });
   }
   return rows;
 }
@@ -791,6 +881,9 @@ function completeness(tokens: DesignTokens): DesignCheck[] {
   gap('шкале отступов', SPACING_NAMES, Object.keys(tokens.spacing));
   gap('шкале радиусов', RADIUS_NAMES, Object.keys(tokens.radius));
   gap('реестре компонентов', COMPONENT_NAMES, tokens.components.map((item) => item.value.name));
+  if (tokens.version === null) {
+    found.push({ code: 'design_scale_gap', message: 'Не названа версия токенов `version`: без неё файлы темы нельзя сверить по версии, а изменения — перечислить.', source: null, names: ['version'] });
+  }
   gap('шрифтах', FONT_NAMES, Object.keys(tokens.fonts));
   gap('толщинах линий', BORDER_NAMES, Object.keys(tokens.border));
   gap('размерах значков', ICON_NAMES, Object.keys(tokens.icon));
@@ -896,6 +989,9 @@ function i18nChecks(tokens: DesignTokens): DesignCheck[] {
 export interface PlainTokens {
   /** Пикселей в `1rem` для платформ без rem. */
   root: number;
+  /** Версия токенов; `0.0.0`, пока не названа. */
+  version: string;
+  changes: DesignChange[];
   principles: string[];
   /** Все размеры — в rem. */
   typography: Record<string, TypographyToken>;
@@ -919,7 +1015,7 @@ export interface PlainTokens {
   /** Базовые темы. */
   palette: Record<BaseTheme, Record<string, string>>;
   /** Добавленные темы с итоговой палитрой (база + переопределения). */
-  themes: Record<string, { label: string; mode: BaseTheme; minContrast: number; palette: Record<string, string> }>;
+  themes: Record<string, { label: string; labels: Record<string, string> | null; mode: BaseTheme; minContrast: number; palette: Record<string, string> }>;
   i18n: { default: string; fallback: string; locales: string[] };
   components: DesignComponent[];
 }
@@ -931,6 +1027,8 @@ export function plainTokens(tokens: DesignTokens): PlainTokens {
 
   return {
     root: tokens.root?.value ?? DEFAULT_ROOT,
+    version: tokens.version?.value ?? '0.0.0',
+    changes: tokens.changes.map((item) => item.value),
     principles: tokens.principles.map((item) => item.value),
     typography: values(tokens.typography),
     spacing: values(tokens.spacing),
@@ -950,6 +1048,7 @@ export function plainTokens(tokens: DesignTokens): PlainTokens {
     themes: Object.fromEntries(Object.entries(tokens.themes).map(([name, theme]) => [name, {
       minContrast: theme.minContrast?.value ?? MIN_CONTRAST,
       label: theme.label?.value ?? name,
+      labels: theme.labels?.value ?? null,
       mode: theme.mode.value,
       palette: values(themePalette(tokens, name))
     }])),

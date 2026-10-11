@@ -2,7 +2,7 @@
 id: T-0082
 type: task
 title: Версия токенов и список изменений между версиями
-status: backlog
+status: in_review
 change: feature
 created: 2026-10-11
 updated: 2026-10-11
@@ -18,3 +18,6 @@ links:
 ## Журнал
 
 - 2026-10-11 · заведена · приложение
+- 2026-10-11 · готова к работе · architect
+- 2026-10-11 · в разработку · architect
+- 2026-10-11 · на проверку · architect

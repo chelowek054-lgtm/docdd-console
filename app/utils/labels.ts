@@ -78,12 +78,28 @@ export function severityColor(severity: Severity): BadgeColor {
   return severity === 'error' ? 'error' : 'warning';
 }
 
+/**
+ * Подписи — на языке интерфейса (docs/16-design-system.md, «i18n»): ключ
+ * `type.<код>` / `status.<код>` / `result.<код>`. Незнакомый код — как есть,
+ * это слово контракта, а не повод ронять экран.
+ */
+function label(prefix: string, code: string, fallback: Record<string, string>): string {
+  const key = `${prefix}.${code}`;
+  const { t } = useT();
+  const text = t(key);
+  return text === key ? (fallback[code] ?? code) : text;
+}
+
 export function typeLabel(type: string): string {
-  return TYPE_LABELS[type] ?? type;
+  return label('type', type, TYPE_LABELS);
 }
 
 export function statusLabel(status: string): string {
-  return STATUS_LABELS[status] ?? status;
+  return label('status', status, STATUS_LABELS);
+}
+
+export function resultLabel(state: string): string {
+  return label('result', state, RESULT_LABELS);
 }
 
 /** «5 дней» вместо «5 день»: мелочь, которая выдаёт машинный текст. */

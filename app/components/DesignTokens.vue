@@ -3,9 +3,9 @@ import {
   BORDER_NAMES,
   BREAKPOINT_NAMES,
   CONTAINER_NAMES,
+  DEFAULT_ROOT,
   ICON_NAMES,
   MOTION_NAMES,
-  DEFAULT_ROOT,
   PALETTE_ROLES,
   RADIUS_NAMES,
   REQUIRED_LOCALE,
@@ -21,15 +21,19 @@ import {
 /**
  * Токены проекта после сложения «общее → локальное» (docs/04-ui.md, «Дизайн»):
  * палитра всех тем рядом с числами контраста, шкалы в натуральную величину в
- * rem, сетка, языки, принципы. У каждой части — откуда она. Образцы — свои
- * элементы со своим фоном, а не токены Nuxt UI: экран показывает именно
- * значения токенов.
+ * rem, сетка, языки, принципы, версия и список изменений. У каждой части —
+ * откуда она. Образцы — свои элементы со своим фоном, а не токены Nuxt UI:
+ * экран показывает именно значения токенов. В режиме разработчика рядом —
+ * имена переменных выгрузки.
  */
 const props = defineProps<{
   tokens: DesignTokens;
   contrast: ContrastRow[];
   checks: DesignCheck[];
+  developer?: boolean;
 }>();
+
+const { t, locale } = useT();
 
 const root = computed(() => props.tokens.root?.value ?? DEFAULT_ROOT);
 
@@ -43,9 +47,11 @@ const themes = computed(() => themeNames(props.tokens));
 const palettes = computed(() => Object.fromEntries(themes.value.map((name) => [name, themePalette(props.tokens, name)])));
 
 const themeLabel = (name: string) => {
-  if (name === 'light') return 'Светлая';
-  if (name === 'dark') return 'Тёмная';
-  return props.tokens.themes[name]?.label?.value ?? name;
+  if (name === 'light') return t('dt.theme.light');
+  if (name === 'dark') return t('dt.theme.dark');
+  const theme = props.tokens.themes[name];
+  // Название по языку интерфейса, затем общая строка, затем имя: пустого места не бывает.
+  return theme?.labels?.value[locale.value] ?? theme?.label?.value ?? name;
 };
 
 const roles = computed(() => {
@@ -83,10 +89,12 @@ const iconNames = computed(() => names(props.tokens.icon, ICON_NAMES));
 const motionNames = computed(() => names(props.tokens.motion, MOTION_NAMES));
 const fontNames = computed(() => Object.keys(props.tokens.fonts));
 
-const sourceLabel = (item: { source: string; level: string; overrides: string[] }) =>
-  item.overrides.length ? `${item.source} (перекрыл ${item.overrides.join(', ')})` : item.source;
+const kebab = (value: string) => value.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
 
-/** Демонстрация сетки: колонки и поле в rem, ширина — контейнер выбранной точки. */
+const sourceLabel = (item: { source: string; level: string; overrides: string[] }) =>
+  item.overrides.length ? `${item.source} (${t('dt.overrode', { list: item.overrides.join(', ') })})` : item.source;
+
+/** Демонстрация сетки: колонки и поле в rem. */
 const gridColumns = computed(() => props.tokens.grid.columns?.value ?? 12);
 const gridGutter = computed(() => props.tokens.grid.gutter?.value ?? 1.5);
 const locales = computed(() => props.tokens.i18n.locales.map((item) => item.value));
@@ -95,27 +103,45 @@ const i18nTrouble = computed(() => locales.value.length < 2 || !locales.value.in
 
 <template>
   <div class="space-y-8">
+    <section v-if="tokens.version" class="space-y-2">
+      <div class="flex flex-wrap items-center gap-3">
+        <h2 class="font-medium">{{ t('dt.version') }}</h2>
+        <UBadge color="primary" variant="subtle">v{{ tokens.version.value }}</UBadge>
+        <span class="text-xs text-muted">{{ tokens.version.source }}</span>
+      </div>
+      <details v-if="tokens.changes.length">
+        <summary class="cursor-pointer text-sm">{{ t('dt.changes.title') }}</summary>
+        <ul class="mt-2 space-y-1 text-sm">
+          <li v-for="change in tokens.changes" :key="`${change.value.version}:${change.value.summary}`" class="flex flex-wrap gap-x-3">
+            <span class="font-mono text-xs">v{{ change.value.version }}</span>
+            <span v-if="change.value.date" class="text-xs text-muted">{{ change.value.date }}</span>
+            <span>{{ change.value.summary }}</span>
+          </li>
+        </ul>
+      </details>
+    </section>
+
     <section class="space-y-3">
-      <h2 class="font-medium">Палитра по ролям</h2>
-      <p class="text-sm text-muted">
-        Все темы рядом: светлая и тёмная — база, остальные — поверх неё. У текстовых ролей — контраст с их фоном;
-        ниже 4.5:1 подсвечено.
-      </p>
+      <h2 class="font-medium">{{ t('dt.palette.title') }}</h2>
+      <p class="text-sm text-muted">{{ t('dt.palette.lead') }}</p>
       <div class="overflow-x-auto">
         <table class="w-full min-w-[34rem] text-left text-sm">
           <thead class="text-xs text-muted">
             <tr>
-              <th class="pr-3">Роль</th>
+              <th class="pr-3">{{ t('dt.col.role') }}</th>
               <th v-for="theme in themes" :key="theme" class="pr-3">
                 {{ themeLabel(theme) }}
-                <span v-if="tokens.themes[theme]" class="font-normal">· на базе {{ tokens.themes[theme]!.mode.value }}</span>
+                <span v-if="tokens.themes[theme]" class="font-normal">· {{ t('dt.baseOn', { mode: tokens.themes[theme]!.mode.value }) }}</span>
               </th>
-              <th>Источник</th>
+              <th>{{ t('dt.col.source') }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="role in roles" :key="role" class="border-t border-default align-middle">
-              <td class="py-1.5 pr-3 font-mono text-xs">{{ role }}</td>
+              <td class="py-1.5 pr-3 font-mono text-xs">
+                {{ role }}
+                <span v-if="developer" class="block text-muted">--ds-color-{{ kebab(role) }}</span>
+              </td>
               <td v-for="theme in themes" :key="theme" class="py-1.5 pr-3">
                 <div v-if="palettes[theme]?.[role]" class="flex flex-wrap items-center gap-2">
                   <span
@@ -123,11 +149,11 @@ const i18nTrouble = computed(() => locales.value.length < 2 || !locales.value.in
                     :style="{ backgroundColor: palettes[theme]![role]!.value, color: labelColor(palettes[theme]![role]!.value) }"
                   >{{ palettes[theme]![role]!.value }}</span>
                   <span v-for="row in ratioFor(theme, role)" :key="row.pair.join('/')" class="text-xs" :class="row.ok ? 'text-muted' : 'font-semibold text-error'">
-                    {{ row.ratio }}:1 на {{ row.pair[1] }}
+                    {{ row.ratio }}:1 / {{ row.pair[1] }}
                   </span>
-                  <UBadge v-if="lowKeys.has(`${theme}:${role}`)" color="error" variant="subtle" size="sm">ниже 4.5:1</UBadge>
+                  <UBadge v-if="lowKeys.has(`${theme}:${role}`)" color="error" variant="subtle" size="sm">{{ t('dt.below') }}</UBadge>
                 </div>
-                <span v-else class="text-xs text-warning">нет в этой теме</span>
+                <span v-else class="text-xs text-warning">{{ t('dt.absent') }}</span>
               </td>
               <td class="py-1.5 text-xs text-muted">
                 {{ sourceLabel(tokens.palette.light[role] ?? tokens.palette.dark[role] ?? { source: '—', level: '', overrides: [] }) }}
@@ -139,7 +165,7 @@ const i18nTrouble = computed(() => locales.value.length < 2 || !locales.value.in
     </section>
 
     <section v-if="contrast.length" class="space-y-3">
-      <h2 class="font-medium">Пары «текст/фон»</h2>
+      <h2 class="font-medium">{{ t('dt.pairs.title') }}</h2>
       <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <div v-for="theme in themes" :key="theme" class="space-y-2">
           <p class="text-xs text-muted">{{ themeLabel(theme) }}</p>
@@ -150,19 +176,22 @@ const i18nTrouble = computed(() => locales.value.length < 2 || !locales.value.in
             :class="row.ok ? 'border-default' : 'border-error'"
             :style="{ backgroundColor: row.bg, color: row.fg }"
           >
-            <span>{{ row.pair[0] }} на {{ row.pair[1] }}</span>
-            <span class="font-mono text-xs">{{ row.ratio }}:1 {{ row.ok ? '' : '— ниже 4.5:1' }}</span>
+            <span>{{ t('dt.pair', { fg: row.pair[0], bg: row.pair[1] }) }}</span>
+            <span class="font-mono text-xs">{{ row.ratio }}:1 <template v-if="!row.ok">— {{ t('dt.belowMin', { min: row.min }) }}</template></span>
           </div>
         </div>
       </div>
     </section>
 
     <section class="space-y-3">
-      <h2 class="font-medium">Типографика</h2>
-      <p class="text-sm text-muted">Размеры в rem: следуют за настройкой шрифта пользователя. Корень — {{ root }} px.</p>
+      <h2 class="font-medium">{{ t('dt.typography.title') }}</h2>
+      <p class="text-sm text-muted">{{ t('dt.typography.lead', { root }) }}</p>
       <div class="space-y-2">
         <div v-for="name in typographyNames" :key="name" class="flex flex-wrap items-baseline gap-x-4 border-t border-default pt-2">
-          <span class="w-20 shrink-0 font-mono text-xs text-muted">{{ name }}</span>
+          <span class="w-20 shrink-0 font-mono text-xs text-muted">
+            {{ name }}
+            <span v-if="developer" class="block">--ds-font-{{ kebab(name) }}</span>
+          </span>
           <span
             class="min-w-0"
             :style="{
@@ -170,7 +199,7 @@ const i18nTrouble = computed(() => locales.value.length < 2 || !locales.value.in
               lineHeight: tokens.typography[name]!.value.line ? `${tokens.typography[name]!.value.line}rem` : undefined,
               fontWeight: tokens.typography[name]!.value.weight
             }"
-          >Съешь ещё этих мягких булок</span>
+          >{{ t('dt.sample') }}</span>
           <span class="ml-auto text-xs text-muted">
             {{ remText(tokens.typography[name]!.value.size) }}<template v-if="tokens.typography[name]!.value.line"> / {{ tokens.typography[name]!.value.line }}rem</template>
             · {{ tokens.typography[name]!.value.weight ?? '—' }}
@@ -180,9 +209,32 @@ const i18nTrouble = computed(() => locales.value.length < 2 || !locales.value.in
       </div>
     </section>
 
+    <section class="space-y-3">
+      <h2 class="font-medium">{{ t('dt.fonts.title') }}</h2>
+      <p v-if="!fontNames.length" class="text-sm text-warning">{{ t('dt.fonts.none') }}</p>
+      <div v-for="name in fontNames" :key="name" class="flex flex-wrap items-baseline gap-x-4 border-t border-default pt-2">
+        <span class="w-16 shrink-0 font-mono text-xs text-muted">{{ name }}</span>
+        <span class="min-w-0" :style="{ fontFamily: tokens.fonts[name]!.value }">{{ t('dt.sample') }}</span>
+        <span class="ml-auto text-xs text-muted">{{ tokens.fonts[name]!.value }}</span>
+      </div>
+      <p v-if="fontNames.length > 3" class="text-sm text-warning">{{ t('dt.fonts.many', { count: fontNames.length }) }}</p>
+      <p class="text-sm text-muted">
+        {{ t('dt.measure') }}:
+        <span v-if="tokens.measure">{{ tokens.measure.value }}ch · {{ tokens.measure.source }}</span>
+        <span v-else class="text-warning">{{ t('dt.measure.none') }}</span>
+      </p>
+      <p
+        v-if="tokens.measure"
+        class="max-w-full overflow-hidden rounded bg-elevated p-2 text-sm"
+        :style="{ maxWidth: `${tokens.measure.value}ch` }"
+      >
+        {{ t('dt.measure.sample') }}
+      </p>
+    </section>
+
     <section class="grid gap-6 sm:grid-cols-2">
       <div class="space-y-2">
-        <h2 class="font-medium">Отступы</h2>
+        <h2 class="font-medium">{{ t('dt.spacing.title') }}</h2>
         <div v-for="name in spacingNames" :key="name" class="flex items-center gap-3 border-t border-default pt-2 text-sm">
           <span class="w-12 shrink-0 font-mono text-xs text-muted">{{ name }}</span>
           <span class="h-3 max-w-[50%] rounded-sm bg-primary" :style="{ width: `${tokens.spacing[name]!.value}rem` }" />
@@ -190,7 +242,7 @@ const i18nTrouble = computed(() => locales.value.length < 2 || !locales.value.in
         </div>
       </div>
       <div class="space-y-2">
-        <h2 class="font-medium">Радиусы</h2>
+        <h2 class="font-medium">{{ t('dt.radius.title') }}</h2>
         <div v-for="name in radiusNames" :key="name" class="flex items-center gap-3 border-t border-default pt-2 text-sm">
           <span class="w-12 shrink-0 font-mono text-xs text-muted">{{ name }}</span>
           <span
@@ -202,68 +254,43 @@ const i18nTrouble = computed(() => locales.value.length < 2 || !locales.value.in
       </div>
     </section>
 
-    <section class="space-y-3">
-      <h2 class="font-medium">Шрифты и строка</h2>
-      <p v-if="!fontNames.length" class="text-sm text-warning">Шрифты не названы: нужен хотя бы `body`.</p>
-      <div v-for="name in fontNames" :key="name" class="flex flex-wrap items-baseline gap-x-4 border-t border-default pt-2">
-        <span class="w-16 shrink-0 font-mono text-xs text-muted">{{ name }}</span>
-        <span class="min-w-0" :style="{ fontFamily: tokens.fonts[name]!.value }">Съешь ещё этих мягких булок</span>
-        <span class="ml-auto text-xs text-muted">{{ tokens.fonts[name]!.value }}</span>
-      </div>
-      <p v-if="fontNames.length > 3" class="text-sm text-warning">Семейств {{ fontNames.length }}: не больше трёх.</p>
-      <p class="text-sm text-muted">
-        Длина строки:
-        <span v-if="tokens.measure">{{ tokens.measure.value }}ch · {{ tokens.measure.source }}</span>
-        <span v-else class="text-warning">не задана</span>
-      </p>
-      <p
-        v-if="tokens.measure"
-        class="max-w-full overflow-hidden rounded bg-elevated p-2 text-sm"
-        :style="{ maxWidth: `${tokens.measure.value}ch` }"
-      >
-        Образец строки заданной длины: чем длиннее строка, тем труднее глазу найти начало следующей, а короткая рвёт мысль.
-      </p>
-    </section>
-
     <section class="grid gap-6 sm:grid-cols-3">
       <div class="space-y-2">
-        <h2 class="font-medium">Линии</h2>
+        <h2 class="font-medium">{{ t('dt.border.title') }}</h2>
         <div v-for="name in borderNames" :key="name" class="flex items-center gap-3 border-t border-default pt-2 text-sm">
           <span class="w-12 shrink-0 font-mono text-xs text-muted">{{ name }}</span>
           <span class="block w-16 bg-primary" :style="{ height: `${tokens.border[name]!.value}rem` }" />
           <span class="ml-auto text-xs text-muted">{{ remText(tokens.border[name]!.value) }}</span>
         </div>
-        <p v-if="!borderNames.length" class="text-sm text-warning">Толщины линий не заданы.</p>
+        <p v-if="!borderNames.length" class="text-sm text-warning">{{ t('dt.border.none') }}</p>
       </div>
       <div class="space-y-2">
-        <h2 class="font-medium">Значки</h2>
+        <h2 class="font-medium">{{ t('dt.icon.title') }}</h2>
         <div v-for="name in iconNames" :key="name" class="flex items-center gap-3 border-t border-default pt-2 text-sm">
           <span class="w-12 shrink-0 font-mono text-xs text-muted">{{ name }}</span>
           <span class="block rounded bg-primary/30" :style="{ width: `${tokens.icon[name]!.value}rem`, height: `${tokens.icon[name]!.value}rem` }" />
           <span class="ml-auto text-xs text-muted">{{ remText(tokens.icon[name]!.value) }}</span>
         </div>
-        <p v-if="!iconNames.length" class="text-sm text-warning">Размеры значков не заданы.</p>
+        <p v-if="!iconNames.length" class="text-sm text-warning">{{ t('dt.icon.none') }}</p>
       </div>
       <div class="space-y-2">
-        <h2 class="font-medium">Движение</h2>
+        <h2 class="font-medium">{{ t('dt.motion.title') }}</h2>
         <div v-for="name in motionNames" :key="name" class="flex items-center gap-3 border-t border-default pt-2 text-sm">
           <span class="w-12 shrink-0 font-mono text-xs text-muted">{{ name }}</span>
-          <span class="text-xs">{{ tokens.motion[name]!.value }} мс</span>
+          <span class="text-xs">{{ tokens.motion[name]!.value }} {{ t('dt.ms') }}</span>
           <span class="ml-auto text-xs text-muted">{{ tokens.motion[name]!.source }}</span>
         </div>
-        <p v-if="!motionNames.length" class="text-sm text-warning">Длительности не заданы.</p>
-        <p class="text-xs text-muted">При «уменьшить движение» в системе значения обнуляются в выгрузке.</p>
+        <p v-if="!motionNames.length" class="text-sm text-warning">{{ t('dt.motion.none') }}</p>
+        <p class="text-xs text-muted">{{ t('dt.motion.note') }}</p>
       </div>
     </section>
 
     <section class="space-y-3">
-      <h2 class="font-medium">Сетка</h2>
-      <p v-if="!tokens.grid.columns && !breakpointNames.length" class="text-sm text-warning">
-        Сетка не задана: блок <code>grid</code> обязателен — 12 колонок, поле и точки перелома (docs/16-design-system.md).
-      </p>
+      <h2 class="font-medium">{{ t('dt.grid.title') }}</h2>
+      <p v-if="!tokens.grid.columns && !breakpointNames.length" class="text-sm text-warning">{{ t('dt.grid.none') }}</p>
       <template v-else>
         <p class="text-sm text-muted">
-          {{ gridColumns }} колонок · поле {{ remText(gridGutter) }} · от меньшей ширины к большей (<code>min-width</code>).
+          {{ t('dt.grid.summary', { columns: gridColumns, gutter: remText(gridGutter) }) }}
           <span v-if="tokens.grid.columns" class="text-xs">{{ sourceLabel(tokens.grid.columns) }}</span>
         </p>
         <div
@@ -276,15 +303,23 @@ const i18nTrouble = computed(() => locales.value.length < 2 || !locales.value.in
         <div class="overflow-x-auto">
           <table class="w-full min-w-[24rem] text-left text-sm">
             <thead class="text-xs text-muted">
-              <tr><th class="pr-3">Точка</th><th class="pr-3">От</th><th class="pr-3">Контейнер</th><th>Источник</th></tr>
+              <tr>
+                <th class="pr-3">{{ t('dt.grid.col.point') }}</th>
+                <th class="pr-3">{{ t('dt.grid.col.from') }}</th>
+                <th class="pr-3">{{ t('dt.grid.col.container') }}</th>
+                <th>{{ t('dt.col.source') }}</th>
+              </tr>
             </thead>
             <tbody>
               <tr v-for="name in breakpointNames" :key="name" class="border-t border-default">
-                <td class="py-1.5 pr-3 font-mono text-xs">{{ name }}</td>
+                <td class="py-1.5 pr-3 font-mono text-xs">
+                  {{ name }}
+                  <span v-if="developer" class="block text-muted">--ds-bp-{{ name }}</span>
+                </td>
                 <td class="py-1.5 pr-3">{{ remText(tokens.grid.breakpoints[name]!.value) }}</td>
                 <td class="py-1.5 pr-3">
                   <template v-if="containerNames.includes(name)">{{ remText(tokens.grid.containers[name]!.value) }}</template>
-                  <span v-else class="text-muted">на всю ширину</span>
+                  <span v-else class="text-muted">{{ t('dt.grid.full') }}</span>
                 </td>
                 <td class="py-1.5 text-xs text-muted">{{ sourceLabel(tokens.grid.breakpoints[name]!) }}</td>
               </tr>
@@ -295,21 +330,21 @@ const i18nTrouble = computed(() => locales.value.length < 2 || !locales.value.in
     </section>
 
     <section class="space-y-2">
-      <h2 class="font-medium">Языки (i18n)</h2>
+      <h2 class="font-medium">{{ t('dt.i18n.title') }}</h2>
       <div class="flex flex-wrap items-center gap-2 text-sm">
         <UBadge v-for="item in tokens.i18n.locales" :key="item.value" color="neutral" variant="subtle" size="sm">
           {{ item.value }}
-          <template v-if="tokens.i18n.default?.value === item.value"> · основной</template>
-          <template v-if="tokens.i18n.fallback?.value === item.value"> · запасной</template>
+          <template v-if="tokens.i18n.default?.value === item.value"> · {{ t('dt.i18n.default') }}</template>
+          <template v-if="tokens.i18n.fallback?.value === item.value"> · {{ t('dt.i18n.fallback') }}</template>
         </UBadge>
-        <span v-if="!locales.length" class="text-warning">языки не названы</span>
-        <span v-else-if="i18nTrouble" class="text-warning">нужно не меньше двух языков, среди них английский</span>
+        <span v-if="!locales.length" class="text-warning">{{ t('dt.i18n.none') }}</span>
+        <span v-else-if="i18nTrouble" class="text-warning">{{ t('dt.i18n.trouble') }}</span>
       </div>
-      <p class="text-xs text-muted">В коде интерфейса — только ключи словаря: ни одной строки текста прямо в компоненте.</p>
+      <p class="text-xs text-muted">{{ t('dt.i18n.note') }}</p>
     </section>
 
     <section v-if="tokens.principles.length" class="space-y-2">
-      <h2 class="font-medium">Принципы</h2>
+      <h2 class="font-medium">{{ t('dt.principles.title') }}</h2>
       <ul class="space-y-1 text-sm">
         <li v-for="item in tokens.principles" :key="item.value" class="flex flex-wrap gap-x-3">
           <span>{{ item.value }}</span>
@@ -319,7 +354,7 @@ const i18nTrouble = computed(() => locales.value.length < 2 || !locales.value.in
     </section>
 
     <section v-if="checks.length" class="space-y-2">
-      <h2 class="font-medium">Находки</h2>
+      <h2 class="font-medium">{{ t('dt.findings.title') }}</h2>
       <ul class="space-y-1 text-sm">
         <li v-for="(check, at) in checks" :key="at" class="flex gap-2">
           <code class="shrink-0 text-xs text-warning">{{ check.code }}</code>

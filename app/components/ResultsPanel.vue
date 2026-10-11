@@ -53,7 +53,7 @@ function totalCount(report: (typeof reports.value)[number]): number {
                 class="flex items-center gap-2 text-sm"
               >
                 <NuxtLink :to="`/projects/${projectId}/records/${id}`" class="font-mono hover:underline">{{ id }}</NuxtLink>
-                <UBadge :color="statusColor(state)" variant="subtle" size="sm">{{ RESULT_LABELS[state] }}</UBadge>
+                <UBadge :color="statusColor(state)" variant="subtle" size="sm">{{ resultLabel(state) }}</UBadge>
               </li>
             </ul>
           </details>

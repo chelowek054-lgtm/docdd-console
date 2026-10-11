@@ -8,3 +8,299 @@
 @theme static {
   --color-primary-500: var(--color-sky-500);
 }
+
+/* docdd-design:start — Сгенерировано консолью DocDD из токенов дизайна v1.2.1 (docs/16-design-system.md). Не правьте руками: меняются токены. */
+/* Размеры в rem: следуют за настройкой шрифта пользователя; корень не задаётся в px. */
+html { font-size: 100%; }
+
+/* Точки перелома Tailwind совпадают с сеткой, поэтому md: и ds-col-md-* срабатывают на одной ширине. */
+@theme {
+  --breakpoint-sm: 36rem;
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 62rem;
+  --breakpoint-xl: 75rem;
+  --breakpoint-xxl: 87.5rem;
+}
+
+:root {
+  --ds-space-xs: 0.25rem;
+  --ds-space-sm: 0.5rem;
+  --ds-space-md: 0.75rem;
+  --ds-space-lg: 1rem;
+  --ds-space-xl: 1.5rem;
+  --ds-space-xxl: 2rem;
+  --ds-radius-sm: 0.5rem;
+  --ds-radius-md: 0.75rem;
+  --ds-radius-pill: 62.5rem;
+  --ds-font-caption: 0.75rem;
+  --ds-line-caption: 1.0625rem;
+  --ds-weight-caption: 400;
+  --ds-font-small: 0.8125rem;
+  --ds-line-small: 1.1875rem;
+  --ds-weight-small: 400;
+  --ds-font-body: 0.9375rem;
+  --ds-line-body: 1.375rem;
+  --ds-weight-body: 400;
+  --ds-font-lead: 1.0625rem;
+  --ds-line-lead: 1.5625rem;
+  --ds-weight-lead: 500;
+  --ds-font-title: 1.375rem;
+  --ds-line-title: 2rem;
+  --ds-weight-title: 600;
+  --ds-font-display: 1.75rem;
+  --ds-line-display: 2.5625rem;
+  --ds-weight-display: 700;
+  --ds-grid-columns: 12;
+  --ds-grid-gutter: 1.5rem;
+  --ds-bp-xs: 0rem;
+  --ds-bp-sm: 36rem;
+  --ds-bp-md: 48rem;
+  --ds-bp-lg: 62rem;
+  --ds-bp-xl: 75rem;
+  --ds-bp-xxl: 87.5rem;
+  --ds-border-thin: 0.0625rem;
+  --ds-border-thick: 0.125rem;
+  --ds-icon-sm: 1rem;
+  --ds-icon-md: 1.25rem;
+  --ds-icon-lg: 1.5rem;
+  --ds-motion-fast: 120ms;
+  --ds-motion-base: 200ms;
+  --ds-motion-slow: 320ms;
+  --ds-font-family-body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --ds-font-family-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --ds-measure: 70ch;
+}
+
+:root {
+  color-scheme: light;
+  --ds-color-bg: #F4F6F4;
+  --ds-color-surface: #FFFFFF;
+  --ds-color-surface-alt: #E7ECE9;
+  --ds-color-ink: #141F1C;
+  --ds-color-muted: #516760;
+  --ds-color-line: #D3DCD7;
+  --ds-color-accent: #1B6552;
+  --ds-color-on-accent: #FFFFFF;
+  --ds-color-core: #835412;
+  --ds-color-ok: #256A41;
+  --ds-color-warn: #7B5911;
+  --ds-color-danger: #973024;
+  --ds-color-on-danger: #FFFFFF;
+  --ds-color-focus: #1B6552;
+  --ui-bg: #F4F6F4;
+  --ui-bg-elevated: #FFFFFF;
+  --ui-bg-muted: #E7ECE9;
+  --ui-bg-accented: #E7ECE9;
+  --ui-text: #141F1C;
+  --ui-text-highlighted: #141F1C;
+  --ui-text-muted: #516760;
+  --ui-border: #D3DCD7;
+  --ui-primary: #1B6552;
+  --ui-success: #256A41;
+  --ui-warning: #7B5911;
+  --ui-error: #973024;
+}
+
+.dark {
+  color-scheme: dark;
+  --ds-color-bg: #0E1412;
+  --ds-color-surface: #18211F;
+  --ds-color-surface-alt: #232F2C;
+  --ds-color-ink: #E6EDE9;
+  --ds-color-muted: #9CB0A8;
+  --ds-color-line: #334340;
+  --ds-color-accent: #6BC2A4;
+  --ds-color-on-accent: #08110E;
+  --ds-color-core: #E3AD68;
+  --ds-color-ok: #7CC79A;
+  --ds-color-warn: #E5BC74;
+  --ds-color-danger: #EE9384;
+  --ds-color-on-danger: #2A0F0A;
+  --ds-color-focus: #6BC2A4;
+  --ui-bg: #0E1412;
+  --ui-bg-elevated: #18211F;
+  --ui-bg-muted: #232F2C;
+  --ui-bg-accented: #232F2C;
+  --ui-text: #E6EDE9;
+  --ui-text-highlighted: #E6EDE9;
+  --ui-text-muted: #9CB0A8;
+  --ui-border: #334340;
+  --ui-primary: #6BC2A4;
+  --ui-success: #7CC79A;
+  --ui-warning: #E5BC74;
+  --ui-error: #EE9384;
+}
+
+.theme-contrast {
+  color-scheme: dark;
+  --ds-color-bg: #000000;
+  --ds-color-surface: #0A0A0A;
+  --ds-color-surface-alt: #1A1A1A;
+  --ds-color-ink: #FFFFFF;
+  --ds-color-muted: #E0E0E0;
+  --ds-color-line: #FFFFFF;
+  --ds-color-accent: #FFE600;
+  --ds-color-on-accent: #000000;
+  --ds-color-core: #FFB000;
+  --ds-color-ok: #00FF7F;
+  --ds-color-warn: #FFD54F;
+  --ds-color-danger: #FF8A80;
+  --ds-color-on-danger: #000000;
+  --ds-color-focus: #FFE600;
+  --ui-bg: #000000;
+  --ui-bg-elevated: #0A0A0A;
+  --ui-bg-muted: #1A1A1A;
+  --ui-bg-accented: #1A1A1A;
+  --ui-text: #FFFFFF;
+  --ui-text-highlighted: #FFFFFF;
+  --ui-text-muted: #E0E0E0;
+  --ui-border: #FFFFFF;
+  --ui-primary: #FFE600;
+  --ui-success: #00FF7F;
+  --ui-warning: #FFD54F;
+  --ui-error: #FF8A80;
+}
+
+.ds-container {
+  width: 100%;
+  margin-inline: auto;
+  padding-inline: calc(var(--ds-grid-gutter) / 2);
+}
+.ds-row {
+  display: flex;
+  flex-wrap: wrap;
+  margin-inline: calc(var(--ds-grid-gutter) / -2);
+}
+.ds-row > * {
+  box-sizing: border-box;
+  flex-shrink: 0;
+  width: 100%;
+  max-width: 100%;
+  padding-inline: calc(var(--ds-grid-gutter) / 2);
+}
+.ds-col { flex: 1 0 0%; }
+.ds-col-auto { flex: 0 0 auto; width: auto; }
+.ds-col-1 { flex: 0 0 auto; width: 8.333333%; }
+.ds-col-2 { flex: 0 0 auto; width: 16.666667%; }
+.ds-col-3 { flex: 0 0 auto; width: 25%; }
+.ds-col-4 { flex: 0 0 auto; width: 33.333333%; }
+.ds-col-5 { flex: 0 0 auto; width: 41.666667%; }
+.ds-col-6 { flex: 0 0 auto; width: 50%; }
+.ds-col-7 { flex: 0 0 auto; width: 58.333333%; }
+.ds-col-8 { flex: 0 0 auto; width: 66.666667%; }
+.ds-col-9 { flex: 0 0 auto; width: 75%; }
+.ds-col-10 { flex: 0 0 auto; width: 83.333333%; }
+.ds-col-11 { flex: 0 0 auto; width: 91.666667%; }
+.ds-col-12 { flex: 0 0 auto; width: 100%; }
+@media (min-width: 36rem) {
+  .ds-container { max-width: 33.75rem; }
+  .ds-col-sm { flex: 1 0 0%; }
+  .ds-col-sm-auto { flex: 0 0 auto; width: auto; }
+  .ds-col-sm-1 { flex: 0 0 auto; width: 8.333333%; }
+  .ds-col-sm-2 { flex: 0 0 auto; width: 16.666667%; }
+  .ds-col-sm-3 { flex: 0 0 auto; width: 25%; }
+  .ds-col-sm-4 { flex: 0 0 auto; width: 33.333333%; }
+  .ds-col-sm-5 { flex: 0 0 auto; width: 41.666667%; }
+  .ds-col-sm-6 { flex: 0 0 auto; width: 50%; }
+  .ds-col-sm-7 { flex: 0 0 auto; width: 58.333333%; }
+  .ds-col-sm-8 { flex: 0 0 auto; width: 66.666667%; }
+  .ds-col-sm-9 { flex: 0 0 auto; width: 75%; }
+  .ds-col-sm-10 { flex: 0 0 auto; width: 83.333333%; }
+  .ds-col-sm-11 { flex: 0 0 auto; width: 91.666667%; }
+  .ds-col-sm-12 { flex: 0 0 auto; width: 100%; }
+}
+@media (min-width: 48rem) {
+  .ds-container { max-width: 45rem; }
+  .ds-col-md { flex: 1 0 0%; }
+  .ds-col-md-auto { flex: 0 0 auto; width: auto; }
+  .ds-col-md-1 { flex: 0 0 auto; width: 8.333333%; }
+  .ds-col-md-2 { flex: 0 0 auto; width: 16.666667%; }
+  .ds-col-md-3 { flex: 0 0 auto; width: 25%; }
+  .ds-col-md-4 { flex: 0 0 auto; width: 33.333333%; }
+  .ds-col-md-5 { flex: 0 0 auto; width: 41.666667%; }
+  .ds-col-md-6 { flex: 0 0 auto; width: 50%; }
+  .ds-col-md-7 { flex: 0 0 auto; width: 58.333333%; }
+  .ds-col-md-8 { flex: 0 0 auto; width: 66.666667%; }
+  .ds-col-md-9 { flex: 0 0 auto; width: 75%; }
+  .ds-col-md-10 { flex: 0 0 auto; width: 83.333333%; }
+  .ds-col-md-11 { flex: 0 0 auto; width: 91.666667%; }
+  .ds-col-md-12 { flex: 0 0 auto; width: 100%; }
+}
+@media (min-width: 62rem) {
+  .ds-container { max-width: 60rem; }
+  .ds-col-lg { flex: 1 0 0%; }
+  .ds-col-lg-auto { flex: 0 0 auto; width: auto; }
+  .ds-col-lg-1 { flex: 0 0 auto; width: 8.333333%; }
+  .ds-col-lg-2 { flex: 0 0 auto; width: 16.666667%; }
+  .ds-col-lg-3 { flex: 0 0 auto; width: 25%; }
+  .ds-col-lg-4 { flex: 0 0 auto; width: 33.333333%; }
+  .ds-col-lg-5 { flex: 0 0 auto; width: 41.666667%; }
+  .ds-col-lg-6 { flex: 0 0 auto; width: 50%; }
+  .ds-col-lg-7 { flex: 0 0 auto; width: 58.333333%; }
+  .ds-col-lg-8 { flex: 0 0 auto; width: 66.666667%; }
+  .ds-col-lg-9 { flex: 0 0 auto; width: 75%; }
+  .ds-col-lg-10 { flex: 0 0 auto; width: 83.333333%; }
+  .ds-col-lg-11 { flex: 0 0 auto; width: 91.666667%; }
+  .ds-col-lg-12 { flex: 0 0 auto; width: 100%; }
+}
+@media (min-width: 75rem) {
+  .ds-container { max-width: 71.25rem; }
+  .ds-col-xl { flex: 1 0 0%; }
+  .ds-col-xl-auto { flex: 0 0 auto; width: auto; }
+  .ds-col-xl-1 { flex: 0 0 auto; width: 8.333333%; }
+  .ds-col-xl-2 { flex: 0 0 auto; width: 16.666667%; }
+  .ds-col-xl-3 { flex: 0 0 auto; width: 25%; }
+  .ds-col-xl-4 { flex: 0 0 auto; width: 33.333333%; }
+  .ds-col-xl-5 { flex: 0 0 auto; width: 41.666667%; }
+  .ds-col-xl-6 { flex: 0 0 auto; width: 50%; }
+  .ds-col-xl-7 { flex: 0 0 auto; width: 58.333333%; }
+  .ds-col-xl-8 { flex: 0 0 auto; width: 66.666667%; }
+  .ds-col-xl-9 { flex: 0 0 auto; width: 75%; }
+  .ds-col-xl-10 { flex: 0 0 auto; width: 83.333333%; }
+  .ds-col-xl-11 { flex: 0 0 auto; width: 91.666667%; }
+  .ds-col-xl-12 { flex: 0 0 auto; width: 100%; }
+}
+@media (min-width: 87.5rem) {
+  .ds-container { max-width: 82.5rem; }
+  .ds-col-xxl { flex: 1 0 0%; }
+  .ds-col-xxl-auto { flex: 0 0 auto; width: auto; }
+  .ds-col-xxl-1 { flex: 0 0 auto; width: 8.333333%; }
+  .ds-col-xxl-2 { flex: 0 0 auto; width: 16.666667%; }
+  .ds-col-xxl-3 { flex: 0 0 auto; width: 25%; }
+  .ds-col-xxl-4 { flex: 0 0 auto; width: 33.333333%; }
+  .ds-col-xxl-5 { flex: 0 0 auto; width: 41.666667%; }
+  .ds-col-xxl-6 { flex: 0 0 auto; width: 50%; }
+  .ds-col-xxl-7 { flex: 0 0 auto; width: 58.333333%; }
+  .ds-col-xxl-8 { flex: 0 0 auto; width: 66.666667%; }
+  .ds-col-xxl-9 { flex: 0 0 auto; width: 75%; }
+  .ds-col-xxl-10 { flex: 0 0 auto; width: 83.333333%; }
+  .ds-col-xxl-11 { flex: 0 0 auto; width: 91.666667%; }
+  .ds-col-xxl-12 { flex: 0 0 auto; width: 100%; }
+}
+
+/* Видимый фокус: условие работы с клавиатуры (WCAG 2.1 AA). */
+:focus-visible {
+  outline: var(--ds-border-thick, 0.125rem) solid var(--ds-color-focus, currentColor);
+  outline-offset: 0.125rem;
+}
+
+/* Тем, кому движение вредит, оно отключается само. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ds-motion-fast: 0ms;
+    --ds-motion-base: 0ms;
+    --ds-motion-slow: 0ms;
+  }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Версия для печати: светлая и на всю ширину. */
+@media print {
+  :root { color-scheme: light; }
+  .ds-container { max-width: none; }
+}
+/* docdd-design:end */

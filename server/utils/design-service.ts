@@ -1,6 +1,6 @@
 import { analyze } from '../lib/analyze';
 import { BUILTIN_SOURCE, withBuiltin } from '../lib/builtin';
-import { plainTokens, resolveDesign, type DesignRecord, type DesignResolution } from '../lib/design';
+import { compareVersions, plainTokens, resolveDesign, type DesignChange, type DesignRecord, type DesignResolution } from '../lib/design';
 import {
   compareFile,
   componentsMissing,
@@ -9,6 +9,7 @@ import {
   projectFilePath,
   providedComponents,
   STACK_LABEL,
+  versionOfFile,
   type FileState,
   type StackId
 } from '../lib/design-export';
@@ -71,12 +72,18 @@ export function standardDesign(): DesignResolution | null {
 export interface StackReport {
   id: StackId;
   label: string;
+  /** Версия токенов, из которой собрана выгрузка. */
+  version: string;
+  /** Изменения новее версии, на которой остался самый отставший файл проекта. */
+  changes: DesignChange[];
   files: {
     key: string;
     path: string;
     content: string;
     state: FileState;
     diff: string;
+    /** Версия токенов из шапки файла проекта; `null` — шапки нет или файла нет. */
+    fileVersion: string | null;
   }[];
 }
 
@@ -95,17 +102,26 @@ export function projectExports(root: string, only?: string): StackReport[] {
     .filter((stack) => !only || stack.id === only)
     .map((stack) => {
       const output = exportStack(stack.id, tokens, { package: stack.package });
+      const files = output.files.map((file) => {
+        const path = projectFilePath(stack.files, file);
+        if (!isSafeRelative(path)) {
+          return { key: file.key, path, content: file.content, state: 'unknown' as const, diff: '', fileVersion: null };
+        }
+        const text = read(path);
+        const outcome = compareFile(file, text);
+        return { key: file.key, path, content: file.content, state: outcome.state, diff: outcome.diff, fileVersion: versionOfFile(text) };
+      });
+      // Файл без шапки с версией считается самым старым: изменения называются все.
+      const known = files.map((file) => file.fileVersion).filter((value): value is string => value !== null);
+      const oldest = files.some((file) => file.state !== 'missing' && file.fileVersion === null)
+        ? null
+        : known.sort(compareVersions)[0] ?? null;
       return {
         id: stack.id,
         label: STACK_LABEL[stack.id],
-        files: output.files.map((file) => {
-          const path = projectFilePath(stack.files, file);
-          if (!isSafeRelative(path)) {
-            return { key: file.key, path, content: file.content, state: 'unknown' as const, diff: '' };
-          }
-          const outcome = compareFile(file, read(path));
-          return { key: file.key, path, content: file.content, state: outcome.state, diff: outcome.diff };
-        })
+        version: tokens.version,
+        changes: tokens.changes.filter((change) => oldest === null || compareVersions(change.version, oldest) > 0),
+        files
       };
     });
 }

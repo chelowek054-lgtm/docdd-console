@@ -62,7 +62,15 @@ export interface ExportOptions {
 export const REGION_START = 'docdd-design:start';
 export const REGION_END = 'docdd-design:end';
 
-const HEADER = 'Сгенерировано консолью DocDD из токенов дизайна (docs/16-design-system.md). Не правьте руками: меняются токены.';
+/** Шапка файла: версия токенов называется — по ней сверка видит, на какой версии отстал файл проекта. */
+const headerOf = (tokens: PlainTokens) =>
+  `Сгенерировано консолью DocDD из токенов дизайна v${tokens.version} (docs/16-design-system.md). Не правьте руками: меняются токены.`;
+
+/** Версия токенов из шапки файла проекта; `null` — шапки нет. */
+export function versionOfFile(text: string | null): string | null {
+  const match = text ? /токенов дизайна v(\d+\.\d+\.\d+)/.exec(text) : null;
+  return match?.[1] ?? null;
+}
 
 /* ---------- общие помощники ---------- */
 
@@ -232,7 +240,7 @@ function nuxtCss(tokens: PlainTokens): string {
   };
 
   return lines(
-    `/* ${REGION_START} — ${HEADER} */`,
+    `/* ${REGION_START} — ${headerOf(tokens)} */`,
     '/* Размеры в rem: следуют за настройкой шрифта пользователя; корень не задаётся в px. */',
     'html { font-size: 100%; }',
     '',
@@ -280,7 +288,7 @@ function nuxtTokensTs(tokens: PlainTokens): string {
     i18n: tokens.i18n
   };
   return lines(
-    `// ${HEADER}`,
+    `// ${headerOf(tokens)}`,
     '// Размеры в rem. Языки — точка подключения словарей (@nuxtjs/i18n и подобные).',
     '',
     `export const designTokens = ${JSON.stringify(plain, null, 2)} as const;`,
@@ -319,7 +327,7 @@ function expoTheme(tokens: PlainTokens): string {
   ];
 
   return lines(
-    `// ${HEADER}`,
+    `// ${headerOf(tokens)}`,
     `// Размеры — rem × ${root}: у React Native нет rem, а масштаб шрифта системы остаётся включённым.`,
     "import { useColorScheme } from 'react-native';",
     '',
@@ -413,7 +421,7 @@ function composePackage(options: ExportOptions): string {
 
 function composeColor(tokens: PlainTokens, options: ExportOptions): string {
   const out: string[] = [
-    `// ${HEADER}`,
+    `// ${headerOf(tokens)}`,
     `package ${composePackage(options)}`,
     '',
     'import androidx.compose.material3.ColorScheme',
@@ -466,7 +474,7 @@ function composeType(tokens: PlainTokens, options: ExportOptions): string {
       return `    ${style} = TextStyle(${parts.join(', ')}),`;
     });
   return lines(
-    `// ${HEADER}`,
+    `// ${headerOf(tokens)}`,
     `// Размеры — rem × ${tokens.root}; sp следует за масштабом шрифта системы.`,
     `package ${composePackage(options)}`,
     '',
@@ -484,7 +492,7 @@ function composeType(tokens: PlainTokens, options: ExportOptions): string {
 function composeShape(tokens: PlainTokens, options: ExportOptions): string {
   const radius = (name: string) => `${toUnits(tokens.radius[name] ?? 0, tokens.root)}.dp`;
   return lines(
-    `// ${HEADER}`,
+    `// ${headerOf(tokens)}`,
     `package ${composePackage(options)}`,
     '',
     'import androidx.compose.foundation.shape.RoundedCornerShape',
@@ -511,7 +519,7 @@ function composeTheme(tokens: PlainTokens, options: ExportOptions): string {
   const cases = views.map((view) => pascal(view.name));
 
   return lines(
-    `// ${HEADER}`,
+    `// ${headerOf(tokens)}`,
     `package ${composePackage(options)}`,
     '',
     'import androidx.compose.foundation.isSystemInDarkTheme',
@@ -623,7 +631,7 @@ function swiftTheme(tokens: PlainTokens): string {
     ordered(bag, required).map((key) => `            "${key}": ${toUnits(bag[key]!, root)}`).join(',\n');
 
   return lines(
-    `// ${HEADER}`,
+    `// ${headerOf(tokens)}`,
     `// Размеры — rem × ${root}; у SwiftUI нет rem, а Dynamic Type остаётся включённым.`,
     'import SwiftUI',
     '',

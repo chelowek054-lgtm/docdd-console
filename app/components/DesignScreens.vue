@@ -12,6 +12,8 @@ import type { ScreensReport } from '~~/server/utils/design-screens-service';
  */
 const props = defineProps<{ projectId: string }>();
 
+const { t } = useT();
+
 const { data, refresh } = useFetch<ScreensReport | { error: ApiFailure }>(
   () => `/api/projects/${props.projectId}/design/screens`,
   { key: () => `design-screens:${props.projectId}` }
@@ -20,8 +22,8 @@ const failure = computed(() => failureOf(data.value));
 const screens = computed(() => (failure.value ? null : (data.value as ScreensReport | null)));
 
 const PASSES: { value: ScreenPass; label: string; hint: string }[] = [
-  { value: 'responsive', label: 'Responsive', hint: 'скролл, обрезанное, шапка, зона нажатия 44×44, отступ из шкалы' },
-  { value: 'pixel', label: 'Pixel-Perfect', hint: 'цвета ролей, кегли, отступы, радиусы и макет экрана' }
+  { value: 'responsive', label: 'Responsive', hint: 'dsc.pass.responsive' },
+  { value: 'pixel', label: 'Pixel-Perfect', hint: 'dsc.pass.pixel' }
 ];
 
 const active = ref<ScreenPass | null>(null);
@@ -106,9 +108,8 @@ async function accept() {
   }
 }
 
-/** Имя темы для человека: базовые — по-русски, добавленные — как названы. */
-const THEME_NAME: Record<string, string> = { light: 'светлая', dark: 'тёмная' };
-const themeText = (name: string) => THEME_NAME[name] ?? name;
+/** Имя темы для человека: базовые — на языке интерфейса, добавленные — как названы. */
+const themeText = (name: string) => (name === 'light' ? t('dt.theme.light') : name === 'dark' ? t('dt.theme.dark') : name);
 const copied = ref(false);
 async function copyScript() {
   if (!screens.value) return;
@@ -134,31 +135,28 @@ const shotsPresent = computed(() => (screens.value ? screens.value.total - scree
         color="neutral"
         variant="subtle"
         icon="i-lucide-monitor-smartphone"
-        title="Экранов нет"
-        description="В подтверждённой карте пользовательских путей нет ни одного экрана. Постройте и подтвердите её на экране «Карты» — список экранов берётся оттуда."
+        :title="t('dsc.none.title')"
+        :description="t('dsc.none.text')"
       />
 
       <template v-else>
         <section class="space-y-2">
           <div class="flex flex-wrap items-center gap-3">
-            <h2 class="font-medium">Снимки экранов</h2>
+            <h2 class="font-medium">{{ t('dsc.shots.title') }}</h2>
             <p class="text-sm text-muted">
-              есть {{ shotsPresent }} из {{ screens.total }}
-              <template v-if="screens.missing"> · не хватает {{ screens.missing }}</template>
+              {{ t('dsc.shots.have', { have: shotsPresent, total: screens.total }) }}
+              <template v-if="screens.missing"> · {{ t('dsc.shots.missing', { count: screens.missing }) }}</template>
             </p>
-            <UButton size="xs" variant="ghost" icon="i-lucide-refresh-cw" @click="() => refresh()">Перечитать</UButton>
+            <UButton size="xs" variant="ghost" icon="i-lucide-refresh-cw" @click="() => refresh()">{{ t('dsc.reread') }}</UButton>
           </div>
-          <p class="text-sm text-muted">
-            Снимки кладёт проект в <code>{{ screens.screensDir }}/&lt;экран&gt;/&lt;ширина&gt;-&lt;тема&gt;.png</code>;
-            приложение их не делает, а читает. Эталонные макеты — в <code>{{ screens.mockupsDir }}</code>.
-          </p>
+          <p class="text-sm text-muted">{{ t('dsc.shots.lead', { dir: screens.screensDir, mockups: screens.mockupsDir }) }}</p>
 
           <div class="overflow-x-auto">
             <table class="w-full min-w-[34rem] text-left text-sm">
               <thead class="text-xs text-muted">
                 <tr>
-                  <th class="pr-3">Экран</th>
-                  <th class="pr-3">Макет</th>
+                  <th class="pr-3">{{ t('dsc.col.screen') }}</th>
+                  <th class="pr-3">{{ t('dsc.col.mockup') }}</th>
                   <th v-for="width in screens.widths" :key="width" class="pr-3">{{ width }} px · {{ Math.round((width / 16) * 100) / 100 }}rem</th>
                 </tr>
               </thead>
@@ -168,7 +166,7 @@ const shotsPresent = computed(() => (screens.value ? screens.value.total - scree
                     <span class="font-mono text-xs">{{ screen.id }}</span>
                     <p v-if="screen.title !== screen.id" class="text-xs text-muted">{{ screen.title }}</p>
                   </td>
-                  <td class="py-1.5 pr-3 text-xs" :class="screen.mockup ? '' : 'text-muted'">{{ screen.mockup ? 'есть' : 'нет' }}</td>
+                  <td class="py-1.5 pr-3 text-xs" :class="screen.mockup ? '' : 'text-muted'">{{ screen.mockup ? t('common.yes') : t('common.no') }}</td>
                   <td v-for="width in screens.widths" :key="width" class="py-1.5 pr-3">
                     <div class="flex flex-col gap-0.5">
                       <span
@@ -176,9 +174,9 @@ const shotsPresent = computed(() => (screens.value ? screens.value.total - scree
                         :key="shot.theme"
                         class="text-xs"
                         :class="shot.present ? 'text-success' : 'text-warning'"
-                        :title="shot.takenAt ?? 'снимка нет'"
+                        :title="shot.takenAt ?? t('dsc.shots.noShot')"
                       >
-                        {{ themeText(shot.theme) }}: {{ shot.present ? 'есть' : 'нет' }}
+                        {{ themeText(shot.theme) }}: {{ shot.present ? t('common.yes') : t('common.no') }}
                       </span>
                     </div>
                   </td>
@@ -189,7 +187,7 @@ const shotsPresent = computed(() => (screens.value ? screens.value.total - scree
         </section>
 
         <section class="space-y-3">
-          <h2 class="font-medium">Проверка моделью</h2>
+          <h2 class="font-medium">{{ t('dsc.check.title') }}</h2>
           <div class="flex flex-wrap items-center gap-3">
             <UButton
               v-for="pass in PASSES"
@@ -197,12 +195,12 @@ const shotsPresent = computed(() => (screens.value ? screens.value.total - scree
               size="sm"
               :variant="active === pass.value ? 'solid' : 'soft'"
               :disabled="running || shotsPresent === 0"
-              :title="pass.hint"
+              :title="t(pass.hint)"
               @click="check(pass.value)"
             >
               {{ pass.label }}
             </UButton>
-            <p v-if="shotsPresent === 0" class="text-sm text-muted">Без снимков проверка не запускается.</p>
+            <p v-if="shotsPresent === 0" class="text-sm text-muted">{{ t('dsc.check.noShots') }}</p>
           </div>
 
           <ModelProgress :running="running" :elapsed="elapsed" :outcome="modelOutcome" @cancel="cancel" />
@@ -214,12 +212,19 @@ const shotsPresent = computed(() => (screens.value ? screens.value.total - scree
             <p v-for="line in outcome.problems" :key="line" class="text-sm text-warning">{{ line }}</p>
 
             <p v-if="outcome.findings.length === 0" class="text-sm text-muted">
-              Находок нет<template v-if="outcome.clean.length">: чисто на {{ outcome.clean.join(', ') }}</template>.
+              {{ t('dsc.findings.none') }}<template v-if="outcome.clean.length">: {{ t('dsc.findings.clean', { list: outcome.clean.join(', ') }) }}</template>.
             </p>
             <div v-else class="overflow-x-auto rounded border border-default">
               <table class="w-full min-w-[34rem] text-sm">
                 <thead class="bg-elevated text-left text-xs text-muted">
-                  <tr><th class="p-2">Экран</th><th class="p-2">Ширина</th><th class="p-2">Тема</th><th class="p-2">Что не так</th><th class="p-2">Ожидалось</th><th class="p-2">На снимке</th></tr>
+                  <tr>
+                    <th class="p-2">{{ t('dsc.col.screen') }}</th>
+                    <th class="p-2">{{ t('dsc.col.width') }}</th>
+                    <th class="p-2">{{ t('dsc.col.theme') }}</th>
+                    <th class="p-2">{{ t('dsc.col.what') }}</th>
+                    <th class="p-2">{{ t('dsc.col.expected') }}</th>
+                    <th class="p-2">{{ t('dsc.col.actual') }}</th>
+                  </tr>
                 </thead>
                 <tbody>
                   <tr v-for="(finding, at) in outcome.findings" :key="at" class="border-t border-default align-top">
@@ -236,27 +241,24 @@ const shotsPresent = computed(() => (screens.value ? screens.value.total - scree
 
             <div class="flex flex-wrap items-center gap-3">
               <UButton size="sm" :loading="saving" :disabled="!active" @click="accept">
-                Принять ({{ outcome.findings.length }})
+                {{ t('dsc.accept', { count: outcome.findings.length }) }}
               </UButton>
-              <p class="text-xs text-muted">
-                Принятое ляжет отчётом проверки и попадёт в «Нарушения». Модель ничего не правит — исправление
-                отдельной задачей.
-              </p>
+              <p class="text-xs text-muted">{{ t('dsc.accept.note') }}</p>
             </div>
           </template>
 
           <p v-if="savedReport" class="text-sm text-success">
-            Принято: <code class="text-xs">{{ savedReport }}</code>. Находки видны во вкладке «Нарушения» сверки.
+            {{ t('dsc.accepted') }} <code class="text-xs">{{ savedReport }}</code>
           </p>
         </section>
 
         <section class="space-y-2">
           <div class="flex flex-wrap items-center gap-3">
-            <h2 class="font-medium">Скрипт снятия экранов</h2>
-            <UButton size="xs" variant="ghost" :icon="copied ? 'i-lucide-check' : 'i-lucide-copy'" @click="copyScript">Скопировать</UButton>
+            <h2 class="font-medium">{{ t('dsc.script.title') }}</h2>
+            <UButton size="xs" variant="ghost" :icon="copied ? 'i-lucide-check' : 'i-lucide-copy'" @click="copyScript">{{ t('common.copy') }}</UButton>
           </div>
           <details>
-            <summary class="cursor-pointer text-sm">Показать шаблон</summary>
+            <summary class="cursor-pointer text-sm">{{ t('dsc.script.show') }}</summary>
             <pre class="mt-2 max-h-96 overflow-auto rounded bg-elevated p-3 text-xs whitespace-pre">{{ screens.script }}</pre>
           </details>
         </section>

@@ -93,7 +93,7 @@ function verifiesOf(check: (typeof checks.value)[number]): string[] {
                   :color="statusColor(results[check.id]!.state)"
                   variant="subtle"
                   size="sm"
-                >{{ RESULT_LABELS[results[check.id]!.state] }} · {{ results[check.id]!.at.slice(0, 10) }}</UBadge>
+                >{{ resultLabel(results[check.id]!.state) }} · {{ results[check.id]!.at.slice(0, 10) }}</UBadge>
                 <UBadge v-else color="neutral" variant="subtle" size="sm">не запускалась</UBadge>
                 <!-- Результат засчитывается как есть, но под ним — неподтверждённый способ. -->
                 <UBadge
