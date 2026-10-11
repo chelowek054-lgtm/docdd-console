@@ -2,9 +2,9 @@
 id: R-0013
 type: requirement
 title: Менеджер видит ход работы и ведёт план без трекера
-status: draft
+status: approved
 created: 2026-10-10
-updated: 2026-10-10
+updated: 2026-10-11
 links:
   verified_by: [V-0013]
 ---
@@ -16,3 +16,5 @@ links:
 ## Журнал
 
 - 2026-10-10 · заведена: план «Платформа команды вместо Jira и Confluence» (docs/15-team-platform.md) · модель
+- 2026-10-11 · на подтверждение · architect
+- 2026-10-11 · подтверждён · architect

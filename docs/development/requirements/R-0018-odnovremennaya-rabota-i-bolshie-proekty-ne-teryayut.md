@@ -2,9 +2,9 @@
 id: R-0018
 type: requirement
 title: Одновременная работа и большие проекты не теряют правок и скорости
-status: draft
+status: approved
 created: 2026-10-10
-updated: 2026-10-10
+updated: 2026-10-11
 links:
   verified_by: [V-0018]
 ---
@@ -16,3 +16,5 @@ links:
 ## Журнал
 
 - 2026-10-10 · заведена: план «Платформа команды вместо Jira и Confluence» (docs/15-team-platform.md) · модель
+- 2026-10-11 · на подтверждение · architect
+- 2026-10-11 · подтверждён · architect

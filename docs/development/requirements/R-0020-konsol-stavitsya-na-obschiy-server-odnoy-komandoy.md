@@ -2,9 +2,9 @@
 id: R-0020
 type: requirement
 title: Консоль ставится на общий сервер одной командой
-status: draft
+status: approved
 created: 2026-10-10
-updated: 2026-10-10
+updated: 2026-10-11
 links:
   verified_by: [V-0020]
 ---
@@ -16,3 +16,5 @@ links:
 ## Журнал
 
 - 2026-10-10 · заведена: план «Платформа команды вместо Jira и Confluence» (docs/15-team-platform.md) · модель
+- 2026-10-11 · на подтверждение · architect
+- 2026-10-11 · подтверждён · architect

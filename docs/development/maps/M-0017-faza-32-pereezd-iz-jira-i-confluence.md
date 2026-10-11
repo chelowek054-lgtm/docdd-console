@@ -2,9 +2,9 @@
 id: M-0017
 type: map
 title: Фаза 32 — переезд из Jira и Confluence
-status: draft
+status: approved
 created: 2026-10-10
-updated: 2026-10-10
+updated: 2026-10-11
 ---
 
 # Фаза 32 — переезд из Jira и Confluence
@@ -53,3 +53,5 @@ updated: 2026-10-10
 ## Журнал
 
 - 2026-10-10 · заведена: план «Платформа команды вместо Jira и Confluence» (docs/15-team-platform.md) · модель
+- 2026-10-11 · на подтверждение · architect
+- 2026-10-11 · подтверждён · architect

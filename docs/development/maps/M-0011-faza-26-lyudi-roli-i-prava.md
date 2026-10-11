@@ -2,9 +2,9 @@
 id: M-0011
 type: map
 title: 'Фаза 26 — люди, роли и права'
-status: draft
+status: approved
 created: 2026-10-10
-updated: 2026-10-10
+updated: 2026-10-11
 ---
 
 # Фаза 26 — люди, роли и права
@@ -114,3 +114,5 @@ updated: 2026-10-10
 ## Журнал
 
 - 2026-10-10 · заведена: план «Платформа команды вместо Jira и Confluence» (docs/15-team-platform.md) · модель
+- 2026-10-11 · на подтверждение · architect
+- 2026-10-11 · подтверждён · architect

@@ -2,9 +2,9 @@
 id: V-0020
 type: verification
 title: Установка на чистый сервер Ubuntu и на сервер с Docker
-status: draft
+status: approved
 created: 2026-10-10
-updated: 2026-10-10
+updated: 2026-10-11
 kind: manual
 ---
 
@@ -15,3 +15,5 @@ kind: manual
 ## Журнал
 
 - 2026-10-10 · заведена: план «Платформа команды вместо Jira и Confluence» (docs/15-team-platform.md) · модель
+- 2026-10-11 · на подтверждение · architect
+- 2026-10-11 · подтверждён · architect

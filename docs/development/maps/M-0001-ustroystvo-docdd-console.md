@@ -2,9 +2,9 @@
 id: M-0001
 type: map
 title: Устройство DocDD Console
-status: approved
+status: superseded
 created: 2026-08-31
-updated: 2026-09-10
+updated: 2026-10-11
 ---
 
 # Устройство DocDD Console
@@ -607,3 +607,4 @@ updated: 2026-09-10
 - 2026-09-02 · опись пересчитывается по действующим картам · architect
 - 2026-09-10 · дописаны LLM-слой, экраны checks/results/usage, редактор тела · architect
 - 2026-09-10 · подтверждён
+- 2026-10-11 · заменён · architect
