@@ -13,6 +13,8 @@
  * прочитались бы как пиксели и разошлись бы в шестнадцать раз.
  */
 
+import { parseSurface, type SurfaceTokens } from './design-surface';
+
 export interface DesignRecord {
   id: string;
   /** Метка проекта-источника у общих практик; у локальных её нет. */
@@ -798,6 +800,12 @@ export function resolveDesign(input: { general: readonly DesignRecord[]; local: 
 
   tokens.changes.sort((a, b) => compareVersions(b.value.version, a.value.version));
 
+  // Поверхности приходят «незнакомыми» ключами; негодное называется, а не пропадает молча.
+  for (const message of parseSurface(Object.fromEntries(Object.entries(tokens.extra).map(([key, item]) => [key, item.value]))).problems) {
+    const first = Object.values(tokens.extra)[0];
+    problems.push({ record: first ? first.source.replace(/^\[[^\]]*\]\s*/, '') : '', message: `Блок \`docdd-design\`: ${message}` });
+  }
+
   for (const name of Object.keys(modeBags)) {
     tokens.themes[name] = {
       mode: modeBags[name]!['mode'] as Sourced<BaseTheme>,
@@ -1153,6 +1161,8 @@ export interface PlainTokens {
   themes: Record<string, { label: string; labels: Record<string, string> | null; mode: BaseTheme; minContrast: number; palette: Record<string, string> }>;
   i18n: { default: string; fallback: string; locales: string[] };
   components: DesignComponent[];
+  /** Тени, подложка, мягкая заливка и набор капсом (server/lib/design-surface.ts). */
+  surface: SurfaceTokens;
 }
 
 export function plainTokens(tokens: DesignTokens): PlainTokens {
@@ -1193,6 +1203,7 @@ export function plainTokens(tokens: DesignTokens): PlainTokens {
       fallback: tokens.i18n.fallback?.value ?? REQUIRED_LOCALE,
       locales: locales.length > 0 ? locales : ['ru', REQUIRED_LOCALE]
     },
-    components: tokens.components.map((item) => item.value)
+    components: tokens.components.map((item) => item.value),
+    surface: parseSurface(Object.fromEntries(Object.entries(tokens.extra).map(([key, item]) => [key, item.value]))).surface
   };
 }

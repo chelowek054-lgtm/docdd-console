@@ -57,7 +57,7 @@ const KIND_LABEL: Record<string, string> = { component: 'компонент', ap
       />
 
       <template v-else>
-        <div v-if="report.index" class="space-y-2 rounded border border-default p-4">
+        <div v-if="report.index" class="space-y-2 ds-card p-4">
           <div class="flex flex-wrap items-center gap-3">
             <p class="text-sm">
               <span :class="report.index.fresh ? 'text-success' : 'font-semibold text-warning'">

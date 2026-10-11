@@ -83,7 +83,7 @@ const BADGE_COLOR = { implemented: 'success', partial: 'warning', not_implemente
       </p>
 
       <template v-else>
-        <div class="overflow-x-auto rounded border border-default">
+        <div class="ds-card overflow-x-auto">
           <table class="w-full text-sm">
             <thead class="bg-elevated text-left text-xs text-muted">
               <tr>

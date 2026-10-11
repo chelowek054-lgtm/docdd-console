@@ -178,7 +178,7 @@ function isActive(to: string): boolean {
 </script>
 
 <template>
-  <div class="min-h-screen bg-default text-default">
+  <div class="ds-page min-h-screen text-default">
     <header class="border-b border-default">
       <!-- Контейнер общей сетки: ширина по точкам перелома, поле — gutter токенов. -->
       <div class="ds-container flex flex-wrap items-center gap-4 py-3">

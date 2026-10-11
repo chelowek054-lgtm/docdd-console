@@ -150,7 +150,7 @@ watch(() => props.answer, load, { immediate: true });
         <li
           v-for="row in rows"
           :key="row.key"
-          class="flex gap-3 rounded-lg border border-default p-3"
+          class="flex gap-3 ds-card p-3"
           :class="row.include ? '' : 'opacity-50'"
         >
           <UCheckbox v-model="row.include" class="pt-1" :aria-label="`Завести фазу ${row.title}`" />

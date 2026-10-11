@@ -61,7 +61,7 @@ function toggle(which: string) {
 </script>
 
 <template>
-  <div v-if="data" class="rounded border border-default p-3">
+  <div v-if="data" class="ds-card p-3">
     <!-- Пустой проект — состояние, а не ошибка: говорим о нём словами. -->
     <p v-if="data.total === 0" class="text-sm">
       В проекте нет файлов кода — описывать нечего. Проверьте <code>sources.code</code> в манифесте:

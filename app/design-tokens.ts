@@ -1,4 +1,4 @@
-// Сгенерировано консолью DocDD из токенов дизайна v1.8.0 (docs/16-design-system.md). Не правьте руками: меняются токены.
+// Сгенерировано консолью DocDD из токенов дизайна v1.9.0 (docs/16-design-system.md). Не правьте руками: меняются токены.
 // Размеры в rem. Языки — точка подключения словарей (@nuxtjs/i18n и подобные).
 
 export const designTokens = {
@@ -14,7 +14,8 @@ export const designTokens = {
   "radius": {
     "sm": 0.5,
     "md": 0.75,
-    "pill": 62.5
+    "pill": 62.5,
+    "lg": 1
   },
   "typography": {
     "caption": {
@@ -46,6 +47,11 @@ export const designTokens = {
       "size": 1.75,
       "line": 2.5625,
       "weight": 700
+    },
+    "kicker": {
+      "size": 0.75,
+      "line": 1.0625,
+      "weight": 600
     }
   },
   "border": {
@@ -103,7 +109,8 @@ export const designTokens = {
       "warn": "#96520C",
       "danger": "#C0261E",
       "onDanger": "#FFFFFF",
-      "focus": "#15803D"
+      "focus": "#15803D",
+      "shadow": "#0F1530"
     },
     "dark": {
       "bg": "#0E111A",
@@ -121,7 +128,8 @@ export const designTokens = {
       "warn": "#F2C14E",
       "danger": "#F08080",
       "onDanger": "#2A0A07",
-      "focus": "#4ADE80"
+      "focus": "#4ADE80",
+      "shadow": "#000000"
     }
   },
   "themes": {
@@ -149,7 +157,8 @@ export const designTokens = {
         "warn": "#FFD54F",
         "danger": "#FF8A80",
         "onDanger": "#000000",
-        "focus": "#FFE600"
+        "focus": "#FFE600",
+        "shadow": "#000000"
       }
     },
     "oled": {
@@ -176,8 +185,55 @@ export const designTokens = {
         "warn": "#F2C14E",
         "danger": "#F08080",
         "onDanger": "#2A0A07",
-        "focus": "#4ADE80"
+        "focus": "#4ADE80",
+        "shadow": "#000000"
       }
+    }
+  },
+  "surface": {
+    "elevation": {
+      "card": [
+        {
+          "y": 0.0625,
+          "blur": 0.125,
+          "alpha": 0.05,
+          "x": 0,
+          "spread": 0
+        },
+        {
+          "y": 0.625,
+          "blur": 1.75,
+          "alpha": 0.06,
+          "x": 0,
+          "spread": 0
+        }
+      ]
+    },
+    "backdrop": {
+      "page": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 60,
+          "h": 24,
+          "color": "accent",
+          "alpha": 0.12
+        },
+        {
+          "x": 100,
+          "y": 6,
+          "w": 50,
+          "h": 22,
+          "color": "core",
+          "alpha": 0.1
+        }
+      ]
+    },
+    "tint": {
+      "soft": 0.12
+    },
+    "caps": {
+      "kicker": 0.08
     }
   },
   "i18n": {

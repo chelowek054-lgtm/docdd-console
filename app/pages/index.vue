@@ -122,7 +122,7 @@ function shortDate(iso: string): string {
           : failure.detail"
       />
 
-      <div v-if="offerInit" class="mt-4 space-y-3 rounded-lg border border-default p-4">
+      <div v-if="offerInit" class="mt-4 space-y-3 ds-card p-4">
         <p class="text-sm">{{ t('home.initQuestion', { root }) }}</p>
         <div class="flex flex-col gap-3 sm:flex-row">
           <UInput v-model="newName" :placeholder="t('home.namePlaceholder')" class="flex-1" />

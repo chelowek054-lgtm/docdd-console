@@ -214,7 +214,7 @@ const shotsPresent = computed(() => (screens.value ? screens.value.total - scree
             <p v-if="outcome.findings.length === 0" class="text-sm text-muted">
               {{ t('dsc.findings.none') }}<template v-if="outcome.clean.length">: {{ t('dsc.findings.clean', { list: outcome.clean.join(', ') }) }}</template>.
             </p>
-            <div v-else class="overflow-x-auto rounded border border-default">
+            <div v-else class="ds-card overflow-x-auto">
               <table class="w-full min-w-[34rem] text-sm">
                 <thead class="bg-elevated text-left text-xs text-muted">
                   <tr>

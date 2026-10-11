@@ -14,9 +14,28 @@ const accentText = 'text-(color:--ds-color-accent-text)';
 const textVariants = (variants: readonly string[], cls: string) =>
   variants.map((variant) => ({ color: 'primary' as const, variant, class: cls }));
 
+/**
+ * Вид поверх токенов D-0002 (docs/16-design-system.md, «Поверхности и вид»): мягкая заливка
+ * плашек — доля роли поверх surface; цвет Nuxt UI → роль токенов.
+ */
+const softFill = (role: string) => `ring-0 bg-[color-mix(in_srgb,var(--ds-color-${role})_var(--ds-tint-soft),var(--ds-color-surface))]`;
+const SOFT_ROLES = { primary: 'accent', success: 'ok', info: 'info', warning: 'warn', error: 'danger' } as const;
+const softBadges = Object.entries(SOFT_ROLES).flatMap(([color, role]) =>
+  ['soft', 'subtle'].map((variant) => ({ color: color as keyof typeof SOFT_ROLES, variant, class: softFill(role) })));
+
+/** Зона нажатия не меньше 2.75rem: видимая форма остаётся своей, клик ловит невидимое расширение. */
+const TAP = 'relative before:absolute before:inset-x-0 before:top-1/2 before:h-11 before:-translate-y-1/2 before:content-[\'\']';
+
 export default defineAppConfig({
   ui: {
+    card: {
+      slots: { root: 'rounded-(--ds-radius-lg)' },
+      variants: { variant: { outline: { root: 'ring-0 shadow-(--ds-shadow-card)' } } }
+    },
+    input: { slots: { base: 'min-h-11' } },
+    select: { slots: { base: 'min-h-11' } },
     button: {
+      slots: { base: TAP },
       compoundVariants: [
         { color: 'primary', variant: 'solid', class: onAccent },
         ...textVariants(['outline', 'soft', 'subtle', 'ghost'], accentText),
@@ -25,6 +44,7 @@ export default defineAppConfig({
     },
     badge: {
       compoundVariants: [
+        ...softBadges,
         { color: 'primary', variant: 'solid', class: onAccent },
         ...textVariants(['outline', 'soft', 'subtle'], accentText)
       ]

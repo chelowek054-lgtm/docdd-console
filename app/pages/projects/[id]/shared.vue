@@ -165,7 +165,7 @@ async function toggleTag(source: SharedSourceView, tag: string) {
         :description="toggleFailure.detail"
       />
 
-      <div v-for="source in sources" :key="source.path" class="rounded border border-default p-4">
+      <div v-for="source in sources" :key="source.path" class="ds-card p-4">
         <div class="flex flex-wrap items-center gap-2">
           <h2 class="font-medium">{{ source.label }}</h2>
           <span class="font-mono text-xs text-muted">{{ source.path }}</span>
@@ -289,7 +289,7 @@ async function toggleTag(source: SharedSourceView, tag: string) {
         />
 
         <template v-if="verifyProposed.length">
-          <div v-for="record in verifyProposed" :key="record.key" class="rounded border border-default p-3">
+          <div v-for="record in verifyProposed" :key="record.key" class="ds-card p-3">
             <p class="font-medium">{{ record.title }}</p>
             <p v-if="record.body" class="mt-2 whitespace-pre-wrap text-sm text-muted">{{ record.body }}</p>
           </div>
@@ -299,7 +299,7 @@ async function toggleTag(source: SharedSourceView, tag: string) {
           </div>
         </template>
 
-        <div v-if="verifySaid && !verifyProposed.length && !verifying" class="rounded border border-default p-3">
+        <div v-if="verifySaid && !verifyProposed.length && !verifying" class="ds-card p-3">
           <p class="mb-2 text-sm font-medium">Ответ не сложился в запись</p>
           <DocumentText :body="verifySaid" />
         </div>

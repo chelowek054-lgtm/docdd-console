@@ -9,7 +9,7 @@
   --color-primary-500: var(--color-sky-500);
 }
 
-/* docdd-design:start — Сгенерировано консолью DocDD из токенов дизайна v1.8.0 (docs/16-design-system.md). Не правьте руками: меняются токены. */
+/* docdd-design:start — Сгенерировано консолью DocDD из токенов дизайна v1.9.0 (docs/16-design-system.md). Не правьте руками: меняются токены. */
 /* Размеры в rem: следуют за настройкой шрифта пользователя; корень не задаётся в px. */
 html { font-size: 100%; }
 
@@ -32,6 +32,7 @@ html { font-size: 100%; }
   --ds-radius-sm: 0.5rem;
   --ds-radius-md: 0.75rem;
   --ds-radius-pill: 62.5rem;
+  --ds-radius-lg: 1rem;
   --ds-font-caption: 0.75rem;
   --ds-line-caption: 1.0625rem;
   --ds-weight-caption: 400;
@@ -50,6 +51,9 @@ html { font-size: 100%; }
   --ds-font-display: 1.75rem;
   --ds-line-display: 2.5625rem;
   --ds-weight-display: 700;
+  --ds-font-kicker: 0.75rem;
+  --ds-line-kicker: 1.0625rem;
+  --ds-weight-kicker: 600;
   --ds-grid-columns: 12;
   --ds-grid-gutter: 1.5rem;
   --ds-bp-xs: 0rem;
@@ -60,6 +64,10 @@ html { font-size: 100%; }
   --ds-bp-xxl: 87.5rem;
   --ds-border-thin: 0.0625rem;
   --ds-border-thick: 0.125rem;
+  --ds-shadow-card: 0rem 0.0625rem 0.125rem 0rem color-mix(in srgb, var(--ds-color-shadow) 5%, transparent), 0rem 0.625rem 1.75rem 0rem color-mix(in srgb, var(--ds-color-shadow) 6%, transparent);
+  --ds-backdrop-page: radial-gradient(60% 24% at 0% 0%, color-mix(in srgb, var(--ds-color-accent) 12%, transparent), transparent), radial-gradient(50% 22% at 100% 6%, color-mix(in srgb, var(--ds-color-core) 10%, transparent), transparent);
+  --ds-tint-soft: 12%;
+  --ds-tracking-kicker: 0.08em;
   --ds-icon-sm: 1rem;
   --ds-icon-md: 1.25rem;
   --ds-icon-lg: 1.5rem;
@@ -89,6 +97,7 @@ html { font-size: 100%; }
   --ds-color-danger: #C0261E;
   --ds-color-on-danger: #FFFFFF;
   --ds-color-focus: #15803D;
+  --ds-color-shadow: #0F1530;
   --ui-bg: #F6F7FB;
   --ui-bg-elevated: #FFFFFF;
   --ui-bg-muted: #ECEFF7;
@@ -122,6 +131,7 @@ html { font-size: 100%; }
   --ds-color-danger: #F08080;
   --ds-color-on-danger: #2A0A07;
   --ds-color-focus: #4ADE80;
+  --ds-color-shadow: #000000;
   --ui-bg: #0E111A;
   --ui-bg-elevated: #161A25;
   --ui-bg-muted: #202636;
@@ -155,6 +165,7 @@ html { font-size: 100%; }
   --ds-color-danger: #FF8A80;
   --ds-color-on-danger: #000000;
   --ds-color-focus: #FFE600;
+  --ds-color-shadow: #000000;
   --ui-bg: #000000;
   --ui-bg-elevated: #0A0A0A;
   --ui-bg-muted: #1A1A1A;
@@ -188,6 +199,7 @@ html { font-size: 100%; }
   --ds-color-danger: #F08080;
   --ds-color-on-danger: #2A0A07;
   --ds-color-focus: #4ADE80;
+  --ds-color-shadow: #000000;
   --ui-bg: #000000;
   --ui-bg-elevated: #090B10;
   --ui-bg-muted: #12151D;
@@ -223,6 +235,7 @@ html { font-size: 100%; }
     --ds-color-danger: #FF8A80;
     --ds-color-on-danger: #000000;
     --ds-color-focus: #FFE600;
+    --ds-color-shadow: #000000;
     --ui-bg: #000000;
     --ui-bg-elevated: #0A0A0A;
     --ui-bg-muted: #1A1A1A;
@@ -356,6 +369,14 @@ html { font-size: 100%; }
   .ds-col-xxl-12 { flex: 0 0 auto; width: 100%; }
 }
 
+.ds-kicker {
+  font-size: var(--ds-font-kicker);
+  line-height: var(--ds-line-kicker);
+  font-weight: var(--ds-weight-kicker);
+  letter-spacing: var(--ds-tracking-kicker);
+  text-transform: uppercase;
+}
+
 /* Видимый фокус: условие работы с клавиатуры (WCAG 2.1 AA). */
 :focus-visible {
   outline: var(--ds-border-thick, 0.125rem) solid var(--ds-color-focus, currentColor);
@@ -382,3 +403,50 @@ html { font-size: 100%; }
   .ds-container { max-width: none; }
 }
 /* docdd-design:end */
+
+/*
+ * Вид консоли поверх токенов D-0001 + D-0002 (docs/16-design-system.md, «Поверхности и вид»).
+ * Значения — только переменные `--ds-*` из блока выше: своих цветов, размеров и теней здесь нет.
+ */
+
+/* Подложка страницы: тонированный фон с двумя мягкими пятнами у верхних углов. */
+.ds-page {
+  background-color: var(--ui-bg);
+  background-image: var(--ds-backdrop-page);
+  background-repeat: no-repeat;
+  background-size: 100% 40rem;
+}
+
+/* Заголовки экранов — шкала токенов, а не размеры «на глаз». */
+h1 {
+  font-size: var(--ds-font-display);
+  line-height: var(--ds-line-display);
+  font-weight: var(--ds-weight-display);
+  letter-spacing: -0.01em;
+}
+h2 {
+  font-size: var(--ds-font-title);
+  line-height: var(--ds-line-title);
+  font-weight: var(--ds-weight-title);
+}
+
+/* Таблицы (компонент Table): шапка капсом цветом muted с толстой линией, строки — тонкой, без вертикальных линий. */
+table { border-collapse: collapse; }
+thead th {
+  font-size: var(--ds-font-kicker);
+  line-height: var(--ds-line-kicker);
+  font-weight: var(--ds-weight-kicker);
+  letter-spacing: var(--ds-tracking-kicker);
+  text-transform: uppercase;
+  color: var(--ds-color-muted);
+  border-bottom: var(--ds-border-thick) solid var(--ds-color-line);
+}
+tbody td, tbody th { border-top: var(--ds-border-thin) solid var(--ds-color-surface-alt); }
+tbody tr:first-child td, tbody tr:first-child th { border-top: 0; }
+
+/* Карточка: радиус lg, мягкая тень card, без рамки — блоки отделяются фоном и тенью (принципы D-0002). */
+.ds-card {
+  border-radius: var(--ds-radius-lg);
+  background-color: var(--ds-color-surface);
+  box-shadow: var(--ds-shadow-card);
+}
