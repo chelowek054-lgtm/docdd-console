@@ -711,7 +711,7 @@ export function designScreenFindings(ctx: RuleContext): Violation[] {
       const detail = [item.expected ? `ожидалось: ${item.expected}` : '', item.actual ? `на снимке: ${item.actual}` : '']
         .filter((part) => part !== '').join('; ');
       found.push(violation('design_screen_finding', null, '',
-        `${PASS_LABEL[pass]} · экран \`${item.screen}\` · ${item.width} px · ${item.theme === 'light' ? 'светлая' : 'тёмная'} тема: ${item.what}${detail ? ` (${detail})` : ''}.`));
+        `${PASS_LABEL[pass]} · экран \`${item.screen}\` · ${item.width} px · тема ${item.theme}: ${item.what}${detail ? ` (${detail})` : ''}.`));
     }
   }
   return found;

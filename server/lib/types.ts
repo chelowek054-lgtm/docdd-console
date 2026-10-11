@@ -129,6 +129,7 @@ export type ViolationCode =
   | 'design_contrast_low'
   | 'design_theme_incomplete'
   | 'design_scale_gap'
+  | 'design_i18n_missing'
   | 'design_conflict'
   | 'design_theme_drift'
   | 'design_component_missing'
@@ -224,6 +225,7 @@ export const VIOLATION_LEVELS: Readonly<Record<ViolationCode, Severity>> = {
   design_contrast_low: 'warning',
   design_theme_incomplete: 'warning',
   design_scale_gap: 'warning',
+  design_i18n_missing: 'warning',
   design_conflict: 'warning',
   design_theme_drift: 'warning',
   design_component_missing: 'warning',
@@ -355,7 +357,8 @@ export interface DesignManifest {
   /** Каталог эталонных макетов экранов. */
   mockups?: string;
   widths?: number[];
-  themes?: ('light' | 'dark')[];
+  /** Темы снимков; не названы — все темы проекта. */
+  themes?: string[];
 }
 
 /** Умолчания политики повторяют `default` из project.schema.json. */

@@ -220,7 +220,7 @@
         "screens": { "type": "string", "minLength": 1, "description": "Каталог снимков экранов от корня проекта." },
         "mockups": { "type": "string", "minLength": 1, "description": "Каталог эталонных макетов экранов." },
         "widths": { "type": "array", "items": { "type": "integer", "minimum": 240 }, "description": "Ширины снимков; по умолчанию 375, 768, 1280." },
-        "themes": { "type": "array", "items": { "enum": ["light", "dark"] }, "description": "Темы снимков; по умолчанию обе." }
+        "themes": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" }, "description": "Темы снимков; по умолчанию все темы проекта: светлая, тёмная и добавленные." }
       }
     },
     "policy": {

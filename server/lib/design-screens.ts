@@ -7,9 +7,11 @@
  * вопрос «какие есть, каких нет» и разбор того, что ответила модель.
  */
 
-export type ScreenTheme = 'light' | 'dark';
+/** Имя темы проекта: светлая, тёмная или добавленная (docs/16-design-system.md). */
+export type ScreenTheme = string;
 
 export const DEFAULT_WIDTHS: readonly number[] = [375, 768, 1280];
+/** Пока проект не назвал темы, снимаются обе базовые. */
 export const DEFAULT_THEMES: readonly ScreenTheme[] = ['light', 'dark'];
 export const DEFAULT_SCREENS_DIR = 'docs/development/design/screens';
 export const DEFAULT_MOCKUPS_DIR = 'docs/development/design/mockups';
@@ -142,8 +144,10 @@ export function captureScript(inventory: DesignScreens): string {
     '  mkdirSync(`${dir}/${slug}`, { recursive: true });',
     '  for (const width of widths) {',
     '    for (const theme of themes) {',
-    '      const page = await browser.newPage({ viewport: { width, height: 900 }, colorScheme: theme });',
+    "      const page = await browser.newPage({ viewport: { width, height: 900 }, colorScheme: theme === 'dark' ? 'dark' : 'light' });",
     '      await page.goto(base + route, { waitUntil: "networkidle" });',
+    "      // Тема включается классом на корне: `.dark` и `.theme-<имя>` из выгрузки токенов.",
+    "      await page.evaluate((name) => name !== 'light' && document.documentElement.classList.add(name === 'dark' ? 'dark' : `theme-${name}`), theme);",
     '      await page.screenshot({ path: `${dir}/${slug}/${width}-${theme}.png`, fullPage: true });',
     '      await page.close();',
     '    }',
@@ -236,8 +240,8 @@ export function parseFindings(answer: string, inventory: DesignScreens): Finding
         problems.push(`Ширина ${String(item['width'])} не из проверяемых (${inventory.widths.join(', ')}): находка по \`${screen}\` отброшена.`);
         continue;
       }
-      if (theme !== 'light' && theme !== 'dark') {
-        problems.push(`Тема \`${String(theme)}\` не светлая и не тёмная: находка по \`${screen}\` отброшена.`);
+      if (typeof theme !== 'string' || !inventory.themes.includes(theme)) {
+        problems.push(`Тема \`${String(theme)}\` не из проверяемых (${inventory.themes.join(', ')}): находка по \`${screen}\` отброшена.`);
         continue;
       }
       if (what === '') {

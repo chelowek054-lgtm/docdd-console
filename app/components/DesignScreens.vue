@@ -106,7 +106,9 @@ async function accept() {
   }
 }
 
-const THEME = { light: 'светлая', dark: 'тёмная' } as const;
+/** Имя темы для человека: базовые — по-русски, добавленные — как названы. */
+const THEME_NAME: Record<string, string> = { light: 'светлая', dark: 'тёмная' };
+const themeText = (name: string) => THEME_NAME[name] ?? name;
 const copied = ref(false);
 async function copyScript() {
   if (!screens.value) return;
@@ -157,7 +159,7 @@ const shotsPresent = computed(() => (screens.value ? screens.value.total - scree
                 <tr>
                   <th class="pr-3">Экран</th>
                   <th class="pr-3">Макет</th>
-                  <th v-for="width in screens.widths" :key="width" class="pr-3">{{ width }} px</th>
+                  <th v-for="width in screens.widths" :key="width" class="pr-3">{{ width }} px · {{ Math.round((width / 16) * 100) / 100 }}rem</th>
                 </tr>
               </thead>
               <tbody>
@@ -176,7 +178,7 @@ const shotsPresent = computed(() => (screens.value ? screens.value.total - scree
                         :class="shot.present ? 'text-success' : 'text-warning'"
                         :title="shot.takenAt ?? 'снимка нет'"
                       >
-                        {{ THEME[shot.theme] }}: {{ shot.present ? 'есть' : 'нет' }}
+                        {{ themeText(shot.theme) }}: {{ shot.present ? 'есть' : 'нет' }}
                       </span>
                     </div>
                   </td>
@@ -223,7 +225,7 @@ const shotsPresent = computed(() => (screens.value ? screens.value.total - scree
                   <tr v-for="(finding, at) in outcome.findings" :key="at" class="border-t border-default align-top">
                     <td class="p-2 font-mono text-xs">{{ finding.screen }}</td>
                     <td class="p-2">{{ finding.width }}</td>
-                    <td class="p-2">{{ THEME[finding.theme] }}</td>
+                    <td class="p-2">{{ themeText(finding.theme) }}</td>
                     <td class="p-2">{{ finding.what }}</td>
                     <td class="p-2 text-xs text-muted">{{ finding.expected ?? '—' }}</td>
                     <td class="p-2 text-xs text-muted">{{ finding.actual ?? '—' }}</td>

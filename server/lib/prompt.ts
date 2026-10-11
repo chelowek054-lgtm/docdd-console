@@ -576,13 +576,19 @@ export const SHOTS_MARKER = '<!-- СНИМКИ -->';
 function tokenLines(tokens: PlainTokens): string {
   const out: string[] = [];
   const pairs = (bag: Record<string, number>) => Object.entries(bag).map(([name, value]) => `${name} ${value}`).join(', ');
-  out.push(`Типографика (кегль/интерлиньяж/начертание): ${Object.entries(tokens.typography)
+  out.push(`Единица размеров — rem (1rem = ${tokens.root} px).`);
+  out.push(`Типографика, rem (кегль/интерлиньяж/начертание): ${Object.entries(tokens.typography)
     .map(([name, token]) => `${name} ${token.size}/${token.line ?? '—'}/${token.weight ?? '—'}`).join(', ')}`);
-  out.push(`Отступы: ${pairs(tokens.spacing)}`);
-  out.push(`Радиусы: ${pairs(tokens.radius)}`);
-  for (const theme of ['light', 'dark'] as const) {
-    out.push(`Палитра, ${theme === 'light' ? 'светлая тема' : 'тёмная тема'}: ${Object.entries(tokens.palette[theme])
-      .map(([role, color]) => `${role} ${color}`).join(', ')}`);
+  out.push(`Отступы, rem: ${pairs(tokens.spacing)}`);
+  out.push(`Радиусы, rem: ${pairs(tokens.radius)}`);
+  out.push(`Сетка: ${tokens.grid.columns} колонок, поле ${tokens.grid.gutter}rem; точки перелома, rem: ${pairs(tokens.grid.breakpoints)}; контейнеры, rem: ${pairs(tokens.grid.containers)}`);
+  const palettes: [string, Record<string, string>][] = [
+    ['тема light', tokens.palette.light],
+    ['тема dark', tokens.palette.dark],
+    ...Object.entries(tokens.themes).map(([name, theme]): [string, Record<string, string>] => [`тема ${name} (на базе ${theme.mode})`, theme.palette])
+  ];
+  for (const [name, palette] of palettes) {
+    out.push(`Палитра, ${name}: ${Object.entries(palette).map(([role, color]) => `${role} ${color}`).join(', ')}`);
   }
   if (tokens.principles.length) out.push(`Принципы: ${tokens.principles.join('; ')}`);
   return out.join(LF);
@@ -595,7 +601,7 @@ function shotLines(inventory: DesignScreens): string {
     lines.push(`### ${screen.id}${screen.title !== screen.id ? ` — ${screen.title}` : ''}`);
     lines.push(screen.mockup ? `Макет: \`${screen.mockup}\`` : 'Макета нет');
     for (const shot of screen.shots) {
-      lines.push(`- ${shot.width} px, ${shot.theme === 'light' ? 'светлая' : 'тёмная'}: ${shot.present ? `\`${shot.path}\`` : 'нет'}`);
+      lines.push(`- ${shot.width} px, тема ${shot.theme}: ${shot.present ? `\`${shot.path}\`` : 'нет'}`);
     }
     lines.push('');
   }

@@ -4,7 +4,9 @@ import {
   RADIUS_NAMES,
   SPACING_NAMES,
   TYPOGRAPHY_NAMES,
-  type DesignTheme,
+  BREAKPOINT_NAMES,
+  CONTAINER_NAMES,
+  type BaseTheme,
   type PlainTokens
 } from './design';
 
@@ -14,6 +16,10 @@ import {
  * Чистые функции: одинаковый вход — одинаковый текст, поэтому тесты держат
  * выгрузку снимками. Приложение ничего не пишет в проект (ADR-0022): текст
  * показывается, а файл меняет задача модели в своей ветке.
+ *
+ * Токены хранятся в `rem` (ADR-0023). Вебу они уходят как есть — размер следует
+ * за настройкой шрифта пользователя; платформам без rem (Expo, Compose,
+ * SwiftUI) значение переводится как `rem × root`.
  */
 
 export type StackId = 'nuxt-ui' | 'expo' | 'compose' | 'swiftui';
@@ -65,7 +71,6 @@ function ordered(bag: Record<string, unknown>, required: readonly string[]): str
 }
 
 const rolesOf = (palette: Record<string, string>) => ordered(palette, PALETTE_ROLES);
-const roleNames = (tokens: PlainTokens) => [...new Set([...rolesOf(tokens.palette.light), ...rolesOf(tokens.palette.dark)])];
 
 /** `#RRGGBB` без прозрачности и `#RRGGBBAA` с ней — раздельно. */
 function channels(color: string): { r: number; g: number; b: number; a: number } {
@@ -78,9 +83,34 @@ const upperHex = (value: number) => value.toString(16).padStart(2, '0').toUpperC
 
 const cssName = (role: string) => role.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
 
-const pascal = (role: string) => role.charAt(0).toUpperCase() + role.slice(1);
+const pascal = (role: string) => role.split(/[-_\s]+/).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join('');
 
 const lines = (...parts: string[]) => `${parts.join('\n')}\n`;
+
+/** Число без хвоста нулей: `1.5`, а не `1.5000`; в rem четвёртого знака хватает на 1/16. */
+const trim = (value: number, digits = 4) => String(Number(value.toFixed(digits)));
+
+/** Значение в rem для CSS. */
+const rem = (value: number) => `${trim(value)}rem`;
+
+/** rem → логические единицы платформы без rem: dp, pt, px React Native. */
+const toUnits = (value: number, root: number) => Number((value * root).toFixed(2));
+
+/** Тема: имя, база и итоговая палитра — светлая и тёмная первыми, как в блоке. */
+interface ThemeView {
+  name: string;
+  mode: BaseTheme;
+  palette: Record<string, string>;
+  custom: boolean;
+}
+
+function themeViews(tokens: PlainTokens): ThemeView[] {
+  return [
+    { name: 'light', mode: 'light', palette: tokens.palette.light, custom: false },
+    { name: 'dark', mode: 'dark', palette: tokens.palette.dark, custom: false },
+    ...Object.entries(tokens.themes).map(([name, theme]) => ({ name, mode: theme.mode, palette: theme.palette, custom: true }))
+  ];
+}
 
 /* ---------- Nuxt UI ---------- */
 
@@ -98,92 +128,164 @@ const NUXT_UI_MAP: Readonly<Record<string, readonly string[]>> = {
   danger: ['--ui-error']
 };
 
-function nuxtCss(tokens: PlainTokens): string {
-  const block = (theme: DesignTheme, selector: string): string[] => {
-    const palette = tokens.palette[theme];
-    const out: string[] = [`${selector} {`];
-    for (const role of rolesOf(palette)) {
-      out.push(`  --ds-color-${cssName(role)}: ${palette[role]};`);
+/** Классы сетки по образцу Bootstrap 5: контейнер, ряд, колонки; от меньшей ширины к большей. */
+function gridCss(tokens: PlainTokens): string[] {
+  const { columns, breakpoints, containers } = tokens.grid;
+  const points = ordered(breakpoints, BREAKPOINT_NAMES);
+  const share = (count: number) => `${trim((count / columns) * 100, 6)}%`;
+
+  const columnRules = (suffix: string, indent: string): string[] => {
+    const prefix = suffix === '' ? 'ds-col' : `ds-col-${suffix}`;
+    const out = [`${indent}.${prefix} { flex: 1 0 0%; }`, `${indent}.${prefix}-auto { flex: 0 0 auto; width: auto; }`];
+    for (let count = 1; count <= columns; count += 1) {
+      out.push(`${indent}.${prefix}-${count} { flex: 0 0 auto; width: ${share(count)}; }`);
     }
-    for (const role of rolesOf(palette)) {
-      for (const name of NUXT_UI_MAP[role] ?? []) out.push(`  ${name}: ${palette[role]};`);
+    return out;
+  };
+
+  const out: string[] = [
+    '.ds-container {',
+    '  width: 100%;',
+    '  margin-inline: auto;',
+    '  padding-inline: calc(var(--ds-grid-gutter) / 2);',
+    '}',
+    '.ds-row {',
+    '  display: flex;',
+    '  flex-wrap: wrap;',
+    '  margin-inline: calc(var(--ds-grid-gutter) / -2);',
+    '}',
+    '.ds-row > * {',
+    '  box-sizing: border-box;',
+    '  flex-shrink: 0;',
+    '  width: 100%;',
+    '  max-width: 100%;',
+    '  padding-inline: calc(var(--ds-grid-gutter) / 2);',
+    '}',
+    ...columnRules('', '')
+  ];
+
+  for (const point of points) {
+    const from = breakpoints[point]!;
+    if (from === 0) continue;
+    out.push(`@media (min-width: ${rem(from)}) {`);
+    if (point in containers) out.push(`  .ds-container { max-width: ${rem(containers[point]!)}; }`);
+    out.push(...columnRules(point, '  '), '}');
+  }
+  return out;
+}
+
+function nuxtCss(tokens: PlainTokens): string {
+  const scale = (prefix: string, bag: Record<string, number>, required: readonly string[]): string[] =>
+    ordered(bag, required).map((name) => `  --ds-${prefix}-${cssName(name)}: ${rem(bag[name]!)};`);
+
+  const typography: string[] = [];
+  for (const name of ordered(tokens.typography, TYPOGRAPHY_NAMES)) {
+    const token = tokens.typography[name]!;
+    typography.push(`  --ds-font-${cssName(name)}: ${rem(token.size)};`);
+    if (token.line !== undefined) typography.push(`  --ds-line-${cssName(name)}: ${rem(token.line)};`);
+    if (token.weight !== undefined) typography.push(`  --ds-weight-${cssName(name)}: ${token.weight};`);
+  }
+
+  const points = ordered(tokens.grid.breakpoints, BREAKPOINT_NAMES);
+  const themeBlock = (view: ThemeView): string[] => {
+    const selector = view.name === 'light' ? ':root' : view.custom ? `.theme-${view.name}` : `.${view.name}`;
+    const out: string[] = [`${selector} {`, `  color-scheme: ${view.mode};`];
+    for (const role of rolesOf(view.palette)) out.push(`  --ds-color-${cssName(role)}: ${view.palette[role]};`);
+    for (const role of rolesOf(view.palette)) {
+      for (const name of NUXT_UI_MAP[role] ?? []) out.push(`  ${name}: ${view.palette[role]};`);
     }
     out.push('}');
     return out;
   };
 
-  const scale = (prefix: string, bag: Record<string, number>, required: readonly string[]): string[] =>
-    ordered(bag, required).map((name) => `  --ds-${prefix}-${cssName(name)}: ${bag[name]}px;`);
-
-  const typography: string[] = [];
-  for (const name of ordered(tokens.typography, TYPOGRAPHY_NAMES)) {
-    const token = tokens.typography[name]!;
-    typography.push(`  --ds-font-${cssName(name)}: ${token.size}px;`);
-    if (token.line !== undefined) typography.push(`  --ds-line-${cssName(name)}: ${token.line}px;`);
-    if (token.weight !== undefined) typography.push(`  --ds-weight-${cssName(name)}: ${token.weight};`);
-  }
-
   return lines(
     `/* ${REGION_START} — ${HEADER} */`,
+    '/* Размеры в rem: следуют за настройкой шрифта пользователя; корень не задаётся в px. */',
+    'html { font-size: 100%; }',
+    '',
+    '/* Точки перелома Tailwind совпадают с сеткой, поэтому md: и ds-col-md-* срабатывают на одной ширине. */',
+    '@theme {',
+    ...points.filter((point) => point !== 'xs').map((point) => `  --breakpoint-${point}: ${rem(tokens.grid.breakpoints[point]!)};`),
+    '}',
+    '',
     ':root {',
     ...scale('space', tokens.spacing, SPACING_NAMES),
     ...scale('radius', tokens.radius, RADIUS_NAMES),
     ...typography,
+    `  --ds-grid-columns: ${tokens.grid.columns};`,
+    `  --ds-grid-gutter: ${rem(tokens.grid.gutter)};`,
+    ...points.map((point) => `  --ds-bp-${point}: ${rem(tokens.grid.breakpoints[point]!)};`),
     '}',
     '',
-    ...block('light', ':root'),
-    '',
-    ...block('dark', '.dark'),
+    ...themeViews(tokens).flatMap((view) => [...themeBlock(view), '']),
+    ...gridCss(tokens),
     `/* ${REGION_END} */`
   );
 }
 
 function nuxtTokensTs(tokens: PlainTokens): string {
   const plain = {
+    unit: 'rem',
     spacing: tokens.spacing,
     radius: tokens.radius,
     typography: tokens.typography,
-    palette: tokens.palette
+    grid: tokens.grid,
+    palette: tokens.palette,
+    themes: tokens.themes,
+    i18n: tokens.i18n
   };
   return lines(
     `// ${HEADER}`,
+    '// Размеры в rem. Языки — точка подключения словарей (@nuxtjs/i18n и подобные).',
     '',
-    `export const designTokens = ${JSON.stringify(plain, null, 2).replace(/"([A-Za-z_$][\w$]*)":/g, '$1:').replace(/"/g, "'")} as const;`,
+    `export const designTokens = ${JSON.stringify(plain, null, 2)} as const;`,
     '',
-    'export type DesignTokens = typeof designTokens;'
+    'export type DesignTokens = typeof designTokens;',
+    'export const locales = designTokens.i18n.locales;'
   );
 }
 
 /* ---------- Expo ---------- */
 
 function expoTheme(tokens: PlainTokens): string {
-  const colors = (name: string, theme: DesignTheme) => [
-    `export const ${name} = {`,
-    ...rolesOf(tokens.palette[theme]).map((role) => `  ${role}: '${tokens.palette[theme][role]}',`),
+  const { root } = tokens;
+  const views = themeViews(tokens);
+  const colors = (view: ThemeView) => [
+    `export const ${pascal(view.name)}Colors = {`,
+    ...rolesOf(view.palette).map((role) => `  ${role}: '${view.palette[role]}',`),
     '} as const;'
   ];
   const typography = ordered(tokens.typography, TYPOGRAPHY_NAMES).map((name) => {
     const token = tokens.typography[name]!;
-    const parts = [`fontSize: ${token.size}`];
-    if (token.line !== undefined) parts.push(`lineHeight: ${token.line}`);
+    const parts = [`fontSize: ${toUnits(token.size, root)}`];
+    if (token.line !== undefined) parts.push(`lineHeight: ${toUnits(token.line, root)}`);
     if (token.weight !== undefined) parts.push(`fontWeight: '${token.weight}'`);
     return `  ${name}: { ${parts.join(', ')} },`;
   });
   const numbers = (name: string, bag: Record<string, number>, required: readonly string[]) => [
     `export const ${name} = {`,
-    ...ordered(bag, required).map((key) => `  ${key}: ${bag[key]},`),
+    ...ordered(bag, required).map((key) => `  ${key}: ${toUnits(bag[key]!, root)},`),
     '} as const;'
+  ];
+  const grid = (name: string, bag: Record<string, number>, required: readonly string[]) => [
+    `  ${name}: {`,
+    ...ordered(bag, required).map((key) => `    ${key}: ${toUnits(bag[key]!, root)},`),
+    '  },'
   ];
 
   return lines(
     `// ${HEADER}`,
+    `// Размеры — rem × ${root}: у React Native нет rem, а масштаб шрифта системы остаётся включённым.`,
     "import { useColorScheme } from 'react-native';",
     '',
-    ...colors('LightColors', 'light'),
-    '',
-    ...colors('DarkColors', 'dark'),
-    '',
+    ...views.flatMap((view) => [...colors(view), '']),
     'export type ThemeColors = typeof LightColors;',
+    '',
+    'export const Themes = {',
+    ...views.map((view) => `  ${view.name.includes('-') ? `'${view.name}'` : view.name}: ${pascal(view.name)}Colors,`),
+    '} as const;',
+    '',
+    'export type ThemeName = keyof typeof Themes;',
     '',
     ...numbers('spacing', tokens.spacing, SPACING_NAMES),
     '',
@@ -193,9 +295,29 @@ function expoTheme(tokens: PlainTokens): string {
     ...typography,
     '} as const;',
     '',
-    '/** Палитра по системной теме; `null` из `useColorScheme()` — светлая. */',
-    'export function useThemeColors(): ThemeColors {',
-    "  return useColorScheme() === 'dark' ? DarkColors : LightColors;",
+    'export const grid = {',
+    `  columns: ${tokens.grid.columns},`,
+    `  gutter: ${toUnits(tokens.grid.gutter, root)},`,
+    ...grid('breakpoints', tokens.grid.breakpoints, BREAKPOINT_NAMES),
+    ...grid('containers', tokens.grid.containers, CONTAINER_NAMES),
+    '} as const;',
+    '',
+    '/** Точка сетки для ширины экрана в dp: наибольшая из тех, что не больше ширины. */',
+    'export function breakpointFor(width: number): keyof typeof grid.breakpoints {',
+    '  const names = Object.keys(grid.breakpoints) as (keyof typeof grid.breakpoints)[];',
+    '  return names.filter((name) => grid.breakpoints[name] <= width).pop() ?? names[0]!;',
+    '}',
+    '',
+    'export const i18n = {',
+    `  default: '${tokens.i18n.default}',`,
+    `  fallback: '${tokens.i18n.fallback}',`,
+    `  locales: [${tokens.i18n.locales.map((locale) => `'${locale}'`).join(', ')}],`,
+    '} as const;',
+    '',
+    '/** Палитра по имени темы; без имени — по системной теме, `null` из `useColorScheme()` — светлая. */',
+    'export function useThemeColors(name?: ThemeName): ThemeColors {',
+    '  const scheme = useColorScheme();',
+    "  return Themes[name ?? (scheme === 'dark' ? 'dark' : 'light')];",
     '}'
   );
 }
@@ -239,26 +361,24 @@ function composeColor(tokens: PlainTokens, options: ExportOptions): string {
     'import androidx.compose.ui.graphics.Color',
     ''
   ];
-  for (const theme of ['light', 'dark'] as const) {
-    const prefix = pascal(theme);
-    const palette = tokens.palette[theme];
-    for (const role of rolesOf(palette)) out.push(`val ${prefix}${pascal(role)} = ${kotlinColor(palette[role]!)}`);
+  const views = themeViews(tokens);
+  for (const view of views) {
+    const prefix = pascal(view.name);
+    for (const role of rolesOf(view.palette)) out.push(`val ${prefix}${pascal(role)} = ${kotlinColor(view.palette[role]!)}`);
     out.push('');
   }
-  const scheme = (theme: DesignTheme) => {
-    const prefix = pascal(theme);
-    const palette = tokens.palette[theme];
-    return COMPOSE_SCHEME.filter(([, role]) => role in palette)
+  for (const view of views) {
+    const prefix = pascal(view.name);
+    const parameters = COMPOSE_SCHEME.filter(([, role]) => role in view.palette)
       .map(([param, role]) => `    ${param} = ${prefix}${pascal(role)},`);
-  };
-  out.push('val LightColorScheme: ColorScheme = lightColorScheme(', ...scheme('light'), ')', '');
-  out.push('val DarkColorScheme: ColorScheme = darkColorScheme(', ...scheme('dark'), ')', '');
+    const factory = view.mode === 'dark' ? 'darkColorScheme' : 'lightColorScheme';
+    out.push(`val ${prefix}ColorScheme: ColorScheme = ${factory}(`, ...parameters, ')', '');
+  }
   out.push('/** Роли, которых нет в Material 3: смысловой цвет ядра и состояния. */');
   out.push('data class AppExtraColors(val core: Color, val ok: Color, val warn: Color)', '');
-  for (const theme of ['light', 'dark'] as const) {
-    const prefix = pascal(theme);
-    const palette = tokens.palette[theme];
-    const args = COMPOSE_EXTRA.filter((role) => role in palette).map((role) => `${role} = ${prefix}${pascal(role)}`);
+  for (const view of views) {
+    const prefix = pascal(view.name);
+    const args = COMPOSE_EXTRA.filter((role) => role in view.palette).map((role) => `${role} = ${prefix}${pascal(role)}`);
     out.push(`val ${prefix}ExtraColors = AppExtraColors(${args.join(', ')})`);
   }
   return lines(...out);
@@ -279,13 +399,14 @@ function composeType(tokens: PlainTokens, options: ExportOptions): string {
     .filter(([name]) => name in tokens.typography)
     .map(([name, style]) => {
       const token = tokens.typography[name]!;
-      const parts = [`fontSize = ${token.size}.sp`];
-      if (token.line !== undefined) parts.push(`lineHeight = ${token.line}.sp`);
+      const parts = [`fontSize = ${toUnits(token.size, tokens.root)}.sp`];
+      if (token.line !== undefined) parts.push(`lineHeight = ${toUnits(token.line, tokens.root)}.sp`);
       if (token.weight !== undefined) parts.push(`fontWeight = FontWeight.W${token.weight}`);
       return `    ${style} = TextStyle(${parts.join(', ')}),`;
     });
   return lines(
     `// ${HEADER}`,
+    `// Размеры — rem × ${tokens.root}; sp следует за масштабом шрифта системы.`,
     `package ${composePackage(options)}`,
     '',
     'import androidx.compose.material3.Typography',
@@ -300,7 +421,7 @@ function composeType(tokens: PlainTokens, options: ExportOptions): string {
 }
 
 function composeShape(tokens: PlainTokens, options: ExportOptions): string {
-  const radius = (name: string) => `${tokens.radius[name] ?? 0}.dp`;
+  const radius = (name: string) => `${toUnits(tokens.radius[name] ?? 0, tokens.root)}.dp`;
   return lines(
     `// ${HEADER}`,
     `package ${composePackage(options)}`,
@@ -321,7 +442,13 @@ function composeShape(tokens: PlainTokens, options: ExportOptions): string {
 }
 
 function composeTheme(tokens: PlainTokens, options: ExportOptions): string {
-  const spacing = ordered(tokens.spacing, SPACING_NAMES).map((name) => `    val ${name} = ${tokens.spacing[name]}.dp`);
+  const { root } = tokens;
+  const views = themeViews(tokens);
+  const spacing = ordered(tokens.spacing, SPACING_NAMES).map((name) => `    val ${name} = ${toUnits(tokens.spacing[name]!, root)}.dp`);
+  const dpMap = (bag: Record<string, number>, required: readonly string[]) =>
+    ordered(bag, required).map((name) => `"${name}" to ${toUnits(bag[name]!, root)}.dp`).join(', ');
+  const cases = views.map((view) => pascal(view.name));
+
   return lines(
     `// ${HEADER}`,
     `package ${composePackage(options)}`,
@@ -333,17 +460,46 @@ function composeTheme(tokens: PlainTokens, options: ExportOptions): string {
     'import androidx.compose.runtime.staticCompositionLocalOf',
     'import androidx.compose.ui.unit.dp',
     '',
+    '/** Темы продукта: светлая и тёмная — база, остальные поверх. */',
+    `enum class AppThemeName { ${cases.join(', ')} }`,
+    '',
     'val LocalExtraColors = staticCompositionLocalOf { LightExtraColors }',
     '',
     'object AppSpacing {',
     ...spacing,
     '}',
     '',
+    '/** Сетка: колонки, поле и точки перелома в dp (rem × root). */',
+    'object AppGrid {',
+    `    const val columns = ${tokens.grid.columns}`,
+    `    val gutter = ${toUnits(tokens.grid.gutter, root)}.dp`,
+    `    val breakpoints = mapOf(${dpMap(tokens.grid.breakpoints, BREAKPOINT_NAMES)})`,
+    `    val containers = mapOf(${dpMap(tokens.grid.containers, CONTAINER_NAMES)})`,
+    '}',
+    '',
+    '/** Языки продукта: точка подключения словарей. */',
+    'object AppLocales {',
+    `    const val default = "${tokens.i18n.default}"`,
+    `    const val fallback = "${tokens.i18n.fallback}"`,
+    `    val all = listOf(${tokens.i18n.locales.map((locale) => `"${locale}"`).join(', ')})`,
+    '}',
+    '',
     '@Composable',
-    'fun AppTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {',
-    '    CompositionLocalProvider(LocalExtraColors provides if (darkTheme) DarkExtraColors else LightExtraColors) {',
+    'fun AppTheme(',
+    '    theme: AppThemeName? = null,',
+    '    darkTheme: Boolean = isSystemInDarkTheme(),',
+    '    content: @Composable () -> Unit,',
+    ') {',
+    '    val chosen = theme ?: if (darkTheme) AppThemeName.Dark else AppThemeName.Light',
+    '    val scheme = when (chosen) {',
+    ...cases.map((name) => `        AppThemeName.${name} -> ${name}ColorScheme`),
+    '    }',
+    '    val extra = when (chosen) {',
+    ...cases.map((name) => `        AppThemeName.${name} -> ${name}ExtraColors`),
+    '    }',
+    '    CompositionLocalProvider(LocalExtraColors provides extra) {',
     '        MaterialTheme(',
-    '            colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme,',
+    '            colorScheme = scheme,',
     '            typography = AppTypography,',
     '            shapes = AppShapes,',
     '            content = content,',
@@ -360,27 +516,57 @@ const SWIFT_WEIGHT: Readonly<Record<number, string>> = {
 };
 
 function swiftTheme(tokens: PlainTokens): string {
+  const { root } = tokens;
   const numbers = (name: string, bag: Record<string, number>, required: readonly string[]) => [
     `    enum ${name} {`,
-    ...ordered(bag, required).map((key) => `        static let ${key}: CGFloat = ${bag[key]}`),
+    ...ordered(bag, required).map((key) => `        static let ${key}: CGFloat = ${toUnits(bag[key]!, root)}`),
     '    }'
   ];
   const fonts = ordered(tokens.typography, TYPOGRAPHY_NAMES).map((name) => {
     const token = tokens.typography[name]!;
     const weight = SWIFT_WEIGHT[token.weight ?? 400] ?? 'regular';
-    return `        static let ${name} = Font.system(size: ${token.size}, weight: .${weight})`;
+    return `        static let ${name} = Font.system(size: ${toUnits(token.size, root)}, weight: .${weight})`;
   });
-  const colors = roleNames(tokens).map((role) => `        static let ${role} = SwiftUI.Color("${role}")`);
+  const colors = rolesOf({ ...tokens.palette.light, ...tokens.palette.dark })
+    .map((role) => `        static let ${role} = SwiftUI.Color("${role}")`);
+  const hex = (value: string) => {
+    const { r, g, b, a } = channels(value);
+    return `0x${upperHex(a)}${upperHex(r)}${upperHex(g)}${upperHex(b)}`;
+  };
+  const custom = Object.entries(tokens.themes).flatMap(([name, theme]) => [
+    '',
+    `    /// Тема «${theme.label}»: база ${theme.mode}, цвета в коде, а не в каталоге ассетов.`,
+    `    enum ${pascal(name)} {`,
+    ...rolesOf(theme.palette).map((role) => `        static let ${role} = SwiftUI.Color(argb: ${hex(theme.palette[role]!)})`),
+    '    }'
+  ]);
+  const dict = (bag: Record<string, number>, required: readonly string[]) =>
+    ordered(bag, required).map((key) => `            "${key}": ${toUnits(bag[key]!, root)}`).join(',\n');
 
   return lines(
     `// ${HEADER}`,
+    `// Размеры — rem × ${root}; у SwiftUI нет rem, а Dynamic Type остаётся включённым.`,
     'import SwiftUI',
     '',
-    '/// Цвета берутся из каталога ассетов: у каждой роли варианты Any и Dark.',
+    'extension SwiftUI.Color {',
+    '    /// Цвет из 0xAARRGGBB: для тем, которых нет в каталоге ассетов.',
+    '    init(argb: UInt32) {',
+    '        self.init(',
+    '            .sRGB,',
+    '            red: Double((argb >> 16) & 0xFF) / 255,',
+    '            green: Double((argb >> 8) & 0xFF) / 255,',
+    '            blue: Double(argb & 0xFF) / 255,',
+    '            opacity: Double((argb >> 24) & 0xFF) / 255',
+    '        )',
+    '    }',
+    '}',
+    '',
+    '/// Цвета светлой и тёмной тем берутся из каталога ассетов: у каждой роли варианты Any и Dark.',
     'enum AppTheme {',
     '    enum Colors {',
     ...colors,
     '    }',
+    ...custom,
     '',
     ...numbers('Spacing', tokens.spacing, SPACING_NAMES),
     '',
@@ -388,6 +574,25 @@ function swiftTheme(tokens: PlainTokens): string {
     '',
     '    enum Typography {',
     ...fonts,
+    '    }',
+    '',
+    '    /// Сетка: колонки, поле и точки перелома.',
+    '    enum Grid {',
+    `        static let columns = ${tokens.grid.columns}`,
+    `        static let gutter: CGFloat = ${toUnits(tokens.grid.gutter, root)}`,
+    '        static let breakpoints: [String: CGFloat] = [',
+    dict(tokens.grid.breakpoints, BREAKPOINT_NAMES),
+    '        ]',
+    '        static let containers: [String: CGFloat] = [',
+    dict(tokens.grid.containers, CONTAINER_NAMES),
+    '        ]',
+    '    }',
+    '',
+    '    /// Языки продукта: точка подключения словарей.',
+    '    enum Locales {',
+    `        static let standard = "${tokens.i18n.default}"`,
+    `        static let fallback = "${tokens.i18n.fallback}"`,
+    `        static let all = [${tokens.i18n.locales.map((locale) => `"${locale}"`).join(', ')}]`,
     '    }',
     '}'
   );
@@ -444,8 +649,9 @@ export function exportStack(id: StackId, tokens: PlainTokens, options: ExportOpt
         id,
         files: [
           { key: 'theme', defaultPath: 'Theme.swift', content: swiftTheme(tokens) },
-          // Цвета каталога: ключ `colors:<роль>`, путь строится от каталога `colors` манифеста.
-          ...roleNames(tokens).map((role) => ({
+          // Цвета каталога — только светлая и тёмная (Any/Dark): ключ `colors:<роль>`,
+          // путь строится от каталога `colors` манифеста. Остальные темы — в Theme.swift.
+          ...rolesOf({ ...tokens.palette.light, ...tokens.palette.dark }).map((role) => ({
             key: `colors:${role}`,
             defaultPath: `Assets.xcassets/${role}.colorset/Contents.json`,
             content: swiftColorset(tokens.palette.light[role], tokens.palette.dark[role])
@@ -526,7 +732,7 @@ export function compareFile(expected: ExportFile, actual: string | null): FileCo
   return { state: 'drift', diff: lineDiff(got, want) };
 }
 
-/** Компоненты из реестра нужны проекту: имя ищется в именах исходных файлов и модулей. */
+/** Компоненты реестра нужны проекту: имя ищется в именах исходных файлов и модулей. */
 export function requiredComponents(tokens: PlainTokens): string[] {
   const names = tokens.components.map((component) => component.name);
   return names.length > 0 ? names : [...COMPONENT_NAMES];
@@ -536,8 +742,8 @@ export function requiredComponents(tokens: PlainTokens): string[] {
 
 /** Путь только внутри проекта: без абсолютного пути и без `..`. */
 export function isSafeRelative(path: string): boolean {
-  if (path === '' || /^([a-zA-Z]:|[\/])/.test(path)) return false;
-  return !path.split(/[\/]/).includes('..');
+  if (path === '' || /^([a-zA-Z]:|[\\/])/.test(path)) return false;
+  return !path.split(/[\\/]/).includes('..');
 }
 
 /**
@@ -547,7 +753,7 @@ export function isSafeRelative(path: string): boolean {
 export function projectFilePath(files: Record<string, string> | undefined, file: ExportFile): string {
   if (file.key.startsWith('colors:')) {
     const directory = files?.['colors'] ?? 'Assets.xcassets';
-    return `${directory.replace(/[\/]+$/, '')}/${file.key.slice('colors:'.length)}.colorset/Contents.json`;
+    return `${directory.replace(/[\\/]+$/, '')}/${file.key.slice('colors:'.length)}.colorset/Contents.json`;
   }
   return files?.[file.key] ?? file.defaultPath;
 }
@@ -571,7 +777,7 @@ export function componentsMissing(
   if (codeFiles.length === 0) return null;
   const stems = new Set<string>();
   for (const file of codeFiles) {
-    for (const part of file.split(/[\/]/)) stems.add(part.replace(/\.[^.]+$/, '').toLowerCase());
+    for (const part of file.split(/[\\/]/)) stems.add(part.replace(/\.[^.]+$/, '').toLowerCase());
   }
   return names.filter((name) => !provided.has(name) && !nameVariants(name).some((variant) => stems.has(variant)));
 }

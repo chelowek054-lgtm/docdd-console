@@ -19,6 +19,8 @@ import {
 import { approvedMaps, foldMaps, parseMapRecord } from '../lib/maps';
 import { normalizeRoot, resolveInside } from '../lib/paths';
 import { readManifest, readWorkspace } from '../lib/workspace';
+import { themeNames } from '../lib/design';
+import { projectDesign } from './design-service';
 
 /**
  * Снимки экранов и находки проверки (docs/16-design-system.md). Читает файлы
@@ -71,7 +73,7 @@ export function projectScreens(root: string): ScreensReport {
     screensDir,
     mockupsDir,
     widths: design.widths,
-    themes: design.themes
+    themes: design.themes ?? projectThemes(normalized)
   });
   return { ...inventory, fromMap: screens.length > 0, script: captureScript(inventory) };
 }
@@ -124,4 +126,17 @@ export function writeDesignReport(
   mkdirSync(dirname(absolute), { recursive: true });
   writeFileSync(absolute, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
   return relative;
+}
+
+/**
+ * Темы снимков, когда манифест их не назвал: все темы проекта — светлая, тёмная
+ * и добавленные блоком. Дизайн не подключён — по умолчанию обе базовые.
+ */
+function projectThemes(root: string): string[] | undefined {
+  try {
+    const design = projectDesign(root);
+    return design.empty ? undefined : themeNames(design.tokens);
+  } catch {
+    return undefined;
+  }
 }

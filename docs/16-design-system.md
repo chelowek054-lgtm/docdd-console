@@ -4,38 +4,54 @@
 **глобально, в самой консоли**, и спускаются в проекты: записью `design` во
 встроенном источнике практик, выгрузкой в файл темы каждого стека и проверкой
 экранов моделью. Решения и отвергнутое — в
-[adr/0022-design-system.md](adr/0022-design-system.md); требования R-0030…R-0033,
-карта M-0030.
+[adr/0022-design-system.md](adr/0022-design-system.md) и
+[adr/0023-adaptive-by-default.md](adr/0023-adaptive-by-default.md); требования
+R-0030…R-0033, карта M-0030.
+
+**Адаптивность — свойство формата, а не доработка.** Размеры только в `rem`,
+сетка обязательна, темы расширяемы поверх светлой и тёмной, i18n есть всегда и
+не меньше двух языков ([ADR-0023](adr/0023-adaptive-by-default.md)).
 
 ## Блок `docdd-design`
 
 JSON в теле подтверждённой записи `design`, как `docdd-rules`
 ([12-practice-rules.md](12-practice-rules.md)). Запись может нести несколько
-блоков — они складываются по порядку. Единицы без привязки к стеку: числа — это
-логические пиксели (`px` в вебе, `dp` в Android, `pt` в iOS), цвета — `#RRGGBB`
-или `#RRGGBBAA`.
+блоков — они складываются по порядку. Единицы: размеры — **`rem`** (1rem — размер
+шрифта корня, 16 px), цвета — `#RRGGBB` или `#RRGGBBAA`. Блок называет единицу
+сам: `"unit": "rem"`; без неё это `design_block_invalid`.
 
 ````
 ```docdd-design
 {
+  "unit": "rem",
+  "root": 16,
   "principles": [
-    "Mobile-first: экран начинается с 375 px",
-    "Зона нажатия не меньше 44×44",
-    "Контраст текста не ниже 4.5:1",
-    "Светлая и тёмная темы обязательны"
+    "Mobile-first: экран начинается с 23.4375rem (375 px) и растёт вверх",
+    "Зона нажатия не меньше 2.75rem (44 px)",
+    "Контраст текста не ниже 4.5:1 в каждой теме"
   ],
   "typography": {
-    "caption": { "size": 12, "line": 16, "weight": 400 },
-    "body":    { "size": 16, "line": 24, "weight": 400 }
+    "caption": { "size": 0.75, "line": 1.0625, "weight": 400 },
+    "body":    { "size": 0.9375, "line": 1.375, "weight": 400 }
   },
-  "spacing": { "xs": 4, "sm": 8, "md": 12, "lg": 16, "xl": 24, "xxl": 32 },
-  "radius":  { "sm": 6, "md": 12, "pill": 999 },
+  "spacing": { "xs": 0.25, "sm": 0.5, "md": 0.75, "lg": 1, "xl": 1.5, "xxl": 2 },
+  "radius":  { "sm": 0.5, "md": 0.75, "pill": 62.5 },
+  "grid": {
+    "columns": 12,
+    "gutter": 1.5,
+    "breakpoints": { "xs": 0, "sm": 36, "md": 48, "lg": 62, "xl": 75, "xxl": 87.5 },
+    "containers":  { "sm": 33.75, "md": 45, "lg": 60, "xl": 71.25, "xxl": 82.5 }
+  },
   "palette": {
     "light": { "bg": "#FFFFFF", "ink": "#16202A", "accent": "#0B6E4F", "onAccent": "#FFFFFF" },
     "dark":  { "bg": "#0E141A", "ink": "#E8EEF3", "accent": "#4CC38A", "onAccent": "#06210F" }
   },
+  "themes": {
+    "ocean": { "label": "Океан", "mode": "light", "palette": { "accent": "#0B5FA5", "onAccent": "#FFFFFF" } }
+  },
+  "i18n": { "default": "ru", "locales": ["ru", "en"], "fallback": "en" },
   "components": [
-    { "name": "Button", "summary": "Основная и призрачная; высота не меньше 44" }
+    { "name": "Button", "summary": "Основная и призрачная; высота не меньше 2.75rem" }
   ],
   "overrides": ["palette.light.accent"]
 }
@@ -44,18 +60,64 @@ JSON в теле подтверждённой записи `design`, как `doc
 
 ## Словарь
 
-| Ключ | Что значит | Обязательные имена |
+| Ключ | Что значит | Обязательное |
 |---|---|---|
+| `unit` | Единица размеров, только `rem` | `rem` |
+| `root` | Пикселей в `1rem` для платформ без rem (Expo, Compose, SwiftUI); по умолчанию 16 | — |
 | `principles` | Принципы и ограничения: строки; копятся, дубль по тексту схлопывается | — |
-| `typography` | Шкала кеглей: `size`, `line`, `weight` | `caption`, `small`, `body`, `lead`, `title`, `display` |
-| `spacing` | Отступы | `xs`, `sm`, `md`, `lg`, `xl`, `xxl` |
-| `radius` | Радиусы | `sm`, `md`, `pill` |
-| `palette.light`, `palette.dark` | Цвета **по ролям**, а не по оттенкам | `bg`, `surface`, `surfaceAlt`, `ink`, `muted`, `line`, `accent`, `onAccent`, `core`, `ok`, `warn`, `danger`, `onDanger` |
+| `typography` | Шкала кеглей: `size`, `line`, `weight`; размеры в `rem` | `caption`, `small`, `body`, `lead`, `title`, `display` |
+| `spacing` | Отступы в `rem` | `xs`, `sm`, `md`, `lg`, `xl`, `xxl` |
+| `radius` | Радиусы в `rem`; `pill` — полностью скруглённый | `sm`, `md`, `pill` |
+| `grid` | Глобальная сетка (ниже) | `columns`, `gutter`, `breakpoints`, `containers` |
+| `palette.light`, `palette.dark` | Цвета **по ролям**, а не по оттенкам; базовые темы | `bg`, `surface`, `surfaceAlt`, `ink`, `muted`, `line`, `accent`, `onAccent`, `core`, `ok`, `warn`, `danger`, `onDanger` |
+| `themes` | Дополнительные цветовые темы поверх базовых (ниже) | — |
+| `i18n` | Языки интерфейса (ниже) | `locales` (не меньше двух, есть `en`), `default`, `fallback` |
 | `components` | Реестр обязательных компонентов; `name` — имя в коде проекта | `TopBar`, `Card`, `Button`, `Field`, `Pill`, `Progress`, `Empty` |
-| `overrides` | Ключи, которые этот блок меняет осознанно (`palette.light.accent`): без `design_conflict`, но источник остаётся виден | — |
+| `overrides` | Ключи, которые этот блок меняет осознанно (`palette.light.accent`, `grid.gutter`, `themes.ocean.accent`): без `design_conflict`, но источник остаётся виден | — |
 
 Обязательные имена — минимум эталона: блок проекта может добавлять свои, но
 проверка полноты считается по сложенному результату.
+
+### Сетка
+
+Образец — Bootstrap 5, в `rem`: 12 колонок, поле `gutter` (1.5rem), шесть точек
+перелома и ширины контейнеров. Правила пишутся от меньшего к большему
+(`min-width`): `xs` — от 0, остальные включаются по мере роста экрана.
+
+| Точка | От (rem / px) | Контейнер (rem / px) |
+|---|---|---|
+| `xs` | 0 | на всю ширину |
+| `sm` | 36 / 576 | 33.75 / 540 |
+| `md` | 48 / 768 | 45 / 720 |
+| `lg` | 62 / 992 | 60 / 960 |
+| `xl` | 75 / 1200 | 71.25 / 1140 |
+| `xxl` | 87.5 / 1400 | 82.5 / 1320 |
+
+Точки перелома строго возрастают, `xs` — 0. Внутри контейнера колонки делят ширину
+на `columns`, между ними `gutter`; колонка занимает от 1 до `columns` долей на
+каждой точке.
+
+### Цветовые темы
+
+`palette.light` и `palette.dark` обязательны, у каждой есть значение для каждой роли.
+Остальные темы — в `themes`: имя (`[a-z][a-z0-9-]*`, не `light` и не `dark`), `mode` —
+от какой базы наследуется (`light` или `dark`), `label` для человека и `palette` только
+с переопределяемыми ролями. Неизвестная роль — `design_block_invalid`. Контраст
+проверяется у **каждой** темы по её итоговой палитре. В вебе тему включает класс на
+корне: `.dark`, `.theme-ocean`; тема на базе `dark` включается вместе с `.dark`, чтобы
+утилиты `dark:` и компоненты библиотеки знали, что фон тёмный.
+
+### i18n
+
+Интерфейс не знает языка: в коде только ключи словаря. Блок называет языки продукта:
+
+```json
+{ "i18n": { "default": "ru", "locales": ["ru", "en"], "fallback": "en" } }
+```
+
+Языков не меньше двух, и среди них английский; `default` и `fallback` — из списка.
+Выгрузка отдаёт список языков в файл темы каждого стека (точка подключения словарей),
+а проверка называет проект, у которого их меньше двух.
 
 ## Где живёт и как подключается
 
@@ -73,10 +135,10 @@ JSON в теле подтверждённой записи `design`, как `doc
 1. Общие записи — по порядку источников в `sources.shared`, внутри источника по номеру.
 2. Локальные — по номеру записи.
 
-Словари (`typography`, `spacing`, `radius`, `palette.*`) складываются **по ключу**:
-поздний уровень заменяет значение раннего. Списки (`principles`, `components` по
-`name`) копятся. У каждой части остаётся источник — запись, которая её задала, и
-перекрытые ею.
+Словари (`typography`, `spacing`, `radius`, `grid.breakpoints`, `grid.containers`,
+`palette.*`, роли в `themes.*`) складываются **по ключу**: поздний уровень заменяет
+значение раннего. Списки (`principles`, `components` по `name`, `i18n.locales`) копятся.
+У каждой части остаётся источник — запись, которая её задала, и перекрытые ею.
 
 **Противоречие** — поздний блок задаёт другое значение для ключа, уже заданного
 более ранним уровнем, и ключа нет в его `overrides`; либо два блока одного уровня
@@ -90,10 +152,11 @@ JSON в теле подтверждённой записи `design`, как `doc
 
 | Код | Когда |
 |---|---|
-| `design_block_invalid` | Блок `docdd-design` не разобрался: не JSON, не объект, цвет не `#RRGGBB(AA)`, число отрицательно |
+| `design_block_invalid` | Блок `docdd-design` не разобрался: не JSON, нет `unit: "rem"`, цвет не `#RRGGBB(AA)`, число отрицательно, тема с неизвестной ролью |
 | `design_contrast_low` | Пара «текст/фон» одной темы держит меньше 4.5:1: `ink`/`bg`, `ink`/`surface`, `muted`/`bg`, `onAccent`/`accent`, `onDanger`/`danger` |
-| `design_theme_incomplete` | Роль палитры есть в одной теме и нет в другой |
-| `design_scale_gap` | В шкале (кегли, отступы, радиусы, роли палитры, реестр) нет обязательного имени |
+| `design_theme_incomplete` | Роль палитры есть в одной базовой теме и нет в другой |
+| `design_scale_gap` | В шкале (кегли, отступы, радиусы, сетка, роли палитры, реестр) нет обязательного имени; точки перелома не возрастают |
+| `design_i18n_missing` | Нет блока `i18n`, языков меньше двух или нет `en`, `default` или `fallback` не из списка |
 | `design_conflict` | Блоки спорят (см. «Сложение») |
 | `design_theme_drift` | Файл темы проекта расходится с выгрузкой токенов |
 | `design_component_missing` | Компонента из реестра нет в коде проекта. Для стека `nuxt-ui` обязательные компоненты даёт библиотека (`UButton`, `UCard`, `UFormField`, `UBadge`, `UProgress`, `UEmpty`, `UHeader`): свой файл им не нужен |
@@ -121,10 +184,10 @@ design:
 
 | Стек (`id`) | Файлы (ключ → по умолчанию) | Что в них |
 |---|---|---|
-| `nuxt-ui` | `css` → `app/assets/css/main.css` (блок между метками `docdd-design:start` и `docdd-design:end`, остальное в файле проекта), `config` → `app/design-tokens.ts` | Переменные `:root` и `.dark` (свои `--ds-*` и `--ui-*` Nuxt UI), объект токенов для кода |
-| `expo` | `theme` → `constants/theme.ts` | `LightColors`, `DarkColors`, `spacing`, `radius`, `typography` |
-| `compose` | `color` → `Color.kt`, `type` → `Type.kt`, `shape` → `Shape.kt`, `theme` → `Theme.kt`; пакет Kotlin — `package` у стека, по умолчанию `ui.theme` | `LightColorScheme`, `DarkColorScheme`, `AppTypography`, `AppShapes`, `AppTheme` |
-| `swiftui` | `theme` → `Theme.swift`, `colors` → `Assets.xcassets` (каталог; на роль — `<роль>.colorset/Contents.json`) | `AppTheme`, цвета каталога ассетов с Any/Dark |
+| `nuxt-ui` | `css` → `app/assets/css/main.css` (блок между метками `docdd-design:start` и `docdd-design:end`, остальное в файле проекта), `config` → `app/design-tokens.ts` | В `rem`: переменные `:root`, `.dark` и `.theme-<имя>` (свои `--ds-*` и `--ui-*` Nuxt UI), точки перелома Tailwind, классы сетки `ds-container`, `ds-row`, `ds-col-*`; объект токенов и языки для кода |
+| `expo` | `theme` → `constants/theme.ts` | Палитры всех тем, отступы, радиусы, кегли (`rem × root`), сетка в dp, языки |
+| `compose` | `color` → `Color.kt`, `type` → `Type.kt`, `shape` → `Shape.kt`, `theme` → `Theme.kt`; пакет Kotlin — `package` у стека, по умолчанию `ui.theme` | `ColorScheme` каждой темы, `AppTypography` в `sp`, `AppShapes`, `AppGrid`, `AppTheme` |
+| `swiftui` | `theme` → `Theme.swift`, `colors` → `Assets.xcassets` (каталог; на роль — `<роль>.colorset/Contents.json`) | `AppTheme`, цвета каталога ассетов с Any/Dark, цвета остальных тем в коде, сетка |
 
 Выгрузка — чистая функция над сложенными токенами: одинаковый вход даёт одинаковый
 текст. Приложение **ничего не пишет в код проекта**: оно показывает текст и дифф с
@@ -135,9 +198,9 @@ design:
 ## Проверка экранов моделью
 
 Список экранов — подтверждённая карта пользовательских путей (`screens`). Для
-каждого экрана нужны снимки на ширинах (по умолчанию 375 / 768 / 1280) в светлой и
-тёмной теме. Приложение снимков **не делает**: их кладёт проект (сборка, CI или
-человек) в
+каждого экрана нужны снимки на ширинах (по умолчанию 375 / 768 / 1280) в каждой
+теме проекта (по умолчанию светлой и тёмной). Приложение снимков **не делает**: их
+кладёт проект (сборка, CI или человек) в
 
 ```
 docs/development/design/screens/<экран>/<ширина>-<тема>.png     # 375-light.png
@@ -153,7 +216,8 @@ docs/development/design/mockups/<экран>.png                       # эта�
 
 - **Responsive** ([prompts/design-responsive.md](prompts/design-responsive.md)): на
   каждой ширине нет горизонтального скролла, ничего не обрезано и не наезжает, шапка
-  не переносится, зона нажатия не меньше 44×44, отступ по краю — из шкалы.
+  не переносится, зона нажатия не меньше 2.75rem, отступ по краю — из шкалы, содержимое
+  лежит в сетке (контейнер, колонки, поле), текст, увеличенный до 200 %, ничего не ломает.
 - **Pixel-Perfect** ([prompts/design-pixel-perfect.md](prompts/design-pixel-perfect.md)):
   снимок против токенов и эталонного макета: где, что ожидалось, что на снимке.
 
@@ -165,7 +229,7 @@ docs/development/design/mockups/<экран>.png                       # эта�
   "pass": "responsive",
   "findings": [
     { "screen": "S-home", "width": 375, "theme": "dark", "what": "Горизонтальный скролл",
-      "expected": "нет скролла", "actual": "таблица шире экрана на 40 px" }
+      "expected": "нет скролла", "actual": "таблица шире экрана на 2.5rem" }
   ],
   "clean": ["S-login"]
 }

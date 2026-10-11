@@ -885,7 +885,11 @@ Claude Code не найден или отказал в доступе — `503`;
     "principles": [{ "value": "…", "source": "[docdd] D-0001" }],
     "typography": { "body": { "value": { "size": 16, "line": 24, "weight": 400 }, "source": "[docdd] D-0001", "overrides": [] } },
     "spacing": {}, "radius": {},
+    "grid": { "columns": { "value": 12, "source": "[docdd] D-0001" }, "gutter": {}, "breakpoints": {}, "containers": {} },
     "palette": { "light": {}, "dark": {} },
+    "themes": { "ocean": { "mode": { "value": "light" }, "label": { "value": "Океан" }, "colors": { "accent": { "value": "#0B5FA5" } } } },
+    "i18n": { "default": { "value": "ru" }, "fallback": { "value": "en" }, "locales": [{ "value": "ru" }, { "value": "en" }] },
+    "root": null,
     "components": [{ "value": { "name": "Button" }, "source": "[docdd] D-0001" }]
   },
   "checks": [{ "code": "design_contrast_low", "theme": "dark", "pair": ["ink", "bg"], "ratio": 3.9, "message": "…" }],
@@ -899,6 +903,9 @@ Claude Code не найден или отказал в доступе — `503`;
   "stacks": [{ "id": "nuxt-ui", "label": "Nuxt + Nuxt UI" }]
 }
 ```
+
+Размеры в `rem`. `themes` — только добавленные темы с переопределёнными ролями; итоговая палитра
+темы — база (`mode`) и поверх неё `colors`.
 
 Сложение производное: нигде не хранится. Нет ни одного подтверждённого блока — `tokens` пустые,
 `empty: true`, `connected: false`. `componentsMissing` — компоненты реестра, которых нет среди файлов

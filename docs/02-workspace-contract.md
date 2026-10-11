@@ -86,8 +86,8 @@ design:
         css: app/assets/css/main.css
   screens: docs/development/design/screens    # каталог снимков экранов
   mockups: docs/development/design/mockups    # эталонные макеты
-  widths: [375, 768, 1280]
-  themes: [light, dark]
+  widths: [375, 768, 1280]    # ширины снимков в px
+  themes: [light, dark]       # темы снимков; не названы — все темы проекта (в том числе добавленные)
 ```
 
 Поколение контракта проверяется до всего остального. `docdd.workspace/2` —
