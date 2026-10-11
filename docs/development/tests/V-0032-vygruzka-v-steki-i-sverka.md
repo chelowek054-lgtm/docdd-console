@@ -1,12 +1,12 @@
 ---
-id: V-0003
+id: V-0032
 type: verification
 title: Выгрузка токенов в стеки и сверка файла темы
 status: draft
 kind: unit
 runner: npm
 links:
-  verifies: [R-0003]
+  verifies: [R-0032]
 created: 2026-10-11
 updated: 2026-10-11
 ---

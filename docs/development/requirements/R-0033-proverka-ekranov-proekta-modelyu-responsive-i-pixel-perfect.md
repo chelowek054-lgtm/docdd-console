@@ -1,10 +1,10 @@
 ---
-id: R-0004
+id: R-0033
 type: requirement
 title: Проверка экранов проекта моделью — Responsive и Pixel-Perfect
 status: draft
 links:
-  verified_by: [V-0004]
+  verified_by: [V-0033]
 created: 2026-10-11
 updated: 2026-10-11
 ---

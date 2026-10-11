@@ -1,14 +1,14 @@
 ---
-id: T-0009
+id: T-0068
 type: task
 title: Responsive-проверка экранов моделью
 status: backlog
 change: feature
 links:
-  implements: [R-0004]
-  verified_by: [V-0004]
-  depends_on: [T-0008]
-  affects: [M-0007]
+  implements: [R-0033]
+  verified_by: [V-0033]
+  depends_on: [T-0067]
+  affects: [M-0030]
 created: 2026-10-11
 updated: 2026-10-11
 ---

@@ -1,10 +1,10 @@
 ---
-id: R-0002
+id: R-0031
 type: requirement
 title: Проверка токенов и экран «Дизайн»
 status: draft
 links:
-  verified_by: [V-0001, V-0002]
+  verified_by: [V-0030, V-0031]
 created: 2026-10-11
 updated: 2026-10-11
 ---

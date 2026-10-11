@@ -1,11 +1,11 @@
 ---
-id: V-0004
+id: V-0033
 type: verification
 title: Проверка экранов моделью — Responsive и Pixel-Perfect
 status: draft
 kind: manual
 links:
-  verifies: [R-0004]
+  verifies: [R-0033]
 created: 2026-10-11
 updated: 2026-10-11
 ---

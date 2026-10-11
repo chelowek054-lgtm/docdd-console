@@ -1,14 +1,14 @@
 ---
-id: T-0006
+id: T-0065
 type: task
 title: 'Выгрузка токенов в Nuxt UI, Expo, Compose и SwiftUI'
 status: backlog
 change: feature
 links:
-  implements: [R-0003]
-  verified_by: [V-0003]
-  depends_on: [T-0002]
-  affects: [M-0007]
+  implements: [R-0032]
+  verified_by: [V-0032]
+  depends_on: [T-0061]
+  affects: [M-0030]
 reuse: none
 created: 2026-10-11
 updated: 2026-10-11

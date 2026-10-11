@@ -1,10 +1,10 @@
 ---
-id: R-0001
+id: R-0030
 type: requirement
 title: Единый дизайн — токены одним источником на все проекты
 status: draft
 links:
-  verified_by: [V-0001]
+  verified_by: [V-0030]
 created: 2026-10-11
 updated: 2026-10-11
 ---

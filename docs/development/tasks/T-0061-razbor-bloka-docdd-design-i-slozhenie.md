@@ -1,14 +1,14 @@
 ---
-id: T-0002
+id: T-0061
 type: task
 title: 'Разбор блока docdd-design и сложение «общее → локальное», GET /design'
 status: backlog
 change: feature
 links:
-  implements: [R-0001]
-  verified_by: [V-0001]
-  depends_on: [T-0001]
-  affects: [M-0007]
+  implements: [R-0030]
+  verified_by: [V-0030]
+  depends_on: [T-0060]
+  affects: [M-0030]
 created: 2026-10-11
 updated: 2026-10-11
 ---

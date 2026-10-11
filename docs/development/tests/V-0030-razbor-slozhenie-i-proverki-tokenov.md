@@ -1,12 +1,12 @@
 ---
-id: V-0001
+id: V-0030
 type: verification
 title: Разбор, сложение и проверки токенов дизайна
 status: draft
 kind: unit
 runner: npm
 links:
-  verifies: [R-0001, R-0002]
+  verifies: [R-0030, R-0031]
 created: 2026-10-11
 updated: 2026-10-11
 ---
