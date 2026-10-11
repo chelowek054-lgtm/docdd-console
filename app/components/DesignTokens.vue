@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import {
+  BORDER_NAMES,
   BREAKPOINT_NAMES,
   CONTAINER_NAMES,
+  ICON_NAMES,
+  MOTION_NAMES,
   DEFAULT_ROOT,
   PALETTE_ROLES,
   RADIUS_NAMES,
@@ -75,6 +78,10 @@ const spacingNames = computed(() => names(props.tokens.spacing, SPACING_NAMES));
 const radiusNames = computed(() => names(props.tokens.radius, RADIUS_NAMES));
 const breakpointNames = computed(() => names(props.tokens.grid.breakpoints, BREAKPOINT_NAMES));
 const containerNames = computed(() => names(props.tokens.grid.containers, CONTAINER_NAMES));
+const borderNames = computed(() => names(props.tokens.border, BORDER_NAMES));
+const iconNames = computed(() => names(props.tokens.icon, ICON_NAMES));
+const motionNames = computed(() => names(props.tokens.motion, MOTION_NAMES));
+const fontNames = computed(() => Object.keys(props.tokens.fonts));
 
 const sourceLabel = (item: { source: string; level: string; overrides: string[] }) =>
   item.overrides.length ? `${item.source} (перекрыл ${item.overrides.join(', ')})` : item.source;
@@ -192,6 +199,60 @@ const i18nTrouble = computed(() => locales.value.length < 2 || !locales.value.in
           />
           <span class="ml-auto text-xs text-muted">{{ remText(tokens.radius[name]!.value) }}</span>
         </div>
+      </div>
+    </section>
+
+    <section class="space-y-3">
+      <h2 class="font-medium">Шрифты и строка</h2>
+      <p v-if="!fontNames.length" class="text-sm text-warning">Шрифты не названы: нужен хотя бы `body`.</p>
+      <div v-for="name in fontNames" :key="name" class="flex flex-wrap items-baseline gap-x-4 border-t border-default pt-2">
+        <span class="w-16 shrink-0 font-mono text-xs text-muted">{{ name }}</span>
+        <span class="min-w-0" :style="{ fontFamily: tokens.fonts[name]!.value }">Съешь ещё этих мягких булок</span>
+        <span class="ml-auto text-xs text-muted">{{ tokens.fonts[name]!.value }}</span>
+      </div>
+      <p v-if="fontNames.length > 3" class="text-sm text-warning">Семейств {{ fontNames.length }}: не больше трёх.</p>
+      <p class="text-sm text-muted">
+        Длина строки:
+        <span v-if="tokens.measure">{{ tokens.measure.value }}ch · {{ tokens.measure.source }}</span>
+        <span v-else class="text-warning">не задана</span>
+      </p>
+      <p
+        v-if="tokens.measure"
+        class="max-w-full overflow-hidden rounded bg-elevated p-2 text-sm"
+        :style="{ maxWidth: `${tokens.measure.value}ch` }"
+      >
+        Образец строки заданной длины: чем длиннее строка, тем труднее глазу найти начало следующей, а короткая рвёт мысль.
+      </p>
+    </section>
+
+    <section class="grid gap-6 sm:grid-cols-3">
+      <div class="space-y-2">
+        <h2 class="font-medium">Линии</h2>
+        <div v-for="name in borderNames" :key="name" class="flex items-center gap-3 border-t border-default pt-2 text-sm">
+          <span class="w-12 shrink-0 font-mono text-xs text-muted">{{ name }}</span>
+          <span class="block w-16 bg-primary" :style="{ height: `${tokens.border[name]!.value}rem` }" />
+          <span class="ml-auto text-xs text-muted">{{ remText(tokens.border[name]!.value) }}</span>
+        </div>
+        <p v-if="!borderNames.length" class="text-sm text-warning">Толщины линий не заданы.</p>
+      </div>
+      <div class="space-y-2">
+        <h2 class="font-medium">Значки</h2>
+        <div v-for="name in iconNames" :key="name" class="flex items-center gap-3 border-t border-default pt-2 text-sm">
+          <span class="w-12 shrink-0 font-mono text-xs text-muted">{{ name }}</span>
+          <span class="block rounded bg-primary/30" :style="{ width: `${tokens.icon[name]!.value}rem`, height: `${tokens.icon[name]!.value}rem` }" />
+          <span class="ml-auto text-xs text-muted">{{ remText(tokens.icon[name]!.value) }}</span>
+        </div>
+        <p v-if="!iconNames.length" class="text-sm text-warning">Размеры значков не заданы.</p>
+      </div>
+      <div class="space-y-2">
+        <h2 class="font-medium">Движение</h2>
+        <div v-for="name in motionNames" :key="name" class="flex items-center gap-3 border-t border-default pt-2 text-sm">
+          <span class="w-12 shrink-0 font-mono text-xs text-muted">{{ name }}</span>
+          <span class="text-xs">{{ tokens.motion[name]!.value }} мс</span>
+          <span class="ml-auto text-xs text-muted">{{ tokens.motion[name]!.source }}</span>
+        </div>
+        <p v-if="!motionNames.length" class="text-sm text-warning">Длительности не заданы.</p>
+        <p class="text-xs text-muted">При «уменьшить движение» в системе значения обнуляются в выгрузке.</p>
       </div>
     </section>
 

@@ -35,7 +35,7 @@ export const TYPOGRAPHY_NAMES = ['caption', 'small', 'body', 'lead', 'title', 'd
 export const SPACING_NAMES = ['xs', 'sm', 'md', 'lg', 'xl', 'xxl'] as const;
 export const RADIUS_NAMES = ['sm', 'md', 'pill'] as const;
 export const PALETTE_ROLES = [
-  'bg', 'surface', 'surfaceAlt', 'ink', 'muted', 'line', 'accent', 'onAccent', 'core', 'ok', 'warn', 'danger', 'onDanger'
+  'bg', 'surface', 'surfaceAlt', 'ink', 'muted', 'line', 'accent', 'onAccent', 'core', 'ok', 'warn', 'danger', 'onDanger', 'focus'
 ] as const;
 export const COMPONENT_NAMES = ['TopBar', 'Card', 'Button', 'Field', 'Pill', 'Progress', 'Empty'] as const;
 export const BREAKPOINT_NAMES = ['xs', 'sm', 'md', 'lg', 'xl', 'xxl'] as const;
@@ -52,6 +52,27 @@ export const CONTRAST_PAIRS: readonly (readonly [string, string])[] = [
 
 export const MIN_CONTRAST = 4.5;
 
+/** Видимый фокус и подобные не текстовые элементы: порог WCAG для не текстового контраста. */
+export const NON_TEXT_PAIRS: readonly (readonly [string, string])[] = [['focus', 'bg']];
+export const MIN_NON_TEXT_CONTRAST = 3;
+
+/** Практика (ADR-0024): обязательные имена новых шкал и пределы. */
+export const FONT_NAMES = ['body'] as const;
+export const BORDER_NAMES = ['thin', 'thick'] as const;
+export const ICON_NAMES = ['sm', 'md', 'lg'] as const;
+export const MOTION_NAMES = ['fast', 'base', 'slow'] as const;
+/** Не больше трёх семейств шрифтов на систему. */
+export const MAX_FONT_FAMILIES = 3;
+/** Длина строки в `ch`: 45–80 символов читаются, остальное — нет. */
+export const MEASURE_RANGE = { min: 45, max: 80 } as const;
+/** Компоненты, у которых обязательны состояния: без них форма недоступна с клавиатуры. */
+export const REQUIRED_STATES: Readonly<Record<string, readonly string[]>> = {
+  Button: ['focus', 'disabled'],
+  Field: ['focus', 'disabled']
+};
+export const COMPONENT_STATUSES = ['draft', 'stable', 'deprecated'] as const;
+export type ComponentStatus = (typeof COMPONENT_STATUSES)[number];
+
 /** Пикселей в `1rem` по умолчанию: размер шрифта корня браузера. */
 export const DEFAULT_ROOT = 16;
 
@@ -62,6 +83,9 @@ export const DEFAULT_GRID = {
   breakpoints: { xs: 0, sm: 36, md: 48, lg: 62, xl: 75, xxl: 87.5 } as Record<string, number>,
   containers: { sm: 33.75, md: 45, lg: 60, xl: 71.25, xxl: 82.5 } as Record<string, number>
 };
+
+/** Длина строки по умолчанию, пока блок её не назвал (проверка об этом скажет). */
+export const DEFAULT_MEASURE = 70;
 
 /** Язык, без которого i18n не считается: словари читают все. */
 export const REQUIRED_LOCALE = 'en';
@@ -81,6 +105,12 @@ export interface TypographyToken {
 export interface DesignComponent {
   name: string;
   summary?: string;
+  /** Состояния: default, hover, focus, active, disabled… */
+  states?: string[];
+  /** Слои, которые можно стилизовать: root, label, icon, loader… */
+  parts?: string[];
+  /** Жизненный цикл: `stable` по умолчанию. */
+  status?: ComponentStatus;
 }
 
 /** Часть токенов с происхождением: запись, которая её задала, и перекрытые ею. */
@@ -95,6 +125,8 @@ export interface Sourced<T> {
 export interface ThemeToken {
   mode: Sourced<BaseTheme>;
   label: Sourced<string> | null;
+  /** Порог контраста текста темы; `null` — общий 4.5. У контрастной темы — 7. */
+  minContrast: Sourced<number> | null;
   colors: Record<string, Sourced<string>>;
 }
 
@@ -105,6 +137,16 @@ export interface DesignTokens {
   typography: Record<string, Sourced<TypographyToken>>;
   spacing: Record<string, Sourced<number>>;
   radius: Record<string, Sourced<number>>;
+  /** Толщины линий в rem. */
+  border: Record<string, Sourced<number>>;
+  /** Размеры значков в rem. */
+  icon: Record<string, Sourced<number>>;
+  /** Длительности в мс. */
+  motion: Record<string, Sourced<number>>;
+  /** Семейства шрифтов: имя → список для CSS. */
+  fonts: Record<string, Sourced<string>>;
+  /** Длина строки в `ch`. */
+  measure: Sourced<number> | null;
   grid: {
     columns: Sourced<number> | null;
     gutter: Sourced<number> | null;
@@ -150,6 +192,8 @@ export interface ContrastRow {
   pair: [string, string];
   ratio: number;
   ok: boolean;
+  /** Порог, против которого сравнивали: 4.5 у текста, 3 у фокуса, 7 у контрастной темы. */
+  min: number;
   /** Цвета, как они пошли в расчёт (прозрачный текст уже лежит на фоне). */
   fg: string;
   bg: string;
@@ -175,6 +219,11 @@ interface ParsedBlock {
   typography: Record<string, TypographyToken>;
   spacing: Record<string, number>;
   radius: Record<string, number>;
+  border: Record<string, number>;
+  icon: Record<string, number>;
+  motion: Record<string, number>;
+  fonts: Record<string, string>;
+  measure: number | null;
   grid: {
     columns: number | null;
     gutter: number | null;
@@ -182,7 +231,7 @@ interface ParsedBlock {
     containers: Record<string, number>;
   };
   palette: Record<BaseTheme, Record<string, string>>;
-  themes: Record<string, { mode: BaseTheme; label: string | null; palette: Record<string, string> }>;
+  themes: Record<string, { mode: BaseTheme; label: string | null; minContrast: number | null; palette: Record<string, string> }>;
   i18n: { default: string | null; fallback: string | null; locales: string[] };
   components: DesignComponent[];
   overrides: string[];
@@ -190,7 +239,8 @@ interface ParsedBlock {
 }
 
 const KNOWN_KEYS = new Set([
-  'unit', 'root', 'principles', 'typography', 'spacing', 'radius', 'grid', 'palette', 'themes', 'i18n', 'components', 'overrides'
+  'unit', 'root', 'principles', 'typography', 'spacing', 'radius', 'border', 'icon', 'motion', 'fonts', 'measure',
+  'grid', 'palette', 'themes', 'i18n', 'components', 'overrides'
 ]);
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -205,6 +255,11 @@ function emptyBlock(): ParsedBlock {
     typography: {},
     spacing: {},
     radius: {},
+    border: {},
+    icon: {},
+    motion: {},
+    fonts: {},
+    measure: null,
     grid: { columns: null, gutter: null, breakpoints: {}, containers: {} },
     palette: { light: {}, dark: {} },
     themes: {},
@@ -280,7 +335,7 @@ export function parseDesignBlocks(record: DesignRecord): { blocks: ParsedBlock[]
       }
     } else if (raw['typography'] !== undefined) bad('`typography` должен быть объектом.');
 
-    for (const key of ['spacing', 'radius'] as const) {
+    for (const key of ['spacing', 'radius', 'border', 'icon', 'motion'] as const) {
       const part = raw[key];
       if (part === undefined) continue;
       if (!isObject(part)) {
@@ -289,9 +344,22 @@ export function parseDesignBlocks(record: DesignRecord): { blocks: ParsedBlock[]
       }
       for (const [name, item] of Object.entries(part)) {
         const value = numeric(item);
-        if (value === null) bad(`в \`${key}.${name}\` нужно неотрицательное число в rem.`);
+        if (value === null) bad(`в \`${key}.${name}\` нужно неотрицательное число ${key === 'motion' ? 'миллисекунд' : 'в rem'}.`);
         else block[key][name] = value;
       }
+    }
+
+    if (isObject(raw['fonts'])) {
+      for (const [name, item] of Object.entries(raw['fonts'])) {
+        if (typeof item === 'string' && item.trim() !== '') block.fonts[name] = item.trim();
+        else bad(`у шрифта \`fonts.${name}\` нужен непустой список семейств для CSS.`);
+      }
+    } else if (raw['fonts'] !== undefined) bad('`fonts` должен быть объектом.');
+
+    if (raw['measure'] !== undefined) {
+      const measure = numeric(raw['measure']);
+      if (measure === null || measure === 0) bad('`measure` — положительное число символов (`ch`).');
+      else block.measure = measure;
     }
 
     if (isObject(raw['grid'])) {
@@ -346,9 +414,14 @@ export function parseDesignBlocks(record: DesignRecord): { blocks: ParsedBlock[]
           bad(`у темы \`${name}\` нужен \`mode\`: \`light\` или \`dark\` — база, от которой она наследуется.`);
           continue;
         }
-        const theme: { mode: BaseTheme; label: string | null; palette: Record<string, string> } = {
+        const minContrast = item['minContrast'] === undefined ? null : numeric(item['minContrast']);
+        if (item['minContrast'] !== undefined && (minContrast === null || minContrast < MIN_CONTRAST || minContrast > 21)) {
+          bad(`у темы \`${name}\` \`minContrast\` — число от ${MIN_CONTRAST} до 21.`);
+        }
+        const theme: { mode: BaseTheme; label: string | null; minContrast: number | null; palette: Record<string, string> } = {
           mode: item['mode'],
           label: typeof item['label'] === 'string' && item['label'].trim() !== '' ? item['label'].trim() : null,
+          minContrast: minContrast !== null && minContrast >= MIN_CONTRAST && minContrast <= 21 ? minContrast : null,
           palette: {}
         };
         if (isObject(item['palette'])) {
@@ -382,9 +455,21 @@ export function parseDesignBlocks(record: DesignRecord): { blocks: ParsedBlock[]
     if (Array.isArray(raw['components'])) {
       for (const item of raw['components']) {
         if (isObject(item) && typeof item['name'] === 'string' && item['name'] !== '') {
+          const list = (value: unknown): string[] | undefined => (Array.isArray(value)
+            ? value.filter((entry): entry is string => typeof entry === 'string' && entry !== '')
+            : undefined);
+          const status = item['status'];
+          if (status !== undefined && !(COMPONENT_STATUSES as readonly unknown[]).includes(status)) {
+            bad(`у компонента \`${item['name']}\` статус \`${String(status)}\` не из списка: ${COMPONENT_STATUSES.join(', ')}.`);
+          }
+          const states = list(item['states']);
+          const parts = list(item['parts']);
           block.components.push({
             name: item['name'],
-            ...(typeof item['summary'] === 'string' ? { summary: item['summary'] } : {})
+            ...(typeof item['summary'] === 'string' ? { summary: item['summary'] } : {}),
+            ...(states ? { states } : {}),
+            ...(parts ? { parts } : {}),
+            ...(typeof status === 'string' && (COMPONENT_STATUSES as readonly string[]).includes(status) ? { status: status as ComponentStatus } : {})
           });
         } else bad('у компонента в `components` нужно `name`.');
       }
@@ -486,6 +571,11 @@ export function resolveDesign(input: { general: readonly DesignRecord[]; local: 
     typography: {},
     spacing: {},
     radius: {},
+    border: {},
+    icon: {},
+    motion: {},
+    fonts: {},
+    measure: null,
     grid: { columns: null, gutter: null, breakpoints: {}, containers: {} },
     palette: { light: {}, dark: {} },
     themes: {},
@@ -533,6 +623,7 @@ export function resolveDesign(input: { general: readonly DesignRecord[]; local: 
   const modeBags: Record<string, Record<string, Sourced<BaseTheme>>> = {};
   const labelBags: Record<string, Record<string, Sourced<string>>> = {};
   const colorBags: Record<string, Record<string, Sourced<string>>> = {};
+  const contrastBags: Record<string, Record<string, Sourced<number>>> = {};
 
   for (const from of placed) {
     const { block } = from;
@@ -547,6 +638,11 @@ export function resolveDesign(input: { general: readonly DesignRecord[]; local: 
     for (const [name, value] of Object.entries(block.typography)) set(tokens.typography, name, `typography.${name}`, value, from);
     for (const [name, value] of Object.entries(block.spacing)) set(tokens.spacing, name, `spacing.${name}`, value, from);
     for (const [name, value] of Object.entries(block.radius)) set(tokens.radius, name, `radius.${name}`, value, from);
+    for (const [name, value] of Object.entries(block.border)) set(tokens.border, name, `border.${name}`, value, from);
+    for (const [name, value] of Object.entries(block.icon)) set(tokens.icon, name, `icon.${name}`, value, from);
+    for (const [name, value] of Object.entries(block.motion)) set(tokens.motion, name, `motion.${name}`, value, from);
+    for (const [name, value] of Object.entries(block.fonts)) set(tokens.fonts, name, `fonts.${name}`, value, from);
+    if (block.measure !== null) tokens.measure = single(tokens.measure, 'measure', block.measure, from);
 
     if (block.grid.columns !== null) tokens.grid.columns = single(tokens.grid.columns, 'grid.columns', block.grid.columns, from);
     if (block.grid.gutter !== null) tokens.grid.gutter = single(tokens.grid.gutter, 'grid.gutter', block.grid.gutter, from);
@@ -562,6 +658,7 @@ export function resolveDesign(input: { general: readonly DesignRecord[]; local: 
     for (const [name, theme] of Object.entries(block.themes)) {
       set((modeBags[name] ??= {}), 'mode', `themes.${name}.mode`, theme.mode, from);
       if (theme.label !== null) set((labelBags[name] ??= {}), 'label', `themes.${name}.label`, theme.label, from);
+      if (theme.minContrast !== null) set((contrastBags[name] ??= {}), 'minContrast', `themes.${name}.minContrast`, theme.minContrast, from);
       for (const [role, value] of Object.entries(theme.palette)) {
         set((colorBags[name] ??= {}), role, `themes.${name}.${role}`, value, from);
       }
@@ -593,6 +690,7 @@ export function resolveDesign(input: { general: readonly DesignRecord[]; local: 
     tokens.themes[name] = {
       mode: modeBags[name]!['mode'] as Sourced<BaseTheme>,
       label: labelBags[name]?.['label'] ?? null,
+      minContrast: contrastBags[name]?.['minContrast'] ?? null,
       colors: colorBags[name] ?? {}
     };
   }
@@ -632,7 +730,7 @@ export function resolveDesign(input: { general: readonly DesignRecord[]; local: 
     ...(placed.length === 0 ? [] : completeness(tokens)),
     ...contrast.filter((row) => !row.ok).map((row) => ({
       code: 'design_contrast_low' as const,
-      message: `Контраст пары \`${row.pair[0]}\`/\`${row.pair[1]}\` в теме \`${row.theme}\` — ${row.ratio}:1, ниже ${MIN_CONTRAST}:1.`,
+      message: `Контраст пары \`${row.pair[0]}\`/\`${row.pair[1]}\` в теме \`${row.theme}\` — ${row.ratio}:1, ниже ${row.min}:1.`,
       source: themePalette(tokens, row.theme)[row.pair[0]]?.source ?? null,
       theme: row.theme,
       pair: row.pair,
@@ -648,21 +746,30 @@ function contrastRows(tokens: DesignTokens): ContrastRow[] {
   for (const theme of themeNames(tokens)) {
     const palette = themePalette(tokens, theme);
     const base = palette['bg']?.value;
-    for (const pair of CONTRAST_PAIRS) {
-      const foreground = palette[pair[0]]?.value;
-      const background = palette[pair[1]]?.value;
-      // Нет роли в теме — это `design_theme_incomplete`, а не нулевой контраст.
-      if (!foreground || !background) continue;
-      const ratio = contrastRatio(foreground, background, base);
-      const resolved = over(toRgb(background), base ? toRgb(base) : { r: 255, g: 255, b: 255, a: 1 });
-      rows.push({
-        theme,
-        pair: [pair[0], pair[1]],
-        ratio,
-        ok: ratio >= MIN_CONTRAST,
-        fg: hexOf(over(toRgb(foreground), resolved)),
-        bg: hexOf(resolved)
-      });
+    const strict = tokens.themes[theme]?.minContrast?.value ?? MIN_CONTRAST;
+    // Текст — по порогу темы (у контрастной он выше); фокус — не текстовый элемент: 3:1, а у AAA-темы 4.5:1.
+    const groups: { pairs: readonly (readonly [string, string])[]; min: number }[] = [
+      { pairs: CONTRAST_PAIRS, min: Math.max(MIN_CONTRAST, strict) },
+      { pairs: NON_TEXT_PAIRS, min: strict >= 7 ? 4.5 : MIN_NON_TEXT_CONTRAST }
+    ];
+    for (const group of groups) {
+      for (const pair of group.pairs) {
+        const foreground = palette[pair[0]]?.value;
+        const background = palette[pair[1]]?.value;
+        // Нет роли в теме — это `design_theme_incomplete`, а не нулевой контраст.
+        if (!foreground || !background) continue;
+        const ratio = contrastRatio(foreground, background, base);
+        const resolved = over(toRgb(background), base ? toRgb(base) : { r: 255, g: 255, b: 255, a: 1 });
+        rows.push({
+          theme,
+          pair: [pair[0], pair[1]],
+          ratio,
+          ok: ratio >= group.min,
+          min: group.min,
+          fg: hexOf(over(toRgb(foreground), resolved)),
+          bg: hexOf(resolved)
+        });
+      }
     }
   }
   return rows;
@@ -684,6 +791,43 @@ function completeness(tokens: DesignTokens): DesignCheck[] {
   gap('шкале отступов', SPACING_NAMES, Object.keys(tokens.spacing));
   gap('шкале радиусов', RADIUS_NAMES, Object.keys(tokens.radius));
   gap('реестре компонентов', COMPONENT_NAMES, tokens.components.map((item) => item.value.name));
+  gap('шрифтах', FONT_NAMES, Object.keys(tokens.fonts));
+  gap('толщинах линий', BORDER_NAMES, Object.keys(tokens.border));
+  gap('размерах значков', ICON_NAMES, Object.keys(tokens.icon));
+  gap('длительностях движения', MOTION_NAMES, Object.keys(tokens.motion));
+
+  const families = Object.keys(tokens.fonts).length;
+  if (families > MAX_FONT_FAMILIES) {
+    found.push({
+      code: 'design_scale_gap',
+      message: `Шрифтов ${families}, а не больше ${MAX_FONT_FAMILIES}: каждое новое семейство — вес в загрузке и шум в интерфейсе.`,
+      source: null,
+      names: []
+    });
+  }
+  if (tokens.measure === null) {
+    found.push({ code: 'design_scale_gap', message: 'Не задана длина строки `measure` в `ch`.', source: null, names: ['measure'] });
+  } else if (tokens.measure.value < MEASURE_RANGE.min || tokens.measure.value > MEASURE_RANGE.max) {
+    found.push({
+      code: 'design_scale_gap',
+      message: `Длина строки ${tokens.measure.value}ch вне ${MEASURE_RANGE.min}–${MEASURE_RANGE.max}: короче строка рвёт мысль, длиннее — глаз теряет начало следующей.`,
+      source: tokens.measure.source,
+      names: []
+    });
+  }
+  for (const [name, required] of Object.entries(REQUIRED_STATES)) {
+    const item = tokens.components.find((component) => component.value.name === name);
+    if (!item) continue;
+    const missing = required.filter((state) => !(item.value.states ?? []).includes(state));
+    if (missing.length > 0) {
+      found.push({
+        code: 'design_scale_gap',
+        message: `У компонента \`${name}\` не названы состояния: ${missing.join(', ')}. Без видимого фокуса и отключённого состояния форма недоступна с клавиатуры.`,
+        source: item.source,
+        names: missing
+      });
+    }
+  }
 
   // Сетка: колонки и поле — числа, точки перелома и контейнеры — словари; точки только по возрастанию.
   const scalars = [
@@ -757,6 +901,15 @@ export interface PlainTokens {
   typography: Record<string, TypographyToken>;
   spacing: Record<string, number>;
   radius: Record<string, number>;
+  /** Толщины линий, rem. */
+  border: Record<string, number>;
+  /** Размеры значков, rem. */
+  icon: Record<string, number>;
+  /** Длительности, мс. */
+  motion: Record<string, number>;
+  fonts: Record<string, string>;
+  /** Длина строки, ch. */
+  measure: number;
   grid: {
     columns: number;
     gutter: number;
@@ -766,7 +919,7 @@ export interface PlainTokens {
   /** Базовые темы. */
   palette: Record<BaseTheme, Record<string, string>>;
   /** Добавленные темы с итоговой палитрой (база + переопределения). */
-  themes: Record<string, { label: string; mode: BaseTheme; palette: Record<string, string> }>;
+  themes: Record<string, { label: string; mode: BaseTheme; minContrast: number; palette: Record<string, string> }>;
   i18n: { default: string; fallback: string; locales: string[] };
   components: DesignComponent[];
 }
@@ -782,6 +935,11 @@ export function plainTokens(tokens: DesignTokens): PlainTokens {
     typography: values(tokens.typography),
     spacing: values(tokens.spacing),
     radius: values(tokens.radius),
+    border: values(tokens.border),
+    icon: values(tokens.icon),
+    motion: values(tokens.motion),
+    fonts: values(tokens.fonts),
+    measure: tokens.measure?.value ?? DEFAULT_MEASURE,
     grid: {
       columns: tokens.grid.columns?.value ?? DEFAULT_GRID.columns,
       gutter: tokens.grid.gutter?.value ?? DEFAULT_GRID.gutter,
@@ -790,6 +948,7 @@ export function plainTokens(tokens: DesignTokens): PlainTokens {
     },
     palette: { light: values(tokens.palette.light), dark: values(tokens.palette.dark) },
     themes: Object.fromEntries(Object.entries(tokens.themes).map(([name, theme]) => [name, {
+      minContrast: theme.minContrast?.value ?? MIN_CONTRAST,
       label: theme.label?.value ?? name,
       mode: theme.mode.value,
       palette: values(themePalette(tokens, name))

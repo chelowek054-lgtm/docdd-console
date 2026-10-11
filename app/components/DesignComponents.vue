@@ -17,11 +17,14 @@ const rows = computed(() => {
   const declared = props.tokens.components.map((item) => ({
     name: item.value.name,
     summary: item.value.summary ?? '',
+    states: item.value.states ?? [],
+    parts: item.value.parts ?? [],
+    lifecycle: item.value.status ?? 'stable',
     source: item.source,
     required: (COMPONENT_NAMES as readonly string[]).includes(item.value.name)
   }));
   const absent = COMPONENT_NAMES.filter((name) => !declared.some((row) => row.name === name))
-    .map((name) => ({ name: name as string, summary: '', source: '', required: true }));
+    .map((name) => ({ name: name as string, summary: '', states: [] as string[], parts: [] as string[], lifecycle: 'draft', source: '', required: true }));
   return [...declared, ...absent];
 });
 
@@ -39,9 +42,9 @@ function state(name: string, source: string): { label: string; color: 'success' 
       Компоненты проекта не сверялись: нет описанных исходников (<code>sources.code</code> в манифесте и карта кода).
     </p>
     <div class="overflow-x-auto">
-      <table class="w-full min-w-[30rem] text-left text-sm">
+      <table class="w-full min-w-[44rem] text-left text-sm">
         <thead class="text-xs text-muted">
-          <tr><th class="pr-3">Компонент</th><th class="pr-3">Состояние</th><th class="pr-3">Что делает</th><th>Источник</th></tr>
+          <tr><th class="pr-3">Компонент</th><th class="pr-3">В коде</th><th class="pr-3">Что делает</th><th class="pr-3">Состояния</th><th class="pr-3">Слои</th><th class="pr-3">Цикл</th><th>Источник</th></tr>
         </thead>
         <tbody>
           <tr v-for="row in rows" :key="row.name" class="border-t border-default align-top">
@@ -50,6 +53,9 @@ function state(name: string, source: string): { label: string; color: 'success' 
               <UBadge :color="state(row.name, row.source).color" variant="subtle" size="sm">{{ state(row.name, row.source).label }}</UBadge>
             </td>
             <td class="py-1.5 pr-3">{{ row.summary || '—' }}</td>
+            <td class="py-1.5 pr-3 text-xs">{{ row.states.join(', ') || '—' }}</td>
+            <td class="py-1.5 pr-3 text-xs">{{ row.parts.join(', ') || '—' }}</td>
+            <td class="py-1.5 pr-3 text-xs" :class="row.lifecycle === 'deprecated' ? 'text-warning' : ''">{{ row.lifecycle }}</td>
             <td class="py-1.5 text-xs text-muted">{{ row.source || '—' }}</td>
           </tr>
         </tbody>
