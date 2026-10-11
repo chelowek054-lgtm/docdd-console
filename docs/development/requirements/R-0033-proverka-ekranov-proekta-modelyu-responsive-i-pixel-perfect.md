@@ -2,7 +2,7 @@
 id: R-0033
 type: requirement
 title: Проверка экранов проекта моделью — Responsive и Pixel-Perfect
-status: draft
+status: approved
 links:
   verified_by: [V-0033]
 created: 2026-10-11
@@ -20,3 +20,5 @@ updated: 2026-10-11
 ## Журнал
 
 - 2026-10-11 · заведена черновиком · claude
+- 2026-10-11 · на подтверждение · architect
+- 2026-10-11 · подтверждён · architect
