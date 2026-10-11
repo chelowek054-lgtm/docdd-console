@@ -1,8 +1,6 @@
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import { useModelJobs, type JobMeta } from '~/stores/modelJobs';
 
-export type { LogLine, ModelOutcome } from '~/stores/modelJobs';
-
 /**
  * Ожидание ответа модели (docs/04-ui.md, раздел «Запрос к модели»). Модель
  * думает минутами, и всё это время экран обязан отвечать на один вопрос: идёт
