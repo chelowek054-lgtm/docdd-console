@@ -530,7 +530,7 @@
 ### `GET /api/projects/:id/design/screens`
 
 Экраны из карты пользовательских путей и опись снимков (`screen`, `viewport`, `theme`,
-`takenAt`), чего не хватает; находки последней проверки (`docdd-design-findings`).
+`path`), чего не хватает. Находки на диске не хранятся: это ответ последней проверки.
 
 ### `POST /api/projects/:id/design/screenshots`
 
