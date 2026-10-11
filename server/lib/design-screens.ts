@@ -1,130 +1,296 @@
-import type { DesignTokens } from './design';
-
 /**
- * Проверка экранов моделью (docs/16-design-system.md, «Проверка экранов моделью»):
- * имена снимков, запросы Responsive и Pixel-Perfect, разбор ответа в находки. Чистые
- * функции: ни файловой системы, ни браузера — снимки уже сняты, сюда приходят их пути.
+ * Проверка экранов проекта моделью (docs/16-design-system.md, «Проверка экранов
+ * моделью»): опись снимков по экрану, ширине и теме, разбор ответа модели в
+ * находки. Чистые функции — файловая система и запуск модели снаружи.
+ *
+ * Снимков приложение не делает (ADR-0022): их кладёт проект. Здесь только
+ * вопрос «какие есть, каких нет» и разбор того, что ответила модель.
  */
 
-export type FindingKind = 'responsive' | 'pixel';
-export type Theme = 'light' | 'dark';
+/** Имя темы проекта: светлая, тёмная или добавленная (docs/16-design-system.md). */
+export type ScreenTheme = string;
 
-export const DEFAULT_VIEWPORTS: readonly number[] = [375, 768, 1280];
-export const THEMES: readonly Theme[] = ['light', 'dark'];
+export const DEFAULT_WIDTHS: readonly number[] = [375, 768, 1280];
+/** Пока проект не назвал темы, снимаются обе базовые. */
+export const DEFAULT_THEMES: readonly ScreenTheme[] = ['light', 'dark'];
+export const DEFAULT_SCREENS_DIR = 'docs/development/design/screens';
+export const DEFAULT_MOCKUPS_DIR = 'docs/development/design/mockups';
+export const REPORTS_DIR = 'docs/development/design/reports';
 
-export interface Snapshot {
-  screen: string;
-  viewport: number;
-  theme: Theme;
-  /** Путь от корня проекта. */
+export const MOCKUP_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'svg', 'md'] as const;
+
+export interface ScreenInput {
+  id: string;
+  title?: string | undefined;
+}
+
+export interface FileStat {
+  /** Путь от корня проекта, с `/`. */
   path: string;
+  mtimeMs: number;
 }
 
-export interface Finding {
-  screen: string;
-  viewport: number | null;
-  theme: Theme | null;
-  kind: FindingKind;
-  what: string;
+export interface Shot {
+  width: number;
+  theme: ScreenTheme;
+  /** Где снимок должен лежать. */
+  path: string;
+  present: boolean;
+  /** Когда снят (по времени файла); `null`, пока снимка нет. */
+  takenAt: string | null;
 }
 
-/** Имя файла снимка: экран, ширина и тема в имени — опись не нужна, она читается с диска. */
-export function snapshotFile(screen: string, viewport: number, theme: Theme): string {
-  return `${screen.replace(/[^A-Za-z0-9._-]+/g, '_')}__${viewport}__${theme}.png`;
+export interface ScreenInventory {
+  id: string;
+  title: string;
+  /** Имя каталога экрана: идентификатор без символов, неудобных в путях. */
+  slug: string;
+  shots: Shot[];
+  /** Путь эталонного макета, если он лежит. */
+  mockup: string | null;
 }
 
-export function parseSnapshotFile(name: string): { screen: string; viewport: number; theme: Theme } | null {
-  const match = /^(.+)__(\d+)__(light|dark)\.png$/.exec(name);
-  if (!match) return null;
-  return { screen: match[1] as string, viewport: Number(match[2]), theme: match[3] as Theme };
+export interface DesignScreens {
+  screens: ScreenInventory[];
+  total: number;
+  missing: number;
+  widths: number[];
+  themes: ScreenTheme[];
+  screensDir: string;
+  mockupsDir: string;
 }
 
-export const SNAPSHOTS_MARKER = '<!-- СНИМКИ -->';
-export const TOKENS_MARKER = '<!-- ТОКЕНЫ -->';
-export const REFS_MARKER = '<!-- МАКЕТЫ -->';
-
-const LF = String.fromCharCode(10);
-
-function withoutFrontNote(template: string): string {
-  const match = /\r?\n---\r?\n/.exec(template);
-  return match ? template.slice(match.index + match[0].length).trimStart() : template;
+/** `S-home` → `S-home`, `Экран входа/шаг 1` → `Экран-входа-шаг-1`: каталог без разделителей путей. */
+export function screenSlug(id: string): string {
+  const slug = id.trim().replace(/[\\/:*?"<>|\s]+/g, '-').replace(/^-+|-+$/g, '');
+  return slug === '' || slug === '.' || slug === '..' ? 'screen' : slug;
 }
 
-/** Токены в запрос — коротко, одним столбцом на тему: модель сверяет по ним, а не угадывает. */
-export function tokensText(tokens: DesignTokens): string {
-  const list = (record: Record<string, number | string>) => Object.entries(record).map(([key, value]) => `${key} ${value}`).join(', ');
+const trimDir = (dir: string) => dir.replace(/\\/g, '/').replace(/\/+$/g, '');
+
+export function shotPath(screensDir: string, slug: string, width: number, theme: ScreenTheme): string {
+  return `${trimDir(screensDir)}/${slug}/${width}-${theme}.png`;
+}
+
+export function buildInventory(input: {
+  screens: readonly ScreenInput[];
+  files: readonly FileStat[];
+  screensDir?: string | undefined;
+  mockupsDir?: string | undefined;
+  widths?: readonly number[] | undefined;
+  themes?: readonly ScreenTheme[] | undefined;
+}): DesignScreens {
+  const screensDir = trimDir(input.screensDir ?? DEFAULT_SCREENS_DIR);
+  const mockupsDir = trimDir(input.mockupsDir ?? DEFAULT_MOCKUPS_DIR);
+  const widths = [...(input.widths?.length ? input.widths : DEFAULT_WIDTHS)];
+  const themes = [...(input.themes?.length ? input.themes : DEFAULT_THEMES)];
+  const byPath = new Map(input.files.map((file) => [file.path.replace(/\\/g, '/'), file.mtimeMs]));
+
+  const screens: ScreenInventory[] = input.screens.map((screen) => {
+    const slug = screenSlug(screen.id);
+    const shots: Shot[] = [];
+    for (const width of widths) {
+      for (const theme of themes) {
+        const path = shotPath(screensDir, slug, width, theme);
+        const mtime = byPath.get(path);
+        shots.push({
+          width,
+          theme,
+          path,
+          present: mtime !== undefined,
+          takenAt: mtime !== undefined ? new Date(mtime).toISOString() : null
+        });
+      }
+    }
+    const mockup = MOCKUP_EXTENSIONS.map((extension) => `${mockupsDir}/${slug}.${extension}`).find((path) => byPath.has(path)) ?? null;
+    return { id: screen.id, title: screen.title ?? screen.id, slug, shots, mockup };
+  });
+
+  const all = screens.flatMap((screen) => screen.shots);
+  return {
+    screens,
+    total: all.length,
+    missing: all.filter((shot) => !shot.present).length,
+    widths,
+    themes,
+    screensDir,
+    mockupsDir
+  };
+}
+
+/**
+ * Шаблон скрипта снятия: текст, который человек копирует в проект. Адреса
+ * экранов приложение не знает (карта путей описывает экраны, а не URL), поэтому
+ * подставлены заготовки.
+ */
+export function captureScript(inventory: DesignScreens): string {
+  const routes = inventory.screens.map((screen) => `  '${screen.slug}': '/', // ${screen.title}: подставьте адрес экрана`);
   return [
-    `Зона нажатия не меньше ${tokens.constraints.minTap}, контраст не ниже ${tokens.constraints.minContrast}:1, отступ по краю ${tokens.constraints.gutter}.`,
-    `Кегли: ${list(tokens.typography)}.`,
-    `Отступы: ${list(tokens.spacing)}.`,
-    `Радиусы: ${list(tokens.radii)}.`,
-    `Светлая тема: ${list(tokens.palette.light)}.`,
-    `Тёмная тема: ${list(tokens.palette.dark)}.`,
-    ...(tokens.components.length ? [`Компоненты: ${tokens.components.join(', ')}.`] : [])
-  ].join(LF);
+    '// Снятие экранов для проверки дизайна (docs/16-design-system.md). Веб: браузер без окна.',
+    '// Запуск: node capture-screens.mjs http://localhost:3000',
+    "import { chromium } from 'playwright';",
+    "import { mkdirSync } from 'node:fs';",
+    '',
+    "const base = process.argv[2] ?? 'http://localhost:3000';",
+    `const widths = [${inventory.widths.join(', ')}];`,
+    `const themes = [${inventory.themes.map((theme) => `'${theme}'`).join(', ')}];`,
+    `const dir = '${inventory.screensDir}';`,
+    'const routes = {',
+    ...routes,
+    '};',
+    '',
+    'const browser = await chromium.launch();',
+    'for (const [slug, route] of Object.entries(routes)) {',
+    '  mkdirSync(`${dir}/${slug}`, { recursive: true });',
+    '  for (const width of widths) {',
+    '    for (const theme of themes) {',
+    "      const page = await browser.newPage({ viewport: { width, height: 900 }, colorScheme: theme === 'dark' ? 'dark' : 'light' });",
+    '      await page.goto(base + route, { waitUntil: "networkidle" });',
+    "      // Тема включается классом на корне: `.dark` и `.theme-<имя>` из выгрузки токенов.",
+    "      await page.evaluate((name) => name !== 'light' && document.documentElement.classList.add(name === 'dark' ? 'dark' : `theme-${name}`), theme);",
+    '      await page.screenshot({ path: `${dir}/${slug}/${width}-${theme}.png`, fullPage: true });',
+    '      await page.close();',
+    '    }',
+    '  }',
+    '}',
+    'await browser.close();',
+    '',
+    '// Expo, Android, iOS: снимок эмулятора или симулятора под тем же именем —',
+    '//   adb exec-out screencap -p > <dir>/<экран>/<ширина>-<тема>.png',
+    '//   xcrun simctl io booted screenshot <dir>/<экран>/<ширина>-<тема>.png'
+  ].join('\n');
 }
 
-export interface DesignPromptInput {
-  tokens: DesignTokens;
-  snapshots: readonly Snapshot[];
-  /** Эталонные макеты экранов: экран → путь от корня проекта. */
-  refs?: Readonly<Record<string, string>>;
+/* ---------- находки модели ---------- */
+
+export type ScreenPass = 'responsive' | 'pixel';
+
+export const PASS_LABEL: Readonly<Record<ScreenPass, string>> = {
+  responsive: 'Responsive',
+  pixel: 'Pixel-Perfect'
+};
+
+export interface ScreenFinding {
+  screen: string;
+  width: number;
+  theme: ScreenTheme;
+  what: string;
+  expected?: string | undefined;
+  actual?: string | undefined;
 }
 
-export function designPrompt(template: string, input: DesignPromptInput): string {
-  const snapshots = input.snapshots.length
-    ? input.snapshots.map((item) => `- ${item.screen} · ${item.viewport} · ${item.theme} — ${item.path}`).join(LF)
-    : 'Снимков нет.';
-  const refs = Object.entries(input.refs ?? {});
-  return withoutFrontNote(template)
-    .replace(TOKENS_MARKER, () => tokensText(input.tokens))
-    .replace(SNAPSHOTS_MARKER, () => snapshots)
-    .replace(REFS_MARKER, () => (refs.length ? refs.map(([screen, path]) => `- ${screen} — ${path}`).join(LF) : 'Эталонных макетов нет: сверяй только с токенами.'));
-}
-
-const BLOCK = /```docdd-design-findings\s*\n([\s\S]*?)```/;
-
-export interface ParsedFindings {
-  findings: Finding[];
-  /** Что отброшено и почему: разбор молча не выдумывает. */
+export interface FindingsOutcome {
+  pass: ScreenPass | null;
+  findings: ScreenFinding[];
+  clean: string[];
+  /** Что не принято: находка не про известный экран, ширину или тему, блок не разобрался. */
   problems: string[];
 }
 
+const BLOCK = /```docdd-design-findings\s*\n([\s\S]*?)```/g;
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object' && !Array.isArray(value);
+
 /**
- * Ответ модели в находки. Блока нет — `null`: экран покажет ответ текстом. Строка не из
- * известных экранов или без описания отбрасывается и называется.
+ * Ответ модели → находки. Находка про экран, ширину или тему, которых нет в
+ * описи, не принимается: модель могла выдумать то, чего у проекта нет, и
+ * молча занести это в нарушения нельзя.
  */
-export function parseFindings(answer: string, knownScreens?: readonly string[]): ParsedFindings | null {
-  const match = BLOCK.exec(answer);
-  if (!match) return null;
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(match[1] ?? '');
-  } catch (error) {
-    return { findings: [], problems: [`Блок \`docdd-design-findings\` не разобран: ${error instanceof Error ? error.message : String(error)}.`] };
-  }
-  const list = (parsed && typeof parsed === 'object' && Array.isArray((parsed as { findings?: unknown }).findings)
-    ? (parsed as { findings: unknown[] }).findings
-    : []);
-  const findings: Finding[] = [];
+export function parseFindings(answer: string, inventory: DesignScreens): FindingsOutcome {
   const problems: string[] = [];
-  const known = knownScreens ? new Set(knownScreens) : null;
-  list.forEach((item, at) => {
-    const entry = (item && typeof item === 'object' ? item : {}) as Record<string, unknown>;
-    const screen = typeof entry['screen'] === 'string' ? entry['screen'].trim() : '';
-    const what = typeof entry['what'] === 'string' ? entry['what'].trim() : '';
-    const kind = entry['kind'] === 'responsive' || entry['kind'] === 'pixel' ? entry['kind'] : null;
-    if (!screen || !what || !kind) {
-      problems.push(`Находка ${at + 1} отброшена: нужны \`screen\`, \`kind\` (responsive|pixel) и \`what\`.`);
-      return;
+  const findings: ScreenFinding[] = [];
+  const clean = new Set<string>();
+  let pass: ScreenPass | null = null;
+
+  const matches = [...answer.matchAll(BLOCK)];
+  if (matches.length === 0) {
+    return { pass, findings, clean: [], problems: ['В ответе нет блока `docdd-design-findings`.'] };
+  }
+
+  const knownScreens = new Map(inventory.screens.map((screen) => [screen.id, screen] as const));
+  for (const match of matches) {
+    let raw: unknown;
+    try {
+      raw = JSON.parse(match[1] ?? '');
+    } catch (error) {
+      problems.push(`Блок не разобран: ${error instanceof Error ? error.message : String(error)}.`);
+      continue;
     }
-    if (known && !known.has(screen)) {
-      problems.push(`Находка ${at + 1} отброшена: экрана \`${screen}\` нет среди проверяемых.`);
-      return;
+    if (!isObject(raw)) {
+      problems.push('Блок должен быть объектом.');
+      continue;
     }
-    const viewport = typeof entry['viewport'] === 'number' ? entry['viewport'] : null;
-    const theme = entry['theme'] === 'light' || entry['theme'] === 'dark' ? entry['theme'] : null;
-    findings.push({ screen, viewport, theme, kind, what });
-  });
-  return { findings, problems };
+    if (raw['pass'] === 'responsive' || raw['pass'] === 'pixel') pass = raw['pass'];
+
+    for (const item of Array.isArray(raw['findings']) ? raw['findings'] : []) {
+      if (!isObject(item)) {
+        problems.push('Находка должна быть объектом.');
+        continue;
+      }
+      const screen = typeof item['screen'] === 'string' ? item['screen'] : '';
+      const width = typeof item['width'] === 'number' ? item['width'] : Number(item['width']);
+      const theme = item['theme'];
+      const what = typeof item['what'] === 'string' ? item['what'].trim() : '';
+      if (!knownScreens.has(screen)) {
+        problems.push(`Экран \`${screen || '—'}\` не из карты пользовательских путей: находка отброшена.`);
+        continue;
+      }
+      if (!inventory.widths.includes(width)) {
+        problems.push(`Ширина ${String(item['width'])} не из проверяемых (${inventory.widths.join(', ')}): находка по \`${screen}\` отброшена.`);
+        continue;
+      }
+      if (typeof theme !== 'string' || !inventory.themes.includes(theme)) {
+        problems.push(`Тема \`${String(theme)}\` не из проверяемых (${inventory.themes.join(', ')}): находка по \`${screen}\` отброшена.`);
+        continue;
+      }
+      if (what === '') {
+        problems.push(`У находки по \`${screen}\` нет описания: отброшена.`);
+        continue;
+      }
+      findings.push({
+        screen,
+        width,
+        theme,
+        what,
+        ...(typeof item['expected'] === 'string' ? { expected: item['expected'] } : {}),
+        ...(typeof item['actual'] === 'string' ? { actual: item['actual'] } : {})
+      });
+    }
+    for (const id of Array.isArray(raw['clean']) ? raw['clean'] : []) {
+      if (typeof id === 'string' && knownScreens.has(id)) clean.add(id);
+    }
+  }
+
+  return { pass, findings, clean: [...clean], problems };
+}
+
+/** Строка отчёта прохода, который человек принял. */
+export interface DesignReport {
+  contract: 'docdd.workspace/1';
+  kind: 'design-findings';
+  pass: ScreenPass;
+  taken_at: string;
+  actor: string;
+  findings: ScreenFinding[];
+  clean: string[];
+}
+
+/** Последний отчёт каждого прохода: старые остаются историей, действует свежий. */
+export function latestReports(reports: readonly DesignReport[]): Partial<Record<ScreenPass, DesignReport>> {
+  const latest: Partial<Record<ScreenPass, DesignReport>> = {};
+  for (const report of reports) {
+    const current = latest[report.pass];
+    if (!current || report.taken_at >= current.taken_at) latest[report.pass] = report;
+  }
+  return latest;
+}
+
+export function isDesignReport(value: unknown): value is DesignReport {
+  return isObject(value)
+    && value['kind'] === 'design-findings'
+    && (value['pass'] === 'responsive' || value['pass'] === 'pixel')
+    && typeof value['taken_at'] === 'string'
+    && Array.isArray(value['findings'])
+    && Array.isArray(value['clean']);
 }

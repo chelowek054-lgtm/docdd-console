@@ -80,28 +80,34 @@ async function remove(id: string) {
   await refresh();
 }
 
+// Тексты экрана — ключи словаря (docs/16-design-system.md, «i18n»): в разметке ни
+// одной строки на конкретном языке, поэтому переключение языка не требует правки
+// шаблона. Дата и время пишутся по правилам выбранного языка (`dateTime`), а не
+// «ru-RU» по умолчанию.
+const { t, dateTime } = useT();
+
 function shortDate(iso: string): string {
-  return new Date(iso).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' });
+  return dateTime(iso);
 }
 </script>
 
 <template>
   <div class="space-y-6">
     <div>
-      <h1 class="text-xl font-semibold">Проекты</h1>
-      <p class="text-sm text-muted">Инструмент читает <code>docs/development</code> выбранного проекта и ничего в нём не переписывает.</p>
+      <h1 class="text-xl font-semibold">{{ t('home.title') }}</h1>
+      <p class="text-sm text-muted">{{ t('home.lead') }}</p>
     </div>
 
     <UCard>
       <div class="flex flex-col gap-3 sm:flex-row">
         <UInput
           v-model="root"
-          placeholder="D:\work\fishForecast"
+          :placeholder="t('home.pathPlaceholder')"
           icon="i-lucide-folder"
           class="flex-1"
           @keyup.enter="add"
         />
-        <UButton :loading="adding" @click="add">Добавить проект</UButton>
+        <UButton :loading="adding" @click="add">{{ t('home.add') }}</UButton>
       </div>
 
       <UAlert
@@ -112,23 +118,20 @@ function shortDate(iso: string): string {
         icon="i-lucide-triangle-alert"
         :title="failure.message"
         :description="failure.code === 'project_not_found'
-          ? 'В папке нет docs/development/project.yaml. Формат можно завести прямо сейчас — ниже.'
+          ? t('home.noManifest')
           : failure.detail"
       />
 
       <div v-if="offerInit" class="mt-4 space-y-3 rounded-lg border border-default p-4">
-        <p class="text-sm">Завести формат в <span class="font-mono">{{ root }}</span>?</p>
+        <p class="text-sm">{{ t('home.initQuestion', { root }) }}</p>
         <div class="flex flex-col gap-3 sm:flex-row">
-          <UInput v-model="newName" placeholder="Имя проекта" class="flex-1" />
-          <UInput v-model="newId" placeholder="идентификатор-латиницей" class="flex-1" />
+          <UInput v-model="newName" :placeholder="t('home.namePlaceholder')" class="flex-1" />
+          <UInput v-model="newId" :placeholder="t('home.idPlaceholder')" class="flex-1" />
           <UButton :loading="initializing" :disabled="!newId.trim() || !newName.trim()" @click="init">
-            Завести формат
+            {{ t('home.initButton') }}
           </UButton>
         </div>
-        <p class="text-xs text-muted">
-          Будут созданы <code>docs/development/project.yaml</code>, папки разделов и
-          первая запись — требование-заготовка. Существующие файлы не тронутся.
-        </p>
+        <p class="text-xs text-muted">{{ t('home.initNote') }}</p>
         <UAlert
           v-if="initFailure"
           color="error"
@@ -140,11 +143,8 @@ function shortDate(iso: string): string {
     </UCard>
 
     <div v-if="projects.length === 0" class="rounded-lg border border-dashed border-default p-8 text-center">
-      <p class="font-medium">Проектов пока нет</p>
-      <p class="mt-1 text-sm text-muted">
-        Укажите путь к папке проекта — той, внутри которой лежит
-        <code>docs/development/project.yaml</code>.
-      </p>
+      <p class="font-medium">{{ t('home.emptyTitle') }}</p>
+      <p class="mt-1 text-sm text-muted">{{ t('home.emptyText') }}</p>
     </div>
 
     <ul v-else class="space-y-3">
@@ -157,12 +157,12 @@ function shortDate(iso: string): string {
               </NuxtLink>
               <p class="truncate text-sm text-muted">{{ project.root }}</p>
             </div>
-            <p class="text-sm text-muted">Открывали {{ shortDate(project.lastOpenedAt) }}</p>
+            <p class="text-sm text-muted">{{ t('home.opened', { when: shortDate(project.lastOpenedAt) }) }}</p>
             <UButton
               variant="ghost"
               color="neutral"
               icon="i-lucide-x"
-              :aria-label="`Убрать ${project.name} из списка`"
+              :aria-label="t('home.remove', { name: project.name })"
               @click="remove(project.id)"
             />
           </div>
@@ -170,6 +170,6 @@ function shortDate(iso: string): string {
       </li>
     </ul>
 
-    <p class="text-sm text-muted">Убрать проект из списка — не то же, что удалить: файлы остаются на месте.</p>
+    <p class="text-sm text-muted">{{ t('home.removeNote') }}</p>
   </div>
 </template>

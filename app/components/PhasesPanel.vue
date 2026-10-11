@@ -67,7 +67,7 @@ const counts = computed(() => Object.fromEntries(PHASE_FILTERS.map((item) => [it
             <template v-else>
               <!-- Отменённые не в счёт: работы они не прибавляют и не убавляют. -->
               <div class="mt-3 h-2 overflow-hidden rounded-full bg-elevated" role="progressbar" :aria-valuenow="percent(item.done, item.total)" aria-valuemin="0" aria-valuemax="100">
-                <div class="h-full bg-success" :style="{ width: `${percent(item.done, item.total)}%` }" />
+                <div class="h-full bg-primary" :style="{ width: `${percent(item.done, item.total)}%` }" />
               </div>
 
               <p v-if="item.open.length" class="mt-3 text-sm">

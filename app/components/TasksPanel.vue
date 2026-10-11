@@ -168,7 +168,7 @@ function reset() {
                   variant="subtle"
                   size="sm"
                   class="ml-1"
-                >{{ RESULT_LABELS[results[id]!.state] }}</UBadge>
+                >{{ resultLabel(results[id]!.state) }}</UBadge>
                 <UBadge v-else color="neutral" variant="subtle" size="sm" class="ml-1">не запускалась</UBadge>
               </template>
             </span>

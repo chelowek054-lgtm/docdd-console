@@ -303,7 +303,9 @@
 
 Тип `reference` создаётся тем же маршрутом (`type: "reference"`, поля `summary`, `kind`, `source`, `fetched` — в теле запроса, как `kind` у проверки). Необязательное `body` — готовый текст раздела задачи (строка Markdown): так экран
 «Починить нарушения» кладёт в задачу список нарушений из проверки, а не пересказ
-модели. Для типов, кроме `task`, и пустого `body` ничего не меняется.
+модели. Тот же `body` принимает и проектный документ (`type: "design"`) — так конструктор тем и импорт
+из Figma кладут готовый блок `docdd-design` черновиком. Для остальных типов и пустого `body`
+ничего не меняется.
 
 `POST …/inbox/records` ([10-inbox.md](10-inbox.md)) дополняет пачку: есть
 `feature`-задачи без связи на карту — заводится одна карта-намерение, задачи
@@ -503,44 +505,6 @@
 
 `manifest` — `used` (секция `architecture` читается: блоков правил нет), `ignored`
 (есть блоки, секция не читается) или `absent`. Правил нет и секции нет — `{ "rules": [] }`.
-
-## Дизайн
-
-([16-design-system.md](16-design-system.md))
-
-### `GET /api/design`
-
-Эталон консоли: сложенный блок `docdd-design` встроенного источника, у каждой части —
-запись-источник. И проекты из списка с тем, подключён ли у них тег `design`, и сводка
-находок. Производное — нигде не хранится. Эталона нет — `{ "tokens": null }`.
-
-### `GET /api/projects/:id/design`
-
-Токены проекта после сложения «глобальное → проект»: `tokens` (с источником у каждой
-части), `checks` (предупреждения `design_*`: контраст, обе темы, шкалы, конфликт) и `stacks` —
-по каждому объявленному стеку выгрузка (`files`: путь → текст) и `drift` (что отличается
-от файла в проекте, с диффом). Стеков в манифесте нет — `stacks: []`.
-
-### `POST /api/projects/:id/design/write`
-
-Тело: `{ "stack": "nuxt-ui" }`. Записывает выгрузку стека в файлы проекта, объявленные в
-манифесте; пути — только внутри корня проекта. Единственное место, где приложение пишет
-файл темы: по нажатию человека «Записать», модель — никогда. Ответ — записанные пути.
-
-### `GET /api/projects/:id/design/screens`
-
-Экраны из карты пользовательских путей и опись снимков (`screen`, `viewport`, `theme`,
-`path`), чего не хватает. Находки на диске не хранятся: это ответ последней проверки.
-
-### `POST /api/projects/:id/design/screenshots`
-
-Снять экраны: тело — `{ "screens": [...], "viewports": [375, 768, 1280] }` (пусто — все). Снимки
-кладутся в `docs/development/screens/` внутри корня. Идёт лентой событий, как запросы к модели.
-
-### `POST /api/projects/:id/design/findings/preview`
-
-Разбор ответа модели в находки до записи: блок `docdd-design-findings` → список; чего
-нет — не выдумывается. Блока нет — `422 design_findings_unparsed`.
 
 ## Справочник
 
@@ -897,6 +861,94 @@ Claude Code не найден или отказал в доступе — `503`;
 текстом.
 
 ## Заведение и импорт
+
+### `GET /api/design`
+
+Глобальный экран «Дизайн» ([16-design-system.md](16-design-system.md)): эталон (сложение общих
+источников без локальных) и проекты консоли.
+
+```json
+{
+  "standard": { "tokens": { "...": "…" }, "checks": [], "sources": ["[docdd] D-0001"] },
+  "projects": [{ "id": "learning", "name": "Learning", "connected": true,
+                 "findings": 3, "violations": 1, "stacks": ["nuxt-ui"] }]
+}
+```
+
+`standard` — `null`, если эталона нет ни в одном подключённом источнике.
+
+### `GET /api/projects/:id/design`
+
+Токены проекта после сложения «общее → локальное» с источником у каждой части:
+
+```json
+{
+  "tokens": {
+    "principles": [{ "value": "…", "source": "[docdd] D-0001" }],
+    "typography": { "body": { "value": { "size": 16, "line": 24, "weight": 400 }, "source": "[docdd] D-0001", "overrides": [] } },
+    "spacing": {}, "radius": {},
+    "grid": { "columns": { "value": 12, "source": "[docdd] D-0001" }, "gutter": {}, "breakpoints": {}, "containers": {} },
+    "palette": { "light": {}, "dark": {} },
+    "themes": { "ocean": { "mode": { "value": "light" }, "label": { "value": "Океан" }, "colors": { "accent": { "value": "#0B5FA5" } } } },
+    "i18n": { "default": { "value": "ru" }, "fallback": { "value": "en" }, "locales": [{ "value": "ru" }, { "value": "en" }] },
+    "root": null,
+    "components": [{ "value": { "name": "Button" }, "source": "[docdd] D-0001" }]
+  },
+  "checks": [{ "code": "design_contrast_low", "theme": "dark", "pair": ["ink", "bg"], "ratio": 3.9, "message": "…" }],
+  "contrast": [{ "theme": "light", "pair": ["ink", "bg"], "ratio": 14.8, "ok": true }],
+  "conflicts": [{ "key": "palette.light.accent", "records": ["[docdd] D-0001", "D-0004"] }],
+  "sources": [{ "id": "[docdd] D-0001", "level": "general" }],
+  "problems": [],
+  "empty": false,
+  "connected": true,
+  "componentsMissing": ["Progress"],
+  "stacks": [{ "id": "nuxt-ui", "label": "Nuxt + Nuxt UI" }]
+}
+```
+
+Размеры в `rem`. `themes` — только добавленные темы с переопределёнными ролями; итоговая палитра
+темы — база (`mode`) и поверх неё `colors`.
+
+Сложение производное: нигде не хранится. Нет ни одного подтверждённого блока — `tokens` пустые,
+`empty: true`, `connected: false`. `componentsMissing` — компоненты реестра, которых нет среди файлов
+`sources.code`; `null`, если исходники не объявлены (искать негде).
+
+### `GET /api/projects/:id/design/export`
+
+Выгрузка токенов в стеки проекта и сверка файлов темы: `?stack=expo` — один стек, без параметра —
+все объявленные в `design.stacks` манифеста.
+
+```json
+{
+  "stacks": [{
+    "id": "expo",
+    "files": [{ "key": "theme", "path": "constants/theme.ts", "content": "…", "state": "drift", "diff": "…" }]
+  }]
+}
+```
+
+`state`: `in_sync`, `drift`, `missing` (файла нет в проекте), `unknown` (путь вне корня).
+Файл в проекте приложение не пишет.
+
+### `GET /api/projects/:id/design/screens`
+
+Опись снимков экранов: `{ "screens": [{ "id": "S-home", "title": "…", "shots": [{ "width": 375,
+"theme": "light", "present": true, "takenAt": "2026-10-11T09:00:00Z" }], "mockup": true }],
+"missing": 4, "widths": [375, 768, 1280], "themes": ["light","dark"], "script": "…" }`. Экран берётся из
+подтверждённой карты пользовательских путей; `script` — шаблон скрипта снятия, текстом.
+
+### `POST /api/projects/:id/design/findings/preview`
+
+Тело `{ "answer": "…ответ модели с блоком docdd-design-findings…" }`. Разбирает находки, ничего не пишет:
+`{ "pass": "responsive", "findings": [...], "clean": [...], "problems": [...] }`. Находка с экраном или
+шириной, которых нет в описи, — в `problems`, не в находках.
+
+### `POST /api/projects/:id/design/findings/apply`
+
+Тело `{ "pass": "responsive", "findings": [...], "clean": [...], "actor": "architect" }` — то, что человек
+принял. Пишет отчёт `docs/development/design/reports/<дата>-<проход>-<время>.json`; ответ —
+`{ "ok": true, "report": "…" }`. Запрос к модели собирается через `POST /prompt` с
+`kind: "design-responsive"` или `"design-pixel"`.
 
 ### `POST /api/projects/init`
 

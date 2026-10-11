@@ -36,7 +36,7 @@ const bars = computed(() => [
         aria-valuemin="0"
         aria-valuemax="100"
       >
-        <div class="h-full bg-success" :style="{ width: `${percent(bar.share.done, bar.share.total)}%` }" />
+        <div class="h-full bg-primary" :style="{ width: `${percent(bar.share.done, bar.share.total)}%` }" />
       </div>
     </div>
   </div>

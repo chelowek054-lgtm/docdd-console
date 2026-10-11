@@ -269,7 +269,7 @@ function entries(
                 <span class="font-mono text-xs">{{ id }}</span>
                 <span class="text-muted">{{ new Date(outcome.at).toLocaleDateString('ru-RU') }} · {{ outcome.runner }}</span>
                 <UBadge :color="statusColor(outcome.state)" variant="subtle" size="sm">
-                  {{ RESULT_LABELS[outcome.state] }}
+                  {{ resultLabel(outcome.state) }}
                 </UBadge>
               </li>
             </ul>

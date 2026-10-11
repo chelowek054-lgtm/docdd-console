@@ -32,7 +32,7 @@ const emit = defineEmits<{ pick: [key: string] }>();
       >
         <UIcon
           :name="props.chosen.includes(issueKey(issue)) ? 'i-lucide-check-square' : 'i-lucide-square'"
-          :class="props.chosen.includes(issueKey(issue)) ? 'text-primary' : 'text-muted'"
+          :class="props.chosen.includes(issueKey(issue)) ? 'text-(color:--ds-color-accent-text)' : 'text-muted'"
         />
       </button>
 

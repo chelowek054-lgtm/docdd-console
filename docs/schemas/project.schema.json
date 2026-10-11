@@ -145,27 +145,6 @@
         }
       }
     },
-    "design": {
-      "type": "object",
-      "additionalProperties": false,
-      "description": "Единый дизайн проекта (docs/16-design-system.md): стеки с файлами темы, ширины и адрес для снимков экранов.",
-      "properties": {
-        "stacks": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["stack"],
-            "properties": {
-              "stack": { "enum": ["nuxt-ui", "expo", "compose", "swiftui"] },
-              "files": { "type": "object", "additionalProperties": { "type": "string", "minLength": 1 } }
-            }
-          }
-        },
-        "viewports": { "type": "array", "items": { "type": "integer", "minimum": 200 } },
-        "baseUrl": { "type": "string" },
-        "screens": { "type": "object", "additionalProperties": { "type": "string" } }
-      }
-    },
     "architecture": {
       "type": "object",
       "additionalProperties": false,
@@ -214,6 +193,34 @@
             }
           }
         }
+      }
+    },
+    "design": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Дизайн проекта: стеки с файлами темы и каталоги снимков экранов (docs/16-design-system.md). Нет секции — нет выгрузки и сверки файла темы.",
+      "properties": {
+        "stacks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "enum": ["nuxt-ui", "expo", "compose", "swiftui"], "description": "На каком стеке собран проект." },
+              "files": {
+                "type": "object",
+                "description": "Ключ файла темы → путь от корня проекта; нет ключа — умолчание стека.",
+                "additionalProperties": { "type": "string", "minLength": 1 }
+              },
+              "package": { "type": "string", "description": "Пакет Kotlin для compose; по умолчанию ui.theme." }
+            }
+          }
+        },
+        "screens": { "type": "string", "minLength": 1, "description": "Каталог снимков экранов от корня проекта." },
+        "mockups": { "type": "string", "minLength": 1, "description": "Каталог эталонных макетов экранов." },
+        "widths": { "type": "array", "items": { "type": "integer", "minimum": 240 }, "description": "Ширины снимков; по умолчанию 375, 768, 1280." },
+        "themes": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" }, "description": "Темы снимков; по умолчанию все темы проекта: светлая, тёмная и добавленные." }
       }
     },
     "policy": {

@@ -1,0 +1,51 @@
+import { designTokens } from '~/design-tokens';
+import { messages } from '~/i18n/index';
+
+/**
+ * i18n интерфейса консоли (docs/16-design-system.md, «i18n»). Языки, основной
+ * и запасной берутся из токенов дизайна — тех же, которые консоль выгружает в
+ * проекты, поэтому её язык не расходится с правилом, которое она проверяет.
+ *
+ * Ключ, которого нет в словаре языка, берётся у запасного, затем у основного;
+ * нет и там — показывается сам ключ, а не пустое место: пропуск виден.
+ */
+export const LOCALES: readonly string[] = designTokens.i18n.locales;
+export const DEFAULT_LOCALE: string = designTokens.i18n.default;
+export const FALLBACK_LOCALE: string = designTokens.i18n.fallback;
+
+const COOKIE = 'docdd-locale';
+
+/** Подстановка `{name}` из параметров; незнакомое остаётся как есть. */
+function fill(text: string, params?: Record<string, string | number>): string {
+  if (!params) return text;
+  return text.replace(/\{(\w+)\}/g, (match, name: string) => (name in params ? String(params[name]) : match));
+}
+
+export function translate(locale: string, key: string, params?: Record<string, string | number>): string {
+  const text = messages[locale]?.[key] ?? messages[FALLBACK_LOCALE]?.[key] ?? messages[DEFAULT_LOCALE]?.[key] ?? key;
+  return fill(text, params);
+}
+
+export function useT() {
+  const locale = useState<string>('locale', () => DEFAULT_LOCALE);
+  const cookie = useCookie<string | null>(COOKIE, { maxAge: 60 * 60 * 24 * 365, sameSite: 'lax' });
+
+  function t(key: string, params?: Record<string, string | number>): string {
+    return translate(locale.value, key, params);
+  }
+
+  function setLocale(next: string) {
+    if (!LOCALES.includes(next)) return;
+    locale.value = next;
+    cookie.value = next;
+  }
+
+  /** Тег языка для `Intl`: даты и числа пишутся по правилам выбранного языка. */
+  const tag = computed(() => (locale.value === 'ru' ? 'ru-RU' : locale.value === 'en' ? 'en-US' : locale.value));
+
+  function dateTime(iso: string): string {
+    return new Date(iso).toLocaleString(tag.value, { dateStyle: 'short', timeStyle: 'short' });
+  }
+
+  return { t, locale, setLocale, locales: LOCALES, tag, dateTime };
+}

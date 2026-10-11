@@ -8,8 +8,8 @@ import type { SharedSource } from './types';
 
 export const BUILTIN_SOURCE = 'builtin';
 
-/** Что подключено, пока в манифесте нет записи `builtin`: общие принципы кода и единый дизайн (docs/16-design-system.md). */
-export const DEFAULT_BUILTIN_TAGS: readonly string[] = ['general', 'design'];
+/** Что подключено, пока в манифесте нет записи `builtin`: общие принципы кода. */
+export const DEFAULT_BUILTIN_TAGS: readonly string[] = ['general'];
 
 /**
  * Источники проекта с встроенным набором первым. Записи `builtin` нет —

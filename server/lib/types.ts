@@ -124,6 +124,17 @@ export type ViolationCode =
   | 'arch_not_independent'
   | 'arch_forbidden'
   | 'rules_conflict'
+  // дизайн (docs/16-design-system.md)
+  | 'design_block_invalid'
+  | 'design_contrast_low'
+  | 'design_theme_incomplete'
+  | 'design_scale_gap'
+  | 'design_i18n_missing'
+  | 'design_color_practice'
+  | 'design_conflict'
+  | 'design_theme_drift'
+  | 'design_component_missing'
+  | 'design_screen_finding'
   // выполнение
   | 'work_unreviewed'
   | 'work_branch_orphan'
@@ -211,6 +222,16 @@ export const VIOLATION_LEVELS: Readonly<Record<ViolationCode, Severity>> = {
   arch_not_independent: 'warning',
   arch_forbidden: 'warning',
   rules_conflict: 'warning',
+  design_block_invalid: 'warning',
+  design_contrast_low: 'warning',
+  design_theme_incomplete: 'warning',
+  design_scale_gap: 'warning',
+  design_i18n_missing: 'warning',
+  design_color_practice: 'warning',
+  design_conflict: 'warning',
+  design_theme_drift: 'warning',
+  design_component_missing: 'warning',
+  design_screen_finding: 'warning',
   work_unreviewed: 'warning',
   work_branch_orphan: 'warning',
   task_not_ready_docs: 'error',
@@ -319,20 +340,6 @@ export interface ArchitectureConfig {
   sources?: Record<string, string>;
 }
 
-/**
- * Единый дизайн проекта (docs/16-design-system.md): на каких стеках он собран, где лежат
- * файлы темы и как снимать экраны. Нет секции — выгрузки и снимков нет, токены всё равно приходят.
- */
-export interface DesignConfig {
-  stacks?: { stack: 'nuxt-ui' | 'expo' | 'compose' | 'swiftui'; files?: Record<string, string> }[];
-  /** Ширины снимков в px; нет ключа — 375, 768, 1280. */
-  viewports?: number[];
-  /** Адрес запущенного веб-проекта, по которому снимаются экраны. */
-  baseUrl?: string;
-  /** Адрес экрана, когда его `id` — не путь: `id` → путь от `baseUrl`. */
-  screens?: Record<string, string>;
-}
-
 export interface ProjectManifest {
   contract: string;
   project: { id: string; name: string; description?: string };
@@ -341,7 +348,19 @@ export interface ProjectManifest {
   roles?: { id: string; name: string }[];
   policy?: Policy;
   architecture?: ArchitectureConfig;
-  design?: DesignConfig;
+  /** Стеки и снимки экранов (docs/16-design-system.md). */
+  design?: DesignManifest;
+}
+
+export interface DesignManifest {
+  stacks?: { id: 'nuxt-ui' | 'expo' | 'compose' | 'swiftui'; files?: Record<string, string>; package?: string }[];
+  /** Каталог снимков экранов от корня проекта. */
+  screens?: string;
+  /** Каталог эталонных макетов экранов. */
+  mockups?: string;
+  widths?: number[];
+  /** Темы снимков; не названы — все темы проекта. */
+  themes?: string[];
 }
 
 /** Умолчания политики повторяют `default` из project.schema.json. */

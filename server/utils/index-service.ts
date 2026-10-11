@@ -4,6 +4,7 @@ import type { ProjectIndex } from '../lib/types';
 import { readManifest, readWorkspace } from '../lib/workspace';
 import { withBuiltin } from '../lib/builtin';
 import { generalReferenceEntries, generalRuleRecords } from './rules-service';
+import { readDesignReports } from './design-screens-service';
 
 /**
  * Индекс пересобирается, когда изменился отпечаток файлов. Кэш производный:
@@ -19,7 +20,7 @@ export function loadIndex(root: string, refresh = false): ProjectIndex {
 
   // Правила из общих практик складываются с локальными: источники читаются здесь, а не в чистом разборе.
   const shared = withBuiltin(readManifest(root).sources?.shared ?? []);
-  const { index } = buildIndex(root, new Date(), generalRuleRecords(shared), generalReferenceEntries(shared));
+  const { index } = buildIndex(root, new Date(), generalRuleRecords(shared), generalReferenceEntries(shared), readDesignReports(root));
   writeCache(root, index);
   return index;
 }

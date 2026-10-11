@@ -67,7 +67,8 @@ export default defineEventHandler(async (event) => {
       ...(type === 'reference' && typeof body?.source === 'string' && body.source ? { source: body.source } : {}),
       ...(type === 'reference' && typeof body?.fetched === 'string' && body.fetched ? { fetched: body.fetched } : {}),
       // Готовый текст раздела — только у задачи: так «Починить нарушения» кладёт список из проверки.
-      ...(type === 'task' && typeof body?.body === 'string' && body.body.trim() ? { body: body.body } : {}),
+      // Проектный документ несёт готовый блок токенов (конструктор тем, импорт из Figma) — тоже.
+      ...((type === 'task' || type === 'design') && typeof body?.body === 'string' && body.body.trim() ? { body: body.body } : {}),
       links: asLinks(body?.links)
     });
 

@@ -2,7 +2,7 @@
 id: T-0061
 type: task
 title: 'Разбор блока docdd-design и сложение «общее → локальное», GET /design'
-status: backlog
+status: in_review
 change: feature
 links:
   implements: [R-0030]
@@ -20,3 +20,6 @@ updated: 2026-10-11
 ## Журнал
 
 - 2026-10-11 · заведена черновиком · claude
+- 2026-10-11 · готова к работе · architect
+- 2026-10-11 · в разработку · architect
+- 2026-10-11 · на проверку · architect

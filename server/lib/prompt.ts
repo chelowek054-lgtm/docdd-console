@@ -1,6 +1,8 @@
 import { contractDigest } from './contract-digest';
 import { capabilityLines, relationLines, type CapabilityLike, type RelationLike } from './functional';
 import type { ArchitectureConfig, IssueDto } from './types';
+import type { PlainTokens } from './design';
+import type { DesignScreens } from './design-screens';
 
 /**
  * Сборка запроса к модели: шаблон из репозитория плюс данные проекта.
@@ -565,4 +567,54 @@ export function architecturePrompt(
       const practices = input.practices ?? [];
       return practices.length ? practicesSection(practices).slice(4).join(LF) : 'Практик не подключено.';
     });
+}
+
+export const TOKENS_MARKER = '<!-- ТОКЕНЫ -->';
+export const SHOTS_MARKER = '<!-- СНИМКИ -->';
+
+/** Токены — компактным текстом: модели нужны значения, а не их происхождение. */
+function tokenLines(tokens: PlainTokens): string {
+  const out: string[] = [];
+  const pairs = (bag: Record<string, number>) => Object.entries(bag).map(([name, value]) => `${name} ${value}`).join(', ');
+  out.push(`Единица размеров — rem (1rem = ${tokens.root} px).`);
+  out.push(`Типографика, rem (кегль/интерлиньяж/начертание): ${Object.entries(tokens.typography)
+    .map(([name, token]) => `${name} ${token.size}/${token.line ?? '—'}/${token.weight ?? '—'}`).join(', ')}`);
+  out.push(`Отступы, rem: ${pairs(tokens.spacing)}`);
+  out.push(`Радиусы, rem: ${pairs(tokens.radius)}`);
+  out.push(`Сетка: ${tokens.grid.columns} колонок, поле ${tokens.grid.gutter}rem; точки перелома, rem: ${pairs(tokens.grid.breakpoints)}; контейнеры, rem: ${pairs(tokens.grid.containers)}`);
+  const palettes: [string, Record<string, string>][] = [
+    ['тема light', tokens.palette.light],
+    ['тема dark', tokens.palette.dark],
+    ...Object.entries(tokens.themes).map(([name, theme]): [string, Record<string, string>] => [`тема ${name} (на базе ${theme.mode})`, theme.palette])
+  ];
+  for (const [name, palette] of palettes) {
+    out.push(`Палитра, ${name}: ${Object.entries(palette).map(([role, color]) => `${role} ${color}`).join(', ')}`);
+  }
+  if (tokens.principles.length) out.push(`Принципы: ${tokens.principles.join('; ')}`);
+  return out.join(LF);
+}
+
+/** Опись снимков: что лежит и чего нет, макет — рядом с экраном. */
+function shotLines(inventory: DesignScreens): string {
+  const lines: string[] = [];
+  for (const screen of inventory.screens) {
+    lines.push(`### ${screen.id}${screen.title !== screen.id ? ` — ${screen.title}` : ''}`);
+    lines.push(screen.mockup ? `Макет: \`${screen.mockup}\`` : 'Макета нет');
+    for (const shot of screen.shots) {
+      lines.push(`- ${shot.width} px, тема ${shot.theme}: ${shot.present ? `\`${shot.path}\`` : 'нет'}`);
+    }
+    lines.push('');
+  }
+  return lines.join(LF).trimEnd();
+}
+
+/**
+ * Запросы «Responsive» и «Pixel-Perfect» (docs/16-design-system.md, «Проверка
+ * экранов моделью»): токены проекта и опись снимков подставляются в шаблон;
+ * сами снимки модель открывает по путям. Ответ — блок `docdd-design-findings`.
+ */
+export function designPrompt(template: string, tokens: PlainTokens, inventory: DesignScreens): string {
+  return withoutFrontNote(template)
+    .replace(TOKENS_MARKER, () => tokenLines(tokens))
+    .replace(SHOTS_MARKER, () => shotLines(inventory));
 }

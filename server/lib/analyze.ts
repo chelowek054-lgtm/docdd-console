@@ -15,6 +15,8 @@ import {
   type Violation,
   type WorkRecord
 } from './types';
+import { resolveDesign } from './design';
+import type { DesignReport } from './design-screens';
 
 export interface SourceFile {
   text: string;
@@ -36,6 +38,8 @@ export interface AnalyzeInput {
   work?: { unreviewed: ReadonlySet<string>; orphanBranches: ReadonlySet<string> };
   /** Подтверждённые общие практики с их текстом: правила из них складываются с локальными (docs/12-practice-rules.md). */
   generalRules?: readonly RuleRecord[];
+  /** Принятые отчёты проверки экранов моделью: их находки идут в нарушения (docs/16-design-system.md). */
+  designReports?: readonly DesignReport[];
   /** Подтверждённые справки подключённых источников: в индекс справочника идут с меткой (docs/13-reference.md). */
   sharedReferences?: readonly ReferenceEntry[];
   now?: Date;
@@ -88,6 +92,8 @@ export function analyze(input: AnalyzeInput): AnalyzeResult {
     .filter((record) => (record.type === 'decision' || record.type === 'design') && record.status === 'approved')
     .map((record) => ({ id: record.id, body: record.body }));
   const rules: RulesResolution = resolveRules({ manifest: input.manifest?.architecture, general: input.generalRules ?? [], local });
+  // Токены дизайна: те же источники, что у правил, — читаются блоки `docdd-design`.
+  const design = resolveDesign({ general: input.generalRules ?? [], local });
   const ctx: RuleContext = {
     records,
     graph,
@@ -97,6 +103,9 @@ export function analyze(input: AnalyzeInput): AnalyzeResult {
       ? { reference: { path: `${DEVELOPMENT_DIR}/${input.manifest.paths.reference}/INDEX.md`, staleDays: input.manifest.policy?.reference_stale_days ?? 180 } }
       : {}),
     rules,
+    design,
+    ...(input.designReports ? { designReports: input.designReports } : {}),
+    ...(input.manifest?.design?.stacks ? { designStacks: input.manifest.design.stacks } : {}),
     ...(input.sharedReferences ? { sharedReferences: input.sharedReferences } : {}),
     verifications: latestVerificationResults(input.reports ?? []),
     now: input.now ?? new Date(),

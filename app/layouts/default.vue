@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { designTokens } from '~/design-tokens';
+
 const route = useRoute();
+const { t, locale, setLocale, locales } = useT();
 
 /** Навигация появляется, только когда выбран проект: без него ей некуда вести. */
 const projectId = computed(() => (typeof route.params['id'] === 'string' ? route.params['id'] : ''));
@@ -44,64 +47,59 @@ type NavEntry = ({ kind: 'link' } & NavLink) | { kind: 'group'; label: string; l
 /**
  * Шапка идёт по цепочке проекта — документ → работа → сверка
  * (docs/04-ui.md, «Навигация»), и у каждого типа записи из контракта есть
- * свой список, до которого из неё можно дойти. Раньше проектных документов,
- * решений, контрактов, фаз и записей карт в шапке не было вовсе — как раз
- * того, без подтверждения чего задача не уходит в работу.
+ * свой список, до которого из неё можно дойти. «Документы» — то, что человек
+ * подтверждает до кода: у всех четырёх одна схема статусов. «Работа» — сам код.
+ * «Сверка» — всё, что отвечает на «сходится ли». Карты, Наполнение, Практики и
+ * Дизайн — после цепочки: не шаги, а опора.
  *
- * «Документы» — то, что человек подтверждает до кода: у всех четырёх одна
- * схема статусов. «Работа» — сам код. «Сверка» — всё, что отвечает на
- * «сходится ли»; Нарушения и Граф в ней рядом — список и картинка одного
- * состояния. Карты, Наполнение и Практики — после цепочки: не шаги, а опора.
- *
- * Прямая кнопка — там, где назначение одно: выпадающий список ради одного
- * пункта ничего не добавляет. Практики — не в «Наполнении»: Входящее и Импорт
- * заводят записи в этом проекте, а Практики только показывает чужие
- * decision/design (docs/11-shared-sources.md).
+ * Подписи — ключи словаря (docs/16-design-system.md, «i18n»): в коде шапки ни
+ * одной строки текста.
  */
 const entries = computed<NavEntry[]>(() => {
   if (!projectId.value) return [];
   const base = `/projects/${projectId.value}`;
   return [
-    { kind: 'link', label: 'Обзор', to: base },
+    { kind: 'link', label: t('nav.overview'), to: base },
     {
       kind: 'group',
-      label: 'Документы',
+      label: t('nav.documents'),
       links: [
-        { label: 'Требования', to: `${base}/documents?type=requirement`, count: unconfirmed('requirement') },
-        { label: 'Проектные документы', to: `${base}/documents?type=design`, count: unconfirmed('design') },
-        { label: 'Решения', to: `${base}/documents?type=decision`, count: unconfirmed('decision') },
-        { label: 'Контракты', to: `${base}/documents?type=contract`, count: unconfirmed('contract') },
-        { label: 'Справочник', to: `${base}/reference`, count: unconfirmed('reference') }
+        { label: t('nav.requirements'), to: `${base}/documents?type=requirement`, count: unconfirmed('requirement') },
+        { label: t('nav.designDocs'), to: `${base}/documents?type=design`, count: unconfirmed('design') },
+        { label: t('nav.decisions'), to: `${base}/documents?type=decision`, count: unconfirmed('decision') },
+        { label: t('nav.contracts'), to: `${base}/documents?type=contract`, count: unconfirmed('contract') },
+        { label: t('nav.reference'), to: `${base}/reference`, count: unconfirmed('reference') }
       ]
     },
     {
       kind: 'group',
-      label: 'Работа',
+      label: t('nav.work'),
       links: [
-        { label: 'Задачи', to: `${base}/work?tab=tasks`, count: openTasks.value },
-        { label: 'Фазы', to: `${base}/work?tab=phases`, count: openPhases.value }
+        { label: t('nav.tasks'), to: `${base}/work?tab=tasks`, count: openTasks.value },
+        { label: t('nav.phases'), to: `${base}/work?tab=phases`, count: openPhases.value }
       ]
     },
     {
       kind: 'group',
-      label: 'Сверка',
+      label: t('nav.verify'),
       links: [
-        { label: 'Проверки', to: `${base}/verify?tab=checks`, count: openChecks.value },
-        { label: 'Результат', to: `${base}/verify?tab=results` },
-        { label: 'Нарушения', to: `${base}/verify?tab=issues`, count: openIssues.value },
-        { label: 'Граф', to: `${base}/verify?tab=graph` }
+        { label: t('nav.checks'), to: `${base}/verify?tab=checks`, count: openChecks.value },
+        { label: t('nav.results'), to: `${base}/verify?tab=results` },
+        { label: t('nav.issues'), to: `${base}/verify?tab=issues`, count: openIssues.value },
+        { label: t('nav.graph'), to: `${base}/verify?tab=graph` }
       ]
     },
-    { kind: 'link', label: 'Карты', to: `${base}/maps`, count: unconfirmed('map') },
+    { kind: 'link', label: t('nav.maps'), to: `${base}/maps`, count: unconfirmed('map') },
     {
       kind: 'group',
-      label: 'Наполнение',
+      label: t('nav.fill'),
       links: [
-        { label: 'Входящее', to: `${base}/fill?tab=inbox` },
-        { label: 'Импорт', to: `${base}/fill?tab=import` }
+        { label: t('nav.inbox'), to: `${base}/fill?tab=inbox` },
+        { label: t('nav.import'), to: `${base}/fill?tab=import` }
       ]
     },
-    { kind: 'link', label: 'Практики', to: `${base}/shared` }
+    { kind: 'link', label: t('nav.practices'), to: `${base}/shared` },
+    { kind: 'link', label: t('nav.design'), to: `${base}/design` }
   ];
 });
 
@@ -122,19 +120,55 @@ function menuItems(links: NavLink[]) {
 const colorMode = useColorMode();
 
 const THEMES = [
-  { value: 'system', label: 'Как в системе', icon: 'i-lucide-monitor' },
-  { value: 'light', label: 'Светлая', icon: 'i-lucide-sun' },
-  { value: 'dark', label: 'Тёмная', icon: 'i-lucide-moon' }
+  { value: 'system', key: 'theme.system', icon: 'i-lucide-monitor' },
+  { value: 'light', key: 'theme.light', icon: 'i-lucide-sun' },
+  { value: 'dark', key: 'theme.dark', icon: 'i-lucide-moon' }
 ] as const;
+
+/**
+ * Темы сверх светлой и тёмной — из токенов консоли (`oled`, `contrast`…): тема
+ * включается классом `theme-<имя>` на корне и базой (`dark` или нет), как
+ * это делает выгрузка для проектов (docs/16-design-system.md). Выбор лежит в
+ * cookie, чтобы сервер и клиент рисовали одну тему.
+ */
+const extraTheme = useCookie<string>('docdd-theme-extra', { default: () => '', maxAge: 60 * 60 * 24 * 365, sameSite: 'lax' });
+const extraThemes = Object.entries(designTokens.themes as Record<string, { mode: string; label: string; labels?: Record<string, string> | null }>)
+  .map(([name, theme]) => ({ name, mode: theme.mode, label: theme.label, labels: theme.labels ?? null }));
+
+useHead({ htmlAttrs: { class: () => (extraTheme.value ? `theme-${extraTheme.value}` : '') } });
 
 const currentTheme = computed(() => THEMES.find((theme) => theme.value === colorMode.preference) ?? THEMES[0]);
 
-const themeItems = computed(() => THEMES.map((theme) => ({
-  label: theme.label,
-  icon: theme.icon,
+const themeItems = computed(() => [
+  ...THEMES.map((theme) => ({
+    label: t(theme.key),
+    icon: theme.icon,
+    type: 'checkbox' as const,
+    checked: !extraTheme.value && colorMode.preference === theme.value,
+    onSelect: () => {
+      extraTheme.value = '';
+      colorMode.preference = theme.value;
+    }
+  })),
+  ...extraThemes.map((theme) => ({
+    label: theme.labels?.[locale.value] ?? theme.label,
+    icon: 'i-lucide-palette',
+    type: 'checkbox' as const,
+    checked: extraTheme.value === theme.name,
+    onSelect: () => {
+      extraTheme.value = theme.name;
+      // База темы включает и `dark`, чтобы утилиты `dark:` и библиотека знали о тёмном фоне.
+      colorMode.preference = theme.mode === 'dark' ? 'dark' : 'light';
+    }
+  }))
+]);
+
+/** Языки интерфейса — из токенов дизайна: сколько их там, столько и в меню. */
+const localeItems = computed(() => locales.map((code) => ({
+  label: t(`lang.${code}`),
   type: 'checkbox' as const,
-  checked: colorMode.preference === theme.value,
-  onSelect: () => { colorMode.preference = theme.value; }
+  checked: locale.value === code,
+  onSelect: () => { setLocale(code); }
 })));
 
 /** Вкладка документов различается запросом, а подсветка — по пути экрана. */
@@ -146,10 +180,11 @@ function isActive(to: string): boolean {
 <template>
   <div class="min-h-screen bg-default text-default">
     <header class="border-b border-default">
-      <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-6 py-3">
-        <NuxtLink to="/" class="font-semibold">DocDD Console</NuxtLink>
+      <!-- Контейнер общей сетки: ширина по точкам перелома, поле — gutter токенов. -->
+      <div class="ds-container flex flex-wrap items-center gap-4 py-3">
+        <NuxtLink to="/" class="font-semibold">{{ t('app.name') }}</NuxtLink>
 
-        <nav v-if="entries.length" class="flex flex-wrap items-center gap-1">
+        <nav v-if="entries.length" class="flex flex-wrap items-center gap-1" :aria-label="t('app.name')">
           <template v-for="entry in entries" :key="entry.label">
             <UButton
               v-if="entry.kind === 'link'"
@@ -187,7 +222,16 @@ function isActive(to: string): boolean {
             color="neutral"
             size="sm"
           >
-            Как пользоваться
+            {{ t('nav.usage') }}
+          </UButton>
+          <!-- Глобальный экран токенов: на уровне консоли, поэтому доступен и без проекта. -->
+          <UButton
+            to="/design"
+            :variant="route.path === '/design' ? 'soft' : 'ghost'"
+            color="neutral"
+            size="sm"
+          >
+            {{ t('nav.design') }}
           </UButton>
           <UButton
             v-if="projectId"
@@ -196,8 +240,20 @@ function isActive(to: string): boolean {
             color="neutral"
             size="sm"
           >
-            Все проекты
+            {{ t('nav.allProjects') }}
           </UButton>
+
+          <UDropdownMenu :items="localeItems" :content="{ align: 'end' }">
+            <UButton
+              icon="i-lucide-languages"
+              :aria-label="t('lang.aria', { name: t(`lang.${locale}`) })"
+              variant="ghost"
+              color="neutral"
+              size="sm"
+            >
+              <span class="uppercase">{{ locale }}</span>
+            </UButton>
+          </UDropdownMenu>
 
           <!-- Выбор хранится в браузере: на сервере он неизвестен, поэтому
                кнопка рисуется только на клиенте — без мигания чужой темы. -->
@@ -205,21 +261,21 @@ function isActive(to: string): boolean {
             <UDropdownMenu :items="themeItems" :content="{ align: 'end' }">
               <UButton
                 :icon="currentTheme.icon"
-                :aria-label="`Тема: ${currentTheme.label}`"
+                :aria-label="t('theme.aria', { name: extraTheme ? extraTheme : t(currentTheme.key) })"
                 variant="ghost"
                 color="neutral"
                 size="sm"
               />
             </UDropdownMenu>
             <template #fallback>
-              <UButton icon="i-lucide-monitor" aria-label="Тема" variant="ghost" color="neutral" size="sm" disabled />
+              <UButton icon="i-lucide-monitor" :aria-label="t('theme.fallbackAria')" variant="ghost" color="neutral" size="sm" disabled />
             </template>
           </ClientOnly>
         </div>
       </div>
     </header>
 
-    <main class="mx-auto max-w-6xl px-6 py-6">
+    <main class="ds-container py-6">
       <slot />
     </main>
   </div>
