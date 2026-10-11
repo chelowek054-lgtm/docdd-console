@@ -1,4 +1,4 @@
-// Сгенерировано консолью DocDD из токенов дизайна v1.5.0 (docs/16-design-system.md). Не правьте руками: меняются токены.
+// Сгенерировано консолью DocDD из токенов дизайна v1.6.0 (docs/16-design-system.md). Не правьте руками: меняются токены.
 // Размеры в rem. Языки — точка подключения словарей (@nuxtjs/i18n и подобные).
 
 export const designTokens = {
@@ -94,14 +94,14 @@ export const designTokens = {
       "ink": "#0F1530",
       "muted": "#566079",
       "line": "#D8DDEA",
-      "accent": "#3F62AE",
-      "onAccent": "#FFFFFF",
+      "accent": "#22C55E",
+      "onAccent": "#052E16",
       "core": "#96602A",
-      "ok": "#2E7A4F",
+      "ok": "#15803D",
       "warn": "#8F6A22",
       "danger": "#B8403A",
       "onDanger": "#FFFFFF",
-      "focus": "#3F62AE"
+      "focus": "#15803D"
     },
     "dark": {
       "bg": "#0E111A",
@@ -110,14 +110,14 @@ export const designTokens = {
       "ink": "#E8EBF5",
       "muted": "#9AA3BC",
       "line": "#2C3345",
-      "accent": "#8AA4E0",
-      "onAccent": "#0B1020",
+      "accent": "#4ADE80",
+      "onAccent": "#052E16",
       "core": "#D6A062",
-      "ok": "#72C096",
+      "ok": "#4ADE80",
       "warn": "#D4B466",
       "danger": "#E2877E",
       "onDanger": "#2A0A07",
-      "focus": "#8AA4E0"
+      "focus": "#4ADE80"
     }
   },
   "themes": {
@@ -161,14 +161,14 @@ export const designTokens = {
         "ink": "#E8EBF5",
         "muted": "#9AA3BC",
         "line": "#232838",
-        "accent": "#8AA4E0",
-        "onAccent": "#0B1020",
+        "accent": "#4ADE80",
+        "onAccent": "#052E16",
         "core": "#D6A062",
-        "ok": "#72C096",
+        "ok": "#4ADE80",
         "warn": "#D4B466",
         "danger": "#E2877E",
         "onDanger": "#2A0A07",
-        "focus": "#8AA4E0"
+        "focus": "#4ADE80"
       }
     }
   },
