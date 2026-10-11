@@ -1,4 +1,4 @@
-// Сгенерировано консолью DocDD из токенов дизайна v1.3.0 (docs/16-design-system.md). Не правьте руками: меняются токены.
+// Сгенерировано консолью DocDD из токенов дизайна v1.4.0 (docs/16-design-system.md). Не правьте руками: меняются токены.
 // Размеры в rem. Языки — точка подключения словарей (@nuxtjs/i18n и подобные).
 
 export const designTokens = {
@@ -88,36 +88,36 @@ export const designTokens = {
   },
   "palette": {
     "light": {
-      "bg": "#F4F6F4",
+      "bg": "#F6F7FB",
       "surface": "#FFFFFF",
-      "surfaceAlt": "#E7ECE9",
-      "ink": "#141F1C",
-      "muted": "#516760",
-      "line": "#D3DCD7",
-      "accent": "#1B6552",
+      "surfaceAlt": "#ECEFF7",
+      "ink": "#0F1530",
+      "muted": "#566079",
+      "line": "#D8DDEA",
+      "accent": "#4F46E5",
       "onAccent": "#FFFFFF",
-      "core": "#835412",
-      "ok": "#256A41",
-      "warn": "#7B5911",
-      "danger": "#973024",
+      "core": "#A8580F",
+      "ok": "#17803D",
+      "warn": "#946510",
+      "danger": "#D4281E",
       "onDanger": "#FFFFFF",
-      "focus": "#1B6552"
+      "focus": "#4F46E5"
     },
     "dark": {
-      "bg": "#0E1412",
-      "surface": "#18211F",
-      "surfaceAlt": "#232F2C",
-      "ink": "#E6EDE9",
-      "muted": "#9CB0A8",
-      "line": "#334340",
-      "accent": "#6BC2A4",
-      "onAccent": "#08110E",
-      "core": "#E3AD68",
-      "ok": "#7CC79A",
-      "warn": "#E5BC74",
-      "danger": "#EE9384",
-      "onDanger": "#2A0F0A",
-      "focus": "#6BC2A4"
+      "bg": "#0E111A",
+      "surface": "#161A25",
+      "surfaceAlt": "#202636",
+      "ink": "#E8EBF5",
+      "muted": "#9AA3BC",
+      "line": "#2C3345",
+      "accent": "#8B90F2",
+      "onAccent": "#0B0D1F",
+      "core": "#F2A54A",
+      "ok": "#4ADE80",
+      "warn": "#F2C94C",
+      "danger": "#F2837A",
+      "onDanger": "#2A0A07",
+      "focus": "#8B90F2"
     }
   },
   "themes": {
@@ -156,19 +156,19 @@ export const designTokens = {
       "mode": "dark",
       "palette": {
         "bg": "#000000",
-        "surface": "#0A0F0D",
-        "surfaceAlt": "#151D1A",
-        "ink": "#E6EDE9",
-        "muted": "#9CB0A8",
-        "line": "#26332F",
-        "accent": "#6BC2A4",
-        "onAccent": "#08110E",
-        "core": "#E3AD68",
-        "ok": "#7CC79A",
-        "warn": "#E5BC74",
-        "danger": "#EE9384",
-        "onDanger": "#2A0F0A",
-        "focus": "#6BC2A4"
+        "surface": "#090B10",
+        "surfaceAlt": "#12151D",
+        "ink": "#E8EBF5",
+        "muted": "#9AA3BC",
+        "line": "#232838",
+        "accent": "#8B90F2",
+        "onAccent": "#0B0D1F",
+        "core": "#F2A54A",
+        "ok": "#4ADE80",
+        "warn": "#F2C94C",
+        "danger": "#F2837A",
+        "onDanger": "#2A0A07",
+        "focus": "#8B90F2"
       }
     }
   },

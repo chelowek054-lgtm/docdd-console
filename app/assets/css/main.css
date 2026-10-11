@@ -9,7 +9,7 @@
   --color-primary-500: var(--color-sky-500);
 }
 
-/* docdd-design:start — Сгенерировано консолью DocDD из токенов дизайна v1.3.0 (docs/16-design-system.md). Не правьте руками: меняются токены. */
+/* docdd-design:start — Сгенерировано консолью DocDD из токенов дизайна v1.4.0 (docs/16-design-system.md). Не правьте руками: меняются токены. */
 /* Размеры в rem: следуют за настройкой шрифта пользователя; корень не задаётся в px. */
 html { font-size: 100%; }
 
@@ -73,62 +73,62 @@ html { font-size: 100%; }
 
 :root {
   color-scheme: light;
-  --ds-color-bg: #F4F6F4;
+  --ds-color-bg: #F6F7FB;
   --ds-color-surface: #FFFFFF;
-  --ds-color-surface-alt: #E7ECE9;
-  --ds-color-ink: #141F1C;
-  --ds-color-muted: #516760;
-  --ds-color-line: #D3DCD7;
-  --ds-color-accent: #1B6552;
+  --ds-color-surface-alt: #ECEFF7;
+  --ds-color-ink: #0F1530;
+  --ds-color-muted: #566079;
+  --ds-color-line: #D8DDEA;
+  --ds-color-accent: #4F46E5;
   --ds-color-on-accent: #FFFFFF;
-  --ds-color-core: #835412;
-  --ds-color-ok: #256A41;
-  --ds-color-warn: #7B5911;
-  --ds-color-danger: #973024;
+  --ds-color-core: #A8580F;
+  --ds-color-ok: #17803D;
+  --ds-color-warn: #946510;
+  --ds-color-danger: #D4281E;
   --ds-color-on-danger: #FFFFFF;
-  --ds-color-focus: #1B6552;
-  --ui-bg: #F4F6F4;
+  --ds-color-focus: #4F46E5;
+  --ui-bg: #F6F7FB;
   --ui-bg-elevated: #FFFFFF;
-  --ui-bg-muted: #E7ECE9;
-  --ui-bg-accented: #E7ECE9;
-  --ui-text: #141F1C;
-  --ui-text-highlighted: #141F1C;
-  --ui-text-muted: #516760;
-  --ui-border: #D3DCD7;
-  --ui-primary: #1B6552;
-  --ui-success: #256A41;
-  --ui-warning: #7B5911;
-  --ui-error: #973024;
+  --ui-bg-muted: #ECEFF7;
+  --ui-bg-accented: #ECEFF7;
+  --ui-text: #0F1530;
+  --ui-text-highlighted: #0F1530;
+  --ui-text-muted: #566079;
+  --ui-border: #D8DDEA;
+  --ui-primary: #4F46E5;
+  --ui-success: #17803D;
+  --ui-warning: #946510;
+  --ui-error: #D4281E;
 }
 
 .dark {
   color-scheme: dark;
-  --ds-color-bg: #0E1412;
-  --ds-color-surface: #18211F;
-  --ds-color-surface-alt: #232F2C;
-  --ds-color-ink: #E6EDE9;
-  --ds-color-muted: #9CB0A8;
-  --ds-color-line: #334340;
-  --ds-color-accent: #6BC2A4;
-  --ds-color-on-accent: #08110E;
-  --ds-color-core: #E3AD68;
-  --ds-color-ok: #7CC79A;
-  --ds-color-warn: #E5BC74;
-  --ds-color-danger: #EE9384;
-  --ds-color-on-danger: #2A0F0A;
-  --ds-color-focus: #6BC2A4;
-  --ui-bg: #0E1412;
-  --ui-bg-elevated: #18211F;
-  --ui-bg-muted: #232F2C;
-  --ui-bg-accented: #232F2C;
-  --ui-text: #E6EDE9;
-  --ui-text-highlighted: #E6EDE9;
-  --ui-text-muted: #9CB0A8;
-  --ui-border: #334340;
-  --ui-primary: #6BC2A4;
-  --ui-success: #7CC79A;
-  --ui-warning: #E5BC74;
-  --ui-error: #EE9384;
+  --ds-color-bg: #0E111A;
+  --ds-color-surface: #161A25;
+  --ds-color-surface-alt: #202636;
+  --ds-color-ink: #E8EBF5;
+  --ds-color-muted: #9AA3BC;
+  --ds-color-line: #2C3345;
+  --ds-color-accent: #8B90F2;
+  --ds-color-on-accent: #0B0D1F;
+  --ds-color-core: #F2A54A;
+  --ds-color-ok: #4ADE80;
+  --ds-color-warn: #F2C94C;
+  --ds-color-danger: #F2837A;
+  --ds-color-on-danger: #2A0A07;
+  --ds-color-focus: #8B90F2;
+  --ui-bg: #0E111A;
+  --ui-bg-elevated: #161A25;
+  --ui-bg-muted: #202636;
+  --ui-bg-accented: #202636;
+  --ui-text: #E8EBF5;
+  --ui-text-highlighted: #E8EBF5;
+  --ui-text-muted: #9AA3BC;
+  --ui-border: #2C3345;
+  --ui-primary: #8B90F2;
+  --ui-success: #4ADE80;
+  --ui-warning: #F2C94C;
+  --ui-error: #F2837A;
 }
 
 .theme-contrast {
@@ -164,31 +164,31 @@ html { font-size: 100%; }
 .theme-oled {
   color-scheme: dark;
   --ds-color-bg: #000000;
-  --ds-color-surface: #0A0F0D;
-  --ds-color-surface-alt: #151D1A;
-  --ds-color-ink: #E6EDE9;
-  --ds-color-muted: #9CB0A8;
-  --ds-color-line: #26332F;
-  --ds-color-accent: #6BC2A4;
-  --ds-color-on-accent: #08110E;
-  --ds-color-core: #E3AD68;
-  --ds-color-ok: #7CC79A;
-  --ds-color-warn: #E5BC74;
-  --ds-color-danger: #EE9384;
-  --ds-color-on-danger: #2A0F0A;
-  --ds-color-focus: #6BC2A4;
+  --ds-color-surface: #090B10;
+  --ds-color-surface-alt: #12151D;
+  --ds-color-ink: #E8EBF5;
+  --ds-color-muted: #9AA3BC;
+  --ds-color-line: #232838;
+  --ds-color-accent: #8B90F2;
+  --ds-color-on-accent: #0B0D1F;
+  --ds-color-core: #F2A54A;
+  --ds-color-ok: #4ADE80;
+  --ds-color-warn: #F2C94C;
+  --ds-color-danger: #F2837A;
+  --ds-color-on-danger: #2A0A07;
+  --ds-color-focus: #8B90F2;
   --ui-bg: #000000;
-  --ui-bg-elevated: #0A0F0D;
-  --ui-bg-muted: #151D1A;
-  --ui-bg-accented: #151D1A;
-  --ui-text: #E6EDE9;
-  --ui-text-highlighted: #E6EDE9;
-  --ui-text-muted: #9CB0A8;
-  --ui-border: #26332F;
-  --ui-primary: #6BC2A4;
-  --ui-success: #7CC79A;
-  --ui-warning: #E5BC74;
-  --ui-error: #EE9384;
+  --ui-bg-elevated: #090B10;
+  --ui-bg-muted: #12151D;
+  --ui-bg-accented: #12151D;
+  --ui-text: #E8EBF5;
+  --ui-text-highlighted: #E8EBF5;
+  --ui-text-muted: #9AA3BC;
+  --ui-border: #232838;
+  --ui-primary: #8B90F2;
+  --ui-success: #4ADE80;
+  --ui-warning: #F2C94C;
+  --ui-error: #F2837A;
 }
 
 /* Системная настройка «повысить контраст» включает палитру темы contrast. */

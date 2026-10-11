@@ -68,8 +68,8 @@
   "findings": [
     { "screen": "S-home", "width": 375, "theme": "light",
       "what": "Фон кнопки не из палитры",
-      "expected": "accent #1B6552",
-      "actual": "около #2E8B57" }
+      "expected": "accent #4F46E5",
+      "actual": "около #3B82F6" }
   ],
   "clean": ["S-login"]
 }
