@@ -73,7 +73,7 @@ const title = (id: string) => props.titles[id] ?? id;
 
     <template v-else-if="preview">
       <ol class="space-y-3">
-        <li v-for="(phase, at) in preview.phases" :key="phase.id" class="rounded border border-default p-3">
+        <li v-for="(phase, at) in preview.phases" :key="phase.id" class="ds-card p-3">
           <p class="text-sm font-medium">
             <span class="text-muted">{{ at + 1 }}.</span>
             <span class="font-mono text-xs"> {{ phase.id }}</span> {{ title(phase.id) }}

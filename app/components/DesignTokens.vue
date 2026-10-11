@@ -17,6 +17,7 @@ import {
   type DesignCheck,
   type DesignTokens
 } from '~~/server/lib/design';
+import { backdropValue, elevationValue, parseSurface } from '~~/server/lib/design-surface';
 
 /**
  * Токены проекта после сложения «общее → локальное» (docs/04-ui.md, «Дизайн»):
@@ -88,6 +89,13 @@ const borderNames = computed(() => names(props.tokens.border, BORDER_NAMES));
 const iconNames = computed(() => names(props.tokens.icon, ICON_NAMES));
 const motionNames = computed(() => names(props.tokens.motion, MOTION_NAMES));
 const fontNames = computed(() => Object.keys(props.tokens.fonts));
+
+/** Тени, подложка, мягкая заливка и подписи капсом: приходят «незнакомыми» ключами блока (docs/16-design-system.md, «Поверхности и вид»). */
+const surface = computed(() => parseSurface(Object.fromEntries(Object.entries(props.tokens.extra).map(([key, item]) => [key, item.value]))).surface);
+const surfaceSource = (key: string) => props.tokens.extra[key]?.source ?? '';
+const surfaceEmpty = computed(() => ['elevation', 'backdrop', 'tint', 'caps'].every((key) => Object.keys(surface.value[key as 'elevation']).length === 0));
+const SOFT_ROLES = ['accent', 'core', 'info', 'warn', 'danger'] as const;
+const soft = (role: string, share: number) => `color-mix(in srgb, var(--ds-color-${kebab(role)}) ${share * 100}%, var(--ds-color-surface))`;
 
 const kebab = (value: string) => value.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
 
@@ -250,6 +258,41 @@ const i18nTrouble = computed(() => locales.value.length < 2 || !locales.value.in
             :style="{ borderRadius: `${Math.min(tokens.radius[name]!.value, 1.25)}rem` }"
           />
           <span class="ml-auto text-xs text-muted">{{ remText(tokens.radius[name]!.value) }}</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="space-y-3">
+      <h2 class="font-medium">{{ t('dt.surface.title') }}</h2>
+      <p v-if="surfaceEmpty" class="text-sm text-warning">{{ t('dt.surface.none') }}</p>
+      <div v-else class="grid gap-6 sm:grid-cols-2">
+        <div v-for="name in Object.keys(surface.elevation)" :key="'e' + name" class="space-y-2">
+          <p class="text-sm font-medium">{{ t('dt.surface.elevation') }} <code>{{ name }}</code> <span class="text-xs font-normal text-muted">{{ surfaceSource('elevation') }}</span></p>
+          <div class="h-20 rounded-(--ds-radius-lg) bg-elevated p-3 text-xs text-muted" :style="{ boxShadow: elevationValue(surface.elevation[name]!) }">
+            <p v-for="(layer, at) in surface.elevation[name]" :key="at">{{ layer.x }} {{ layer.y }} {{ layer.blur }} {{ layer.spread }} rem · {{ Math.round(layer.alpha * 100) }} %</p>
+          </div>
+        </div>
+        <div v-for="name in Object.keys(surface.backdrop)" :key="'b' + name" class="space-y-2">
+          <p class="text-sm font-medium">{{ t('dt.surface.backdrop') }} <code>{{ name }}</code> <span class="text-xs font-normal text-muted">{{ surfaceSource('backdrop') }}</span></p>
+          <div class="h-20 rounded-(--ds-radius-lg) border border-default" :style="{ backgroundColor: 'var(--ds-color-bg)', backgroundImage: backdropValue(surface.backdrop[name]!) }" />
+          <p class="text-xs text-muted">
+            <span v-for="(glow, at) in surface.backdrop[name]" :key="at" class="mr-3">{{ glow.color }} {{ Math.round(glow.alpha * 100) }} % · {{ glow.x }}/{{ glow.y }} %</span>
+          </p>
+        </div>
+        <div v-for="name in Object.keys(surface.tint)" :key="'t' + name" class="space-y-2">
+          <p class="text-sm font-medium">{{ t('dt.surface.tint') }} <code>{{ name }}</code> <span class="text-xs font-normal text-muted">{{ Math.round(surface.tint[name]! * 100) }} % · {{ surfaceSource('tint') }}</span></p>
+          <div class="flex flex-wrap gap-2">
+            <span
+              v-for="role in SOFT_ROLES"
+              :key="role"
+              class="rounded-full px-3 py-1 text-xs font-semibold"
+              :style="{ backgroundColor: soft(role, surface.tint[name]!), color: `var(--ds-color-${role === 'accent' ? 'accent-text' : kebab(role)})` }"
+            >{{ role }}</span>
+          </div>
+        </div>
+        <div v-for="name in Object.keys(surface.caps)" :key="'c' + name" class="space-y-2">
+          <p class="text-sm font-medium">{{ t('dt.surface.caps') }} <code>{{ name }}</code> <span class="text-xs font-normal text-muted">{{ surface.caps[name] }} em · {{ surfaceSource('caps') }}</span></p>
+          <p :class="'ds-' + kebab(name)" class="text-muted">{{ t('dt.surface.capsSample') }}</p>
         </div>
       </div>
     </section>

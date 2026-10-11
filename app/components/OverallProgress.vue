@@ -17,7 +17,7 @@ const bars = computed(() => [
 </script>
 
 <template>
-  <div class="grid gap-4 rounded-lg border border-default p-4 sm:grid-cols-2">
+  <div class="grid gap-4 ds-card p-4 sm:grid-cols-2">
     <div v-for="bar in bars" :key="bar.key">
       <div class="flex items-baseline justify-between gap-3">
         <span class="text-sm font-medium">{{ bar.label }}</span>

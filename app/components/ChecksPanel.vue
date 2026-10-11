@@ -44,7 +44,7 @@ function verifiesOf(check: (typeof checks.value)[number]): string[] {
         Проверок в проекте нет. Заводятся они в файлах — приложение записей не создаёт.
       </div>
 
-      <div v-else class="overflow-x-auto rounded-lg border border-default">
+      <div v-else class="ds-card overflow-x-auto">
         <table class="w-full text-sm">
           <thead class="border-b border-default text-left text-muted">
             <tr>

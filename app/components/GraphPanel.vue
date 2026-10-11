@@ -53,7 +53,7 @@ const dangling = computed(() => layout.value.nodes.filter((node) => node.danglin
         Записей в проекте нет — рисовать нечего.
       </div>
 
-      <div v-else class="overflow-x-auto rounded-lg border border-default p-2">
+      <div v-else class="ds-card overflow-x-auto p-2">
         <svg
           :width="layout.width"
           :height="layout.height"

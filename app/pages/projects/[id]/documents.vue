@@ -146,7 +146,7 @@ const EMPTY: Record<string, string> = {
         <template v-else>Выберите тип на вкладке, чтобы завести запись.</template>
       </div>
 
-      <div v-else class="overflow-x-auto rounded-lg border border-default">
+      <div v-else class="ds-card overflow-x-auto">
         <table class="w-full text-sm">
           <thead class="border-b border-default text-left text-muted">
             <tr>

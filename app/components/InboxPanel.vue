@@ -259,7 +259,7 @@ async function create() {
           />
         </UCard>
 
-        <div v-if="inbox.notes.length === 0" class="rounded border border-default p-3 text-sm">
+        <div v-if="inbox.notes.length === 0" class="ds-card p-3 text-sm">
           Заметок пока нет. Запишите наработку формой выше, или положите файл <code>.md</code>
           руками — по одной теме на файл; запрос для модели лежит в <code>docs/prompts/inbox.md</code>.
         </div>
@@ -311,7 +311,7 @@ async function create() {
         />
 
         <!-- Модель вправе сказать, что заводить нечего: это ответ, а не сбой. -->
-        <div v-if="said && !proposed.length && !running" class="rounded border border-default p-3">
+        <div v-if="said && !proposed.length && !running" class="ds-card p-3">
           <p class="mb-2 text-sm font-medium">Модель не нашла, что заводить</p>
           <DocumentText :body="said" />
           <!-- Модель назвала заметки, из которых заводить нечего: человек принимает их без записей. -->
@@ -341,7 +341,7 @@ async function create() {
             <li
               v-for="record in proposed"
               :key="record.key"
-              class="rounded border border-default p-3"
+              class="ds-card p-3"
               :class="dropped.includes(record.key) ? 'opacity-50' : ''"
             >
               <button
@@ -423,7 +423,7 @@ async function create() {
           </UButton>
 
           <ul v-if="showArchived" class="mt-2 space-y-2">
-            <li v-for="note in inbox.archived" :key="note.path" class="rounded border border-default p-3 text-sm">
+            <li v-for="note in inbox.archived" :key="note.path" class="ds-card p-3 text-sm">
               <div class="flex flex-wrap items-center gap-2">
                 <span class="font-medium">{{ note.title }}</span>
                 <span class="font-mono text-xs text-muted">{{ note.path }}</span>

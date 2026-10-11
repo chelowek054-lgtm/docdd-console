@@ -115,7 +115,7 @@ const summary = computed(() => {
       Описать пачками
     </UButton>
 
-    <div v-if="open" class="mt-2 space-y-3 rounded border border-default p-3 text-sm">
+    <div v-if="open" class="mt-2 space-y-3 ds-card p-3 text-sm">
       <div class="flex flex-wrap items-end gap-4">
         <UFormField label="Файлов в запросе" :description="`от 1 до ${MAX_REQUEST_FILES}`">
           <UInput v-model.number="size" type="number" :min="1" :max="MAX_REQUEST_FILES" class="w-28" :disabled="running" />

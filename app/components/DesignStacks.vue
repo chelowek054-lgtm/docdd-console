@@ -93,7 +93,7 @@ async function makeTask(stack: StackReport) {
 
       <UAlert v-if="trouble" color="error" variant="subtle" icon="i-lucide-triangle-alert" :title="trouble.message" :description="trouble.detail" />
 
-      <section v-for="stack in stacks" :key="stack.id" class="space-y-3 rounded border border-default p-4">
+      <section v-for="stack in stacks" :key="stack.id" class="space-y-3 ds-card p-4">
         <div class="flex flex-wrap items-center gap-3">
           <h3 class="font-medium">{{ stack.label }} <span class="font-mono text-xs text-muted">{{ stack.id }}</span></h3>
           <UBadge color="primary" variant="subtle" size="sm">{{ t('dst.tokensVersion', { version: stack.version }) }}</UBadge>

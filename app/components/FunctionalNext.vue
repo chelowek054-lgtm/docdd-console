@@ -33,7 +33,7 @@ const hidden = computed(() => Math.max(0, next.value.items.length - SHOWN));
 </script>
 
 <template>
-  <div v-if="capabilities.length > 0" class="mb-3 rounded border border-default p-3 text-sm">
+  <div v-if="capabilities.length > 0" class="mb-3 ds-card p-3 text-sm">
     <div class="mb-1 flex flex-wrap items-center gap-2">
       <h3 class="font-medium">Можно начинать</h3>
       <span v-if="next.items.length" class="text-xs text-muted">

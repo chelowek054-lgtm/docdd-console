@@ -1,3 +1,4 @@
+import { capsClasses, surfaceVariables } from './design-surface';
 import {
   COMPONENT_NAMES,
   PALETTE_ROLES,
@@ -273,6 +274,7 @@ function nuxtCss(tokens: PlainTokens): string {
     `  --ds-grid-gutter: ${rem(tokens.grid.gutter)};`,
     ...points.map((point) => `  --ds-bp-${point}: ${rem(tokens.grid.breakpoints[point]!)};`),
     ...ordered(tokens.border, BORDER_NAMES).map((name) => `  --ds-border-${cssName(name)}: ${rem(tokens.border[name]!)};`),
+    ...surfaceVariables(tokens.surface),
     ...ordered(tokens.icon, ICON_NAMES).map((name) => `  --ds-icon-${cssName(name)}: ${rem(tokens.icon[name]!)};`),
     ...ordered(tokens.motion, MOTION_NAMES).map((name) => `  --ds-motion-${cssName(name)}: ${trim(tokens.motion[name]!)}ms;`),
     ...Object.keys(tokens.fonts).sort().map((name) => `  --ds-font-family-${cssName(name)}: ${tokens.fonts[name]};`),
@@ -283,6 +285,8 @@ function nuxtCss(tokens: PlainTokens): string {
     ...contrastPreference(),
     ...gridCss(tokens),
     '',
+    ...capsClasses(tokens.surface),
+    ...(Object.keys(tokens.surface.caps).length > 0 ? [''] : []),
     ...accessibilityCss(tokens),
     `/* ${REGION_END} */`
   );
@@ -302,6 +306,7 @@ function nuxtTokensTs(tokens: PlainTokens): string {
     grid: tokens.grid,
     palette: tokens.palette,
     themes: tokens.themes,
+    surface: tokens.surface,
     i18n: tokens.i18n
   };
   return lines(
