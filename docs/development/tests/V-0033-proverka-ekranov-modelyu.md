@@ -2,7 +2,7 @@
 id: V-0033
 type: verification
 title: Проверка экранов моделью — Responsive и Pixel-Perfect
-status: draft
+status: approved
 kind: manual
 links:
   verifies: [R-0033]
@@ -17,3 +17,5 @@ updated: 2026-10-11
 ## Журнал
 
 - 2026-10-11 · заведена черновиком · claude
+- 2026-10-11 · на подтверждение · architect
+- 2026-10-11 · подтверждён · architect

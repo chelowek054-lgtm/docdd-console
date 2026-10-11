@@ -2,7 +2,7 @@
 id: V-0030
 type: verification
 title: Разбор, сложение и проверки токенов дизайна
-status: draft
+status: approved
 kind: unit
 runner: npm
 links:
@@ -18,3 +18,5 @@ updated: 2026-10-11
 ## Журнал
 
 - 2026-10-11 · заведена черновиком · claude
+- 2026-10-11 · на подтверждение · architect
+- 2026-10-11 · подтверждён · architect

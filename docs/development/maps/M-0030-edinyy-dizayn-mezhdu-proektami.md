@@ -2,7 +2,7 @@
 id: M-0030
 type: map
 title: Единый дизайн между проектами — новая возможность
-status: draft
+status: approved
 intent: true
 created: 2026-10-11
 updated: 2026-10-11
@@ -40,3 +40,5 @@ updated: 2026-10-11
 ## Журнал
 
 - 2026-10-11 · заведена черновиком · claude
+- 2026-10-11 · на подтверждение · architect
+- 2026-10-11 · подтверждён · architect
