@@ -1,11 +1,11 @@
 ---
-id: V-0002
+id: V-0031
 type: verification
 title: Экран «Дизайн»
 status: draft
 kind: manual
 links:
-  verifies: [R-0002]
+  verifies: [R-0031]
 created: 2026-10-11
 updated: 2026-10-11
 ---

@@ -1,10 +1,10 @@
 ---
-id: R-0003
+id: R-0032
 type: requirement
 title: Выгрузка токенов в четыре стека и сверка проекта с токенами
 status: draft
 links:
-  verified_by: [V-0003]
+  verified_by: [V-0032]
 created: 2026-10-11
 updated: 2026-10-11
 ---

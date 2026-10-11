@@ -1,14 +1,14 @@
 ---
-id: T-0005
+id: T-0064
 type: task
 title: 'Экран «Дизайн»: палитра обеих тем, шкалы, принципы, реестр компонентов'
 status: backlog
 change: feature
 links:
-  implements: [R-0002]
-  verified_by: [V-0002]
-  depends_on: [T-0002, T-0004]
-  affects: [M-0007]
+  implements: [R-0031]
+  verified_by: [V-0031]
+  depends_on: [T-0061, T-0063]
+  affects: [M-0030]
 created: 2026-10-11
 updated: 2026-10-11
 ---
