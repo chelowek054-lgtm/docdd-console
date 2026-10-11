@@ -1,4 +1,4 @@
-// Сгенерировано консолью DocDD из токенов дизайна v1.4.0 (docs/16-design-system.md). Не правьте руками: меняются токены.
+// Сгенерировано консолью DocDD из токенов дизайна v1.5.0 (docs/16-design-system.md). Не правьте руками: меняются токены.
 // Размеры в rem. Языки — точка подключения словарей (@nuxtjs/i18n и подобные).
 
 export const designTokens = {
@@ -94,14 +94,14 @@ export const designTokens = {
       "ink": "#0F1530",
       "muted": "#566079",
       "line": "#D8DDEA",
-      "accent": "#4F46E5",
+      "accent": "#3F62AE",
       "onAccent": "#FFFFFF",
-      "core": "#A8580F",
-      "ok": "#17803D",
-      "warn": "#946510",
-      "danger": "#D4281E",
+      "core": "#96602A",
+      "ok": "#2E7A4F",
+      "warn": "#8F6A22",
+      "danger": "#B8403A",
       "onDanger": "#FFFFFF",
-      "focus": "#4F46E5"
+      "focus": "#3F62AE"
     },
     "dark": {
       "bg": "#0E111A",
@@ -110,14 +110,14 @@ export const designTokens = {
       "ink": "#E8EBF5",
       "muted": "#9AA3BC",
       "line": "#2C3345",
-      "accent": "#8B90F2",
-      "onAccent": "#0B0D1F",
-      "core": "#F2A54A",
-      "ok": "#4ADE80",
-      "warn": "#F2C94C",
-      "danger": "#F2837A",
+      "accent": "#8AA4E0",
+      "onAccent": "#0B1020",
+      "core": "#D6A062",
+      "ok": "#72C096",
+      "warn": "#D4B466",
+      "danger": "#E2877E",
       "onDanger": "#2A0A07",
-      "focus": "#8B90F2"
+      "focus": "#8AA4E0"
     }
   },
   "themes": {
@@ -161,14 +161,14 @@ export const designTokens = {
         "ink": "#E8EBF5",
         "muted": "#9AA3BC",
         "line": "#232838",
-        "accent": "#8B90F2",
-        "onAccent": "#0B0D1F",
-        "core": "#F2A54A",
-        "ok": "#4ADE80",
-        "warn": "#F2C94C",
-        "danger": "#F2837A",
+        "accent": "#8AA4E0",
+        "onAccent": "#0B1020",
+        "core": "#D6A062",
+        "ok": "#72C096",
+        "warn": "#D4B466",
+        "danger": "#E2877E",
         "onDanger": "#2A0A07",
-        "focus": "#8B90F2"
+        "focus": "#8AA4E0"
       }
     }
   },
