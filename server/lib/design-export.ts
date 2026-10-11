@@ -239,6 +239,21 @@ function nuxtCss(tokens: PlainTokens): string {
     return out;
   };
 
+  /** Тема `contrast` включается и системной настройкой «повысить контраст» (ADR-0026). */
+  const contrastPreference = (): string[] => {
+    const view = themeViews(tokens).find((item) => item.name === 'contrast' && item.custom);
+    if (!view) return [];
+    const [, ...body] = themeBlock(view);
+    return [
+      '/* Системная настройка «повысить контраст» включает палитру темы contrast. */',
+      '@media (prefers-contrast: more) {',
+      '  :root {',
+      ...body.map((line) => `  ${line}`),
+      '}',
+      ''
+    ];
+  };
+
   return lines(
     `/* ${REGION_START} — ${headerOf(tokens)} */`,
     '/* Размеры в rem: следуют за настройкой шрифта пользователя; корень не задаётся в px. */',
@@ -264,6 +279,7 @@ function nuxtCss(tokens: PlainTokens): string {
     '}',
     '',
     ...themeViews(tokens).flatMap((view) => [...themeBlock(view), '']),
+    ...contrastPreference(),
     ...gridCss(tokens),
     '',
     ...accessibilityCss(tokens),

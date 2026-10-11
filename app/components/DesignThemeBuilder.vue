@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ApiFailure } from '~/composables/useProjectIndex';
-import { PALETTE_ROLES, themeNames, themePalette, type BaseTheme, type DesignTokens } from '~~/server/lib/design';
+import { MIN_CONTRAST, PALETTE_ROLES, paletteColorPractice, themeNames, themePalette, type BaseTheme, type DesignTokens } from '~~/server/lib/design';
 import {
   suggestForeground,
   themeBlockText,
@@ -46,6 +46,17 @@ const taken = computed(() => themeNames(props.tokens));
 const problems = computed(() => themeProblems(draft.value, taken.value));
 const rows = computed(() => themeContrast(base.value, draft.value));
 const block = computed(() => themeBlockText(base.value, draft.value));
+
+/** Практика цвета на реальных экранах: те же правила, что у проверки токенов (ADR-0026). */
+const practice = computed(() => paletteColorPractice(
+  { ...base.value, ...overrides.value },
+  {
+    name: name.value.trim() || 'theme',
+    mode: mode.value,
+    minContrast: minContrast.value > MIN_CONTRAST ? minContrast.value : MIN_CONTRAST,
+    markets: props.tokens.audience.markets.map((item) => item.value)
+  }
+));
 
 const current = (role: string) => overrides.value[role] ?? base.value[role] ?? '#000000';
 
@@ -196,6 +207,11 @@ const problemText: Record<string, string> = {
           </tbody>
         </table>
       </div>
+    </section>
+
+    <section v-if="practice.length" class="space-y-1">
+      <h3 class="font-medium">{{ t('dtb.practice') }}</h3>
+      <p v-for="line in practice" :key="line" class="text-sm text-warning">{{ line }}</p>
     </section>
 
     <section class="space-y-2">

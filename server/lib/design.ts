@@ -157,6 +157,8 @@ export interface DesignTokens {
   root: Sourced<number> | null;
   /** Версия токенов `MAJOR.MINOR.PATCH`: выше из названных; `null` — не названа. */
   version: Sourced<string> | null;
+  /** Для кого продукт: рынки и уличное использование (ADR-0026). */
+  audience: { markets: Sourced<string>[]; outdoor: Sourced<boolean> | null };
   /** Список изменений между версиями: новые сверху. */
   changes: Sourced<DesignChange>[];
   principles: Sourced<string>[];
@@ -199,7 +201,8 @@ export type DesignCheckCode =
   | 'design_scale_gap'
   | 'design_theme_incomplete'
   | 'design_contrast_low'
-  | 'design_i18n_missing';
+  | 'design_i18n_missing'
+  | 'design_color_practice';
 
 export interface DesignCheck {
   code: DesignCheckCode;
@@ -241,6 +244,7 @@ const COLOR = /^#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
 
 interface ParsedBlock {
   root: number | null;
+  audience: { markets: string[]; outdoor: boolean | null };
   version: string | null;
   changes: DesignChange[];
   principles: string[];
@@ -267,7 +271,7 @@ interface ParsedBlock {
 }
 
 const KNOWN_KEYS = new Set([
-  'unit', 'root', 'version', 'changes', 'principles', 'typography', 'spacing', 'radius', 'border', 'icon', 'motion', 'fonts', 'measure',
+  'unit', 'root', 'audience', 'version', 'changes', 'principles', 'typography', 'spacing', 'radius', 'border', 'icon', 'motion', 'fonts', 'measure',
   'grid', 'palette', 'themes', 'i18n', 'components', 'overrides'
 ]);
 
@@ -279,6 +283,7 @@ const label = (record: DesignRecord) => (record.label ? `[${record.label}] ${rec
 function emptyBlock(): ParsedBlock {
   return {
     root: null,
+    audience: { markets: [], outdoor: null },
     version: null,
     changes: [],
     principles: [],
@@ -337,6 +342,20 @@ export function parseDesignBlocks(record: DesignRecord): { blocks: ParsedBlock[]
       if (root === null || root === 0) bad('`root` — положительное число пикселей в 1rem.');
       else block.root = root;
     }
+
+    if (isObject(raw['audience'])) {
+      const audience = raw['audience'];
+      if (Array.isArray(audience['markets'])) {
+        for (const item of audience['markets']) {
+          if (typeof item === 'string' && /^[A-Za-z]{2,3}$/.test(item)) block.audience.markets.push(item.toUpperCase());
+          else bad('рынок в `audience.markets` — код страны из двух-трёх букв (RU, CN).');
+        }
+      } else if (audience['markets'] !== undefined) bad('`audience.markets` должен быть списком кодов.');
+      if (audience['outdoor'] !== undefined) {
+        if (typeof audience['outdoor'] === 'boolean') block.audience.outdoor = audience['outdoor'];
+        else bad('`audience.outdoor` — true или false.');
+      }
+    } else if (raw['audience'] !== undefined) bad('`audience` должен быть объектом.');
 
     if (raw['version'] !== undefined) {
       if (typeof raw['version'] === 'string' && SEMVER.test(raw['version'])) block.version = raw['version'];
@@ -626,6 +645,7 @@ export function resolveDesign(input: { general: readonly DesignRecord[]; local: 
 
   const tokens: DesignTokens = {
     root: null,
+    audience: { markets: [], outdoor: null },
     version: null,
     changes: [],
     principles: [],
@@ -691,6 +711,16 @@ export function resolveDesign(input: { general: readonly DesignRecord[]; local: 
     const { block } = from;
 
     if (block.root !== null) tokens.root = single(tokens.root, 'root', block.root, from);
+    for (const market of block.audience.markets) {
+      if (!tokens.audience.markets.some((item) => item.value === market)) {
+        tokens.audience.markets.push({ value: market, source: from.source, level: from.level, overrides: [] });
+      }
+    }
+    // «На улице» — если названо хоть в одном блоке: проект, которым пользуются на солнце, этого не отменяет.
+    if (block.audience.outdoor === true) tokens.audience.outdoor = { value: true, source: from.source, level: from.level, overrides: [] };
+    else if (block.audience.outdoor === false && tokens.audience.outdoor === null) {
+      tokens.audience.outdoor = { value: false, source: from.source, level: from.level, overrides: [] };
+    }
     // Версия — не спор, а «какая новее»: действует наибольшая из названных.
     if (block.version !== null && (!tokens.version || compareVersions(block.version, tokens.version.value) > 0)) {
       tokens.version = {
@@ -819,6 +849,75 @@ export function resolveDesign(input: { general: readonly DesignRecord[]; local: 
   ];
 
   return { tokens, checks, contrast, conflicts, problems, sources, empty };
+}
+
+/** HSL одного цвета: оттенок 0–360, насыщенность и светлота 0–1. Прозрачность не учитывается. */
+export function hslOf(color: string): { h: number; s: number; l: number } {
+  const channel = (at: number) => parseInt(color.slice(1 + at, 3 + at), 16) / 255;
+  const [r, g, b] = [channel(0), channel(2), channel(4)] as [number, number, number];
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const d = max - min;
+  if (d === 0) return { h: 0, s: 0, l };
+  const s = d / (1 - Math.abs(2 * l - 1));
+  const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return { h: Math.round(((h * 60) + 360) % 360), s: Math.round(s * 1000) / 1000, l: Math.round(l * 1000) / 1000 };
+}
+
+/** Роли, которыми закрашивают большие площади: насыщенность у них под присмотром (ADR-0026). */
+export const FILL_ROLES = ['bg', 'surface', 'surfaceAlt', 'accent', 'core', 'ok', 'warn', 'danger'] as const;
+export const MAX_FILL_SATURATION = 0.9;
+/** Рынки, где красный — цвет удачи и праздника, а не только ошибки. */
+export const RED_AUXILIARY_MARKETS = ['CN', 'HK', 'TW'] as const;
+
+export interface ColorPracticeContext {
+  name: string;
+  mode: BaseTheme;
+  /** Порог контраста темы: у контрастной (7+) исключения из правил. */
+  minContrast: number;
+  markets: readonly string[];
+}
+
+/**
+ * Практика цвета на реальных экранах (docs/16-design-system.md, «Цвет на
+ * реальных экранах»): чистый чёрный фон вне темы `oled`, насыщенность больших
+ * заливок, красный `danger` для рынков, где красный — цвет удачи. Возвращает
+ * тексты замечаний: пусто — замечаний нет. Одна функция на проверку и на
+ * конструктор тем.
+ */
+export function paletteColorPractice(palette: Record<string, string>, context: ColorPracticeContext): string[] {
+  const out: string[] = [];
+  const strict = context.minContrast >= 7;
+
+  if (!strict && context.mode === 'dark' && context.name !== 'oled') {
+    const black = ['bg', 'surface', 'surfaceAlt'].filter((role) => palette[role] === '#000000');
+    if (black.length > 0) {
+      out.push(`Тема \`${context.name}\`: ${black.join(', ')} — чистый чёрный \`#000000\`. На обычных мониторах он «мажет» при прокрутке; глубокий тёмно-серый — для основной тёмной темы, истинный чёрный — в отдельной теме \`oled\`.`);
+    }
+  }
+
+  if (!strict) {
+    const loud = FILL_ROLES.filter((role) => {
+      const color = palette[role];
+      if (!color || color.length !== 7 || !/^#[0-9A-F]{6}$/i.test(color)) return false;
+      const { s, l } = hslOf(color);
+      return s >= MAX_FILL_SATURATION && l > 0.12 && l < 0.88;
+    });
+    if (loud.length > 0) {
+      out.push(`Тема \`${context.name}\`: насыщенность ${Math.round(MAX_FILL_SATURATION * 100)}–100 % у ролей ${loud.join(', ')}. В больших заливках на экранах с широким охватом это утомляет глаза; уменьшите насыщенность.`);
+    }
+  }
+
+  const redMarkets = context.markets.filter((market) => (RED_AUXILIARY_MARKETS as readonly string[]).includes(market));
+  const danger = palette['danger'];
+  if (redMarkets.length > 0 && danger && /^#[0-9A-F]{6}$/i.test(danger)) {
+    const { h, s } = hslOf(danger);
+    if ((h <= 12 || h >= 348) && s >= 0.5) {
+      out.push(`Тема \`${context.name}\`: \`danger\` в красной зоне, а рынок — ${redMarkets.join(', ')}: там красный — цвет удачи. Возьмите оранжево-красный или жёлтый и не делайте цвет единственным сигналом ошибки (значок и текст рядом).`);
+    }
+  }
+  return out;
 }
 
 /**
@@ -960,7 +1059,38 @@ function completeness(tokens: DesignTokens): DesignCheck[] {
     });
   }
 
+  found.push(...colorPracticeChecks(tokens));
   found.push(...i18nChecks(tokens));
+  return found;
+}
+
+function colorPracticeChecks(tokens: DesignTokens): DesignCheck[] {
+  const found: DesignCheck[] = [];
+  const markets = tokens.audience.markets.map((item) => item.value);
+  for (const name of themeNames(tokens)) {
+    const palette = Object.fromEntries(Object.entries(themePalette(tokens, name)).map(([role, item]) => [role, item.value]));
+    if (Object.keys(palette).length === 0) continue;
+    const theme = tokens.themes[name];
+    const mode: BaseTheme = theme ? theme.mode.value : (name === 'dark' ? 'dark' : 'light');
+    const messages = paletteColorPractice(palette, {
+      name,
+      mode,
+      minContrast: theme?.minContrast?.value ?? MIN_CONTRAST,
+      markets
+    });
+    for (const message of messages) {
+      found.push({ code: 'design_color_practice', message, source: theme?.mode.source ?? null, theme: name });
+    }
+  }
+
+  // Уличный продукт: должна быть тема, которую читают на солнце, — не ниже 7:1.
+  if (tokens.audience.outdoor?.value === true && !Object.values(tokens.themes).some((theme) => (theme.minContrast?.value ?? 0) >= 7)) {
+    found.push({
+      code: 'design_color_practice',
+      message: 'Продукт называет уличное использование (`audience.outdoor`), а темы с порогом контраста не ниже 7:1 нет: на ярком солнце 4.5:1 мало.',
+      source: tokens.audience.outdoor.source
+    });
+  }
   return found;
 }
 
@@ -989,6 +1119,8 @@ function i18nChecks(tokens: DesignTokens): DesignCheck[] {
 export interface PlainTokens {
   /** Пикселей в `1rem` для платформ без rem. */
   root: number;
+  /** Для кого продукт: рынки и уличное использование. */
+  audience: { markets: string[]; outdoor: boolean };
   /** Версия токенов; `0.0.0`, пока не названа. */
   version: string;
   changes: DesignChange[];
@@ -1027,6 +1159,7 @@ export function plainTokens(tokens: DesignTokens): PlainTokens {
 
   return {
     root: tokens.root?.value ?? DEFAULT_ROOT,
+    audience: { markets: tokens.audience.markets.map((item) => item.value), outdoor: tokens.audience.outdoor?.value ?? false },
     version: tokens.version?.value ?? '0.0.0',
     changes: tokens.changes.map((item) => item.value),
     principles: tokens.principles.map((item) => item.value),

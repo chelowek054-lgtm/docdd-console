@@ -9,7 +9,7 @@
   --color-primary-500: var(--color-sky-500);
 }
 
-/* docdd-design:start — Сгенерировано консолью DocDD из токенов дизайна v1.2.1 (docs/16-design-system.md). Не правьте руками: меняются токены. */
+/* docdd-design:start — Сгенерировано консолью DocDD из токенов дизайна v1.3.0 (docs/16-design-system.md). Не правьте руками: меняются токены. */
 /* Размеры в rem: следуют за настройкой шрифта пользователя; корень не задаётся в px. */
 html { font-size: 100%; }
 
@@ -159,6 +159,69 @@ html { font-size: 100%; }
   --ui-success: #00FF7F;
   --ui-warning: #FFD54F;
   --ui-error: #FF8A80;
+}
+
+.theme-oled {
+  color-scheme: dark;
+  --ds-color-bg: #000000;
+  --ds-color-surface: #0A0F0D;
+  --ds-color-surface-alt: #151D1A;
+  --ds-color-ink: #E6EDE9;
+  --ds-color-muted: #9CB0A8;
+  --ds-color-line: #26332F;
+  --ds-color-accent: #6BC2A4;
+  --ds-color-on-accent: #08110E;
+  --ds-color-core: #E3AD68;
+  --ds-color-ok: #7CC79A;
+  --ds-color-warn: #E5BC74;
+  --ds-color-danger: #EE9384;
+  --ds-color-on-danger: #2A0F0A;
+  --ds-color-focus: #6BC2A4;
+  --ui-bg: #000000;
+  --ui-bg-elevated: #0A0F0D;
+  --ui-bg-muted: #151D1A;
+  --ui-bg-accented: #151D1A;
+  --ui-text: #E6EDE9;
+  --ui-text-highlighted: #E6EDE9;
+  --ui-text-muted: #9CB0A8;
+  --ui-border: #26332F;
+  --ui-primary: #6BC2A4;
+  --ui-success: #7CC79A;
+  --ui-warning: #E5BC74;
+  --ui-error: #EE9384;
+}
+
+/* Системная настройка «повысить контраст» включает палитру темы contrast. */
+@media (prefers-contrast: more) {
+  :root {
+    color-scheme: dark;
+    --ds-color-bg: #000000;
+    --ds-color-surface: #0A0A0A;
+    --ds-color-surface-alt: #1A1A1A;
+    --ds-color-ink: #FFFFFF;
+    --ds-color-muted: #E0E0E0;
+    --ds-color-line: #FFFFFF;
+    --ds-color-accent: #FFE600;
+    --ds-color-on-accent: #000000;
+    --ds-color-core: #FFB000;
+    --ds-color-ok: #00FF7F;
+    --ds-color-warn: #FFD54F;
+    --ds-color-danger: #FF8A80;
+    --ds-color-on-danger: #000000;
+    --ds-color-focus: #FFE600;
+    --ui-bg: #000000;
+    --ui-bg-elevated: #0A0A0A;
+    --ui-bg-muted: #1A1A1A;
+    --ui-bg-accented: #1A1A1A;
+    --ui-text: #FFFFFF;
+    --ui-text-highlighted: #FFFFFF;
+    --ui-text-muted: #E0E0E0;
+    --ui-border: #FFFFFF;
+    --ui-primary: #FFE600;
+    --ui-success: #00FF7F;
+    --ui-warning: #FFD54F;
+    --ui-error: #FF8A80;
+  }
 }
 
 .ds-container {

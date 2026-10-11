@@ -343,6 +343,15 @@ const i18nTrouble = computed(() => locales.value.length < 2 || !locales.value.in
       <p class="text-xs text-muted">{{ t('dt.i18n.note') }}</p>
     </section>
 
+    <section v-if="tokens.audience.markets.length || tokens.audience.outdoor" class="space-y-2">
+      <h2 class="font-medium">{{ t('dt.audience.title') }}</h2>
+      <div class="flex flex-wrap items-center gap-2 text-sm">
+        <UBadge v-for="item in tokens.audience.markets" :key="item.value" color="neutral" variant="subtle" size="sm">{{ item.value }}</UBadge>
+        <UBadge v-if="tokens.audience.outdoor?.value" color="warning" variant="subtle" size="sm">{{ t('dt.audience.outdoor') }}</UBadge>
+      </div>
+      <p class="text-xs text-muted">{{ t('dt.audience.note') }}</p>
+    </section>
+
     <section v-if="tokens.principles.length" class="space-y-2">
       <h2 class="font-medium">{{ t('dt.principles.title') }}</h2>
       <ul class="space-y-1 text-sm">

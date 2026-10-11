@@ -130,6 +130,7 @@ export type ViolationCode =
   | 'design_theme_incomplete'
   | 'design_scale_gap'
   | 'design_i18n_missing'
+  | 'design_color_practice'
   | 'design_conflict'
   | 'design_theme_drift'
   | 'design_component_missing'
@@ -226,6 +227,7 @@ export const VIOLATION_LEVELS: Readonly<Record<ViolationCode, Severity>> = {
   design_theme_incomplete: 'warning',
   design_scale_gap: 'warning',
   design_i18n_missing: 'warning',
+  design_color_practice: 'warning',
   design_conflict: 'warning',
   design_theme_drift: 'warning',
   design_component_missing: 'warning',

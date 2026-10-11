@@ -1,4 +1,4 @@
-// Сгенерировано консолью DocDD из токенов дизайна v1.2.1 (docs/16-design-system.md). Не правьте руками: меняются токены.
+// Сгенерировано консолью DocDD из токенов дизайна v1.3.0 (docs/16-design-system.md). Не правьте руками: меняются токены.
 // Размеры в rem. Языки — точка подключения словарей (@nuxtjs/i18n и подобные).
 
 export const designTokens = {
@@ -144,6 +144,31 @@ export const designTokens = {
         "danger": "#FF8A80",
         "onDanger": "#000000",
         "focus": "#FFE600"
+      }
+    },
+    "oled": {
+      "minContrast": 4.5,
+      "label": "OLED",
+      "labels": {
+        "ru": "OLED",
+        "en": "OLED"
+      },
+      "mode": "dark",
+      "palette": {
+        "bg": "#000000",
+        "surface": "#0A0F0D",
+        "surfaceAlt": "#151D1A",
+        "ink": "#E6EDE9",
+        "muted": "#9CB0A8",
+        "line": "#26332F",
+        "accent": "#6BC2A4",
+        "onAccent": "#08110E",
+        "core": "#E3AD68",
+        "ok": "#7CC79A",
+        "warn": "#E5BC74",
+        "danger": "#EE9384",
+        "onDanger": "#2A0F0A",
+        "focus": "#6BC2A4"
       }
     }
   },

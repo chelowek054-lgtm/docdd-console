@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { designTokens } from '~/design-tokens';
+
 const route = useRoute();
 const { t, locale, setLocale, locales } = useT();
 
@@ -123,15 +125,43 @@ const THEMES = [
   { value: 'dark', key: 'theme.dark', icon: 'i-lucide-moon' }
 ] as const;
 
+/**
+ * Темы сверх светлой и тёмной — из токенов консоли (`oled`, `contrast`…): тема
+ * включается классом `theme-<имя>` на корне и базой (`dark` или нет), как
+ * это делает выгрузка для проектов (docs/16-design-system.md). Выбор лежит в
+ * cookie, чтобы сервер и клиент рисовали одну тему.
+ */
+const extraTheme = useCookie<string>('docdd-theme-extra', { default: () => '', maxAge: 60 * 60 * 24 * 365, sameSite: 'lax' });
+const extraThemes = Object.entries(designTokens.themes as Record<string, { mode: string; label: string; labels?: Record<string, string> | null }>)
+  .map(([name, theme]) => ({ name, mode: theme.mode, label: theme.label, labels: theme.labels ?? null }));
+
+useHead({ htmlAttrs: { class: () => (extraTheme.value ? `theme-${extraTheme.value}` : '') } });
+
 const currentTheme = computed(() => THEMES.find((theme) => theme.value === colorMode.preference) ?? THEMES[0]);
 
-const themeItems = computed(() => THEMES.map((theme) => ({
-  label: t(theme.key),
-  icon: theme.icon,
-  type: 'checkbox' as const,
-  checked: colorMode.preference === theme.value,
-  onSelect: () => { colorMode.preference = theme.value; }
-})));
+const themeItems = computed(() => [
+  ...THEMES.map((theme) => ({
+    label: t(theme.key),
+    icon: theme.icon,
+    type: 'checkbox' as const,
+    checked: !extraTheme.value && colorMode.preference === theme.value,
+    onSelect: () => {
+      extraTheme.value = '';
+      colorMode.preference = theme.value;
+    }
+  })),
+  ...extraThemes.map((theme) => ({
+    label: theme.labels?.[locale.value] ?? theme.label,
+    icon: 'i-lucide-palette',
+    type: 'checkbox' as const,
+    checked: extraTheme.value === theme.name,
+    onSelect: () => {
+      extraTheme.value = theme.name;
+      // База темы включает и `dark`, чтобы утилиты `dark:` и библиотека знали о тёмном фоне.
+      colorMode.preference = theme.mode === 'dark' ? 'dark' : 'light';
+    }
+  }))
+]);
 
 /** Языки интерфейса — из токенов дизайна: сколько их там, столько и в меню. */
 const localeItems = computed(() => locales.map((code) => ({
@@ -231,7 +261,7 @@ function isActive(to: string): boolean {
             <UDropdownMenu :items="themeItems" :content="{ align: 'end' }">
               <UButton
                 :icon="currentTheme.icon"
-                :aria-label="t('theme.aria', { name: t(currentTheme.key) })"
+                :aria-label="t('theme.aria', { name: extraTheme ? extraTheme : t(currentTheme.key) })"
                 variant="ghost"
                 color="neutral"
                 size="sm"
