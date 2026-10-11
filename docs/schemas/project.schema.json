@@ -145,6 +145,27 @@
         }
       }
     },
+    "design": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Единый дизайн проекта (docs/16-design-system.md): стеки с файлами темы, ширины и адрес для снимков экранов.",
+      "properties": {
+        "stacks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["stack"],
+            "properties": {
+              "stack": { "enum": ["nuxt-ui", "expo", "compose", "swiftui"] },
+              "files": { "type": "object", "additionalProperties": { "type": "string", "minLength": 1 } }
+            }
+          }
+        },
+        "viewports": { "type": "array", "items": { "type": "integer", "minimum": 200 } },
+        "baseUrl": { "type": "string" },
+        "screens": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
     "architecture": {
       "type": "object",
       "additionalProperties": false,

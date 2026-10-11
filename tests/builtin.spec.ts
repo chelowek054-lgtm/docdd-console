@@ -14,10 +14,10 @@ import { readWorkspace } from '../server/lib/workspace';
 describe('источники с встроенным набором', () => {
   it('записи нет — неявный builtin с тегом general, первым', () => {
     expect(withBuiltin([{ path: 'D:/x', tags: ['vue'] }])).toEqual([
-      { path: BUILTIN_SOURCE, tags: ['general'] },
+      { path: BUILTIN_SOURCE, tags: ['general', 'design'] },
       { path: 'D:/x', tags: ['vue'] }
     ]);
-    expect(withBuiltin([])).toEqual([{ path: 'builtin', tags: ['general'] }]);
+    expect(withBuiltin([])).toEqual([{ path: 'builtin', tags: ['general', 'design'] }]);
   });
 
   it('своя запись берётся как есть и переезжает наверх; пустые теги отключают', () => {
