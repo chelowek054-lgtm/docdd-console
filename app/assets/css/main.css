@@ -9,7 +9,7 @@
   --color-primary-500: var(--color-sky-500);
 }
 
-/* docdd-design:start — Сгенерировано консолью DocDD из токенов дизайна v1.7.0 (docs/16-design-system.md). Не правьте руками: меняются токены. */
+/* docdd-design:start — Сгенерировано консолью DocDD из токенов дизайна v1.8.0 (docs/16-design-system.md). Не правьте руками: меняются токены. */
 /* Размеры в rem: следуют за настройкой шрифта пользователя; корень не задаётся в px. */
 html { font-size: 100%; }
 
@@ -81,7 +81,7 @@ html { font-size: 100%; }
   --ds-color-line: #D8DDEA;
   --ds-color-accent: #22C55E;
   --ds-color-accent-text: #15703A;
-  --ds-color-on-accent: #04150B;
+  --ds-color-on-accent: #FFFFFF;
   --ds-color-core: #7336DE;
   --ds-color-ok: #15703A;
   --ds-color-info: #1F57D6;
