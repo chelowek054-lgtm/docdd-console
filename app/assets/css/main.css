@@ -9,7 +9,7 @@
   --color-primary-500: var(--color-sky-500);
 }
 
-/* docdd-design:start — Сгенерировано консолью DocDD из токенов дизайна v1.6.0 (docs/16-design-system.md). Не правьте руками: меняются токены. */
+/* docdd-design:start — Сгенерировано консолью DocDD из токенов дизайна v1.7.0 (docs/16-design-system.md). Не правьте руками: меняются токены. */
 /* Размеры в rem: следуют за настройкой шрифта пользователя; корень не задаётся в px. */
 html { font-size: 100%; }
 
@@ -80,11 +80,13 @@ html { font-size: 100%; }
   --ds-color-muted: #566079;
   --ds-color-line: #D8DDEA;
   --ds-color-accent: #22C55E;
-  --ds-color-on-accent: #052E16;
-  --ds-color-core: #96602A;
-  --ds-color-ok: #15803D;
-  --ds-color-warn: #8F6A22;
-  --ds-color-danger: #B8403A;
+  --ds-color-accent-text: #15703A;
+  --ds-color-on-accent: #04150B;
+  --ds-color-core: #7336DE;
+  --ds-color-ok: #15703A;
+  --ds-color-info: #1F57D6;
+  --ds-color-warn: #96520C;
+  --ds-color-danger: #C0261E;
   --ds-color-on-danger: #FFFFFF;
   --ds-color-focus: #15803D;
   --ui-bg: #F6F7FB;
@@ -96,9 +98,10 @@ html { font-size: 100%; }
   --ui-text-muted: #566079;
   --ui-border: #D8DDEA;
   --ui-primary: #22C55E;
-  --ui-success: #15803D;
-  --ui-warning: #8F6A22;
-  --ui-error: #B8403A;
+  --ui-success: #15703A;
+  --ui-info: #1F57D6;
+  --ui-warning: #96520C;
+  --ui-error: #C0261E;
 }
 
 .dark {
@@ -110,11 +113,13 @@ html { font-size: 100%; }
   --ds-color-muted: #9AA3BC;
   --ds-color-line: #2C3345;
   --ds-color-accent: #4ADE80;
-  --ds-color-on-accent: #052E16;
-  --ds-color-core: #D6A062;
+  --ds-color-accent-text: #4ADE80;
+  --ds-color-on-accent: #04150B;
+  --ds-color-core: #A890F5;
   --ds-color-ok: #4ADE80;
-  --ds-color-warn: #D4B466;
-  --ds-color-danger: #E2877E;
+  --ds-color-info: #6BA8F5;
+  --ds-color-warn: #F2C14E;
+  --ds-color-danger: #F08080;
   --ds-color-on-danger: #2A0A07;
   --ds-color-focus: #4ADE80;
   --ui-bg: #0E111A;
@@ -127,8 +132,9 @@ html { font-size: 100%; }
   --ui-border: #2C3345;
   --ui-primary: #4ADE80;
   --ui-success: #4ADE80;
-  --ui-warning: #D4B466;
-  --ui-error: #E2877E;
+  --ui-info: #6BA8F5;
+  --ui-warning: #F2C14E;
+  --ui-error: #F08080;
 }
 
 .theme-contrast {
@@ -140,9 +146,11 @@ html { font-size: 100%; }
   --ds-color-muted: #E0E0E0;
   --ds-color-line: #FFFFFF;
   --ds-color-accent: #FFE600;
+  --ds-color-accent-text: #FFE600;
   --ds-color-on-accent: #000000;
   --ds-color-core: #FFB000;
   --ds-color-ok: #00FF7F;
+  --ds-color-info: #80D8FF;
   --ds-color-warn: #FFD54F;
   --ds-color-danger: #FF8A80;
   --ds-color-on-danger: #000000;
@@ -157,6 +165,7 @@ html { font-size: 100%; }
   --ui-border: #FFFFFF;
   --ui-primary: #FFE600;
   --ui-success: #00FF7F;
+  --ui-info: #80D8FF;
   --ui-warning: #FFD54F;
   --ui-error: #FF8A80;
 }
@@ -170,11 +179,13 @@ html { font-size: 100%; }
   --ds-color-muted: #9AA3BC;
   --ds-color-line: #232838;
   --ds-color-accent: #4ADE80;
-  --ds-color-on-accent: #052E16;
-  --ds-color-core: #D6A062;
+  --ds-color-accent-text: #4ADE80;
+  --ds-color-on-accent: #04150B;
+  --ds-color-core: #A890F5;
   --ds-color-ok: #4ADE80;
-  --ds-color-warn: #D4B466;
-  --ds-color-danger: #E2877E;
+  --ds-color-info: #6BA8F5;
+  --ds-color-warn: #F2C14E;
+  --ds-color-danger: #F08080;
   --ds-color-on-danger: #2A0A07;
   --ds-color-focus: #4ADE80;
   --ui-bg: #000000;
@@ -187,8 +198,9 @@ html { font-size: 100%; }
   --ui-border: #232838;
   --ui-primary: #4ADE80;
   --ui-success: #4ADE80;
-  --ui-warning: #D4B466;
-  --ui-error: #E2877E;
+  --ui-info: #6BA8F5;
+  --ui-warning: #F2C14E;
+  --ui-error: #F08080;
 }
 
 /* Системная настройка «повысить контраст» включает палитру темы contrast. */
@@ -202,9 +214,11 @@ html { font-size: 100%; }
     --ds-color-muted: #E0E0E0;
     --ds-color-line: #FFFFFF;
     --ds-color-accent: #FFE600;
+    --ds-color-accent-text: #FFE600;
     --ds-color-on-accent: #000000;
     --ds-color-core: #FFB000;
     --ds-color-ok: #00FF7F;
+    --ds-color-info: #80D8FF;
     --ds-color-warn: #FFD54F;
     --ds-color-danger: #FF8A80;
     --ds-color-on-danger: #000000;
@@ -219,6 +233,7 @@ html { font-size: 100%; }
     --ui-border: #FFFFFF;
     --ui-primary: #FFE600;
     --ui-success: #00FF7F;
+    --ui-info: #80D8FF;
     --ui-warning: #FFD54F;
     --ui-error: #FF8A80;
   }

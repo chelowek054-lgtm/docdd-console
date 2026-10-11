@@ -135,6 +135,7 @@ const NUXT_UI_MAP: Readonly<Record<string, readonly string[]>> = {
   line: ['--ui-border'],
   accent: ['--ui-primary'],
   ok: ['--ui-success'],
+  info: ['--ui-info'],
   warn: ['--ui-warning'],
   danger: ['--ui-error']
 };
@@ -429,7 +430,7 @@ const COMPOSE_SCHEME: readonly (readonly [string, string])[] = [
   ['onError', 'onDanger']
 ];
 
-const COMPOSE_EXTRA = ['core', 'ok', 'warn'] as const;
+const COMPOSE_EXTRA = ['accentText', 'core', 'ok', 'info', 'warn'] as const;
 
 function composePackage(options: ExportOptions): string {
   return options.package && options.package.trim() !== '' ? options.package.trim() : 'ui.theme';

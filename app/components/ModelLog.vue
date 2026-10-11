@@ -56,7 +56,7 @@ watch(
       <div v-for="(line, index) in props.lines" :key="index" class="py-0.5 text-xs">
         <p v-if="line.kind === 'text'" class="whitespace-pre-wrap">{{ line.text }}</p>
 
-        <p v-else-if="line.kind === 'action'" class="font-mono text-primary">
+        <p v-else-if="line.kind === 'action'" class="font-mono text-(color:--ds-color-accent-text)">
           → {{ line.text }}
         </p>
 

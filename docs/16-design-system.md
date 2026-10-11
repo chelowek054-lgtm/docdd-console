@@ -80,7 +80,7 @@ JSON в теле подтверждённой записи `design`, как `doc
 | `fonts` | Семейства шрифтов: имя → список для CSS; не больше трёх | `body` |
 | `measure` | Длина строки текста в `ch`, от 45 до 80 | да |
 | `grid` | Глобальная сетка (ниже) | `columns`, `gutter`, `breakpoints`, `containers` |
-| `palette.light`, `palette.dark` | Цвета **по ролям**, а не по оттенкам; базовые темы | `bg`, `surface`, `surfaceAlt`, `ink`, `muted`, `line`, `accent`, `onAccent`, `core`, `ok`, `warn`, `danger`, `onDanger`, `focus` |
+| `palette.light`, `palette.dark` | Цвета **по ролям**, а не по оттенкам; базовые темы | `bg`, `surface`, `surfaceAlt`, `ink`, `muted`, `line`, `accent`, `accentText`, `onAccent`, `core`, `ok`, `info`, `warn`, `danger`, `onDanger`, `focus`. `accent` — заливка, `accentText` — акцент как текст и значок на фоне: яркий акцент на светлом фоне часто не держит 4.5:1 |
 | `themes` | Дополнительные цветовые темы поверх базовых (ниже) | — |
 | `i18n` | Языки интерфейса (ниже) | `locales` (не меньше двух, есть `en`), `default`, `fallback` |
 | `components` | Реестр обязательных компонентов: `name` — имя в коде проекта, `summary`, `states` (`default`, `hover`, `focus`, `active`, `disabled`…), `parts` — слои для стилизации (`root`, `label`, `icon`…), `status` — `draft`, `stable` или `deprecated` | `TopBar`, `Card`, `Button`, `Field`, `Pill`, `Progress`, `Empty`; у `Button` и `Field` состояния `focus` и `disabled` |
@@ -215,7 +215,7 @@ JSON в теле подтверждённой записи `design`, как `doc
 | Код | Когда |
 |---|---|
 | `design_block_invalid` | Блок `docdd-design` не разобрался: не JSON, нет `unit: "rem"`, цвет не `#RRGGBB(AA)`, число отрицательно, тема с неизвестной ролью |
-| `design_contrast_low` | Пара «текст/фон» одной темы держит меньше 4.5:1 (у темы с `minContrast` — меньше её порога): `ink`/`bg`, `ink`/`surface`, `muted`/`bg`, `onAccent`/`accent`, `onDanger`/`danger`; фокус не текстовый элемент — `focus`/`bg` не ниже 3:1 |
+| `design_contrast_low` | Пара «текст/фон» одной темы держит меньше 4.5:1 (у темы с `minContrast` — меньше её порога): `ink`/`bg`, `ink`/`surface`, `muted`/`bg`, `accentText`/`bg`, `accentText`/`surface`, `onAccent`/`accent`, `onDanger`/`danger`; фокус не текстовый элемент — `focus`/`bg` не ниже 3:1 |
 | `design_theme_incomplete` | Роль палитры есть в одной базовой теме и нет в другой |
 | `design_scale_gap` | В шкале (кегли, отступы, радиусы, линии, значки, движение, шрифты, сетка, роли палитры, реестр) нет обязательного имени; точки перелома не возрастают; шрифтов больше трёх; `measure` вне 45–80 или не задан; не названа `version`; у `Button` или `Field` нет состояний `focus` или `disabled` |
 | `design_color_practice` | Практика цвета на реальных экранах ([ниже](#цвет-на-реальных-экранах)): чистый `#000000` в тёмной теме вне `oled`; насыщенность 90–100 % у больших заливок; красный `danger` для рынка `CN`/`HK`/`TW`; нет темы 7:1 у продукта «на улице». У контрастной темы (`minContrast` ≥ 7) исключения |
@@ -258,12 +258,13 @@ design:
 ([adr/0009-work-through-console.md](adr/0009-work-through-console.md)).
 Расхождение — `design_theme_drift`.
 
-**Подпись на акценте в Nuxt UI.** Библиотека красит подпись на сплошном акценте общей
-переменной `--ui-text-inverted`, парной к нейтральной кнопке: в светлой теме она белая, и на
-ярком акценте (зелёный `#22C55E`) не держит 4.5:1. Поэтому проект ведёт её роль `onAccent`
-через тему самих компонентов — `app/app.config.ts` (`button`, `badge`, `tabs`, `checkbox`,
-цвет `primary`), а не переопределением стилей снаружи ([adr/0005](adr/0005-nuxt-ui.md)).
-Этого файла выгрузка пока не пишет.
+**Акцент в Nuxt UI.** У библиотеки на акцент одна переменная `--ui-primary` — и для заливки, и
+для текста, а подпись на сплошном акценте берётся из общей `--ui-text-inverted`, парной к
+нейтральной кнопке. Выгрузка кладёт в `--ui-primary` заливку (`accent`), `info` — в `--ui-info`.
+Текст акцентом (кнопки `outline`, `soft`, `subtle`, `ghost`, `link`, такие же значки и
+уведомления, вкладки `link`) и подпись на заливке проект ведёт ролями `accentText` и
+`onAccent` через тему самих компонентов — `app/app.config.ts`, а не переопределением стилей
+снаружи ([adr/0005](adr/0005-nuxt-ui.md)). Этого файла выгрузка пока не пишет.
 
 ## Проверка экранов моделью
 

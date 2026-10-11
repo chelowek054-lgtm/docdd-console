@@ -1,4 +1,4 @@
-// Сгенерировано консолью DocDD из токенов дизайна v1.6.0 (docs/16-design-system.md). Не правьте руками: меняются токены.
+// Сгенерировано консолью DocDD из токенов дизайна v1.7.0 (docs/16-design-system.md). Не правьте руками: меняются токены.
 // Размеры в rem. Языки — точка подключения словарей (@nuxtjs/i18n и подобные).
 
 export const designTokens = {
@@ -95,11 +95,13 @@ export const designTokens = {
       "muted": "#566079",
       "line": "#D8DDEA",
       "accent": "#22C55E",
-      "onAccent": "#052E16",
-      "core": "#96602A",
-      "ok": "#15803D",
-      "warn": "#8F6A22",
-      "danger": "#B8403A",
+      "accentText": "#15703A",
+      "onAccent": "#04150B",
+      "core": "#7336DE",
+      "ok": "#15703A",
+      "info": "#1F57D6",
+      "warn": "#96520C",
+      "danger": "#C0261E",
       "onDanger": "#FFFFFF",
       "focus": "#15803D"
     },
@@ -111,11 +113,13 @@ export const designTokens = {
       "muted": "#9AA3BC",
       "line": "#2C3345",
       "accent": "#4ADE80",
-      "onAccent": "#052E16",
-      "core": "#D6A062",
+      "accentText": "#4ADE80",
+      "onAccent": "#04150B",
+      "core": "#A890F5",
       "ok": "#4ADE80",
-      "warn": "#D4B466",
-      "danger": "#E2877E",
+      "info": "#6BA8F5",
+      "warn": "#F2C14E",
+      "danger": "#F08080",
       "onDanger": "#2A0A07",
       "focus": "#4ADE80"
     }
@@ -137,9 +141,11 @@ export const designTokens = {
         "muted": "#E0E0E0",
         "line": "#FFFFFF",
         "accent": "#FFE600",
+        "accentText": "#FFE600",
         "onAccent": "#000000",
         "core": "#FFB000",
         "ok": "#00FF7F",
+        "info": "#80D8FF",
         "warn": "#FFD54F",
         "danger": "#FF8A80",
         "onDanger": "#000000",
@@ -162,11 +168,13 @@ export const designTokens = {
         "muted": "#9AA3BC",
         "line": "#232838",
         "accent": "#4ADE80",
-        "onAccent": "#052E16",
-        "core": "#D6A062",
+        "accentText": "#4ADE80",
+        "onAccent": "#04150B",
+        "core": "#A890F5",
         "ok": "#4ADE80",
-        "warn": "#D4B466",
-        "danger": "#E2877E",
+        "info": "#6BA8F5",
+        "warn": "#F2C14E",
+        "danger": "#F08080",
         "onDanger": "#2A0A07",
         "focus": "#4ADE80"
       }

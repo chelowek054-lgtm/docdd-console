@@ -35,7 +35,8 @@ export const TYPOGRAPHY_NAMES = ['caption', 'small', 'body', 'lead', 'title', 'd
 export const SPACING_NAMES = ['xs', 'sm', 'md', 'lg', 'xl', 'xxl'] as const;
 export const RADIUS_NAMES = ['sm', 'md', 'pill'] as const;
 export const PALETTE_ROLES = [
-  'bg', 'surface', 'surfaceAlt', 'ink', 'muted', 'line', 'accent', 'onAccent', 'core', 'ok', 'warn', 'danger', 'onDanger', 'focus'
+  'bg', 'surface', 'surfaceAlt', 'ink', 'muted', 'line', 'accent', 'accentText', 'onAccent', 'core', 'ok', 'info', 'warn', 'danger',
+  'onDanger', 'focus'
 ] as const;
 export const COMPONENT_NAMES = ['TopBar', 'Card', 'Button', 'Field', 'Pill', 'Progress', 'Empty'] as const;
 export const BREAKPOINT_NAMES = ['xs', 'sm', 'md', 'lg', 'xl', 'xxl'] as const;
@@ -46,6 +47,8 @@ export const CONTRAST_PAIRS: readonly (readonly [string, string])[] = [
   ['ink', 'bg'],
   ['ink', 'surface'],
   ['muted', 'bg'],
+  ['accentText', 'bg'],
+  ['accentText', 'surface'],
   ['onAccent', 'accent'],
   ['onDanger', 'danger']
 ];
@@ -866,7 +869,7 @@ export function hslOf(color: string): { h: number; s: number; l: number } {
 }
 
 /** Роли, которыми закрашивают большие площади: насыщенность у них под присмотром (ADR-0026). */
-export const FILL_ROLES = ['bg', 'surface', 'surfaceAlt', 'accent', 'core', 'ok', 'warn', 'danger'] as const;
+export const FILL_ROLES = ['bg', 'surface', 'surfaceAlt', 'accent', 'core', 'ok', 'info', 'warn', 'danger'] as const;
 export const MAX_FILL_SATURATION = 0.9;
 /** Рынки, где красный — цвет удачи и праздника, а не только ошибки. */
 export const RED_AUXILIARY_MARKETS = ['CN', 'HK', 'TW'] as const;

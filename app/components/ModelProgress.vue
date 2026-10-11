@@ -20,7 +20,7 @@ const failure = computed(() => (props.outcome?.kind === 'failure' ? props.outcom
 
 <template>
   <div v-if="props.running" class="flex flex-wrap items-center gap-3 rounded bg-elevated px-3 py-2">
-    <UIcon name="i-lucide-loader-circle" class="animate-spin text-primary" />
+    <UIcon name="i-lucide-loader-circle" class="animate-spin text-(color:--ds-color-accent-text)" />
     <p class="text-sm">
       Модель работает — {{ duration(props.elapsed * 1000) }}
       <!-- Срока нет: сколько ждать, решает тот, кто ждёт (docs/04-ui.md). -->
