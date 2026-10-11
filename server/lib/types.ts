@@ -124,6 +124,15 @@ export type ViolationCode =
   | 'arch_not_independent'
   | 'arch_forbidden'
   | 'rules_conflict'
+  // дизайн (docs/16-design-system.md)
+  | 'design_block_invalid'
+  | 'design_contrast_low'
+  | 'design_theme_incomplete'
+  | 'design_scale_gap'
+  | 'design_conflict'
+  | 'design_theme_drift'
+  | 'design_component_missing'
+  | 'design_screen_finding'
   // выполнение
   | 'work_unreviewed'
   | 'work_branch_orphan'
@@ -211,6 +220,14 @@ export const VIOLATION_LEVELS: Readonly<Record<ViolationCode, Severity>> = {
   arch_not_independent: 'warning',
   arch_forbidden: 'warning',
   rules_conflict: 'warning',
+  design_block_invalid: 'warning',
+  design_contrast_low: 'warning',
+  design_theme_incomplete: 'warning',
+  design_scale_gap: 'warning',
+  design_conflict: 'warning',
+  design_theme_drift: 'warning',
+  design_component_missing: 'warning',
+  design_screen_finding: 'warning',
   work_unreviewed: 'warning',
   work_branch_orphan: 'warning',
   task_not_ready_docs: 'error',
@@ -327,6 +344,18 @@ export interface ProjectManifest {
   roles?: { id: string; name: string }[];
   policy?: Policy;
   architecture?: ArchitectureConfig;
+  /** Стеки и снимки экранов (docs/16-design-system.md). */
+  design?: DesignManifest;
+}
+
+export interface DesignManifest {
+  stacks?: { id: 'nuxt-ui' | 'expo' | 'compose' | 'swiftui'; files?: Record<string, string>; package?: string }[];
+  /** Каталог снимков экранов от корня проекта. */
+  screens?: string;
+  /** Каталог эталонных макетов экранов. */
+  mockups?: string;
+  widths?: number[];
+  themes?: ('light' | 'dark')[];
 }
 
 /** Умолчания политики повторяют `default` из project.schema.json. */

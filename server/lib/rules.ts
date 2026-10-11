@@ -15,12 +15,24 @@ import {
   violation,
   type ArchitectureConfig,
   type LinkKind,
+  type ProjectManifest,
   type Policy,
   type RecordType,
   type VerificationResult,
   type Violation,
   type WorkRecord
 } from './types';
+import { plainTokens, type DesignResolution } from './design';
+import { PASS_LABEL, latestReports, type DesignReport } from './design-screens';
+import {
+  STACK_LABEL,
+  compareFile,
+  componentsMissing,
+  exportStack,
+  isSafeRelative,
+  projectFilePath,
+  providedComponents
+} from './design-export';
 
 export interface RuleContext {
   records: readonly WorkRecord[];
@@ -30,6 +42,12 @@ export interface RuleContext {
   architecture?: ArchitectureConfig;
   /** Откуда взялись правила: источники, перекрытия, конфликты (docs/12-practice-rules.md). */
   rules?: RulesResolution;
+  /** Токены дизайна после сложения «общее → локальное» (docs/16-design-system.md). */
+  design?: DesignResolution;
+  /** Стеки и файлы темы проекта из манифеста: по ним сверяется выгрузка (docs/16-design-system.md). */
+  designStacks?: NonNullable<ProjectManifest['design']>['stacks'];
+  /** Принятые отчёты проверки экранов моделью. */
+  designReports?: readonly DesignReport[];
   /** Справочник включён (`paths.reference`): путь к индексу и порог устаревания (docs/13-reference.md). */
   reference?: { path: string; staleDays: number };
   /** Справки из подключённых источников — в индекс идут с меткой. */
@@ -190,6 +208,9 @@ export function checkAll(ctx: RuleContext): Violation[] {
     ...capabilityConsistency(ctx),
     ...architectureRules(ctx),
     ...rulesConflict(ctx),
+    ...designRules(ctx),
+    ...designDrift(ctx),
+    ...designScreenFindings(ctx),
     ...referenceRules(ctx),
     ...taskReuseUnchecked(ctx),
     ...workUnreviewed(ctx),
@@ -619,6 +640,79 @@ export function rulesConflict(ctx: RuleContext): Violation[] {
   }
   for (const problem of resolution.problems) {
     found.push(violation('rules_conflict', pathOf.has(problem.record) ? problem.record : null, pathOf.get(problem.record) ?? '', problem.message));
+  }
+  return found;
+}
+
+/**
+ * Токены дизайна (docs/16-design-system.md): контраст, полнота тем и шкал,
+ * противоречие блоков, блок, который не разобрался. Нарушение вешается на
+ * запись, чей блок его вызвал; общая запись из чужого источника в проекте
+ * не лежит — тогда оно без записи, но с её именем в тексте.
+ */
+export function designRules(ctx: RuleContext): Violation[] {
+  const design = ctx.design;
+  if (!design || design.empty) return [];
+  const pathOf = new Map(ctx.records.map((record) => [record.id, record.source.path]));
+  const idOf = (source: string) => source.replace(/^\[[^\]]*\]\s*/, '');
+  return design.checks.map((check) => {
+    const id = check.source ? idOf(check.source) : '';
+    const local = pathOf.has(id) && !/^\[/.test(check.source ?? '');
+    const where = check.source && !local ? ` (запись ${check.source})` : '';
+    return violation(check.code, local ? id : null, local ? pathOf.get(id) ?? '' : '', `${check.message}${where}`);
+  });
+}
+
+/**
+ * Файлы темы проекта и компоненты реестра против токенов (docs/16-design-system.md):
+ * выгрузка строится из сложенных токенов и сравнивается с тем, что лежит в
+ * проекте. Файл приложение не пишет — только называет расхождение.
+ */
+export function designDrift(ctx: RuleContext): Violation[] {
+  const design = ctx.design;
+  if (!design || design.empty) return [];
+  const found: Violation[] = [];
+  const tokens = plainTokens(design.tokens);
+
+  for (const stack of ctx.designStacks ?? []) {
+    const output = exportStack(stack.id, tokens, { package: stack.package });
+    for (const file of output.files) {
+      const path = projectFilePath(stack.files, file);
+      if (!isSafeRelative(path)) continue;
+      const actual = ctx.readSource ? ctx.readSource(path) : null;
+      const outcome = compareFile(file, actual);
+      if (outcome.state === 'in_sync') continue;
+      const changed = outcome.diff.split('\n').filter((line) => /^[-+] /.test(line)).length;
+      const reason = outcome.state === 'missing' ? 'файла нет' : `расходится с выгрузкой (строк различий: ${changed})`;
+      found.push(violation('design_theme_drift', null, path,
+        `Файл темы \`${path}\` (${STACK_LABEL[stack.id]}): ${reason}. Выгрузка и дифф — на экране «Дизайн», вкладка «Стеки»; файл меняет задача, а не приложение.`));
+    }
+  }
+
+  const names = design.tokens.components.map((item) => item.value.name);
+  const missing = componentsMissing(names, [...ctx.code.files], providedComponents(ctx.designStacks));
+  for (const name of missing ?? []) {
+    found.push(violation('design_component_missing', null, '',
+      `Компонент \`${name}\` из реестра дизайна не найден среди файлов \`sources.code\` проекта.`));
+  }
+  return found;
+}
+
+/**
+ * Находки проверки экранов моделью (docs/16-design-system.md): действует
+ * последний принятый отчёт каждого прохода. Модель только находила — правка
+ * идёт обычной задачей, поэтому находка называет экран, ширину и тему.
+ */
+export function designScreenFindings(ctx: RuleContext): Violation[] {
+  const latest = latestReports(ctx.designReports ?? []);
+  const found: Violation[] = [];
+  for (const pass of ['responsive', 'pixel'] as const) {
+    for (const item of latest[pass]?.findings ?? []) {
+      const detail = [item.expected ? `ожидалось: ${item.expected}` : '', item.actual ? `на снимке: ${item.actual}` : '']
+        .filter((part) => part !== '').join('; ');
+      found.push(violation('design_screen_finding', null, '',
+        `${PASS_LABEL[pass]} · экран \`${item.screen}\` · ${item.width} px · ${item.theme === 'light' ? 'светлая' : 'тёмная'} тема: ${item.what}${detail ? ` (${detail})` : ''}.`));
+    }
   }
   return found;
 }

@@ -15,6 +15,7 @@ import { LINK_KINDS } from './types';
 import { readWorkspace, sourceReader, type Workspace } from './workspace';
 import { recordOfBranch } from './branch';
 import { hasChangesSync, workBranchesSync } from '../utils/git';
+import type { DesignReport } from './design-screens';
 
 /** Поля, которые понимает контракт; всё остальное уходит в `extra` нетронутым. */
 const KNOWN_FIELDS = new Set(['id', 'type', 'title', 'status', 'owner', 'created', 'updated', 'phase', 'tags', 'links']);
@@ -39,7 +40,7 @@ function workState(root: string): { unreviewed: Set<string>; orphanBranches: Set
  * Индекс — результат прохода: записи, связи, нарушения, время сборки.
  * Форма ответа задана docs/03-server-api.md.
  */
-export function buildIndex(root: string, now = new Date(), generalRules: readonly RuleRecord[] = [], sharedReferences: readonly ReferenceEntry[] = []): { index: ProjectIndex; workspace: Workspace } {
+export function buildIndex(root: string, now = new Date(), generalRules: readonly RuleRecord[] = [], sharedReferences: readonly ReferenceEntry[] = [], designReports: readonly DesignReport[] = []): { index: ProjectIndex; workspace: Workspace } {
   const workspace = readWorkspace(root);
   const result = analyze({
     files: workspace.files,
@@ -53,6 +54,7 @@ export function buildIndex(root: string, now = new Date(), generalRules: readonl
     work: workState(root),
     generalRules,
     sharedReferences,
+    designReports,
     now
   });
 

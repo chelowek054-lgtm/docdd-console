@@ -27,6 +27,8 @@
 | [relations.md](relations.md) | Связи между возможностями функциональной карты | Кнопка «Предложить связи» |
 | [task.md](task.md), [inbox-plan.md](inbox-plan.md), [architecture-audit.md](architecture-audit.md) | Получают индекс справочника: сначала проверь, что уже есть ([../13-reference.md](../13-reference.md)) | Те же кнопки |
 | [prioritize.md](prioritize.md) | Порядок фаз и задач по важности | Кнопка «Сортировать по важности» |
+| [design-responsive.md](design-responsive.md) | Responsive-проверка экранов по снимкам: скролл, обрезанное, шапка, зона нажатия 44×44, отступ из шкалы | Вкладка «Экраны» экрана «Дизайн» |
+| [design-pixel-perfect.md](design-pixel-perfect.md) | Pixel-Perfect-проверка снимков против токенов и эталонного макета | Вкладка «Экраны» экрана «Дизайн» |
 | [architecture-audit.md](architecture-audit.md) | Аудит архитектуры: логика в `ui`, повторы, лишние задачи модуля | Кнопка «Аудит архитектуры» |
 
 Общее правило для трёх шаблонов карт (`codemap`, `dataflow`, `userflow`): **каждое ребро несёт свидетельство** — путь, строку

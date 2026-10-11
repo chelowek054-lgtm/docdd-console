@@ -101,7 +101,8 @@ const entries = computed<NavEntry[]>(() => {
         { label: 'Импорт', to: `${base}/fill?tab=import` }
       ]
     },
-    { kind: 'link', label: 'Практики', to: `${base}/shared` }
+    { kind: 'link', label: 'Практики', to: `${base}/shared` },
+    { kind: 'link', label: 'Дизайн', to: `${base}/design` }
   ];
 });
 
@@ -188,6 +189,15 @@ function isActive(to: string): boolean {
             size="sm"
           >
             Как пользоваться
+          </UButton>
+          <!-- Глобальный экран токенов: на уровне консоли, поэтому доступен и без проекта. -->
+          <UButton
+            to="/design"
+            :variant="route.path === '/design' ? 'soft' : 'ghost'"
+            color="neutral"
+            size="sm"
+          >
+            Дизайн
           </UButton>
           <UButton
             v-if="projectId"

@@ -50,6 +50,7 @@
 | [docs/09-execution.md](docs/09-execution.md) | Выполнение задачи через клиент: ветка, дифф, слияние |
 | [docs/prompts/](docs/prompts/) | Шаблоны запросов к модели: приложение подставляет данные и спрашивает модель через Claude Code, решает человек |
 | [docs/14-deploy.md](docs/14-deploy.md) | Установка на общий сервер Ubuntu: Node, сервис, nginx с авторизацией |
+| [docs/16-design-system.md](docs/16-design-system.md) | Единый дизайн: токены `docdd-design`, выгрузка в стеки, проверка экранов моделью |
 | [docs/15-team-platform.md](docs/15-team-platform.md) | Курс на платформу команды вместо Jira и Confluence: аудит, вектор, роли, план фаз 24–32 |
 | [docs/adr/](docs/adr/) | Решения с причинами и отвергнутыми вариантами |
 | [docs/schemas/](docs/schemas/) | JSON Schema, по которым идёт проверка |

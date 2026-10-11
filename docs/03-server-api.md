@@ -860,6 +860,87 @@ Claude Code не найден или отказал в доступе — `503`;
 
 ## Заведение и импорт
 
+### `GET /api/design`
+
+Глобальный экран «Дизайн» ([16-design-system.md](16-design-system.md)): эталон (сложение общих
+источников без локальных) и проекты консоли.
+
+```json
+{
+  "standard": { "tokens": { "...": "…" }, "checks": [], "sources": ["[docdd] D-0001"] },
+  "projects": [{ "id": "learning", "name": "Learning", "connected": true,
+                 "findings": 3, "violations": 1, "stacks": ["nuxt-ui"] }]
+}
+```
+
+`standard` — `null`, если эталона нет ни в одном подключённом источнике.
+
+### `GET /api/projects/:id/design`
+
+Токены проекта после сложения «общее → локальное» с источником у каждой части:
+
+```json
+{
+  "tokens": {
+    "principles": [{ "value": "…", "source": "[docdd] D-0001" }],
+    "typography": { "body": { "value": { "size": 16, "line": 24, "weight": 400 }, "source": "[docdd] D-0001", "overrides": [] } },
+    "spacing": {}, "radius": {},
+    "palette": { "light": {}, "dark": {} },
+    "components": [{ "value": { "name": "Button" }, "source": "[docdd] D-0001" }]
+  },
+  "checks": [{ "code": "design_contrast_low", "theme": "dark", "pair": ["ink", "bg"], "ratio": 3.9, "message": "…" }],
+  "contrast": [{ "theme": "light", "pair": ["ink", "bg"], "ratio": 14.8, "ok": true }],
+  "conflicts": [{ "key": "palette.light.accent", "records": ["[docdd] D-0001", "D-0004"] }],
+  "sources": [{ "id": "[docdd] D-0001", "level": "general" }],
+  "problems": [],
+  "empty": false,
+  "connected": true,
+  "componentsMissing": ["Progress"],
+  "stacks": [{ "id": "nuxt-ui", "label": "Nuxt + Nuxt UI" }]
+}
+```
+
+Сложение производное: нигде не хранится. Нет ни одного подтверждённого блока — `tokens` пустые,
+`empty: true`, `connected: false`. `componentsMissing` — компоненты реестра, которых нет среди файлов
+`sources.code`; `null`, если исходники не объявлены (искать негде).
+
+### `GET /api/projects/:id/design/export`
+
+Выгрузка токенов в стеки проекта и сверка файлов темы: `?stack=expo` — один стек, без параметра —
+все объявленные в `design.stacks` манифеста.
+
+```json
+{
+  "stacks": [{
+    "id": "expo",
+    "files": [{ "key": "theme", "path": "constants/theme.ts", "content": "…", "state": "drift", "diff": "…" }]
+  }]
+}
+```
+
+`state`: `in_sync`, `drift`, `missing` (файла нет в проекте), `unknown` (путь вне корня).
+Файл в проекте приложение не пишет.
+
+### `GET /api/projects/:id/design/screens`
+
+Опись снимков экранов: `{ "screens": [{ "id": "S-home", "title": "…", "shots": [{ "width": 375,
+"theme": "light", "present": true, "takenAt": "2026-10-11T09:00:00Z" }], "mockup": true }],
+"missing": 4, "widths": [375, 768, 1280], "themes": ["light","dark"], "script": "…" }`. Экран берётся из
+подтверждённой карты пользовательских путей; `script` — шаблон скрипта снятия, текстом.
+
+### `POST /api/projects/:id/design/findings/preview`
+
+Тело `{ "answer": "…ответ модели с блоком docdd-design-findings…" }`. Разбирает находки, ничего не пишет:
+`{ "pass": "responsive", "findings": [...], "clean": [...], "problems": [...] }`. Находка с экраном или
+шириной, которых нет в описи, — в `problems`, не в находках.
+
+### `POST /api/projects/:id/design/findings/apply`
+
+Тело `{ "pass": "responsive", "findings": [...], "clean": [...], "actor": "architect" }` — то, что человек
+принял. Пишет отчёт `docs/development/design/reports/<дата>-<проход>-<время>.json`; ответ —
+`{ "ok": true, "report": "…" }`. Запрос к модели собирается через `POST /prompt` с
+`kind: "design-responsive"` или `"design-pixel"`.
+
 ### `POST /api/projects/init`
 
 ```json

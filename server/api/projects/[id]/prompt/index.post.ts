@@ -35,6 +35,10 @@ import { fail } from '../../../../utils/http';
 import { loadIndex } from '../../../../utils/index-service';
 import { buildProjectMap } from '../../../../utils/map-service';
 import { findProject } from '../../../../utils/projects';
+import { plainTokens } from '../../../../lib/design';
+import { designPrompt } from '../../../../lib/prompt';
+import { projectDesign } from '../../../../utils/design-service';
+import { projectScreens } from '../../../../utils/design-screens-service';
 
 /**
  * Сборка запроса к модели по шаблону из репозитория. Приложение подставляет
@@ -267,7 +271,24 @@ export default defineEventHandler(async (event) => {
       return { prompt: priorityPrompt(await template('prioritize.md'), input), count: input.phases.length };
     }
 
-    return fail(event, 400, 'kind_invalid', 'Известны запросы: `fix`, `maps`, `map-fix`, `inbox`, `verify`, `functional-check`, `relations`, `phases`, `groups`, `architecture`, `priority`');
+    if (kind === 'design-responsive' || kind === 'design-pixel') {
+      const design = projectDesign(project.root);
+      if (design.empty) {
+        return fail(event, 422, 'design_empty', 'У проекта нет токенов дизайна: сверять экраны не с чем. Подключите тег `design` на экране «Практики»');
+      }
+      const screens = projectScreens(project.root);
+      if (!screens.fromMap) {
+        return fail(event, 422, 'design_no_screens', 'В подтверждённой карте пользовательских путей нет экранов: проверять нечего');
+      }
+      const present = screens.total - screens.missing;
+      if (present === 0) {
+        return fail(event, 422, 'design_no_shots', `Нет ни одного снимка из ${screens.total} нужных: положите их в \`${screens.screensDir}\` — шаблон скрипта снятия на экране «Дизайн», вкладка «Экраны»`);
+      }
+      const name = kind === 'design-responsive' ? 'design-responsive.md' : 'design-pixel-perfect.md';
+      return { prompt: designPrompt(await template(name), plainTokens(design.tokens), screens), count: present };
+    }
+
+    return fail(event, 400, 'kind_invalid', 'Известны запросы: `fix`, `maps`, `map-fix`, `inbox`, `verify`, `functional-check`, `relations`, `phases`, `groups`, `architecture`, `priority`, `design-responsive`, `design-pixel`');
   } catch (error) {
     if (error instanceof WorkspaceError) {
       return fail(event, 422, error.code, error.message, error.detail);

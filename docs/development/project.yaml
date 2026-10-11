@@ -15,6 +15,9 @@ paths:
   maps: maps
   reference: reference
 sources:
+  shared:
+    - path: builtin
+      tags: [general, design]
   # Код, на который ссылаются документы и свидетельства карт.
   code: [server, cli, app]
   # Проектные документы этого репозитория лежат в docs/ и записями пока не стали.
@@ -23,6 +26,15 @@ sources:
   client: [app]
   # Черновики новых редакций A-0001..A-0009 в skill-стиле (supersedes).
   inbox: [docs/inbox]
+# Дизайн консоли: стек Nuxt UI, файлы темы (docs/16-design-system.md). Пока консоль
+# не приняла токены, сверка называет расхождение — это очередь задач, а не поломка.
+design:
+  stacks:
+    - id: nuxt-ui
+      files:
+        css: app/assets/css/main.css
+        config: app/design-tokens.ts
+
 roles:
   # Роли курса M-0008 (adr/0020): кто ведёт какую часть работы.
   - id: architect

@@ -2,7 +2,7 @@
 id: T-0060
 type: task
 title: 'ADR и документ раздела «Дизайн»: формат docdd-design, место, сложение, запись файлов темы'
-status: backlog
+status: done
 change: feature
 links:
   implements: [R-0030, R-0031, R-0032, R-0033]
@@ -19,3 +19,7 @@ updated: 2026-10-11
 ## Журнал
 
 - 2026-10-11 · заведена черновиком · claude
+- 2026-10-11 · готова к работе · architect
+- 2026-10-11 · в разработку · architect
+- 2026-10-11 · на проверку · architect
+- 2026-10-11 · закрыта · architect

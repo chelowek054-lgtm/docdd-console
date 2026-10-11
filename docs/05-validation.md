@@ -121,6 +121,14 @@ flowchart LR
 | `task_reuse_unchecked` | warning | Задача `feature` в `ready` и дальше без `reuses` и без `reuse: none` |
 | `rules_conflict` | warning | Два правила одного уровня спорят об одном ключе, либо `use` называет запись без блока правил |
 | `arch_promote` | warning | Внутренность модуля используется из двух веток: пора поднять к ближайшему общему предку. Самый тихий: на карточке модуля, в счёт нарушений не входит |
+| `design_block_invalid` | warning | Блок `docdd-design` не разобрался: не JSON, цвет не `#RRGGBB(AA)`, число отрицательно ([16-design-system.md](16-design-system.md)) |
+| `design_contrast_low` | warning | Пара «текст/фон» одной темы держит меньше 4.5:1 |
+| `design_theme_incomplete` | warning | Роль палитры есть в одной теме и нет в другой |
+| `design_scale_gap` | warning | В шкале (кегли, отступы, радиусы, роли палитры, реестр) нет обязательного имени |
+| `design_conflict` | warning | Блок `docdd-design` противоречит более раннему уровню, и ключа нет в `overrides` |
+| `design_theme_drift` | warning | Файл темы проекта расходится с выгрузкой токенов |
+| `design_component_missing` | warning | Компонента из реестра дизайна нет в коде проекта |
+| `design_screen_finding` | warning | Находка проверки экранов моделью (Responsive или Pixel-Perfect): экран, ширина, тема |
 
 Покрытие называется числом: «проверено 412 из 479 импортов» — файлы языков без
 входа и не попавшие в карту в проверку не входят, и экран об этом говорит.
