@@ -319,6 +319,20 @@ export interface ArchitectureConfig {
   sources?: Record<string, string>;
 }
 
+/**
+ * Единый дизайн проекта (docs/16-design-system.md): на каких стеках он собран, где лежат
+ * файлы темы и как снимать экраны. Нет секции — выгрузки и снимков нет, токены всё равно приходят.
+ */
+export interface DesignConfig {
+  stacks?: { stack: 'nuxt-ui' | 'expo' | 'compose' | 'swiftui'; files?: Record<string, string> }[];
+  /** Ширины снимков в px; нет ключа — 375, 768, 1280. */
+  viewports?: number[];
+  /** Адрес запущенного веб-проекта, по которому снимаются экраны. */
+  baseUrl?: string;
+  /** Адрес экрана, когда его `id` — не путь: `id` → путь от `baseUrl`. */
+  screens?: Record<string, string>;
+}
+
 export interface ProjectManifest {
   contract: string;
   project: { id: string; name: string; description?: string };
@@ -327,6 +341,7 @@ export interface ProjectManifest {
   roles?: { id: string; name: string }[];
   policy?: Policy;
   architecture?: ArchitectureConfig;
+  design?: DesignConfig;
 }
 
 /** Умолчания политики повторяют `default` из project.schema.json. */
