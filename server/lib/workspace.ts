@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { load } from 'js-yaml';
 
 import type { SourceFile } from './analyze';
+import { onCacheDropped } from './cache';
 import { isIgnored, parseGitignore } from './ignore';
 import { coerceDates } from './parse';
 import { normalizeRoot, resolveInside, toProjectPath } from './paths';
@@ -96,7 +97,32 @@ export function sourceReader(root: string): (path: string) => string | null {
   };
 }
 
+/**
+ * Один заход на страницу — десяток запросов, и каждый заново обходил папку: у Kinfall это
+ * 611 записей и 866 файлов кода. Прочитанное держится 1,5 с на корень: запись
+ * через приложение сбрасывает его сразу (`dropCache`), правка файла руками видна не позже TTL.
+ * Это кэш производного (ADR-0001): пропал — ничего не потеряно.
+ */
+// Тесты пишут файлы мимо приложения и сразу читают их: им память не нужна.
+const WORKSPACE_TTL_MS = process.env['VITEST'] ? 0 : 1500;
+const workspaceMemo = new Map<string, { at: number; workspace: Workspace }>();
+const fingerprintMemo = new Map<string, { at: number; value: string }>();
+
+onCacheDropped((root) => {
+  workspaceMemo.delete(root);
+  fingerprintMemo.delete(root);
+});
+
 export function readWorkspace(root: string): Workspace {
+  const normalized = normalizeRoot(root);
+  const hit = workspaceMemo.get(normalized);
+  if (hit && Date.now() - hit.at < WORKSPACE_TTL_MS) return hit.workspace;
+  const workspace = readWorkspaceFresh(normalized);
+  workspaceMemo.set(normalized, { at: Date.now(), workspace });
+  return workspace;
+}
+
+function readWorkspaceFresh(root: string): Workspace {
   const normalized = normalizeRoot(root);
   const manifest = readManifest(normalized);
   const development = developmentDir(normalized);
@@ -282,6 +308,15 @@ export function invalidateWorkspace(root: string): void {
  * Ошибиться в сторону лишней пересборки безопасно.
  */
 export function fingerprintOnly(root: string): string {
+  const normalized = normalizeRoot(root);
+  const hit = fingerprintMemo.get(normalized);
+  if (hit && Date.now() - hit.at < WORKSPACE_TTL_MS) return hit.value;
+  const value = fingerprintOnlyFresh(normalized);
+  fingerprintMemo.set(normalized, { at: Date.now(), value });
+  return value;
+}
+
+function fingerprintOnlyFresh(root: string): string {
   const normalized = normalizeRoot(root);
   const manifest = readManifest(normalized);
   const development = developmentDir(normalized);

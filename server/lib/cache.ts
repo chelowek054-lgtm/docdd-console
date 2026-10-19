@@ -42,7 +42,15 @@ export function writeCache(root: string, index: ProjectIndex): void {
   }
 }
 
+const droppedListeners: Array<(root: string) => void> = [];
+
+/** Производные кэши в памяти (чтение папки, отпечатки) подписываются на любую запись в проект. */
+export function onCacheDropped(listener: (root: string) => void): void {
+  droppedListeners.push(listener);
+}
+
 export function dropCache(root: string): void {
+  for (const listener of droppedListeners) listener(normalizeRoot(root));
   try {
     rmSync(cachePath(root), { force: true });
   } catch {

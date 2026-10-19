@@ -46,7 +46,8 @@ const { data, refresh: refreshMap, status } = useFetch<MapResponse | { error: Ap
 /** Что стоит за возможностями в процессе — отдельный запрос: ему нужны требования, задачи и отчёты (docs/03-server-api.md). */
 const { data: coverageData, refresh: refreshCoverage } = useFetch<{ coverage: Record<string, CapabilityCoverage> } | { error: ApiFailure }>(
   () => `/api/projects/${projectId.value}/map/coverage`,
-  { key: () => `coverage:${projectId.value}` }
+  // Покрытие и нарушения дорисовываются после показа страницы: на сервере они держали бы ответ.
+  { key: () => `coverage:${projectId.value}`, server: false, lazy: true }
 );
 const coverage = computed(() => (coverageData.value && 'coverage' in coverageData.value ? coverageData.value.coverage : undefined));
 
@@ -62,7 +63,7 @@ interface ArchitectureResponse {
 /** Нарушения архитектуры по подтверждённой карте кода (docs/03-server-api.md, `GET /architecture`). */
 const { data: architectureData, refresh: refreshArchitecture } = useFetch<ArchitectureResponse | { error: ApiFailure }>(
   () => `/api/projects/${projectId.value}/architecture`,
-  { key: () => `architecture:${projectId.value}` }
+  { key: () => `architecture:${projectId.value}`, server: false, lazy: true }
 );
 const architecture = computed(() => (architectureData.value && 'enabled' in architectureData.value ? architectureData.value : undefined));
 
