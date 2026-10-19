@@ -54,7 +54,7 @@ export interface CodemapPart {
 }
 
 export interface DataflowPart {
-  sources?: { id: string; kind: string; where?: string; title?: string; declaredBy?: string; pending?: boolean }[];
+  sources?: { id: string; kind: string; where?: string; title?: string; parent?: string; declaredBy?: string; pending?: boolean }[];
   flows?: {
     from: string; to: string; direction: string; evidence: Evidence;
     status?: EvidenceVerdict; declaredBy?: string; pending?: boolean;

@@ -2,7 +2,7 @@
 id: T-0095
 type: task
 title: 'Экран карт: путь, ползунок глубины, раскрытие на месте, адрес ?group=а/б'
-status: ready
+status: in_review
 change: feature
 created: 2026-10-19
 updated: 2026-10-19
@@ -19,3 +19,5 @@ links:
 
 - 2026-10-19 · заведена · приложение
 - 2026-10-19 · готова к работе · architect
+- 2026-10-19 · в разработку · architect
+- 2026-10-19 · на проверку · architect

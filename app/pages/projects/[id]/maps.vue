@@ -659,14 +659,14 @@ const views = computed(() => {
       title: 'Кодовая база',
       question: 'Из чего состоит проект и что на что опирается',
       count: `${value.codemap.modules.length} модулей, ${value.codemap.imports.length} связей`,
-      ...(codemapView.value ?? codemapMermaid(value))
+      ...(codemapDepth.value ?? codemapView.value ?? codemapMermaid(value))
     },
     {
       key: 'dataflow',
       title: 'Потоки данных',
       question: 'Откуда данные приходят, где лежат и куда уходят',
       count: `${value.dataflow.sources.length} источников, ${value.dataflow.flows.length} потоков`,
-      ...(dataflowView.value ?? dataflowMermaid(value))
+      ...(dataflowDepth.value ?? dataflowView.value ?? dataflowMermaid(value))
     },
     {
       key: 'userflow',
@@ -680,7 +680,7 @@ const views = computed(() => {
       title: 'Функциональная карта',
       question: 'Что система умеет на языке предметной области, не кода',
       count: `${value.functional.capabilities.length} возможностей`,
-      ...functionalMermaid({ ...value, functional: functionalEffective.value }, statusFilter.value, {
+      ...(functionalDepth.value ?? functionalMermaid({ ...value, functional: functionalEffective.value }, statusFilter.value, {
         mode: capMode.value,
         level: capLevel.value,
         group: capGroupId.value || null,
@@ -691,7 +691,7 @@ const views = computed(() => {
         legendInside: false,
         selected: capFocus.value,
         impact: impactOn.value
-      })
+      }))
     }
   ];
   // Функциональная карта — основной источник правды: первая вкладка и открывается
@@ -801,6 +801,159 @@ function onEdgeClick(edge: MermaidEdge) {
   }
   selection.value = { kind: 'edge', evidence: edge.evidence, status: edge.status, declaredBy: edge.declaredBy };
 }
+
+// --- глубина карт (ADR-0027, T-0095) ---
+// Лежит в конце скрипта: карта M-0001 хранит номера строк-свидетельств выше.
+// Без вложенности или без ?depth=/?open= все три computed дают null, и экран
+// рисует прежние диаграммы (`?? ` в `views`).
+// eslint-disable-next-line import/first
+import { visibleAt } from '~~/server/lib/hierarchy';
+// eslint-disable-next-line import/first
+import { groupTree } from '~~/server/lib/groups';
+// eslint-disable-next-line import/first
+import { codeTree, foldFlows } from '~~/server/lib/flow-groups';
+// eslint-disable-next-line import/first
+import { overviewAt } from '~~/server/lib/functional';
+
+type DepthOutput = ReturnType<typeof functionalMermaid>;
+
+/** Глубина из адреса: уровень от корня (0 — верхние группы) и раскрытая на месте группа. */
+function depthParams(treeIds: ReadonlySet<string>): { level: number; open: string | null } | null {
+  const wanted = String(route.query['depth'] ?? '');
+  const rawOpen = String(route.query['open'] ?? '');
+  const open = rawOpen && treeIds.has(rawOpen) ? rawOpen : null;
+  const level = wanted === 'all' ? 99 : /^[1-9]$/.test(wanted) ? Number(wanted) - 1 : null;
+  if (level === null && open === null) return null;
+  // Внутри раскрытой группы уровень считается вниз от неё: меньше одного смысла нет.
+  return { level: open ? Math.max(level ?? 1, 1) : level ?? 0, open };
+}
+
+const foldId = (prefix: string, id: string) => `${prefix}_${id.replace(/[^a-zA-Zа-яА-Я0-9]/g, '_')}`;
+const foldText = (text: string) => text.replace(/["`]/g, "'").slice(0, 40);
+
+/** Свёрнутая диаграмма: узел с числом под ним и стрелка с числом связей на подписи. */
+function foldedDiagram(
+  nodes: readonly { key: string; title: string; size: number; expandable: boolean; summary?: string | undefined }[],
+  edges: readonly { from: string; to: string; count: number; label: string; evidence: MermaidEdge['evidence']; status?: MermaidEdge['status'] }[],
+  unit: string
+): DepthOutput {
+  const lines = ['flowchart LR'];
+  const out: DepthOutput = { text: '', details: {}, paths: {}, nodes: {}, edges: [], neighbors: {} };
+  for (const node of nodes) {
+    const id = foldId('d', node.key);
+    const tail = node.expandable ? `<br/>${node.size} ${unit}` : '';
+    lines.push(`    ${id}["${foldText(node.title)}${tail}"]`);
+    out.details[id] = node.expandable ? `${node.title}: свёрнуто ${node.size} ${unit}` : node.title;
+    out.nodes[id] = { id: node.key, title: node.title, ...(node.summary ? { summary: node.summary } : {}) };
+  }
+  for (const edge of edges) {
+    const from = foldId('d', edge.from);
+    const to = foldId('d', edge.to);
+    lines.push(`    ${from} -->|${edge.count > 1 ? `${edge.label} ×${edge.count}` : edge.label}| ${to}`);
+    out.edges.push({ from, to, evidence: edge.evidence, ...(edge.status ? { status: edge.status } : {}) });
+    (out.neighbors[from] ??= []).push(to);
+    (out.neighbors[to] ??= []).push(from);
+  }
+  out.text = lines.join('\n');
+  return out;
+}
+
+const NO_EVIDENCE = { path: '', line: 0, fragment: '' } as MermaidEdge['evidence'];
+
+const codemapDepth = computed<DepthOutput | null>(() => {
+  const value = map.value;
+  if (!value) return null;
+  const base = filteredCodemap.value ?? value.codemap;
+  const tree = groupTree(base.modules, base.imports, value.codemap.groups);
+  if (!tree.nodes.some((node) => node.parent)) return null;
+  const groupIds = new Set(tree.nodes.map((node) => node.id));
+  const params = depthParams(groupIds);
+  if (!params) return null;
+  // Модуль висит под своей самой глубокой группой; модуль с id группы деревом не дублируется.
+  const modules = new Set(base.modules.map((item) => item.id));
+  for (const edge of base.imports) { modules.add(edge.from); modules.add(edge.to); }
+  const treeNodes = [
+    ...tree.nodes.map((node) => ({ id: node.id, parent: node.parent })),
+    ...[...modules].filter((id) => !groupIds.has(id)).map((id) => ({ id, parent: tree.groupOf(id) }))
+  ];
+  const visible = (id: string) => visibleAt(id, treeNodes, params.open, params.level);
+  const sizes = new Map<string, number>();
+  for (const id of modules) sizes.set(visible(id), (sizes.get(visible(id)) ?? 0) + 1);
+  const titles = new Map(tree.nodes.map((node) => [node.id, node]));
+  const moduleById = new Map(base.modules.map((item) => [item.id, item]));
+  const folded = new Map<string, { from: string; to: string; count: number; evidence: MermaidEdge['evidence'] }>();
+  for (const edge of base.imports) {
+    const from = visible(edge.from);
+    const to = visible(edge.to);
+    if (from === to) continue;
+    const entry = folded.get(`${from}>${to}`) ?? { from, to, count: 0, evidence: edge.evidence };
+    entry.count += 1;
+    folded.set(`${from}>${to}`, entry);
+  }
+  return foldedDiagram(
+    [...sizes].map(([key, size]) => ({
+      key,
+      title: titles.get(key)?.title ?? moduleById.get(key)?.title ?? key,
+      size,
+      expandable: groupIds.has(key),
+      summary: titles.get(key)?.summary ?? moduleById.get(key)?.summary
+    })),
+    [...folded.values()].map((edge) => ({ ...edge, label: 'импорт' })),
+    'модулей'
+  );
+});
+
+const dataflowDepth = computed<DepthOutput | null>(() => {
+  const value = map.value;
+  const ctx = flowCtx.value;
+  if (!value || !ctx) return null;
+  const tree = codeTree(ctx);
+  if (!tree.some((node) => node.parent)) return null;
+  const params = depthParams(new Set(tree.map((node) => node.id)));
+  if (!params) return null;
+  const result = foldFlows(value.dataflow.flows as FlowItem[], ctx, {
+    codeLevel: params.level, sourceLevel: params.level, openCode: params.open
+  });
+  const groupTitles = new Map(ctx.grouping.groups.map((group) => [group.id, group.title ?? group.id]));
+  const sourceTitles = new Map(value.dataflow.sources.map((source) => [source.id, source.title ?? source.id]));
+  const nodes = new Map<string, { key: string; title: string; size: number; expandable: boolean }>();
+  const touch = (key: string, title: string, expandable: boolean, flows: number) => {
+    const node = nodes.get(key) ?? { key, title, size: 0, expandable };
+    node.size += flows;
+    nodes.set(key, node);
+  };
+  for (const link of result.links) {
+    touch(`c:${link.from}`, groupTitles.get(link.from) ?? link.from, groupTitles.has(link.from), link.count);
+    touch(`s:${link.to}`, sourceTitles.get(link.to) ?? link.to, false, link.count);
+  }
+  return foldedDiagram(
+    [...nodes.values()],
+    result.links.map((link) => ({
+      from: `c:${link.from}`,
+      to: `s:${link.to}`,
+      count: link.count,
+      label: link.direction,
+      evidence: link.flows[0]?.evidence ?? NO_EVIDENCE,
+      status: link.status
+    })),
+    'потоков'
+  );
+});
+
+const functionalDepth = computed<DepthOutput | null>(() => {
+  const { capabilities, relations } = functionalEffective.value;
+  if (!capabilities.some((item) => item.parent)) return null;
+  const params = depthParams(new Set(capabilities.map((item) => item.id)));
+  if (!params) return null;
+  const overview = overviewAt(capabilities, relations, params.open, params.level);
+  return foldedDiagram(
+    overview.nodes.map((node) => ({ key: node.id, title: node.title, size: node.size, expandable: node.expandable })),
+    overview.edges.map((edge) => ({
+      from: edge.from, to: edge.to, count: edge.count, label: edge.type, evidence: NO_EVIDENCE
+    })),
+    'возможностей'
+  );
+});
 </script>
 
 <template>
@@ -1193,7 +1346,7 @@ function onEdgeClick(edge: MermaidEdge) {
                 </template>
               </PromptPanel>
 
-              <CourseHistory :project-id="projectId" :history="map.functional.history" />
+              <MapDepthBar kind="functional" :capabilities="functionalEffective.capabilities" /><CourseHistory :project-id="projectId" :history="map.functional.history" />
 
               <FunctionalSummary
                 v-if="functionalProgress.total > 0"
@@ -1269,7 +1422,7 @@ function onEdgeClick(edge: MermaidEdge) {
 
             <template v-else>
               <!-- Легенда — полоса над схемой, вне холста (docs/04-ui.md, «Легенда кодовой базы, потоков и путей»). -->
-              <ArchitectureNote v-if="shown === 'codemap'" :project-id="projectId" :report="architecture" />
+              <MapDepthBar v-if="shown !== 'userflow'" :kind="shown === 'dataflow' ? 'dataflow' : 'codemap'" :modules="map.codemap.modules" :imports="map.codemap.imports" :groups="map.codemap.groups" /><ArchitectureNote v-if="shown === 'codemap'":project-id="projectId" :report="architecture" />
               <MapLegendBar v-if="current.mapLegend" :items="current.mapLegend" />
               <p v-if="!current.text" class="text-sm text-muted">
                 В подтверждённых картах эта структура не описана.

@@ -204,3 +204,104 @@ export function flowGhosts(
     flows: outside.map((flow) => ({ ...flow, from: `group:${codeGroupOf(flow.from, context)}` }))
   };
 }
+
+// --- вложенность любой глубины (ADR-0027, T-0094) ---
+
+// Импорт в конце файла: сверху не сдвигаем строки, на которые ссылается карта M-0001.
+import { foldEdges, visibleAt, type TreeNode } from './hierarchy';
+
+/** Источник с необязательным родителем: другим источником той же карты. */
+export interface FlowSourceNode extends FlowSource {
+  parent?: string | undefined;
+}
+
+/** Дерево источников по цепочке `parent`; расчёт обрывает циклы и призраков сам. */
+export function sourceTree(sources: readonly FlowSourceNode[]): TreeNode[] {
+  return sources.map((source) => ({ id: source.id, parent: source.parent }));
+}
+
+/**
+ * Дерево концов-модулей: уровни берутся из групп кодовой карты. Родитель группы
+ * читается необязательным полем `parent` (его добавляет groups.ts), модуль
+ * висит под своей группой. Модуль с id группы деревом не дублируется.
+ */
+export function codeTree(context: FlowContext): TreeNode[] {
+  const nodes: TreeNode[] = [];
+  const groupIds = new Set(context.grouping.groups.map((group) => group.id));
+  for (const group of context.grouping.groups) {
+    // groups.ts может ещё не отдавать parent у Group — тогда группа верхняя.
+    nodes.push({ id: group.id, parent: (group as { parent?: string }).parent });
+  }
+  for (const group of context.grouping.groups) {
+    for (const member of group.members) {
+      if (!groupIds.has(member.id)) nodes.push({ id: member.id, parent: group.id });
+    }
+  }
+  return nodes;
+}
+
+export interface FoldedFlow {
+  from: string;
+  to: string;
+  count: number;
+  direction: FlowDirection;
+  status: EvidenceVerdict;
+  /** Исходные потоки: свёрнутую связь всегда можно развернуть до свидетельств. */
+  flows: FlowItem[];
+}
+
+export interface FoldedFlows {
+  links: FoldedFlow[];
+  /** Потоки, оба конца которых свернулись в один видимый узел (невозможно для разных пространств id, но считаем). */
+  internal: number;
+}
+
+export interface FoldFlowsOptions {
+  /** Видимый уровень концов-модулей; 0 — корень. */
+  codeLevel: number;
+  /** Видимый уровень источников. */
+  sourceLevel: number;
+  /** Группа кода, раскрытая на месте. */
+  openCode?: string | null;
+  /** Источник, раскрытый на месте. */
+  openSource?: string | null;
+}
+
+/**
+ * Свёртка потоков к видимому уровню: `from` идёт по дереву кода, `to` — по
+ * цепочке `parent` у источников. Направление — как у `mergeDirections`.
+ */
+export function foldFlows(
+  flows: readonly FlowItem[],
+  context: FlowContext,
+  options: FoldFlowsOptions
+): FoldedFlows {
+  const code = codeTree(context);
+  const sources = sourceTree([...context.sources.values()]);
+  // Пространства id модулей и источников могут пересечься — разводим префиксом.
+  const edges = flows.map((flow, index) => ({
+    from: `c:${flow.from}`, to: `s:${flow.to}`, kind: flow.direction, verdict: flow.status ?? 'ok', index
+  }));
+  const visible = (id: string): string => {
+    const raw = id.slice(2);
+    return id.startsWith('c:')
+      ? `c:${visibleAt(raw, code, options.openCode ?? null, options.codeLevel)}`
+      : `s:${visibleAt(raw, sources, options.openSource ?? null, options.sourceLevel)}`;
+  };
+  // worstStatus читает только статусы; evidence для него не нужен.
+  const worstOf = (verdicts: string[]): string => worstStatus(
+    verdicts.map((status) => ({ from: '', to: '', evidence: undefined as unknown as Evidence, status: status as EvidenceVerdict }))
+  );
+  const folded = foldEdges(edges, visible, worstOf);
+  return {
+    internal: folded.internal,
+    links: folded.edges.map((edge) => ({
+      from: edge.from.slice(2),
+      to: edge.to.slice(2),
+      count: edge.count,
+      direction: mergeDirections(edge.kinds),
+      status: (edge.worst ?? 'ok') as EvidenceVerdict,
+      flows: edge.members.map((member) => flows[(member as unknown as { index: number }).index]!)
+    }))
+  };
+}
