@@ -4,6 +4,7 @@ import { OutsideRootError } from '../../../../lib/paths';
 import { WorkspaceError } from '../../../../lib/workspace';
 import { projectDesign } from '../../../../utils/design-service';
 import { fail } from '../../../../utils/http';
+import { fingerprintWithSources, memoByFingerprint } from '../../../../utils/memo';
 import { findProject } from '../../../../utils/projects';
 
 /**
@@ -19,7 +20,12 @@ export default defineEventHandler(async (event) => {
 
   try {
     const { tokens, checks, contrast, conflicts, problems, sources, empty, connected, componentsMissing, stacks } =
-      projectDesign(project.root);
+      memoByFingerprint(
+        project.root,
+        'design',
+        () => fingerprintWithSources(project.root),
+        () => projectDesign(project.root)
+      );
     return { tokens, checks, contrast, conflicts, problems, sources, empty, connected, componentsMissing, stacks };
   } catch (error) {
     if (error instanceof OutsideRootError) {

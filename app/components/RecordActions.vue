@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import type { RecordAction } from '~~/server/lib/types';
+import type { IndexRecord } from '~~/server/lib/types';
 
 const props = defineProps<{
   projectId: string;
@@ -9,7 +10,7 @@ const props = defineProps<{
   roles: { id: string; name: string }[];
 }>();
 
-const emit = defineEmits<{ changed: [] }>();
+const emit = defineEmits<{ changed: [record?: IndexRecord] }>();
 
 const actor = ref(props.roles[0]?.id ?? '');
 const busy = ref('');
@@ -21,7 +22,7 @@ async function run(action: RecordAction) {
   failure.value = null;
   done.value = '';
   try {
-    const response = await $fetch<{ journal?: string } | { error: ApiFailure }>(
+    const response = await $fetch<{ journal?: string; record?: IndexRecord } | { error: ApiFailure }>(
       `/api/projects/${props.projectId}/records/${props.recordId}/status`,
       {
         method: 'POST',
@@ -36,7 +37,7 @@ async function run(action: RecordAction) {
       return;
     }
     done.value = (response as { journal?: string }).journal ?? '';
-    emit('changed');
+    emit('changed', (response as { record?: IndexRecord }).record);
   } finally {
     busy.value = '';
   }

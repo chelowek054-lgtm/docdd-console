@@ -5,7 +5,7 @@ const route = useRoute();
 const router = useRouter();
 const projectId = computed(() => String(route.params['id'] ?? ''));
 
-const { index, failure, records, byId, refresh } = useProjectIndex(projectId);
+const { index, failure, records, byId, refresh, patchStatuses } = useProjectIndex(projectId);
 
 /**
  * Проектные документы, решения и контракты — один экран, а не три: вопрос к
@@ -61,6 +61,9 @@ const status = useStatusFilter(statuses);
 const documents = computed(() => (status.value ? listed.value.filter((record) => record.status === status.value) : listed.value));
 
 const selection = useSelection(documents);
+const chunk = useChunked(documents);
+const onBulkDone = (results?: BulkMoved[]) => { selection.clear(); if (results) patchStatuses(results); else void refresh(); };
+
 
 /** Кто опирается: задачи, которые документ правят, и записи, что его уточняют или стоят на решении. */
 function reliedOnBy(document: IndexRecord): string[] {
@@ -137,7 +140,7 @@ const EMPTY: Record<string, string> = {
         :total="documents.length"
         :roles="index?.project.roles ?? []"
         kind="document"
-        @done="selection.clear(); refresh()"
+        @done="onBulkDone"
       />
 
       <div v-if="listed.length === 0" class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted">
@@ -172,7 +175,7 @@ const EMPTY: Record<string, string> = {
             </tr>
           </thead>
           <tbody class="divide-y divide-default">
-            <tr v-for="document in documents" :key="document.path">
+            <tr v-for="document in chunk.visible.value" :key="document.path">
               <td class="p-3">
                 <UCheckbox
                   :model-value="selection.has(document.id)"
@@ -243,6 +246,9 @@ const EMPTY: Record<string, string> = {
             </tr>
           </tbody>
         </table>
+        <div v-if="chunk.rest.value > 0" class="border-t border-default p-3 text-center">
+          <UButton variant="ghost" color="neutral" @click="chunk.more()">Показать ещё {{ Math.min(chunk.step, chunk.rest.value) }}</UButton>
+        </div>
       </div>
     </template>
   </div>

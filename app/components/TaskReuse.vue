@@ -11,7 +11,7 @@ import type { IndexRecord } from '~~/server/lib/types';
 const props = defineProps<{ projectId: string; task: IndexRecord; records: IndexRecord[] }>();
 const emit = defineEmits<{ changed: [] }>();
 
-const { data } = useFetch<{ enabled: boolean } | { error: ApiFailure }>(
+const { data } = useLazyFetch<{ enabled: boolean } | { error: ApiFailure }>(
   () => `/api/projects/${props.projectId}/reference`,
   { key: () => `reference-on:${props.projectId}` }
 );

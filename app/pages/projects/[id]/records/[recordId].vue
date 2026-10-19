@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import type { LinkKind } from '~~/server/lib/types';
+import type { IndexRecord } from '~~/server/lib/types';
 
 const route = useRoute();
 const projectId = computed(() => String(route.params['id'] ?? ''));
 const recordId = computed(() => String(route.params['recordId'] ?? ''));
 
 const { detail, failure, refresh } = useRecord(projectId, recordId);
-const { byId, index, refresh: refreshIndex } = useProjectIndex(projectId);
+const { byId, index, patchRecord } = useProjectIndex(projectId);
 
 /** После действия перечитываем и запись, и индекс: статус меняет обе картины. */
-async function reload() {
-  await Promise.all([refresh(), refreshIndex()]);
+async function reload(record?: IndexRecord) {
+  if (record) patchRecord(record);
+  await refresh();
 }
 
 const LINK_LABELS: Record<LinkKind, string> = {

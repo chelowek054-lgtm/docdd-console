@@ -5,6 +5,7 @@ import { WorkspaceError } from '../../../../lib/workspace';
 import { fail } from '../../../../utils/http';
 import { buildProjectMap } from '../../../../utils/map-service';
 import { findProject } from '../../../../utils/projects';
+import { fingerprintProject, memoByFingerprint } from '../../../../utils/memo';
 
 /*
  * Маршрут `/api/projects/:id/map`. Папка `map` внутри `[id]` — тот же приём,
@@ -18,7 +19,8 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    return buildProjectMap(project.root);
+    // Память процесса: пока отпечаток файлов проекта тот же, карта не пересобирается (T-0102).
+    return memoByFingerprint(project.root, 'map', () => fingerprintProject(project.root), () => buildProjectMap(project.root));
   } catch (error) {
     if (error instanceof WorkspaceError) {
       return fail(event, 422, error.code, error.message, error.detail);

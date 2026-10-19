@@ -10,7 +10,7 @@ import type { ReferenceReport } from '~~/server/utils/reference-service';
 const route = useRoute();
 const projectId = computed(() => String(route.params['id'] ?? ''));
 
-const { data, refresh } = useFetch<ReferenceReport | { error: ApiFailure }>(
+const { data, refresh } = useLazyFetch<ReferenceReport | { error: ApiFailure }>(
   () => `/api/projects/${projectId.value}/reference`,
   { key: () => `reference:${projectId.value}` }
 );
@@ -44,7 +44,9 @@ const KIND_LABEL: Record<string, string> = { component: 'компонент', ap
   <div class="space-y-5">
     <ProjectFailure v-if="failure" :failure="failure" />
 
-    <template v-else-if="report">
+    <p v-else-if="!report" class="text-sm text-muted">Загружаем…</p>
+
+    <template v-else>
       <h1 class="text-xl font-semibold">Справочник</h1>
 
       <UAlert

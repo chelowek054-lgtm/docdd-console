@@ -12,7 +12,7 @@ import type {
   WorkRecord
 } from './types';
 import { LINK_KINDS } from './types';
-import { readWorkspace, sourceReader, type Workspace } from './workspace';
+import { onWorkspaceInvalidated, readWorkspace, sourceReader, type Workspace } from './workspace';
 import { recordOfBranch } from './branch';
 import { hasChangesSync, workBranchesSync } from '../utils/git';
 import type { DesignReport } from './design-screens';
@@ -51,7 +51,7 @@ export function buildIndex(root: string, now = new Date(), generalRules: readonl
     readSource: sourceReader(root),
     // Состояние работы: ветки и деревья задач. Git смотрим здесь, чтобы правила
     // остались чистыми функциями над данными.
-    work: workState(root),
+    work: cachedWorkState(root),
     generalRules,
     sharedReferences,
     designReports,
@@ -133,4 +133,23 @@ function toIndexRecord(record: WorkRecord, graph: Parameters<typeof incomingEdge
 
 function stringOrNull(value: unknown): string | null {
   return typeof value === 'string' ? value : null;
+}
+
+/**
+ * Ветки и деревья задач стоят запуска git; за 5 секунд они не меняются так,
+ * чтобы это было заметно, а наши записи сбрасывают кэш сами.
+ */
+const WORK_STATE_TTL_MS = 5000;
+const workStates = new Map<string, { at: number; state: ReturnType<typeof workState> }>();
+onWorkspaceInvalidated(() => {
+  workStates.clear();
+});
+
+function cachedWorkState(root: string): ReturnType<typeof workState> {
+  const key = root;
+  const hit = workStates.get(key);
+  if (hit && Date.now() - hit.at < WORK_STATE_TTL_MS) return hit.state;
+  const state = workState(root);
+  workStates.set(key, { at: Date.now(), state });
+  return state;
 }

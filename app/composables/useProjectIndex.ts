@@ -5,6 +5,8 @@ import type { IndexRecord, ProjectEntry, ProjectIndex, RecordDetail } from '~~/s
  * знают о путях — только эти вызовы (docs/01-architecture.md).
  */
 
+export interface BulkMoved { id: string; ok: boolean; to: string }
+
 export interface ApiFailure {
   code: string;
   message: string;
@@ -48,7 +50,30 @@ export function useProjectIndex(projectId: MaybeRefOrGetter<string>) {
     await state.refresh();
   }
 
-  return { ...state, index, failure, records, byType, byId, errors, warnings, refresh };
+  /**
+   * Подставляет запись из ответа маршрута в уже загруженный индекс — без
+   * сетевого запроса: смена статуса не должна стоить полного перечитывания.
+   * Возвращает прежнюю запись, чтобы вызвавший мог откатить.
+   */
+  function patchRecord(record: Partial<IndexRecord> & { id: string }): IndexRecord | null {
+    const current = state.data.value as ProjectIndex | { error: ApiFailure } | null;
+    if (!current || failureOf(current)) return null;
+    const list = (current as ProjectIndex).records;
+    const at = list.findIndex((item) => item.id === record.id);
+    if (at === -1) return null;
+    const before = list[at]!;
+    const next = list.slice();
+    next[at] = { ...before, ...record };
+    state.data.value = { ...(current as ProjectIndex), records: next };
+    return before;
+  }
+
+  /** Итог массового действия: статусы ложатся в список сразу, без запроса. */
+  function patchStatuses(results: BulkMoved[]) {
+    for (const item of results) if (item.ok) patchRecord({ id: item.id, status: item.to });
+  }
+
+  return { ...state, index, failure, records, byType, byId, errors, warnings, refresh, patchRecord, patchStatuses };
 }
 
 export function useRecord(projectId: MaybeRefOrGetter<string>, recordId: MaybeRefOrGetter<string>) {
@@ -62,6 +87,18 @@ export function useRecord(projectId: MaybeRefOrGetter<string>, recordId: MaybeRe
   const failure = computed(() => failureOf(state.data.value));
   const detail = computed(() => (failure.value ? null : (state.data.value as RecordDetail | null)));
   return { ...state, detail, failure };
+}
+
+/** Порция длинного списка: «Показать ещё N» вместо отрисовки тысяч строк разом. */
+export function useChunked<T>(items: MaybeRefOrGetter<T[]>, step = 100) {
+  const limit = ref(step);
+  const all = computed(() => toValue(items));
+  const visible = computed(() => all.value.slice(0, limit.value));
+  const rest = computed(() => Math.max(0, all.value.length - limit.value));
+  const more = () => { limit.value += step; };
+  // Смена набора (фильтр) начинает список заново.
+  watch(() => all.value.length, () => { limit.value = step; });
+  return { visible, rest, more, step };
 }
 
 export { failureOf };

@@ -615,16 +615,17 @@ export function drawableRelations<R extends RelationLike>(
 /** Верхний предок возможности — её группа; сама возможность без родителя — группа сама себе. */
 export function rootOf(id: string, capabilities: readonly CapabilityLike[]): string {
   const byId = new Map(capabilities.map((item) => [item.id, item]));
-  const seen = new Set<string>();
-  let at = byId.get(id);
-  while (at && !seen.has(at.id)) {
-    seen.add(at.id);
-    const parent = parentOf(at, byId);
-    if (!parent) return at.id;
-    at = byId.get(parent);
-  }
-  return id;
+  if (!byId.has(id)) return id;
+  // Обрыв цикла — как у ancestors() (hierarchy.ts, ADR-0027); при цикле корня нет.
+  const nodes = [...byId.values()].map((item) => ({ id: item.id, parent: item.parent }));
+  const last = ancestors(id, nodes).at(-1) ?? id;
+  return parentOf(byId.get(last)!, byId) ? id : last;
 }
+
+
+
+
+
 
 export interface FunctionalGroup {
   id: string;
@@ -1077,4 +1078,113 @@ export function capabilityLines(capabilities: readonly CapabilityLike[]): string
       return `${'  '.repeat(depthOf(item.id))}- \`${item.id}\`${item.title ? ` — ${item.title}` : ''} (${mark}${note})`;
     })
     .join(LF);
+}
+
+// --- обзор на любой глубине (ADR-0027, docs/07-maps.md «Функциональная карта») ---
+// Лежит в конце файла: карта M-0001 хранит номера строк-свидетельств, поэтому
+// код выше не сдвигаем. Импорт стоит здесь же по той же причине (ES-импорты поднимаются).
+import { ancestors, cyclesAt, foldEdges, visibleAt, type TreeNode } from './hierarchy';
+
+/** Узел обзора: видимая на заданном уровне возможность или свёрнутая группа. */
+export interface OverviewNode {
+  id: string;
+  title: string;
+  /** Сколько возможностей свёрнуто под узлом (сам узел-лист — одна). */
+  size: number;
+  progress: Progress;
+  status: ImplStatus | null;
+  /** Под узлом есть ещё уровни: его можно раскрыть. */
+  expandable: boolean;
+}
+
+/** Стрелка обзора: свёрнутые связи одного вида между двумя видимыми узлами. */
+export interface OverviewEdge {
+  from: string;
+  to: string;
+  type: RelationType;
+  count: number;
+  /** Исходные связи: стрелку можно развернуть до опоры внизу. */
+  members: RelationLike[];
+  /** Хоть одна из свёрнутых связей — «ждёт». */
+  waiting: boolean;
+}
+
+export interface Overview {
+  nodes: OverviewNode[];
+  edges: OverviewEdge[];
+  /** Связи, оба конца которых свернулись в один узел. */
+  internal: number;
+  /** Видимые узлы, что ждут друг друга по кругу (`depends`). */
+  cycle: Set<string>;
+}
+
+/**
+ * Обзор на уровне `level` (0 — корни) или внутри открытой на месте группы
+ * `openId`. Для `openId = null, level = 0` совпадает с `groupLevel`.
+ * Родитель-призрак и цикл `parent` не роняют расчёт — это забота hierarchy.
+ */
+export function overviewAt(
+  capabilities: readonly CapabilityLike[],
+  relations: readonly RelationLike[],
+  openId: string | null,
+  level: number
+): Overview {
+  const nodesTree: TreeNode[] = capabilities.map((item) => ({ id: item.id, parent: item.parent }));
+  const visible = (id: string): string => visibleAt(id, nodesTree, openId, level);
+  const index = childrenIndex(capabilities);
+  const byId = new Map(capabilities.map((item) => [item.id, item]));
+  const states = statesOf(capabilities);
+
+  const sizes = new Map<string, number>();
+  for (const item of capabilities) {
+    const v = visible(item.id);
+    sizes.set(v, (sizes.get(v) ?? 0) + 1);
+  }
+  const nodes: OverviewNode[] = [];
+  for (const [id, size] of sizes) {
+    const item = byId.get(id);
+    if (!item) continue;
+    nodes.push({
+      id,
+      title: item.title ?? id,
+      size,
+      progress: progressOf(leavesUnder(id, index, byId)),
+      status: states.get(id)?.status ?? null,
+      expandable: (index.get(id) ?? []).length > 0
+    });
+  }
+
+  const waiting = waitingOn(capabilities, relations);
+  const drawn = drawableRelations(relations, capabilities).drawn.filter((r) => isRelationType(r.type));
+  const folded = foldEdges(
+    drawn.map((r) => ({ from: r.from, to: r.to, kind: r.type })),
+    visible
+  );
+  // Свёртка не различает вид связи в ключе, поэтому делим по видам сами:
+  // стрелка «зависит» и стрелка «использует» между теми же узлами — разные.
+  const byKey = new Map<string, OverviewEdge>();
+  for (const edge of folded.edges) {
+    for (const member of edge.members) {
+      const original = drawn.find((r) => r.from === member.from && r.to === member.to && r.type === member.kind) as RelationLike;
+      const type = original.type as RelationType;
+      const key = `${edge.from}>${edge.to}:${type}`;
+      const out = byKey.get(key) ?? { from: edge.from, to: edge.to, type, count: 0, members: [], waiting: false };
+      out.count += 1;
+      out.members.push(original);
+      out.waiting = out.waiting || (waiting.get(original.from) ?? []).includes(original.to);
+      byKey.set(key, out);
+    }
+  }
+  const edges = [...byKey.values()];
+  const cycle = new Set(cyclesAt(edges.filter((e) => e.type === 'depends')).flat());
+  return { nodes, edges, internal: folded.internal, cycle };
+}
+
+/** Раскрытая на месте группа: её дети на один уровень ниже, соседи свёрнуты до её уровня. */
+export function openGroupOverview(
+  capabilities: readonly CapabilityLike[],
+  relations: readonly RelationLike[],
+  openId: string
+): Overview {
+  return overviewAt(capabilities, relations, openId, 1);
 }

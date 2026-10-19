@@ -153,16 +153,16 @@ export function declaredGroupOf(module: Pick<GroupModule, 'id' | 'path'>, declar
  * цепочки. `parent` на несуществующую группу — группа считается верхней.
  */
 function topOf(id: string, byId: ReadonlyMap<string, DeclaredGroup>): string {
-  const seen = new Set<string>();
-  let at = id;
-  while (!seen.has(at)) {
-    seen.add(at);
-    const parent = byId.get(at)?.parent;
-    if (!parent || parent === at || !byId.has(parent)) return at;
-    at = parent;
-  }
-  return at;
+  // Обрыв цикла и призрак-родитель — как у ancestors() (hierarchy.ts, ADR-0027);
+  // при цикле верхней считается точка, где он замкнулся.
+  const nodes = [...byId].map(([key, g]) => ({ id: key, parent: g.parent }));
+  const last = ancestors(id, nodes).at(-1) ?? id;
+  const next = byId.get(last)?.parent;
+  return next && byId.has(next) ? next : last;
 }
+
+
+
 
 export function groupModules(
   modules: readonly GroupModule[],
@@ -375,5 +375,157 @@ export function ghostNeighbors(
       const key = grouping.groupOf(otherEnd(item));
       return item.from === moduleId ? { ...item, to: ghostId(key) } : { ...item, from: ghostId(key) };
     })
+  };
+}
+
+// --- дерево групп на всю глубину (ADR-0027, T-0092) ---
+// Новое лежит в конце файла: карта M-0001 хранит номера строк-свидетельств, а
+// старые функции выше остаются как были — они по-прежнему сжимают группу до
+// верхней (один уровень), и экран, который их зовёт, не меняется.
+// Импорт в конце допустим: объявления поднимаются, порядок не важен.
+// (Плагина import/first в линтере нет, поэтому правило не отключается.)
+import { ancestors, foldEdges, visibleAt, type Edge, type FoldedEdge, type FoldResult, type TreeNode } from './hierarchy';
+
+export interface GroupTreeNode extends TreeNode {
+  title: string;
+  auto: boolean;
+  declaredBy?: string | undefined;
+  summary?: string | undefined;
+  capability?: string | undefined;
+  /** Модули, у которых это самая глубокая подходящая группа (без потомков). */
+  members: GroupModule[];
+}
+
+export interface GroupTree {
+  nodes: GroupTreeNode[];
+  /** Самая глубокая группа модуля; модуля, которого карта не называла, — по автоматическому правилу. */
+  groupOf: (moduleId: string) => string;
+}
+
+/** Цепочка id автоматических групп от корня к самой глубокой: id — путь каталога. */
+function autoChain(module: Pick<GroupModule, 'id' | 'path'>): string[] {
+  const path = pathOf(module);
+  if (path) {
+    const dirs = path.split('/').filter(Boolean).slice(0, -1);
+    return dirs.length === 0 ? [ROOT_GROUP] : dirs.map((_, i) => dirs.slice(0, i + 1).join('/'));
+  }
+  if (!module.id.includes('/')) {
+    const parts = module.id.split('.').filter(Boolean).slice(0, -1);
+    if (parts.length >= 1 && module.id.split('.').filter(Boolean).length >= 2) {
+      return parts.map((_, i) => parts.slice(0, i + 1).join('.'));
+    }
+  }
+  return [OTHER_GROUP];
+}
+
+/**
+ * Дерево групп по всему дереву каталогов плюс объявленные группы с их `parent`.
+ * Автоматическая группа без собственных модулей и с одним ребёнком схлопывается
+ * в него: цепочка `a → a/b → a/b/c` без файлов на промежуточных уровнях не
+ * даёт лишних щелчков при раскрытии.
+ */
+export function groupTree(
+  modules: readonly GroupModule[],
+  imports: readonly GroupImport[],
+  declared: readonly DeclaredGroup[] = []
+): GroupTree {
+  const declaredById = new Map(declared.map((group) => [group.id, group]));
+  const everyone: GroupModule[] = [...modules];
+  const known = new Set(modules.map((module) => module.id));
+  for (const item of imports) {
+    for (const id of [item.from, item.to]) {
+      if (!known.has(id)) {
+        known.add(id);
+        everyone.push({ id });
+      }
+    }
+  }
+
+  const nodes = new Map<string, GroupTreeNode>();
+  const placed = new Map<string, string>();
+  const ensureAuto = (id: string, parent: string | undefined): void => {
+    if (!nodes.has(id)) nodes.set(id, { id, parent, title: id, auto: true, members: [] });
+  };
+  const ensureDeclared = (start: string): void => {
+    const seen = new Set<string>();
+    let at: string | undefined = start;
+    while (at !== undefined && !seen.has(at) && declaredById.has(at)) {
+      seen.add(at);
+      const info = declaredById.get(at) as DeclaredGroup;
+      const parent: string | undefined = info.parent && info.parent !== at && declaredById.has(info.parent) ? info.parent : undefined;
+      if (!nodes.has(at)) {
+        nodes.set(at, {
+          id: at, parent, title: info.title ?? at, auto: false, summary: info.summary,
+          capability: info.capability, declaredBy: info.declaredBy, members: []
+        });
+      }
+      at = parent;
+    }
+  };
+
+  for (const module of everyone) {
+    const named = declaredGroupOf(module, declared);
+    let key: string;
+    if (named) {
+      ensureDeclared(named);
+      key = named;
+    } else {
+      const chain = autoChain(module);
+      chain.forEach((id, i) => ensureAuto(id, i > 0 ? chain[i - 1] : undefined));
+      key = chain[chain.length - 1] as string;
+    }
+    nodes.get(key)?.members.push(module);
+    placed.set(module.id, key);
+  }
+
+  // Схлопывание цепочек из одного ребёнка (только автоматические и пустые).
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const node of [...nodes.values()]) {
+      if (!node.auto || node.members.length > 0) continue;
+      const children = [...nodes.values()].filter((other) => other.parent === node.id);
+      if (children.length !== 1) continue;
+      (children[0] as GroupTreeNode).parent = node.parent;
+      nodes.delete(node.id);
+      changed = true;
+    }
+  }
+
+  return {
+    nodes: [...nodes.values()],
+    groupOf: (moduleId) => placed.get(moduleId) ?? autoGroupOf({ id: moduleId })
+  };
+}
+
+export interface FoldedGroupImports extends FoldResult {
+  /** Исходные импорты свёрнутой стрелки — чтобы развернуть её до модулей. */
+  importsOf: (edge: FoldedEdge) => GroupImport[];
+}
+
+/**
+ * Импорты, свёрнутые до видимого уровня дерева групп. `worst` — по рангу
+ * вердиктов `worstStatus` (тот же, что у свёртки уровня 1). `level` 0 — верхние
+ * группы; `openId` — группа, раскрытая на месте (см. `visibleAt`).
+ */
+export function foldGroupImports(
+  tree: GroupTree,
+  imports: readonly GroupImport[],
+  options: { openId?: string | null; level?: number } = {}
+): FoldedGroupImports {
+  const origin = new Map<Edge, GroupImport>();
+  const edges: Edge[] = imports.map((item) => {
+    const edge: Edge = { from: item.from, to: item.to, ...(item.status ? { verdict: item.status } : {}) };
+    origin.set(edge, item);
+    return edge;
+  });
+  const visible = (id: string): string => visibleAt(tree.groupOf(id), tree.nodes, options.openId ?? null, options.level ?? 0);
+  // worstStatus ждёт импорты целиком; от них ему нужен только статус.
+  const worstOf = (verdicts: string[]): string =>
+    worstStatus(verdicts.map((status) => ({ status: status as EvidenceVerdict }) as GroupImport));
+  const folded = foldEdges(edges, visible, worstOf);
+  return {
+    ...folded,
+    importsOf: (edge) => edge.members.flatMap((member) => origin.get(member) ?? [])
   };
 }

@@ -7,7 +7,7 @@ import { checkTransition, type RuleContext } from '../lib/rules';
 import { validateFrontMatter } from '../lib/schema';
 import { parseRecord } from '../lib/parse';
 import type { IndexRecord, Violation, WorkRecord } from '../lib/types';
-import { readWorkspace, type Workspace } from '../lib/workspace';
+import { invalidateWorkspace, readWorkspace, type Workspace } from '../lib/workspace';
 import type { WriteOutcome } from '../lib/actions';
 import { loadIndex } from './index-service';
 import { refreshReferenceIndex } from './reference-service';
@@ -110,6 +110,7 @@ export function writeRecord(
   writeFileSync(context.absolute, outcome.text, 'utf8');
   // Кэш производный, но устаревший кэш показал бы прежний статус: сбрасываем.
   dropCache(root);
+  invalidateWorkspace(root);
   // Справка или карта изменились — индекс справочника пересобирается сам (docs/13-reference.md).
   if (context.record.type === 'reference' || context.record.type === 'map') refreshReferenceIndex(root);
   return { ok: true };
@@ -120,4 +121,30 @@ export function today(now = new Date()): string {
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const day = String(now.getDate()).padStart(2, '0');
   return `${now.getFullYear()}-${month}-${day}`;
+}
+
+
+/**
+ * Один снимок для смены статуса: запись и ответ правил из одного чтения и
+ * одного разбора, а не из двух подряд.
+ */
+export function openRecordWithBlockers(
+  root: string,
+  recordId: string,
+  to: string
+): { context: RecordContext; blockers: Violation[] } | null {
+  const workspace = readWorkspace(root);
+  const result = analyze({
+    files: workspace.files,
+    manifest: workspace.manifest,
+    reports: workspace.reports,
+    codeFiles: workspace.codeFiles
+  });
+
+  const record = result.records.find((item) => item.id === recordId);
+  if (!record) return null;
+
+  const absolute = resolveInside(root, record.source.path);
+  const context = { workspace, record, absolute, original: readFileSync(absolute, 'utf8'), rules: result.context };
+  return { context, blockers: checkTransition(record, to, result.context) };
 }
