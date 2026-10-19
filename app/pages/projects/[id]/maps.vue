@@ -807,13 +807,15 @@ function onEdgeClick(edge: MermaidEdge) {
 // Без вложенности или без ?depth=/?open= все три computed дают null, и экран
 // рисует прежние диаграммы (`?? ` в `views`).
 // eslint-disable-next-line import/first
-import { visibleAt } from '~~/server/lib/hierarchy';
+import { visibleAt, type Edge as HierarchyEdge, type TreeNode } from '~~/server/lib/hierarchy';
 // eslint-disable-next-line import/first
 import { groupTree } from '~~/server/lib/groups';
 // eslint-disable-next-line import/first
 import { codeTree, foldFlows } from '~~/server/lib/flow-groups';
 // eslint-disable-next-line import/first
-import { overviewAt } from '~~/server/lib/functional';
+import { COVERAGE_LABEL, IMPL_LABEL, filterLeaves, isImplStatus, overviewAt, planPredicate } from '~~/server/lib/functional';
+// eslint-disable-next-line import/first
+import type { LinkCard, MermaidNode } from '~/utils/map-mermaid';
 
 type DepthOutput = ReturnType<typeof functionalMermaid>;
 
@@ -831,28 +833,147 @@ function depthParams(treeIds: ReadonlySet<string>): { level: number; open: strin
 const foldId = (prefix: string, id: string) => `${prefix}_${id.replace(/[^a-zA-Zа-яА-Я0-9]/g, '_')}`;
 const foldText = (text: string) => text.replace(/["`]/g, "'").slice(0, 40);
 
-/** Свёрнутая диаграмма: узел с числом под ним и стрелка с числом связей на подписи. */
+/** Выбранный узел свёрнутой диаграммы: от него — призраки-соседи вне раскрытой группы. */
+const foldFocus = ref<string | null>(null);
+watch(selection, (value) => {
+  if (!value) foldFocus.value = null;
+  else if (value.kind === 'node' && !value.ghost) foldFocus.value = value.id;
+});
+
+/** Лежит ли узел под раскрытой на месте группой; без раскрытой группы — всё «внутри». */
+function underFn(open: string | null, nodes: readonly TreeNode[]): (id: string) => boolean {
+  if (!open) return () => true;
+  const parent = new Map(nodes.map((node) => [node.id, node.parent]));
+  return (id) => {
+    let at: string | undefined = id;
+    // Счётчик — защита от цикла `parent` в данных проекта.
+    for (let guard = 0; at !== undefined && guard < 200; guard += 1) {
+      if (at === open) return true;
+      at = parent.get(at);
+    }
+    return false;
+  };
+}
+
+/** Цвета свёрнутой диаграммы по режимам окраски — те же, что у обычной (map-mermaid.ts, MODE_LOOK). */
+const FOLD_LOOK: Record<string, { fill: string; stroke: string; dash?: boolean; width?: number }> = {
+  st_implemented: { fill: '#DCFCE7', stroke: '#16A34A' },
+  st_partial: { fill: '#FEF3C7', stroke: '#D97706' },
+  st_not_implemented: { fill: '#FEE2E2', stroke: '#DC2626' },
+  st_unrated: { fill: '#F3F4F6', stroke: '#9CA3AF', dash: true },
+  cv_verified: { fill: '#DCFCE7', stroke: '#16A34A' },
+  cv_unchecked: { fill: '#ECFCCB', stroke: '#65A30D' },
+  cv_no_check: { fill: '#DBEAFE', stroke: '#2563EB' },
+  cv_none: { fill: '#F3F4F6', stroke: '#9CA3AF', dash: true },
+  cv_failing: { fill: '#FEE2E2', stroke: '#DC2626', width: 3 },
+  rk_red: { fill: '#FEE2E2', stroke: '#DC2626', width: 3 },
+  rk_orange: { fill: '#FFEDD5', stroke: '#EA580C', width: 2 },
+  rk_yellow: { fill: '#FEF3C7', stroke: '#D97706' },
+  rk_none: { fill: '#F3F4F6', stroke: '#9CA3AF' },
+  or_start: { fill: '#F0FDF4', stroke: '#16A34A', width: 3 },
+  or_wait: { fill: '#FEF3C7', stroke: '#D97706' },
+  or_done: { fill: '#ECFDF5', stroke: '#86EFAC' },
+  or_skip: { fill: '#F3F4F6', stroke: '#9CA3AF', dash: true },
+  or_unrated: { fill: '#F3F4F6', stroke: '#9CA3AF', dash: true },
+  fold_ghost: { fill: '#FFFFFF', stroke: '#9CA3AF', dash: true }
+};
+const FOLD_ARROW: Record<string, string> = { depends: '-->', uses: '-.->', feeds: '==>', triggers: '--o', replaces: '--x' };
+const FOLD_KIND: Record<string, string> = {
+  depends: 'зависит от', uses: 'пользуется', feeds: 'передаёт данные в', triggers: 'запускает', replaces: 'заменяет'
+};
+const FOLD_RISK: Record<string, string> = {
+  red: 'Цикл или падающая проверка', orange: 'Отметка расходится с задачами', yellow: 'Ждёт зависимость', none: 'Без признаков'
+};
+const FOLD_ORDER: Record<string, string> = {
+  start: 'Можно начинать', wait: 'Ждёт зависимость', done: 'Готово', skip: 'Не берём', unrated: 'Не оценено'
+};
+
+interface FoldNode {
+  key: string;
+  title: string;
+  size: number;
+  expandable: boolean;
+  summary?: string | undefined;
+  /** Класс окраски (ключ `FOLD_LOOK`) и строки под названием. */
+  cls?: string;
+  lines?: string[];
+  extra?: Partial<MermaidNode>;
+}
+interface FoldEdge {
+  from: string;
+  to: string;
+  count: number;
+  label: string;
+  evidence: MermaidEdge['evidence'];
+  status?: MermaidEdge['status'];
+  arrow?: string;
+  link?: LinkCard;
+}
+
+/**
+ * Свёрнутая диаграмма: узел с числом под ним и стрелка с числом связей на подписи.
+ * С `focus` и `inside` соседи выбранного узла из чужих веток рисуются призраками
+ * (пунктир), прочие чужие ветки уходят — как у открытой группы кодовой карты.
+ */
 function foldedDiagram(
-  nodes: readonly { key: string; title: string; size: number; expandable: boolean; summary?: string | undefined }[],
-  edges: readonly { from: string; to: string; count: number; label: string; evidence: MermaidEdge['evidence']; status?: MermaidEdge['status'] }[],
-  unit: string
+  allNodes: readonly FoldNode[],
+  allEdges: readonly FoldEdge[],
+  unit: string,
+  options: { focus?: string | null; inside?: (key: string) => boolean } = {}
 ): DepthOutput {
+  const inside = options.inside ?? (() => true);
+  const focus = options.focus && allNodes.some((node) => node.key === options.focus) ? options.focus : null;
+  let nodes = allNodes;
+  let edges = allEdges;
+  const ghosts = new Set<string>();
+  if (focus && allNodes.some((node) => !inside(node.key))) {
+    const near = new Set<string>([focus]);
+    for (const edge of allEdges) {
+      if (edge.from === focus) near.add(edge.to);
+      if (edge.to === focus) near.add(edge.from);
+    }
+    nodes = allNodes.filter((node) => inside(node.key) || near.has(node.key));
+    for (const node of nodes) if (!inside(node.key)) ghosts.add(node.key);
+    const kept = new Set(nodes.map((node) => node.key));
+    edges = allEdges.filter((edge) => kept.has(edge.from) && kept.has(edge.to)
+      && ((inside(edge.from) && inside(edge.to)) || edge.from === focus || edge.to === focus));
+  }
   const lines = ['flowchart LR'];
   const out: DepthOutput = { text: '', details: {}, paths: {}, nodes: {}, edges: [], neighbors: {} };
+  const used = new Set<string>();
   for (const node of nodes) {
     const id = foldId('d', node.key);
-    const tail = node.expandable ? `<br/>${node.size} ${unit}` : '';
-    lines.push(`    ${id}["${foldText(node.title)}${tail}"]`);
+    const ghost = ghosts.has(node.key);
+    const tail = [node.expandable ? `${node.size} ${unit}` : '', ...(node.lines ?? [])]
+      .filter(Boolean).map((line) => `<br/>${foldText(line)}`).join('');
+    const cls = ghost ? 'fold_ghost' : node.cls;
+    if (cls) used.add(cls);
+    lines.push(`    ${id}["${foldText(node.title)}${tail}"]${cls ? `:::${cls}` : ''}`);
     out.details[id] = node.expandable ? `${node.title}: свёрнуто ${node.size} ${unit}` : node.title;
-    out.nodes[id] = { id: node.key, title: node.title, ...(node.summary ? { summary: node.summary } : {}) };
+    out.nodes[id] = {
+      id: node.key, title: node.title, ...(node.summary ? { summary: node.summary } : {}), ...node.extra,
+      ...(ghost ? { ghost: { groupId: node.key, groupTitle: node.title } } : {})
+    };
   }
   for (const edge of edges) {
     const from = foldId('d', edge.from);
     const to = foldId('d', edge.to);
-    lines.push(`    ${from} -->|${edge.count > 1 ? `${edge.label} ×${edge.count}` : edge.label}| ${to}`);
-    out.edges.push({ from, to, evidence: edge.evidence, ...(edge.status ? { status: edge.status } : {}) });
+    const text = edge.count > 1 ? `${edge.label} ×${edge.count}` : edge.label;
+    lines.push(`    ${from} ${edge.arrow ?? '-->'}|"${foldText(text)}"| ${to}`);
+    out.edges.push({
+      from, to, evidence: edge.evidence, ...(edge.status ? { status: edge.status } : {}), ...(edge.link ? { link: edge.link } : {})
+    });
     (out.neighbors[from] ??= []).push(to);
     (out.neighbors[to] ??= []).push(from);
+  }
+  for (const cls of used) {
+    const look = FOLD_LOOK[cls];
+    if (!look) continue;
+    const parts = [`fill:${look.fill}`, `stroke:${look.stroke}`, 'color:#111827'];
+    if (look.width) parts.push(`stroke-width:${look.width}px`);
+    if (look.dash) parts.push('stroke-dasharray:4 3');
+    if (cls === 'fold_ghost') parts.push('opacity:0.65');
+    lines.push(`    classDef ${cls} ${parts.join(',')};`);
   }
   out.text = lines.join('\n');
   return out;
@@ -899,7 +1020,8 @@ const codemapDepth = computed<DepthOutput | null>(() => {
       summary: titles.get(key)?.summary ?? moduleById.get(key)?.summary
     })),
     [...folded.values()].map((edge) => ({ ...edge, label: 'импорт' })),
-    'модулей'
+    'модулей',
+    { focus: foldFocus.value, inside: underFn(params.open, treeNodes) }
   );
 });
 
@@ -916,7 +1038,7 @@ const dataflowDepth = computed<DepthOutput | null>(() => {
   });
   const groupTitles = new Map(ctx.grouping.groups.map((group) => [group.id, group.title ?? group.id]));
   const sourceTitles = new Map(value.dataflow.sources.map((source) => [source.id, source.title ?? source.id]));
-  const nodes = new Map<string, { key: string; title: string; size: number; expandable: boolean }>();
+  const nodes = new Map<string, FoldNode>();
   const touch = (key: string, title: string, expandable: boolean, flows: number) => {
     const node = nodes.get(key) ?? { key, title, size: 0, expandable };
     node.size += flows;
@@ -926,6 +1048,7 @@ const dataflowDepth = computed<DepthOutput | null>(() => {
     touch(`c:${link.from}`, groupTitles.get(link.from) ?? link.from, groupTitles.has(link.from), link.count);
     touch(`s:${link.to}`, sourceTitles.get(link.to) ?? link.to, false, link.count);
   }
+  const codeInside = underFn(params.open, tree);
   return foldedDiagram(
     [...nodes.values()],
     result.links.map((link) => ({
@@ -936,23 +1059,123 @@ const dataflowDepth = computed<DepthOutput | null>(() => {
       evidence: link.flows[0]?.evidence ?? NO_EVIDENCE,
       status: link.status
     })),
-    'потоков'
+    'потоков',
+    // Источники — не ветка дерева кода: призраками становятся только группы кода вне раскрытой.
+    { focus: foldFocus.value, inside: (key) => key.startsWith('s:') || codeInside(key.slice(2)) }
   );
 });
 
 const functionalDepth = computed<DepthOutput | null>(() => {
-  const { capabilities, relations } = functionalEffective.value;
-  if (!capabilities.some((item) => item.parent)) return null;
-  const params = depthParams(new Set(capabilities.map((item) => item.id)));
+  const { capabilities: all, relations: allRelations } = functionalEffective.value;
+  if (!all.some((item) => item.parent)) return null;
+  const params = depthParams(new Set(all.map((item) => item.id)));
   if (!params) return null;
-  const overview = overviewAt(capabilities, relations, params.open, params.level);
-  return foldedDiagram(
-    overview.nodes.map((node) => ({ key: node.id, title: node.title, size: node.size, expandable: node.expandable })),
-    overview.edges.map((edge) => ({
-      from: edge.from, to: edge.to, count: edge.count, label: edge.type, evidence: NO_EVIDENCE
-    })),
-    'возможностей'
-  );
+  // Состояние и «ждёт» считаются по всему дереву, а не по тому, что осталось под фильтром.
+  const views = capabilityViews(all, allRelations, coverage.value);
+  const plan = planPredicate(all, { priority: planPriority.value, horizon: planHorizon.value });
+  const filter = statusFilter.value;
+  const keepLeaf = filter || plan || onlyRisks.value
+    ? (leaf: (typeof all)[number]) => {
+      if (filter && !(filter === 'unrated' ? !isImplStatus(leaf.status) : leaf.status === filter)) return false;
+      if (plan && !plan(leaf)) return false;
+      if (onlyRisks.value && (views.get(leaf.id)?.flags.length ?? 0) === 0) return false;
+      return true;
+    }
+    : null;
+  const kept = filterLeaves(all, keepLeaf);
+  if (kept.length === 0) return { text: '', details: {}, paths: {}, nodes: {}, edges: [], neighbors: {} };
+  const hidden = new Set(hiddenKinds.value);
+  const relations = allRelations.filter((relation) => !hidden.has(relation.type));
+  const open = params.open && kept.some((item) => item.id === params.open) ? params.open : null;
+  const overview = overviewAt(kept, relations, open, params.level);
+  const treeNodes = kept.map((item) => ({ id: item.id, parent: item.parent }));
+  const visible = (id: string) => visibleAt(id, treeNodes, open, params.level);
+  const titleOf = new Map(all.map((item) => [item.id, item.title ?? item.id]));
+  const byId = new Map(all.map((item) => [item.id, item]));
+  // Признаки риска есть только у нижних возможностей: узел-группа берёт их у всех, кто под ним.
+  const flagsUnder = new Map<string, Set<string>>();
+  for (const item of kept) {
+    const set = flagsUnder.get(visible(item.id)) ?? new Set<string>();
+    for (const flag of views.get(item.id)?.flags ?? []) set.add(flag);
+    flagsUnder.set(visible(item.id), set);
+  }
+  const mode = capMode.value;
+  const place = (id: string): { cls: string; text: string } => {
+    const view = views.get(id);
+    const status = view?.status ?? 'unrated';
+    if (mode === 'coverage') {
+      const level = view?.coverage?.level ?? 'none';
+      return { cls: `cv_${level}`, text: COVERAGE_LABEL[level] };
+    }
+    if (mode === 'risks') {
+      const flags = flagsUnder.get(id) ?? new Set<string>();
+      const key = flags.has('cycle') ? 'red' : flags.size === 0 ? 'none' : [...flags].some((flag) => flag !== 'waits') ? 'orange' : 'yellow';
+      return { cls: `rk_${key}`, text: FOLD_RISK[key] ?? key };
+    }
+    if (mode === 'order') {
+      const key = view?.priority?.value === 'wont' ? 'skip'
+        : status === 'implemented' ? 'done'
+          : view && view.waiting.length > 0 ? 'wait'
+            : status === 'unrated' ? 'unrated' : 'start';
+      return { cls: `or_${key}`, text: FOLD_ORDER[key] ?? key };
+    }
+    return { cls: `st_${status}`, text: IMPL_LABEL[status] };
+  };
+  const nodes: FoldNode[] = overview.nodes.map((node) => {
+    const item = byId.get(node.id);
+    const view = views.get(node.id);
+    const { cls, text } = place(node.id);
+    const score = node.expandable && node.progress.total > 0 ? `${node.progress.implemented} из ${node.progress.total}` : '';
+    return {
+      key: node.id, title: node.title, size: node.size, expandable: node.expandable, summary: item?.summary, cls,
+      lines: [score, text].filter(Boolean),
+      extra: {
+        capability: true,
+        ...(item?.note ? { note: item.note } : {}),
+        ...(view ? { capabilityView: view } : {})
+      }
+    };
+  });
+  const edges: FoldEdge[] = overview.edges.map((edge) => ({
+    from: edge.from,
+    to: edge.to,
+    count: edge.count,
+    label: FOLD_KIND[edge.type] ?? edge.type,
+    evidence: NO_EVIDENCE,
+    arrow: FOLD_ARROW[edge.type] ?? '-->',
+    // Клик по стрелке — исходные связи с видами и описанием, а не пустое свидетельство.
+    link: {
+      fromGroup: edge.from,
+      toGroup: edge.to,
+      fromTitle: titleOf.get(edge.from) ?? edge.from,
+      toTitle: titleOf.get(edge.to) ?? edge.to,
+      status: 'pending',
+      cycle: edge.type === 'depends' && overview.cycle.has(edge.from) && overview.cycle.has(edge.to),
+      imports: edge.members.map((member) => ({
+        from: titleOf.get(member.from) ?? member.from,
+        to: titleOf.get(member.to) ?? member.to,
+        evidence: { path: '', line: 0, fragment: `${FOLD_KIND[member.type] ?? member.type}${member.summary ? `: ${member.summary}` : ''}` }
+      }))
+    }
+  }));
+  return foldedDiagram(nodes, edges, 'возможностей', { focus: foldFocus.value, inside: underFn(open, treeNodes) });
+});
+
+/** Данные для подсказок дробления открытой группы кодовой карты (`MapSplitHints`, T-0097). */
+const splitHints = computed(() => {
+  const value = map.value;
+  if (!value || !openGroupId.value) return null;
+  const base = filteredCodemap.value ?? value.codemap;
+  const tree = groupTree(base.modules, base.imports, value.codemap.groups);
+  const groupIds = new Set(tree.nodes.map((node) => node.id));
+  const modules = new Set(base.modules.map((item) => item.id));
+  for (const edge of base.imports) { modules.add(edge.from); modules.add(edge.to); }
+  const nodes: TreeNode[] = [
+    ...tree.nodes.map((node) => ({ id: node.id, parent: node.parent })),
+    ...[...modules].filter((id) => !groupIds.has(id)).map((id) => ({ id, parent: tree.groupOf(id) }))
+  ];
+  const edges: HierarchyEdge[] = base.imports.map((edge) => ({ from: edge.from, to: edge.to, kind: 'import' }));
+  return { nodes, edges };
 });
 </script>
 
@@ -1244,6 +1467,12 @@ const functionalDepth = computed<DepthOutput | null>(() => {
                 <p class="text-xs text-muted">
                   Толстая рамка — порт: у модуля есть связи за пределами группы. Выберите модуль, чтобы увидеть, куда они ведут.
                 </p>
+                <MapSplitHints
+                  v-if="splitHints"
+                  :group-id="openGroupId"
+                  :nodes="splitHints.nodes"
+                  :edges="splitHints.edges"
+                />
               </div>
             </template>
 

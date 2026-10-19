@@ -153,16 +153,16 @@ export function declaredGroupOf(module: Pick<GroupModule, 'id' | 'path'>, declar
  * цепочки. `parent` на несуществующую группу — группа считается верхней.
  */
 function topOf(id: string, byId: ReadonlyMap<string, DeclaredGroup>): string {
-  const seen = new Set<string>();
-  let at = id;
-  while (!seen.has(at)) {
-    seen.add(at);
-    const parent = byId.get(at)?.parent;
-    if (!parent || parent === at || !byId.has(parent)) return at;
-    at = parent;
-  }
-  return at;
+  // Обрыв цикла и призрак-родитель — как у ancestors() (hierarchy.ts, ADR-0027);
+  // при цикле верхней считается точка, где он замкнулся.
+  const nodes = [...byId].map(([key, g]) => ({ id: key, parent: g.parent }));
+  const last = ancestors(id, nodes).at(-1) ?? id;
+  const next = byId.get(last)?.parent;
+  return next && byId.has(next) ? next : last;
 }
+
+
+
 
 export function groupModules(
   modules: readonly GroupModule[],
@@ -384,7 +384,7 @@ export function ghostNeighbors(
 // верхней (один уровень), и экран, который их зовёт, не меняется.
 // Импорт в конце допустим: объявления поднимаются, порядок не важен.
 // eslint-disable-next-line import/first
-import { foldEdges, visibleAt, type Edge, type FoldedEdge, type FoldResult, type TreeNode } from './hierarchy';
+import { ancestors, foldEdges, visibleAt, type Edge, type FoldedEdge, type FoldResult, type TreeNode } from './hierarchy';
 
 export interface GroupTreeNode extends TreeNode {
   title: string;

@@ -615,16 +615,17 @@ export function drawableRelations<R extends RelationLike>(
 /** Верхний предок возможности — её группа; сама возможность без родителя — группа сама себе. */
 export function rootOf(id: string, capabilities: readonly CapabilityLike[]): string {
   const byId = new Map(capabilities.map((item) => [item.id, item]));
-  const seen = new Set<string>();
-  let at = byId.get(id);
-  while (at && !seen.has(at.id)) {
-    seen.add(at.id);
-    const parent = parentOf(at, byId);
-    if (!parent) return at.id;
-    at = byId.get(parent);
-  }
-  return id;
+  if (!byId.has(id)) return id;
+  // Обрыв цикла — как у ancestors() (hierarchy.ts, ADR-0027); при цикле корня нет.
+  const nodes = [...byId.values()].map((item) => ({ id: item.id, parent: item.parent }));
+  const last = ancestors(id, nodes).at(-1) ?? id;
+  return parentOf(byId.get(last)!, byId) ? id : last;
 }
+
+
+
+
+
 
 export interface FunctionalGroup {
   id: string;
@@ -1082,7 +1083,7 @@ export function capabilityLines(capabilities: readonly CapabilityLike[]): string
 // --- обзор на любой глубине (ADR-0027, docs/07-maps.md «Функциональная карта») ---
 // Лежит в конце файла: карта M-0001 хранит номера строк-свидетельств, поэтому
 // код выше не сдвигаем. Импорт стоит здесь же по той же причине (ES-импорты поднимаются).
-import { cyclesAt, foldEdges, visibleAt, type TreeNode } from './hierarchy';
+import { ancestors, cyclesAt, foldEdges, visibleAt, type TreeNode } from './hierarchy';
 
 /** Узел обзора: видимая на заданном уровне возможность или свёрнутая группа. */
 export interface OverviewNode {
