@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ApiFailure } from '~/composables/useProjectIndex';
+import type { ApiFailure, BulkMoved } from '~/composables/useProjectIndex';
 import type { IndexRecord, IssueDto } from '~~/server/lib/types';
 
 /**
@@ -16,7 +16,7 @@ const props = defineProps<{
   kind: 'document' | 'task';
 }>();
 
-const emit = defineEmits<{ done: [] }>();
+const emit = defineEmits<{ done: [results?: BulkMoved[]] }>();
 
 interface BulkResult {
   id: string;
@@ -74,7 +74,7 @@ async function linkMap(ids: string[]) {
       return;
     }
     linked.value = response as { map: { id: string; title: string }; linked: string[] };
-    emit('done');
+    emit('done', (response as BulkReport).results);
   } finally {
     linking.value = false;
   }

@@ -11,6 +11,7 @@ import {
   type ManualState
 } from '../lib/manual-report';
 import { resolveInside } from '../lib/paths';
+import { invalidateWorkspace } from '../lib/workspace';
 import { DEVELOPMENT_DIR, type VerificationOutcome } from '../lib/types';
 import { loadIndex } from './index-service';
 import { openRecord, today, writeRecord } from './record-write';
@@ -59,6 +60,7 @@ export function markVerified(root: string, recordId: string, verified: boolean, 
   for (let n = 2; existsSync(join(dir, name)); n += 1) name = base.replace(/\.json$/, `-${n}.json`);
   writeFileSync(join(dir, name), manualReportText(recordId, state, actor, now), 'utf8');
   dropCache(root);
+  invalidateWorkspace(root);
 
   // Журнал — след для человека. Сторож отказал — отметка всё равно поставлена.
   const outcome = applyJournalNote(context.original, {

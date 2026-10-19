@@ -4,7 +4,7 @@ import { sortTasks } from '~~/server/lib/work-order';
 const route = useRoute();
 const projectId = computed(() => String(route.params['id'] ?? ''));
 
-const { index, failure, records, byId, refresh } = useProjectIndex(projectId);
+const { index, failure, records, byId, refresh, patchStatuses } = useProjectIndex(projectId);
 
 const { mode } = useOrderMode(records);
 const tasks = computed(() => sortTasks(records.value.filter((record) => record.type === 'task'), records.value, mode.value));
@@ -26,6 +26,8 @@ const shown = computed(() => tasks.value.filter((task) =>
   && (!tag.value || task.tags.includes(tag.value))));
 
 const selection = useSelection(shown);
+const chunk = useChunked(shown);
+const onBulkDone = (results?: BulkMoved[]) => { selection.clear(); if (results) patchStatuses(results); else void refresh(); };
 
 /** Результаты проверок нужны, чтобы не выдавать объявленное за подтверждённое. */
 const results = computed(() => index.value?.verificationResults ?? {});
@@ -57,6 +59,7 @@ function reset() {
   owner.value = '';
   tag.value = '';
 }
+
 </script>
 
 <template>
@@ -108,7 +111,7 @@ function reset() {
         :total="shown.length"
         :roles="index?.project.roles ?? []"
         kind="task"
-        @done="selection.clear(); refresh()"
+        @done="onBulkDone"
       />
 
       <div v-if="shown.length === 0" class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted">
@@ -125,7 +128,7 @@ function reset() {
         </div>
 
         <ul class="divide-y divide-default">
-        <li v-for="task in shown" :key="task.path" class="flex gap-3 p-4">
+        <li v-for="task in chunk.visible.value" :key="task.path" class="flex gap-3 p-4">
           <UCheckbox
             class="pt-0.5"
             :model-value="selection.has(task.id)"
@@ -177,6 +180,9 @@ function reset() {
           </div>
         </li>
         </ul>
+        <div v-if="chunk.rest.value > 0" class="border-t border-default p-3 text-center">
+          <UButton variant="ghost" color="neutral" @click="chunk.more()">Показать ещё {{ Math.min(chunk.step, chunk.rest.value) }}</UButton>
+        </div>
       </div>
     </template>
   </div>

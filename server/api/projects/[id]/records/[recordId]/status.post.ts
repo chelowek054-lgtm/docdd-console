@@ -6,7 +6,7 @@ import { WorkspaceError } from '../../../../../lib/workspace';
 import { fail, failWith } from '../../../../../utils/http';
 import { markDescribed } from '../../../../../utils/inventory-service';
 import { findProject } from '../../../../../utils/projects';
-import { openRecord, saveRecord, today, transitionBlockers } from '../../../../../utils/record-write';
+import { openRecordWithBlockers, saveRecord, today } from '../../../../../utils/record-write';
 
 /**
  * Смена статуса. Разрешён переход — меняем `status`, обновляем `updated`,
@@ -29,10 +29,11 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const blockers = transitionBlockers(project.root, recordId, status);
-    if (blockers === null) {
+    const opened = openRecordWithBlockers(project.root, recordId, status);
+    if (opened === null) {
       return fail(event, 404, 'record_not_found', `Записи \`${recordId}\` в проекте нет`);
     }
+    const { context, blockers } = opened;
     if (blockers.length > 0) {
       return failWith(
         event,
@@ -41,11 +42,6 @@ export default defineEventHandler(async (event) => {
         `Запись ${recordId} не может перейти в \`${status}\``,
         blockers.map((item) => ({ code: item.code, message: item.message }))
       );
-    }
-
-    const context = openRecord(project.root, recordId);
-    if (!context) {
-      return fail(event, 404, 'record_not_found', `Записи \`${recordId}\` в проекте нет`);
     }
 
     const outcome = applyStatusChange(context.original, { status, actor, today: today() });

@@ -3,6 +3,7 @@ import { defineEventHandler, getRouterParam } from 'h3';
 import { OutsideRootError } from '../../../lib/paths';
 import { WorkspaceError } from '../../../lib/workspace';
 import { fail } from '../../../utils/http';
+import { fingerprintWithSources, memoByFingerprint } from '../../../utils/memo';
 import { findProject } from '../../../utils/projects';
 import { referenceReport } from '../../../utils/reference-service';
 
@@ -15,7 +16,14 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    return referenceReport(project.root);
+    // Срок свежести справок считается от сегодняшней даты — день входит в отпечаток.
+    const today = new Date().toISOString().slice(0, 10);
+    return memoByFingerprint(
+      project.root,
+      'reference',
+      () => `${fingerprintWithSources(project.root)}|${today}`,
+      () => referenceReport(project.root)
+    );
   } catch (error) {
     if (error instanceof OutsideRootError) {
       return fail(event, 403, 'outside_root', error.message, error.requested);

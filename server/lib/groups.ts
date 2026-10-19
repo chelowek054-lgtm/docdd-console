@@ -383,7 +383,7 @@ export function ghostNeighbors(
 // старые функции выше остаются как были — они по-прежнему сжимают группу до
 // верхней (один уровень), и экран, который их зовёт, не меняется.
 // Импорт в конце допустим: объявления поднимаются, порядок не важен.
-// eslint-disable-next-line import/first
+// (Плагина import/first в линтере нет, поэтому правило не отключается.)
 import { ancestors, foldEdges, visibleAt, type Edge, type FoldedEdge, type FoldResult, type TreeNode } from './hierarchy';
 
 export interface GroupTreeNode extends TreeNode {

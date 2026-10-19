@@ -25,7 +25,7 @@ interface RulesResponse {
 
 const props = defineProps<{ projectId: string }>();
 
-const { data } = useFetch<RulesResponse | { error: ApiFailure }>(
+const { data } = useLazyFetch<RulesResponse | { error: ApiFailure }>(
   () => `/api/projects/${props.projectId}/rules`,
   { key: () => `rules:${props.projectId}` }
 );

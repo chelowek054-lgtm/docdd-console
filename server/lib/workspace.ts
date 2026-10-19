@@ -115,7 +115,7 @@ export function readWorkspace(root: string): Workspace {
     const folder = projectPath.slice(`${DEVELOPMENT_DIR}/`.length).split('/')[0];
     const section = folder ? sections.get(folder) : undefined;
     files.push({
-      text: readFileSync(path, 'utf8'),
+      text: cachedText(path),
       source: section ? { path: projectPath, section } : { path: projectPath }
     });
     parts.push(stamp(path, projectPath));
@@ -136,7 +136,7 @@ export function readWorkspace(root: string): Workspace {
 
   const codeFiles: string[] = [];
   for (const codeRoot of manifest.sources?.code ?? []) {
-    for (const path of walk(join(normalized, codeRoot))) {
+    for (const path of walkCodeCached(normalized, codeRoot)) {
       codeFiles.push(toProjectPath(normalized, path));
     }
   }
@@ -160,7 +160,7 @@ export function readWorkspace(root: string): Workspace {
  */
 function readReport(path: string): Report | null {
   try {
-    const raw: unknown = JSON.parse(readFileSync(path, 'utf8'));
+    const raw: unknown = JSON.parse(cachedText(path));
     return validateReport(raw).length === 0 ? (raw as Report) : null;
   } catch {
     return null;
@@ -215,4 +215,91 @@ function fingerprintOf(parts: readonly string[]): string {
     hash = Math.imul(hash, 0x01000193);
   }
   return (hash >>> 0).toString(16).padStart(8, '0') + ':' + parts.length;
+}
+
+/**
+ * Кэш в памяти процесса. Он производный: ключ файла — путь, mtime и размер,
+ * любое расхождение значит «читаем заново»; при сомнении тоже перечитываем.
+ * Размер ограничен, чтобы долгоживущий сервер не рос вместе с проектом.
+ */
+const TEXT_CACHE_LIMIT = 4000;
+const textCache = new Map<string, { mtimeMs: number; size: number; text: string }>();
+
+function cachedText(path: string): string {
+  const info = statSync(path);
+  const hit = textCache.get(path);
+  if (hit && hit.mtimeMs === info.mtimeMs && hit.size === info.size) return hit.text;
+
+  const text = readFileSync(path, 'utf8');
+  textCache.delete(path);
+  textCache.set(path, { mtimeMs: info.mtimeMs, size: info.size, text });
+  // Map помнит порядок вставки: выбрасываем самые давние.
+  while (textCache.size > TEXT_CACHE_LIMIT) {
+    const oldest = textCache.keys().next().value;
+    if (oldest === undefined) break;
+    textCache.delete(oldest);
+  }
+  return text;
+}
+
+/**
+ * Обход дерева кода — самое дорогое при смене статуса, а менять его в эти
+ * секунды некому: файлы кода пишет модель в своей ветке, не это действие.
+ */
+const CODE_WALK_TTL_MS = 2000;
+const codeWalks = new Map<string, { at: number; paths: string[] }>();
+
+function walkCodeCached(root: string, codeRoot: string): string[] {
+  const key = `${root} ${codeRoot}`;
+  const hit = codeWalks.get(key);
+  if (hit && Date.now() - hit.at < CODE_WALK_TTL_MS) return hit.paths;
+  const paths = walk(join(root, codeRoot));
+  codeWalks.set(key, { at: Date.now(), paths });
+  return paths;
+}
+
+const invalidators: Array<(root: string) => void> = [];
+
+/** Другие производные кэши (ветки работы) подписываются на сброс корня. */
+export function onWorkspaceInvalidated(listener: (root: string) => void): void {
+  invalidators.push(listener);
+}
+
+/** Запись изменила проект: обход кода и производные от него кэши забываются. */
+export function invalidateWorkspace(root: string): void {
+  const normalized = normalizeRoot(root);
+  for (const key of [...codeWalks.keys()]) {
+    if (key.startsWith(`${normalized} `)) codeWalks.delete(key);
+  }
+  for (const listener of invalidators) listener(normalized);
+}
+
+/**
+ * Дешёвый отпечаток для кэша ответов в памяти (`server/utils/memo.ts`): те же
+ * файлы, что обходит `readWorkspace`, но только по `stat` — без чтения и
+ * разбора. Строже `Workspace.fingerprint`: в него входят манифест и время/размер
+ * файлов кода, потому что сверка свидетельств карт читает их содержимое.
+ * Ошибиться в сторону лишней пересборки безопасно.
+ */
+export function fingerprintOnly(root: string): string {
+  const normalized = normalizeRoot(root);
+  const manifest = readManifest(normalized);
+  const development = developmentDir(normalized);
+
+  const parts: string[] = [stamp(join(development, MANIFEST_FILE), MANIFEST_FILE)];
+  for (const path of walk(development)) {
+    if (path.endsWith('.md')) parts.push(stamp(path, toProjectPath(normalized, path)));
+  }
+  const testsFolder = manifest.paths?.tests;
+  if (testsFolder) {
+    for (const path of walk(join(development, testsFolder, 'reports'))) {
+      if (path.endsWith('.json')) parts.push(stamp(path, toProjectPath(normalized, path)));
+    }
+  }
+  for (const codeRoot of manifest.sources?.code ?? []) {
+    for (const path of walk(join(normalized, codeRoot))) {
+      parts.push(stamp(path, toProjectPath(normalized, path)));
+    }
+  }
+  return fingerprintOf(parts);
 }

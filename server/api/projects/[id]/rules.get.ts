@@ -3,6 +3,7 @@ import { defineEventHandler, getRouterParam } from 'h3';
 import { OutsideRootError } from '../../../lib/paths';
 import { WorkspaceError } from '../../../lib/workspace';
 import { fail } from '../../../utils/http';
+import { fingerprintWithSources, memoByFingerprint } from '../../../utils/memo';
 import { findProject } from '../../../utils/projects';
 import { resolveProjectRules } from '../../../utils/rules-service';
 
@@ -18,7 +19,12 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const { rules, sources, conflicts, problems, manifest } = resolveProjectRules(project.root);
+    const { rules, sources, conflicts, problems, manifest } = memoByFingerprint(
+      project.root,
+      'rules',
+      () => fingerprintWithSources(project.root),
+      () => resolveProjectRules(project.root)
+    );
     return { rules, sources, conflicts, problems, manifest };
   } catch (error) {
     if (error instanceof OutsideRootError) {
