@@ -2,7 +2,7 @@
 id: T-0133
 type: task
 title: Разница карты на самой схеме на всех уровнях вложенности
-status: ready
+status: in_progress
 change: feature
 reuse: none
 created: 2026-10-20
@@ -22,3 +22,4 @@ links:
 - 2026-10-20 · готова к работе · architect
 - 2026-10-20 · в разработку · architect
 - 2026-10-20 · готова к работе · architect
+- 2026-10-20 · в разработку · architect

@@ -2,10 +2,10 @@
 id: T-0083
 type: task
 title: Перевод остальных экранов консоли на ключи словаря (ru, en)
-status: backlog
+status: in_progress
 change: feature
 created: 2026-10-11
-updated: 2026-10-11
+updated: 2026-10-20
 links:
   implements: [R-0035]
   affects: [M-0042]
@@ -18,3 +18,5 @@ links:
 ## Журнал
 
 - 2026-10-11 · заведена · приложение
+- 2026-10-20 · готова к работе · architect
+- 2026-10-20 · в разработку · architect

@@ -1,11 +1,12 @@
 import { defineEventHandler, getRouterParam, readBody } from 'h3';
 
-import { applyFieldPatch, applyJournalNote, type PatchFields } from '../../../../lib/actions';
+import { applyFieldPatch, type PatchFields } from '../../../../lib/actions';
 import { OutsideRootError } from '../../../../lib/paths';
 import { LINK_KINDS, type LinkKind } from '../../../../lib/types';
 import { WorkspaceError } from '../../../../lib/workspace';
 import { fail, failWith } from '../../../../utils/http';
 import { findProject } from '../../../../utils/projects';
+import { applyJournalNote } from '../../../../lib/actions';
 import { openRecord, saveRecord, today } from '../../../../utils/record-write';
 
 /**

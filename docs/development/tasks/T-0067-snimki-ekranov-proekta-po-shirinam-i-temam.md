@@ -2,7 +2,7 @@
 id: T-0067
 type: task
 title: Снимки экранов проекта по ширинам и темам
-status: in_progress
+status: in_review
 change: feature
 links:
   implements: [R-0033]
@@ -29,3 +29,6 @@ reuse: none
 - 2026-10-20 · в разработку · architect
 - 2026-10-20 · готова к работе · architect
 - 2026-10-20 · в разработку · architect
+- 2026-10-20 · готова к работе · architect
+- 2026-10-20 · в разработку · architect
+- 2026-10-20 · на проверку · architect

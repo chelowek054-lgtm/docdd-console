@@ -2,7 +2,7 @@
 id: T-0132
 type: task
 title: 'Общий механизм разницы: маршрут «что меняется» и компонент над записью'
-status: ready
+status: in_review
 change: feature
 reuse: none
 created: 2026-10-20
@@ -22,3 +22,5 @@ GET /records/:id/diff по типу записи, компонент RecordDiff 
 - 2026-10-20 · готова к работе · architect
 - 2026-10-20 · в разработку · architect
 - 2026-10-20 · готова к работе · architect
+- 2026-10-20 · в разработку · architect
+- 2026-10-20 · на проверку · architect

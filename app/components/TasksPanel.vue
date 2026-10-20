@@ -95,8 +95,7 @@ function reset() {
         <UButton variant="ghost" color="neutral" @click="reset">Сбросить</UButton>
       </div>
 
-      <!-- Отмечено — разбиваются отмеченные, не отмечено ничего — все, что ещё
-           ни в какой фазе (docs/04-ui.md, «Разбить на фазы»). -->
+      <!-- Отмечено — разбиваются отмеченные, не отмечено ничего — все, что ещё ни в какой фазе (docs/04-ui.md, «Разбить на фазы»). -->
       <PhasePlanner
         :project-id="projectId"
         :records="records"
@@ -104,14 +103,7 @@ function reset() {
         @changed="refresh"
       />
 
-      <UAlert
-        v-if="waiting.length"
-        color="info"
-        variant="subtle"
-        icon="i-lucide-info"
-        :title="`У ${waiting.length} задач из очереди опора ещё не подтверждена`"
-        description="Сначала подтвердите требования и документы, на которые они опираются, — иначе «Вперёд» эти задачи пропустит и назовёт причину."
-      />
+      <UAlert v-if="waiting.length" color="info" variant="subtle" icon="i-lucide-info" :title="`У ${waiting.length} задач из очереди опора ещё не подтверждена`" description="Сначала подтвердите требования и документы, на которые они опираются, — иначе «Вперёд» эти задачи пропустит и назовёт причину." />
 
       <BulkBar
         :project-id="projectId"

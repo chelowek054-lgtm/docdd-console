@@ -2,7 +2,7 @@
 id: T-0064
 type: task
 title: 'Экран «Дизайн»: палитра обеих тем, шкалы, принципы, реестр компонентов'
-status: in_progress
+status: in_review
 change: feature
 links:
   implements: [R-0031]
@@ -26,3 +26,6 @@ updated: 2026-10-20
 - 2026-10-20 · в разработку · architect
 - 2026-10-20 · готова к работе · architect
 - 2026-10-20 · в разработку · architect
+- 2026-10-20 · готова к работе · architect
+- 2026-10-20 · в разработку · architect
+- 2026-10-20 · на проверку · architect

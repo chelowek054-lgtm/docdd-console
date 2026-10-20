@@ -2,7 +2,7 @@
 id: T-0117
 type: task
 title: 'Контракт компонента: варианты, состояния, свойства, слоты, события; базовые и составные'
-status: ready
+status: in_review
 change: feature
 reuse: none
 created: 2026-10-20
@@ -22,3 +22,5 @@ links:
 - 2026-10-20 · готова к работе · architect
 - 2026-10-20 · в разработку · architect
 - 2026-10-20 · готова к работе · architect
+- 2026-10-20 · в разработку · architect
+- 2026-10-20 · на проверку · architect
