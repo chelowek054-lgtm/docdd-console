@@ -45,6 +45,7 @@ const emit = defineEmits<{
   relate: [item: Capability];
   remove: [item: Capability];
   mark: [id: string, status: ImplStatus | null];
+  hover: [item: Capability, anchor: HTMLElement];
 }>();
 
 const isOpen = computed(() => props.expanded.has(props.item.id));
@@ -87,6 +88,17 @@ const checks = computed(() => {
 // «Нет следа» — только у нижней возможности и только когда покрытие загружено.
 const noTrace = computed(() => !isParent.value && view.value?.coverage?.level === 'none');
 const consistency = computed(() => (view.value?.flags ?? []).filter((flag) => flag === 'ahead' || flag === 'behind'));
+
+// Меню состояния создаём только после нажатия: на сотнях строк оно не нужно.
+const menuOn = ref(false);
+const SOFT = { success: 'bg-success/10 text-success', warning: 'bg-warning/10 text-warning', error: 'bg-error/10 text-error', neutral: 'bg-elevated text-default' } as const;
+const statusBtn = computed(() => `inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium ${SOFT[BADGE_COLOR[key.value]]}`);
+const statusTitle = computed(() => 'Состояние: ' + IMPL_LABEL[key.value] + '. Нажмите, чтобы отметить');
+
+function onRow(event: Event) {
+  const anchor = (event.currentTarget as HTMLElement).querySelector<HTMLElement>('[data-anchor]');
+  if (anchor) emit('hover', props.item, anchor);
+}
 </script>
 
 <template>
@@ -94,19 +106,21 @@ const consistency = computed(() => (view.value?.flags ?? []).filter((flag) => fl
     <div
       class="group flex items-start gap-1 rounded py-1 pr-1 hover:bg-elevated"
       :class="item.pending && !hidePending ? 'opacity-60' : ''"
+      @mouseenter="onRow"
+      @focusin="onRow"
     >
-      <UButton
+      <button
         v-if="children.length > 0"
-        :icon="isOpen ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
-        size="xs"
-        variant="ghost"
-        color="neutral"
+        type="button"
+        class="inline-flex size-6 shrink-0 items-center justify-center rounded text-default hover:bg-elevated"
         :aria-label="isOpen ? 'Свернуть' : 'Развернуть'"
         @click="emit('toggle', item.id)"
-      />
+      >
+        <UIcon :name="isOpen ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" class="size-4" />
+      </button>
       <span v-else class="inline-block w-6 shrink-0" />
 
-      <div class="min-w-0 flex-1">
+      <div class="min-w-0 flex-1" data-anchor>
         <button
           type="button"
           class="block max-w-full truncate text-left text-sm hover:underline"
@@ -168,56 +182,19 @@ const consistency = computed(() => (view.value?.flags ?? []).filter((flag) => fl
         {{ waitingTitle }}
       </UBadge>
 
-      <!-- Кнопки — на весь ряд по наведению, не всегда видны: дерево читают чаще, чем правят. -->
-      <div class="hidden shrink-0 gap-1 group-hover:flex">
-        <UButton
-          icon="i-lucide-plus"
-          size="xs"
-          variant="ghost"
-          color="neutral"
-          title="Добавить подпункт"
-          @click="emit('add-child', item.id)"
-        />
-        <UButton
-          icon="i-lucide-pencil"
-          size="xs"
-          variant="ghost"
-          color="neutral"
-          title="Переименовать, описание, состояние, приоритет"
-          @click="emit('edit', item)"
-        />
-        <UButton
-          icon="i-lucide-link"
-          size="xs"
-          variant="ghost"
-          color="neutral"
-          title="Связать с другой возможностью"
-          @click="emit('relate', item)"
-        />
-        <UButton
-          icon="i-lucide-trash-2"
-          size="xs"
-          variant="ghost"
-          color="neutral"
-          title="Убрать"
-          @click="emit('remove', item)"
-        />
-      </div>
+      <!-- Кнопки действий — одна панель на всё дерево, см. FunctionalTree.vue. -->
 
       <span v-if="unsaved" class="mt-1 text-xs text-warning" title="Отметка не сохранена">●</span>
 
       <!-- Лист — кнопка с меню отметок; у родителя состояние производное, менять его нечем. -->
-      <UDropdownMenu v-if="!isParent" :items="menu">
-        <UButton
-          size="xs"
-          variant="subtle"
-          :color="BADGE_COLOR[key]"
-          :icon="STATUS_STYLE[key].icon"
-          :title="'Состояние: ' + IMPL_LABEL[key] + '. Нажмите, чтобы отметить'"
-        >
-          {{ IMPL_LABEL[key] }}
-        </UButton>
+      <UDropdownMenu v-if="!isParent && menuOn" :items="menu" :default-open="true" @update:open="(open) => { if (!open) menuOn = false; }">
+        <button type="button" :class="statusBtn" :title="statusTitle">
+          <UIcon :name="STATUS_STYLE[key].icon" class="size-4" />{{ IMPL_LABEL[key] }}
+        </button>
       </UDropdownMenu>
+      <button v-else-if="!isParent" type="button" :class="statusBtn" :title="statusTitle" @click="menuOn = true">
+        <UIcon :name="STATUS_STYLE[key].icon" class="size-4" />{{ IMPL_LABEL[key] }}
+      </button>
       <UBadge
         v-else
         size="md"
