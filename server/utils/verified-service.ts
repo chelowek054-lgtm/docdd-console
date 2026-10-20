@@ -8,6 +8,10 @@ import {
   type ManualExtra,
   manualReportName,
   manualReportText,
+  parseCheckSteps,
+  runReportName,
+  runReportText,
+  type ReportStep,
   verifiedJournalAction,
   type ManualState
 } from '../lib/manual-report';
@@ -43,7 +47,11 @@ export function markVerified(root: string, recordId: string, verified: boolean, 
   if (verified && autoKind && !(extra?.note ?? '').trim()) {
     return { ok: false, status: 400, code: 'note_required', message: 'Принимая проверку без прогона сборки, напишите, что проверено' };
   }
-  const withKind: ManualExtra | undefined = autoKind ? { ...extra, kind: autoKind } : extra;
+  // Шаги берутся из тела проверки; человек может отметить шаг проваленным (R-0061).
+  const stepStates = extra?.steps ?? [];
+  const steps: ReportStep[] = parseCheckSteps(context.record.body).map((step, i) => ({ ...step, state: stepStates[i]?.state ?? 'passed' }));
+  const withSteps: ManualExtra | undefined = steps.length ? { ...extra, steps } : extra;
+  const withKind: ManualExtra | undefined = autoKind ? { ...withSteps, kind: autoKind } : withSteps;
 
   const testsFolder = context.workspace.manifest.paths?.tests;
   if (!testsFolder) {
@@ -78,4 +86,30 @@ export function markVerified(root: string, recordId: string, verified: boolean, 
     journal: written.ok ? (outcome.journal ?? null) : null,
     ...(written.ok ? {} : { warning: `Отчёт записан, а строка в журнале — нет: ${written.problems.join(' ')}` })
   };
+}
+
+export type RunOutcome =
+  | { ok: true; report: string; total: number; failed: number }
+  | { ok: false; status: number; code: string; message: string };
+
+/** Прогон набора проверок на сборке (R-0062): один отчёт с полем `build` на весь набор. */
+export function recordRun(root: string, build: string, results: Record<string, 'passed' | 'failed' | 'skipped'>, actor: string, extra?: { by?: string; note?: string }): RunOutcome {
+  if (!build.trim()) return { ok: false, status: 400, code: 'build_required', message: 'Не названа сборка или релиз' };
+  const ids = Object.keys(results);
+  if (ids.length === 0) return { ok: false, status: 400, code: 'run_empty', message: 'В прогоне нет ни одной проверки' };
+  const index = loadIndex(root, true);
+  const unknown = ids.filter((id) => !index.records.some((record) => record.id === id && record.type === 'verification'));
+  if (unknown.length) return { ok: false, status: 404, code: 'record_not_found', message: `Не проверки или нет в проекте: ${unknown.join(', ')}` };
+  const testsFolder = openRecord(root, ids[0] ?? '')?.workspace.manifest.paths?.tests;
+  if (!testsFolder) return { ok: false, status: 409, code: 'tests_not_configured', message: 'В манифесте не назван раздел `paths.tests`: отчёту некуда лечь' };
+  const now = new Date();
+  const dir = resolveInside(root, join(DEVELOPMENT_DIR, testsFolder, 'reports'));
+  mkdirSync(dir, { recursive: true });
+  const base = runReportName(build, now);
+  let name = base;
+  for (let n = 2; existsSync(join(dir, name)); n += 1) name = base.replace(/\.json$/, `-${n}.json`);
+  writeFileSync(join(dir, name), runReportText(build, results, actor, now, extra), 'utf8');
+  dropCache(root);
+  invalidateWorkspace(root);
+  return { ok: true, report: name, total: ids.length, failed: Object.values(results).filter((state) => state === 'failed').length };
 }

@@ -68,6 +68,10 @@
         "reference": {
           "type": "string",
           "description": "Справочник: справки типа reference и индекс INDEX.md (docs/13-reference.md). Нет ключа — справочника в проекте нет."
+        },
+        "defects": {
+          "type": "string",
+          "description": "Дефекты: записи типа defect (R-0063). Нет ключа — в проекте дефектов нет, старые проекты не ломаются."
         }
       }
     },

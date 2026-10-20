@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
     return fail(event, 404, 'project_not_found', `Проект \`${id}\` не найден в списке`);
   }
 
-  const body = await readBody<{ verified?: unknown; actor?: unknown; by?: unknown; note?: unknown }>(event);
+  const body = await readBody<{ verified?: unknown; actor?: unknown; by?: unknown; note?: unknown; steps?: unknown }>(event);
   if (typeof body?.verified !== 'boolean') {
     return fail(event, 400, 'verified_required', 'Не сказано, ставится отметка или снимается: нужно `verified: true` или `false`');
   }
@@ -32,7 +32,13 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const outcome = markVerified(project.root, recordId, body.verified, actor, { by, note });
+    const outcome = markVerified(project.root, recordId, body.verified, actor, {
+      by,
+      note,
+      steps: Array.isArray(body.steps)
+        ? body.steps.map((state) => ({ text: '', state: state === 'failed' ? 'failed' as const : 'passed' as const }))
+        : undefined
+    });
     if (!outcome.ok) return fail(event, outcome.status, outcome.code, outcome.message);
     return outcome;
   } catch (error) {

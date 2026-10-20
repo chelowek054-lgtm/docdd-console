@@ -155,6 +155,7 @@ function entries(
           :roles="index?.project.roles ?? []"
           @changed="reload"
         />
+        <DefectFromCheck :project-id="projectId" :record="detail.record" :result="index?.verificationResults[detail.record.id]" />
       </UCard>
 
       <UCard v-if="detail.map">

@@ -2,6 +2,7 @@
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import { reviewerOf } from '~~/server/lib/reviewer';
 import type { IndexRecord } from '~~/server/lib/types';
+import { parseCheckSteps } from '~~/server/lib/manual-report';
 
 /**
  * «Принять вручную» (docs/04-ui.md): отметка «Проверено» на ручных проверках
@@ -74,6 +75,18 @@ const busy = ref(false);
 interface Line { id: string; ok: boolean; text: string }
 const outcome = ref<Line[] | null>(null);
 
+// Шаги проверок (R-0061) берутся из тела записи; у проверки без шагов окно прежнее.
+interface StepView { text: string; expected?: string }
+const stepsOf = ref<Record<string, StepView[]>>({});
+const failedSteps = ref<Record<string, number[]>>({});
+watch(() => manual.value.map((check) => check.id).join(','), async () => {
+  for (const check of manual.value) {
+    if (stepsOf.value[check.id]) continue;
+    const detail = await $fetch<{ body?: string }>(`/api/projects/${props.projectId}/records/${check.id}`, { ignoreResponseError: true }).catch(() => null);
+    stepsOf.value = { ...stepsOf.value, [check.id]: parseCheckSteps(detail?.body ?? '') };
+  }
+}, { immediate: true });
+
 const noteProblem = computed(() => {
   if (note.value.trim().length > 300) return 'Не длиннее 300 знаков.';
   if (note.value.trim().split('\n').length > 2) return 'Не больше двух строк.';
@@ -97,7 +110,10 @@ async function accept() {
     for (const check of manual.value) {
       const response = await $fetch<unknown>(`/api/projects/${props.projectId}/records/${check.id}/verified`, {
         method: 'POST',
-        body: { verified: true, actor: actor.value, by: by.value.trim(), note: note.value.trim() },
+        body: {
+          verified: true, actor: actor.value, by: by.value.trim(), note: note.value.trim(),
+          steps: (stepsOf.value[check.id] ?? []).map((_, i) => ((failedSteps.value[check.id] ?? []).includes(i) ? 'failed' : 'passed'))
+        },
         ignoreResponseError: true
       });
       const problem = reason(response);
@@ -157,6 +173,16 @@ watch(open, (value) => {
             <li v-for="check in manual" :key="check.id">
               <span class="font-mono text-xs">{{ check.id }}</span> {{ check.title }}
               <span v-if="kindNote(check)" class="text-xs text-muted">· {{ kindNote(check) }}</span>
+              <ol v-if="stepsOf[check.id]?.length" class="ml-4 list-decimal text-xs">
+                <li v-for="(step, i) in stepsOf[check.id]" :key="i">
+                  {{ step.text }}<span v-if="step.expected" class="text-muted"> → {{ step.expected }}</span>
+                  <UCheckbox
+                    :model-value="(failedSteps[check.id] ?? []).includes(i)"
+                    label="шаг не прошёл"
+                    @update:model-value="(v) => (failedSteps[check.id] = v === true ? [...(failedSteps[check.id] ?? []), i] : (failedSteps[check.id] ?? []).filter((n) => n !== i))"
+                  />
+                </li>
+              </ol>
             </li>
           </ul>
         </div>
