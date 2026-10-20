@@ -44,6 +44,21 @@ const pending = computed<IndexRecord[]>(() => {
 });
 const manual = pending;
 
+/**
+ * Проверка относится к требованию, а не к задаче: отметка снимет блокировку и с других задач
+ * этого требования. Называем их, а закрывать — только по явному флажку.
+ */
+const sharedTasks = computed<IndexRecord[]>(() => {
+  const own = new Set(props.taskIds ?? []);
+  const targets = new Set(manual.value.flatMap((check) => check.links.verifies ?? []));
+  return (index.value?.records ?? []).filter((record) =>
+    record.type === 'task'
+    && !own.has(record.id)
+    && !['done', 'dropped'].includes(record.status)
+    && (record.links.implements ?? []).some((target) => targets.has(target)));
+});
+const alsoClose = ref<string[]>([]);
+
 const actor = ref(props.roles[0]?.id ?? '');
 const by = ref('');
 const note = ref('');
@@ -82,7 +97,7 @@ async function accept() {
       const problem = reason(response);
       lines.push({ id: check.id, ok: !problem, text: problem ?? 'отмечена вручную' });
     }
-    for (const task of tasks.value) {
+    for (const task of [...tasks.value, ...sharedTasks.value.filter((item) => alsoClose.value.includes(item.id))]) {
       const response = await $fetch<unknown>(`/api/projects/${props.projectId}/records/${task.id}/status`, {
         method: 'POST',
         body: { status: 'done', actor: actor.value },
@@ -103,6 +118,7 @@ async function accept() {
 watch(open, (value) => {
   if (!value) return;
   outcome.value = null;
+  alsoClose.value = [];
   confirmed.value = false;
   by.value = '';
   note.value = '';
@@ -133,6 +149,17 @@ watch(open, (value) => {
               <span v-if="kindNote(check)" class="text-xs text-muted">· {{ kindNote(check) }}</span>
             </li>
           </ul>
+        </div>
+
+        <div v-if="manual.length && sharedTasks.length && !verificationIds?.length && outcome === null" class="rounded border border-default p-2">
+          <p class="mb-1 text-muted">Проверка общая: отметка касается и этих задач — блокировка с них тоже снимется.</p>
+          <UCheckbox
+            v-for="task in sharedTasks"
+            :key="task.id"
+            :model-value="alsoClose.includes(task.id)"
+            :label="`Закрыть и ${task.id} — ${task.title}`"
+            @update:model-value="(value) => (alsoClose = value === true ? [...alsoClose, task.id] : alsoClose.filter((id) => id !== task.id))"
+          />
         </div>
 
         <template v-if="manual.length && outcome === null">
