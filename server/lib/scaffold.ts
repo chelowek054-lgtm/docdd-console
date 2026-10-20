@@ -20,7 +20,7 @@ export const DEFAULT_PATHS: Readonly<Record<SectionKey, string>> = {
   diagrams: 'diagrams',
   maps: 'maps',
   reference: 'reference',
-  defects: 'defects'
+  defects: 'defects', releases: 'releases'
 };
 
 const CYRILLIC: Readonly<Record<string, string>> = {
@@ -167,6 +167,7 @@ export function recordTemplate(input: TemplateInput, eol = '\n'): string {
   lines.push(`created: ${input.today}`, `updated: ${input.today}`);
   if (input.type === 'map' && input.intent) lines.push('intent: true');
   if (input.type === 'verification') lines.push(`kind: ${yamlSafe(input.kind ?? 'manual')}`);
+  if (input.type === 'release') { lines.push(`version: ${yamlSafe(input.kind ?? '')}`); if (input.environment) lines.push(`environments: [${input.environment.split(',').map((e) => yamlSafe(e.trim())).filter(Boolean).join(', ')}]`); }
   if (input.type === 'defect') {
     lines.push(`severity: ${yamlSafe(input.kind ?? 'major')}`);
     if (input.environment) lines.push(`environment: ${yamlSafe(input.environment)}`);

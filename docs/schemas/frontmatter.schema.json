@@ -11,11 +11,11 @@
   "properties": {
     "id": {
       "type": "string",
-      "pattern": "^[RDACTPVMSB]-[0-9]{4}$",
+      "pattern": "^[RDACTPVMSBL]-[0-9]{4}$",
       "description": "Префикс типа, дефис, четыре цифры. Номера не переиспользуются."
     },
     "type": {
-      "enum": ["requirement", "design", "decision", "contract", "task", "phase", "verification", "map", "reference", "defect"]
+      "enum": ["requirement", "design", "decision", "contract", "task", "phase", "verification", "map", "reference", "defect", "release"]
     },
     "title": { "type": "string", "minLength": 1 },
     "status": { "type": "string" },
@@ -42,7 +42,8 @@
         "reuses": { "$ref": "#/$defs/idList" },
         "found_by": { "$ref": "#/$defs/idList" },
         "fixed_by": { "$ref": "#/$defs/idList" },
-        "breaks": { "$ref": "#/$defs/idList" }
+        "breaks": { "$ref": "#/$defs/idList" },
+        "ships": { "$ref": "#/$defs/idList" }
       }
     }
   },
@@ -173,13 +174,25 @@
         },
         "required": ["severity"]
       }
+    },
+    {
+      "if": { "properties": { "type": { "const": "release" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "id": { "pattern": "^L-[0-9]{4}$" },
+          "status": { "enum": ["draft", "review", "approved", "superseded", "dropped"] },
+          "version": { "type": "string", "description": "Версия релиза (R-0064)." },
+          "environments": { "type": "array", "items": { "type": "string" }, "description": "Окружения выкладки." }
+        },
+        "required": ["version"]
+      }
     }
   ],
 
   "$defs": {
     "idList": {
       "type": "array",
-      "items": { "type": "string", "pattern": "^[RDACTPVMSB]-[0-9]{4}$" },
+      "items": { "type": "string", "pattern": "^[RDACTPVMSBL]-[0-9]{4}$" },
       "uniqueItems": true
     }
   }

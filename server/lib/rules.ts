@@ -94,7 +94,7 @@ const LINK_RULES: Readonly<Record<LinkKind, { from: readonly RecordType[]; to: r
   reuses: { from: ['task', 'design'], to: ['reference'] },
   found_by: { from: ['defect'], to: ['verification'] },
   fixed_by: { from: ['defect'], to: ['task'] },
-  breaks: { from: ['defect'], to: ['requirement'] }
+  breaks: { from: ['defect'], to: ['requirement'] }, ships: { from: ['release'], to: ['task'] }
 };
 
 const LINK_TITLES: Readonly<Record<LinkKind, string>> = {
@@ -111,7 +111,7 @@ const LINK_TITLES: Readonly<Record<LinkKind, string>> = {
   reuses: 'переиспользует справку',
   found_by: 'найден проверкой',
   fixed_by: 'чинится задачей',
-  breaks: 'нарушает требование'
+  breaks: 'нарушает требование', ships: 'выкладывает задачу'
 };
 
 // Из любого статуса, кроме начального `draft`, есть путь назад
@@ -166,7 +166,7 @@ export function checkRecordIdentity(record: WorkRecord): Violation[] {
     ));
   }
 
-  if (isRecordType(type) && /^[RDACTPVMSB]-\d{4}$/.test(record.id)) {
+  if (isRecordType(type) && /^[RDACTPVMSBL]-\d{4}$/.test(record.id)) {
     const expectedPrefix = PREFIX_BY_TYPE[type];
     if (!record.id.startsWith(expectedPrefix + '-')) {
       found.push(violation(
@@ -1021,7 +1021,7 @@ function transitionsFor(type: string): Readonly<Record<string, readonly string[]
     case 'contract':
     case 'verification':
     case 'reference':
-    case 'defect':
+    case 'defect': case 'release':
     // Карта подтверждается тем же порядком, что документ: без этого её нельзя
     // утвердить, а без утверждения не начинается работа (docs/07-maps.md).
     case 'map':

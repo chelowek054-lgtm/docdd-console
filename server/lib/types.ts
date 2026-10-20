@@ -17,7 +17,7 @@ export type RecordType =
   | 'verification'
   | 'map'
   | 'reference'
-  | 'defect';
+  | 'defect' | 'release';
 
 export const RECORD_TYPES: readonly RecordType[] = [
   'requirement',
@@ -52,7 +52,7 @@ export type SectionKey =
   | 'diagrams'
   | 'maps'
   | 'reference'
-  | 'defects';
+  | 'defects' | 'releases';
 
 export type LinkKind =
   | 'implements'
@@ -68,7 +68,7 @@ export type LinkKind =
   | 'reuses'
   | 'found_by'
   | 'fixed_by'
-  | 'breaks';
+  | 'breaks' | 'ships';
 
 export const LINK_KINDS: readonly LinkKind[] = [
   'implements',
@@ -173,7 +173,7 @@ export const PREFIX_BY_TYPE: Readonly<Record<RecordType, string>> = {
   verification: 'V',
   map: 'M',
   reference: 'S',
-  defect: 'B'
+  defect: 'B', release: 'L'
 };
 
 /** Раздел, в котором живёт тип. Имя папки берётся из манифеста, ключ — отсюда. */
@@ -187,7 +187,7 @@ export const SECTION_BY_TYPE: Readonly<Record<RecordType, SectionKey>> = {
   verification: 'tests',
   map: 'maps',
   reference: 'reference',
-  defect: 'defects'
+  defect: 'defects', release: 'releases'
 };
 
 /** Что за изменение вносит задача (docs/02-workspace-contract.md). */

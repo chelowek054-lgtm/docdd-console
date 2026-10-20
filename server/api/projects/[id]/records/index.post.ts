@@ -68,7 +68,7 @@ export default defineEventHandler(async (event) => {
       ...(type === 'reference' && typeof body?.fetched === 'string' && body.fetched ? { fetched: body.fetched } : {}),
       // Готовый текст раздела — только у задачи: так «Починить нарушения» кладёт список из проверки.
       // Проектный документ несёт готовый блок токенов (конструктор тем, импорт из Figma) — тоже.
-      ...(type === 'defect' && typeof body?.environment === 'string' && body.environment ? { environment: body.environment } : {}),
+      ...((type === 'defect' || type === 'release') && typeof body?.environment === 'string' && body.environment ? { environment: body.environment } : {}),
       ...(type === 'defect' && typeof body?.build === 'string' && body.build ? { build: body.build } : {}),
       ...((type === 'task' || type === 'design' || type === 'defect') && typeof body?.body === 'string' && body.body.trim() ? { body: body.body } : {}),
       links: asLinks(body?.links)
