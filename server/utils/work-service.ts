@@ -29,6 +29,7 @@ import { forgetSession, rememberSession, sessionOf } from './sessions';
 import { withBuiltin } from '../lib/builtin';
 import { referenceIndexText } from './reference-service';
 import { connectedPractices } from './shared-service';
+import { authorFromSignature } from '../lib/auth';
 
 /**
  * Выполнение задачи через клиент (docs/09-execution.md). Приложение заводит
@@ -179,7 +180,8 @@ export async function accept(root: string, record: IndexRecord, actor: string): 
 
   const committed = await commitAll(
     worktreeRoot(normalized, record.id),
-    commitMessage(record.id, record.title, state.round)
+    commitMessage(record.id, record.title, state.round),
+    authorFromSignature(actor)
   );
   if (!committed.ok) {
     return { ok: false, code: 'commit_failed', message: 'Не удалось закоммитить изменения задачи', detail: committed.stderr.trim() };

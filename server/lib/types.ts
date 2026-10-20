@@ -353,6 +353,8 @@ export interface ProjectManifest {
   paths: Partial<Record<SectionKey, string>>;
   sources?: { code?: string[]; docs?: string[]; client?: string[]; inbox?: string[]; shared?: SharedSource[] };
   roles?: { id: string; name: string }[];
+  /** Команда проекта: логин и роли человека в этом проекте (docs/adr/0020-people-roles-permissions.md). */
+  team?: { login: string; roles: string[]; deny?: string[] }[];
   policy?: Policy;
   architecture?: ArchitectureConfig;
   /** Стеки и снимки экранов (docs/16-design-system.md). */
@@ -432,7 +434,7 @@ export interface IssueDto {
 }
 
 export interface ProjectIndex {
-  project: { id: string; name: string; contract: string; roles: { id: string; name: string }[] };
+  project: { id: string; name: string; contract: string; roles: { id: string; name: string }[]; team?: { login: string; roles: string[] }[] };
   builtAt: string;
   /** Отпечаток файлов, по которому кэш понимает, что устарел. */
   fingerprint: string;

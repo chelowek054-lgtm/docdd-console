@@ -83,7 +83,8 @@ export function buildIndex(root: string, now = new Date(), generalRules: readonl
         name: workspace.manifest.project.name,
         contract: workspace.manifest.contract,
         // Роль — подпись в журнале, а не доступ: экрану нужен их список.
-        roles: workspace.manifest.roles ?? []
+        roles: workspace.manifest.roles ?? [],
+        team: workspace.manifest.team
       },
       builtAt: now.toISOString(),
       fingerprint: workspace.fingerprint,
