@@ -1,4 +1,4 @@
-import type { IndexRecord, ProjectEntry, ProjectIndex, RecordDetail } from '~~/server/lib/types';
+import type { IndexRecord, IssueDto, ProjectEntry, ProjectIndex, RecordDetail } from '~~/server/lib/types';
 
 /**
  * Обращения к API живут здесь: компоненты не ходят в файловую систему и не
@@ -30,13 +30,28 @@ export function useProjects() {
 
 export function useProjectIndex(projectId: MaybeRefOrGetter<string>) {
   const id = computed(() => toValue(projectId));
+  // Нарушения не встраиваем в HTML: индекс идёт с issues=0, а они — отдельным
+  // ленивым запросом на клиенте (пока грузятся — пусто, как у покрытия).
   const state = useFetch<ProjectIndex | { error: ApiFailure }>(() => `/api/projects/${id.value}/index`, {
     key: () => `index:${id.value}`,
+    query: { issues: 0 },
+    watch: [id]
+  });
+  const issuesState = useFetch<{ issues: IssueDto[] } | { error: ApiFailure }>(() => `/api/projects/${id.value}/issues`, {
+    key: () => `issues:${id.value}`,
+    server: false,
+    lazy: true,
     watch: [id]
   });
 
   const failure = computed(() => failureOf(state.data.value));
-  const index = computed(() => (failure.value ? null : (state.data.value as ProjectIndex | null)));
+  const index = computed<ProjectIndex | null>(() => {
+    if (failure.value) return null;
+    const base = state.data.value as ProjectIndex | null;
+    if (!base) return null;
+    const loaded = issuesState.data.value as { issues?: IssueDto[] } | null;
+    return loaded?.issues ? { ...base, issues: loaded.issues } : base;
+  });
 
   const records = computed<IndexRecord[]>(() => index.value?.records ?? []);
   const byType = (type: string) => computed(() => records.value.filter((record) => record.type === type));
@@ -47,7 +62,7 @@ export function useProjectIndex(projectId: MaybeRefOrGetter<string>) {
 
   async function refresh() {
     await $fetch(`/api/projects/${id.value}/index?refresh=1`);
-    await state.refresh();
+    await Promise.all([state.refresh(), issuesState.refresh()]);
   }
 
   /**

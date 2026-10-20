@@ -22,6 +22,8 @@ export default defineEventHandler(async (event) => {
   try {
     const index = loadIndex(project.root, refresh);
     await touchProject(id);
+    // issues=0: нарушения (~26 КБ) уезжают отдельным запросом и не попадают в HTML.
+    if (getQuery(event)['issues'] === '0') return { ...index, issues: [] };
     return index;
   } catch (error) {
     if (error instanceof WorkspaceError) {
