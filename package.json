@@ -13,6 +13,7 @@
     "start:built": "tsx cli/start-built.ts",
     "postinstall": "nuxt prepare",
     "check": "tsx cli/check.ts",
+    "perf": "tsx cli/perf.ts",
     "typecheck": "tsc --noEmit && nuxt typecheck",
     "test": "vitest run",
     "lint": "eslint ."
