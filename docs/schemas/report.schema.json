@@ -16,6 +16,12 @@
     "failed": { "type": "integer", "minimum": 0 },
     "checked_by": { "type": "string", "description": "Ручная отметка: имя того, кто проверил." },
     "note": { "type": "string", "description": "Ручная отметка: что именно проверено (одна-две строки)." },
+    "build": { "type": "string", "description": "Версия сборки или релиза, на котором шёл прогон (R-0062)." },
+    "steps": {
+      "type": "array",
+      "description": "Ручная приёмка: результат по шагам проверки (R-0061).",
+      "items": { "type": "object", "required": ["text", "state"], "properties": { "text": { "type": "string" }, "expected": { "type": "string" }, "state": { "enum": ["passed", "failed"] } } }
+    },
     "verifications": {
       "type": "object",
       "description": "Идентификатор проверки → результат последнего прогона.",

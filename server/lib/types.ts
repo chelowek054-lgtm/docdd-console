@@ -295,6 +295,10 @@ export interface Report {
   note?: string;
   /** Вид проверки, принятой вручную без прогона сборки (unit, integration, metric…). */
   verification_kind?: string;
+  /** Шаги ручной проверки с результатом по каждому (R-0061). */
+  steps?: { text: string; expected?: string; state: string }[];
+  /** Версия сборки или релиза, на котором шёл прогон (R-0062). */
+  build?: string;
   verifications: Record<string, VerificationResult>;
 }
 

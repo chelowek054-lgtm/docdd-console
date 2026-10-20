@@ -35,6 +35,8 @@ export interface ManualExtra {
   note?: string | undefined;
   /** Вид проверки, если она автоматическая: тогда ручная приёмка помечается честно. */
   kind?: string | undefined;
+  /** Результат по шагам проверки (R-0061); нет — отчёт прежнего вида. */
+  steps?: ReportStep[] | undefined;
 }
 
 /** Сколько знаков заметки идёт в строку журнала: журнал — след, а не пересказ. */
@@ -57,6 +59,7 @@ export function manualReportText(verificationId: string, state: ManualState, act
     ...(by ? { checked_by: by } : {}),
     ...(note ? { note } : {}),
     ...(kind ? { verification_kind: kind } : {}),
+    ...(extra?.steps?.length ? { steps: extra.steps } : {}),
     verifications: { [verificationId]: state }
   }, null, 2) + '\n';
 }
@@ -72,4 +75,34 @@ export function verifiedJournalAction(verified: boolean, actor = '', extra?: Man
   const short = note.length > NOTE_JOURNAL_LIMIT ? `${note.slice(0, NOTE_JOURNAL_LIMIT - 1).trimEnd()}…` : note;
   const kind = extra?.kind?.trim() ?? '';
   return [kind ? `проверена вручную (вид ${kind})` : 'проверена вручную', actor.trim(), by ? `проверил ${by}` : '', short].filter(Boolean).join(' · ');
+}
+
+/** Шаг ручной проверки: что сделать и что должно получиться (R-0061). */
+export interface CheckStep { text: string; expected?: string }
+/** Шаг в отчёте: результат ставит человек. */
+export interface ReportStep extends CheckStep { state: 'passed' | 'failed' }
+
+/**
+ * Шаги из раздела «## Шаги» тела проверки: пункты списка, «текст -> ожидаемое» или
+ * «текст => ожидаемое». Раздела нет — шагов нет, прежние проверки живут как жили.
+ * Общий «## Ожидаемый результат» приписывается последнему шагу без своего ожидания.
+ */
+export function parseCheckSteps(body: string): CheckStep[] {
+  const steps: CheckStep[] = [];
+  let section = '';
+  let overall = '';
+  for (const line of body.split(/\r?\n/)) {
+    const heading = /^#{2,3}\s+(.+?)\s*$/.exec(line);
+    if (heading) { section = (heading[1] ?? '').toLowerCase(); continue; }
+    const item = /^\s*(?:\d+[.)]|[-*])\s+(.+?)\s*$/.exec(line);
+    if (section === 'шаги' && item) {
+      const [text, expected] = (item[1] ?? '').split(/\s*(?:=>|->|→)\s*/, 2);
+      steps.push({ text: text ?? '', ...(expected ? { expected } : {}) });
+    } else if (section === 'ожидаемый результат' && line.trim()) {
+      overall = `${overall} ${line.replace(/^\s*[-*]\s+/, '').trim()}`.trim();
+    }
+  }
+  const last = steps[steps.length - 1];
+  if (last && !last.expected && overall) last.expected = overall;
+  return steps;
 }

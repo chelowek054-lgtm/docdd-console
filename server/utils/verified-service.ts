@@ -8,6 +8,8 @@ import {
   type ManualExtra,
   manualReportName,
   manualReportText,
+  parseCheckSteps,
+  type ReportStep,
   verifiedJournalAction,
   type ManualState
 } from '../lib/manual-report';
@@ -43,7 +45,11 @@ export function markVerified(root: string, recordId: string, verified: boolean, 
   if (verified && autoKind && !(extra?.note ?? '').trim()) {
     return { ok: false, status: 400, code: 'note_required', message: 'Принимая проверку без прогона сборки, напишите, что проверено' };
   }
-  const withKind: ManualExtra | undefined = autoKind ? { ...extra, kind: autoKind } : extra;
+  // Шаги берутся из тела проверки; человек может отметить шаг проваленным (R-0061).
+  const stepStates = extra?.steps ?? [];
+  const steps: ReportStep[] = parseCheckSteps(context.record.body).map((step, i) => ({ ...step, state: stepStates[i]?.state ?? 'passed' }));
+  const withSteps: ManualExtra | undefined = steps.length ? { ...extra, steps } : extra;
+  const withKind: ManualExtra | undefined = autoKind ? { ...withSteps, kind: autoKind } : withSteps;
 
   const testsFolder = context.workspace.manifest.paths?.tests;
   if (!testsFolder) {
