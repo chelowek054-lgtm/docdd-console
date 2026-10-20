@@ -164,7 +164,7 @@ async function diffBase(worktree: string, base?: string | null): Promise<string>
  * дерево уже чистое, и `git commit` откажет: коммитить нечего. Это не сбой:
  * работа уже лежит в истории ветки, принимать её отдельным коммитом не нужно.
  */
-export async function commitAll(worktree: string, message: string): Promise<GitResult> {
+export async function commitAll(worktree: string, message: string, author?: { name: string; email: string } | null): Promise<GitResult> {
   const added = await git(worktree, ['add', '--all']);
   if (!added.ok) return added;
 
@@ -172,7 +172,9 @@ export async function commitAll(worktree: string, message: string): Promise<GitR
     return { ok: true, stdout: 'уже закоммичено', stderr: '', code: 0 };
   }
 
-  return git(worktree, ['commit', '--no-verify', '-m', message]);
+  // Автор коммита — вошедший человек, а не git-настройки сервера (docs/adr/0020, п. 6).
+  const identity = author ? ['-c', `user.name=${author.name}`, '-c', `user.email=${author.email}`] : [];
+  return git(worktree, [...identity, 'commit', '--no-verify', '-m', message]);
 }
 
 /** Слияние только перемоткой: расхождение разбирает человек, а не приложение. */
