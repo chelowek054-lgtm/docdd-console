@@ -244,7 +244,7 @@ const grouping = computed(() => {
 const codemapMode = computed<'groups' | 'group' | 'all'>(() => {
   const found = grouping.value;
   if (!found) return 'all';
-  if (found.byId.has(String(route.query['group'] ?? ''))) return 'group';
+  if (found.byId.has(String(route.query['group'] ?? '')) || nestedGroupAsked()) return 'group';
   const wanted = String(route.query['view'] ?? '');
   if (wanted === 'all' || found.groups.length < 2) return 'all';
   if (wanted === 'groups') return 'groups';
@@ -264,7 +264,7 @@ const ghostFor = ref<string | null>(null);
 function goTo(query: { view?: string; group?: string }) {
   selection.value = null;
   ghostFor.value = null;
-  void router.push({ query: { ...route.query, view: undefined, group: undefined, ...query } });
+  void router.push({ query: { ...route.query, view: undefined, group: undefined, open: undefined, depth: undefined, ...query } });
 }
 const showGroups = () => goTo({ view: 'groups' });
 const showAllModules = () => goTo({ view: 'all' });
@@ -320,6 +320,7 @@ const scopeCodemap = computed(() => {
   if (codemapMode.value !== 'group' || !grouping.value) return value.codemap;
   // Модуль, названный только в импорте, — тоже участник группы: со слоем по папке он входит в чипы слоёв наравне с описанными.
   const declared = new Map(value.codemap.modules.map((item) => [item.id, item]));
+  if (!grouping.value.byId.has(openGroupId.value)) return nestedScope(value.codemap, openGroupId.value);
   const members = grouping.value.byId.get(openGroupId.value)?.members ?? [];
   return {
     modules: members.map((member) => declared.get(member.id) ?? { id: member.id }),
@@ -383,7 +384,7 @@ const chosenHiddenLayers = ref<Set<string> | null>(null);
  */
 const hiddenLayers = computed(() => {
   if (chosenHiddenLayers.value) return chosenHiddenLayers.value;
-  if (!isLargeCodemap.value || !smallestLayer.value) return new Set<string>();
+  if (!isLargeCodemap.value || !smallestLayer.value || groupFoldsChildren()) return new Set<string>();
   return new Set(allLayers.value.filter((layer) => layer !== smallestLayer.value));
 });
 function toggleLayer(layer: string) {
@@ -782,6 +783,7 @@ function onNodeClick(id: string) {
 function onNodeDblClick(id: string) {
   const node = current.value?.nodes?.[id];
   if (shown.value === 'codemap' && codemapMode.value === 'groups' && node?.group) enterGroup(node.group.groupId);
+  else if (shown.value === 'codemap' && node && !node.ghost && isTreeGroup(node.id)) enterGroup(node.id);
   if (shown.value === 'dataflow' && flowMode.value === 'groups' && node?.flowGroup) enterFlow(node.flowGroup);
   if (shown.value === 'functional' && capLevel.value === 'groups' && node?.capabilityGroup) enterCapGroup(node.capabilityGroup);
 }
@@ -808,7 +810,7 @@ function onEdgeClick(edge: MermaidEdge) {
 // Без вложенности или без ?depth=/?open= все три computed дают null, и экран
 // рисует прежние диаграммы (`?? ` в `views`).
 // eslint-disable-next-line import/first
-import { visibleAt, type Edge as HierarchyEdge, type TreeNode } from '~~/server/lib/hierarchy';
+import { ancestors, visibleAt, type Edge as HierarchyEdge, type TreeNode } from '~~/server/lib/hierarchy';
 // eslint-disable-next-line import/first
 import { groupTree } from '~~/server/lib/groups';
 // eslint-disable-next-line import/first
@@ -989,7 +991,9 @@ const codemapDepth = computed<DepthOutput | null>(() => {
   const tree = groupTree(base.modules, base.imports, value.codemap.groups);
   if (!tree.nodes.some((node) => node.parent)) return null;
   const groupIds = new Set(tree.nodes.map((node) => node.id));
-  const params = depthParams(groupIds);
+  // Открытая группа с подгруппами показывает их, а не стену модулей: следующий уровень, как «Раскрыть на месте».
+  const hasChildren = groupFoldsChildren();
+  const params = depthParams(groupIds) ?? (hasChildren ? { level: 1, open: openGroupId.value } : null);
   if (!params) return null;
   // Модуль висит под своей самой глубокой группой; модуль с id группы деревом не дублируется.
   const modules = new Set(base.modules.map((item) => item.id));
@@ -1178,6 +1182,52 @@ const splitHints = computed(() => {
   const edges: HierarchyEdge[] = base.imports.map((edge) => ({ from: edge.from, to: edge.to, kind: 'import' }));
   return { nodes, edges };
 });
+/**
+ * Дерево объявленных групп целиком (ADR-0027): обзор `grouping` знает только верхние группы,
+ * а открыть можно и вложенную — «Все › Сервер › Ядро».
+ */
+// Функция, а не computed: код стоит в конце скрипта, а читают его выше — `const` там ещё не объявлен.
+function codemapTree(): ReturnType<typeof groupTree> | null {
+  const value = map.value;
+  if (!value) return null;
+  const cache = (codemapTree as unknown as { cache?: WeakMap<object, ReturnType<typeof groupTree>> }).cache ??= new WeakMap();
+  let tree = cache.get(value);
+  if (!tree) {
+    tree = groupTree(value.codemap.modules, value.codemap.imports, value.codemap.groups);
+    cache.set(value, tree);
+  }
+  return tree;
+}
+/** Лежит ли модуль под группой на любой глубине. */
+function underGroup(moduleId: string, groupId: string): boolean {
+  const tree = codemapTree();
+  if (!tree) return false;
+  const nodes = tree.nodes.map((node) => ({ id: node.id, parent: node.parent }));
+  const own = tree.groupOf(moduleId);
+  return own === groupId || ancestors(own, nodes).includes(groupId);
+}
+
+/** Открытая группа рисуется своими подгруппами, а не модулями: слои тогда прятать незачем. */
+function groupFoldsChildren(): boolean {
+  return codemapMode.value === 'group' && !!codemapTree()?.nodes.some((node) => node.parent === openGroupId.value);
+}
+/** В адресе — вложенная объявленная группа (у верхней свой путь через `grouping`). */
+function nestedGroupAsked(): boolean {
+  const asked = String(route.query['group'] ?? '');
+  return !!codemapTree()?.nodes.some((node) => node.id === asked && node.parent);
+}
+const isTreeGroup = (id: string) => !!codemapTree()?.nodes.some((node) => node.id === id);
+/** Модули вложенной группы на любой глубине и импорты между ними. */
+function nestedScope<M extends { id: string }, I extends { from: string; to: string }>(
+  codemap: { modules: M[]; imports: I[] }, groupId: string
+): { modules: M[]; imports: I[] } {
+  const inside = new Set(codemap.modules.filter((item) => underGroup(item.id, groupId)).map((item) => item.id));
+  return {
+    modules: codemap.modules.filter((item) => inside.has(item.id)),
+    imports: codemap.imports.filter((edge) => inside.has(edge.from) && inside.has(edge.to))
+  };
+}
+
 // Пользовательские карты (docs/adr/0028-custom-maps.md): вкладки рядом со встроенными
 // видами и форма «Новая карта». Код — в конце скрипта: M-0001 цитирует строки выше.
 import type { CustomMapView as CustomMapContent } from '~~/server/lib/custom-maps';
