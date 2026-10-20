@@ -15,7 +15,7 @@ export const shell: Record<string, string> = {
   'nav.reference': 'Справочник',
   'nav.work': 'Работа',
   'nav.tasks': 'Задачи',
-  'nav.phases': 'Фазы',
+  'nav.phases': 'Фазы', 'nav.manager': 'Менеджер',
   'nav.verify': 'Сверка',
   'nav.checks': 'Проверки',
   'nav.results': 'Результат',

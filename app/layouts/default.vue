@@ -99,7 +99,7 @@ const entries = computed<NavEntry[]>(() => {
       ]
     },
     { kind: 'link', label: t('nav.practices'), to: `${base}/shared` },
-    { kind: 'link', label: t('nav.design'), to: `${base}/design` }
+    { kind: 'link', label: t('nav.design'), to: `${base}/design` }, { kind: 'link', label: t('nav.manager'), to: `${base}/manager` }
   ];
 });
 
