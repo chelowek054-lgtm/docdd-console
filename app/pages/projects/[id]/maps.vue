@@ -31,8 +31,8 @@ import {
 } from '~~/server/lib/flow-groups';
 import { ghostNeighbors, groupCard, groupModules, groupScope, portsOf } from '~~/server/lib/groups';
 import { layerOf } from '~~/server/lib/layers';
-import { emptyProjectMap, type ProjectMap } from '~~/server/lib/maps';
-
+import type { ProjectMap } from '~~/server/lib/maps';
+import { emptyProjectMap } from '~~/server/lib/maps';
 const route = useRoute();
 const projectId = computed(() => String(route.params['id'] ?? ''));
 

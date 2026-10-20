@@ -1,4 +1,5 @@
-import type { IndexRecord, IssueDto, ProjectEntry, ProjectIndex, RecordDetail } from '~~/server/lib/types';
+import type { IndexRecord, ProjectEntry, ProjectIndex, RecordDetail } from '~~/server/lib/types';
+import type { IssueDto } from '~~/server/lib/types';
 
 /**
  * Обращения к API живут здесь: компоненты не ходят в файловую систему и не

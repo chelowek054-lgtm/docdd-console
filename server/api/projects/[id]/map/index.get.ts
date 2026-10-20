@@ -3,9 +3,10 @@ import { defineEventHandler, getQuery, getRouterParam } from 'h3';
 import { OutsideRootError } from '../../../../lib/paths';
 import { WorkspaceError } from '../../../../lib/workspace';
 import { fail } from '../../../../utils/http';
-import { buildProjectMap, mapKindView, MAP_KINDS, type MapKind } from '../../../../utils/map-service';
+import { buildProjectMap } from '../../../../utils/map-service';
 import { findProject } from '../../../../utils/projects';
 import { fingerprintProject, memoByFingerprint } from '../../../../utils/memo';
+import { mapKindView, MAP_KINDS, type MapKind } from '../../../../utils/map-service';
 
 /*
  * Маршрут `/api/projects/:id/map`. Папка `map` внутри `[id]` — тот же приём,
