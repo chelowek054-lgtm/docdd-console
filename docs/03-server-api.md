@@ -459,6 +459,36 @@
 экран мог дать ссылку на запись. `level` — `failing`, `verified`,
 `unchecked`, `no_check` или `none`, по правилу из 07-maps.md.
 
+### `GET /api/projects/:id/maps/custom`
+
+Пользовательские карты ([adr/0028](adr/0028-custom-maps.md)):
+`{ definitions, problems, maps }`. `definitions` — годные определения из
+`maps.custom` манифеста; `problems` — беды неверных (такое определение
+пропущено, остальные живут); `maps` — по `id` карты её `{ nodes, relations }`
+из той же сложенной картины, что у `GET …/map`. Поля, которых карта в
+`features` не взяла, не приходят.
+
+### `POST /api/projects/:id/maps/custom`
+
+Тело — определение: `id`, `title`, `summary?`, `node { label, plural }`,
+`relations?` (без них — пять видов функциональной карты), `features`.
+Проверяется тем же отбором, что читает манифест, и дописывается в
+`project.yaml` точечно: остальной файл и комментарии не трогаются. Ответ —
+`{ definition }`. Ошибки: `409 custom_map_exists` — карта с таким `id` уже
+объявлена; `422 custom_map_invalid` — определение не прошло проверку;
+`422 manifest_form` — секция `maps` записана в форме, которую приложение не
+правит, — допишите вручную.
+
+### `POST /api/projects/:id/maps/custom/:mapId/node`
+
+Правка пользовательской карты, как `POST …/map/capability`: заводит черновик
+записи `map` с блоком `docdd-custom` и отвечает `{ record, path }`. Тело —
+`{ action, node?, relation?, statuses? }`: `add`/`remove` — узел (`node.id`
+обязателен); `relate`/`unrelate` — связь `{ from, to, type }`, `type` — вид
+из определения карты, концы — существующие узлы; `status` — пачка
+`{ id: состояние | null }`, только если карта взяла `status`. Карты `mapId`
+нет среди определений — `404 custom_map_not_found`.
+
 ### `GET /api/projects/:id/architecture`
 
 Нарушения архитектуры по подтверждённой карте кода и правилам `architecture`

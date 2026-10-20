@@ -255,6 +255,13 @@
           "description": "Через сколько дней справка считается устаревшей (docs/13-reference.md)."
         }
       }
+    },
+    "maps": {
+      "type": "object",
+      "description": "Карты проекта. custom — определения пользовательских карт (docs/adr/0028-custom-maps.md). Схема здесь нарочно свободная: неверное определение — проблема одной карты, а не всего проекта; подробно его проверяет customDefinitions (server/lib/custom-maps.ts).",
+      "properties": {
+        "custom": { "type": "array", "items": { "type": "object" } }
+      }
     }
   }
 }

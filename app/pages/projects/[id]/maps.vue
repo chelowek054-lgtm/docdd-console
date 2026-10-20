@@ -1178,6 +1178,33 @@ const splitHints = computed(() => {
   const edges: HierarchyEdge[] = base.imports.map((edge) => ({ from: edge.from, to: edge.to, kind: 'import' }));
   return { nodes, edges };
 });
+// Пользовательские карты (docs/adr/0028-custom-maps.md): вкладки рядом со встроенными
+// видами и форма «Новая карта». Код — в конце скрипта: M-0001 цитирует строки выше.
+import type { CustomMapView as CustomMapContent } from '~~/server/lib/custom-maps';
+import type { CustomMapDefinition } from '~~/server/lib/types';
+
+type CustomMapsResponse = {
+  definitions: CustomMapDefinition[];
+  problems: string[];
+  maps: Record<string, CustomMapContent>;
+};
+const { data: customData, refresh: refreshCustom } = useFetch<CustomMapsResponse | { error: ApiFailure }>(
+  () => `/api/projects/${projectId.value}/maps/custom`
+);
+const customMaps = computed<CustomMapsResponse>(() =>
+  customData.value && !('error' in customData.value)
+    ? customData.value
+    : { definitions: [], problems: [], maps: {} }
+);
+/** Открытая пользовательская карта; null — показан встроенный вид. */
+const customShown = ref<string | null>(null);
+const customFormOpen = ref(false);
+const customCurrent = computed(() => customMaps.value.definitions.find((item) => item.id === customShown.value) ?? null);
+
+async function onCustomCreated(definition: CustomMapDefinition) {
+  await refreshCustom();
+  customShown.value = definition.id;
+}
 </script>
 
 <template>
@@ -1332,15 +1359,37 @@ const splitHints = computed(() => {
       <template v-else-if="map">
         <!-- Подвкладка на вид карты: у каждой свой смысл (вопрос, на который
              она отвечает), а не просто разные данные под одной кнопкой. -->
-        <UTabs
-          v-model="shown"
-          :items="views.map((view) => ({ label: view.title, value: view.key, badge: view.count }))"
+        <div class="flex flex-wrap items-center gap-2">
+          <UTabs
+            v-model="shown"
+            :items="views.map((view) => ({ label: view.title, value: view.key, badge: view.count }))"
+            @update:model-value="customShown = null"
+          />
+          <!-- Пользовательские карты — рядом со встроенными (docs/04-ui.md, «Карты по желанию пользователя»). -->
+          <UTabs
+            v-if="customMaps.definitions.length"
+            :model-value="customShown ?? ''"
+            variant="link"
+            :items="customMaps.definitions.map((item) => ({ label: item.title, value: item.id, badge: customMaps.maps[item.id]?.nodes.length ?? 0 }))"
+            @update:model-value="(value) => (customShown = String(value) || null)"
+          />
+          <UButton icon="i-lucide-plus" size="sm" variant="soft" label="Новая карта" @click="customFormOpen = true" />
+        </div>
+        <p v-for="problem in customMaps.problems" :key="problem" class="text-sm text-warning">{{ problem }}</p>
+        <CustomMapForm v-model:open="customFormOpen" :project-id="projectId" @created="onCustomCreated" />
+        <CustomMapView
+          v-if="customCurrent"
+          :project-id="projectId"
+          :definition="customCurrent"
+          :nodes="customMaps.maps[customCurrent.id]?.nodes ?? []"
+          :relations="customMaps.maps[customCurrent.id]?.relations ?? []"
+          @changed="refreshCustom"
         />
 
         <!-- Общий контейнер диаграммы и карточки узла: на весь экран
              разворачивается он, а не сама диаграмма, — иначе карточка (портал
              рядом) из фуллскрина не видна (docs/04-ui.md, «Карты»). -->
-        <div ref="stage" class="[&:fullscreen]:overflow-auto [&:fullscreen]:bg-default [&:fullscreen]:p-4">
+        <div v-show="!customCurrent" ref="stage" class="[&:fullscreen]:overflow-auto [&:fullscreen]:bg-default [&:fullscreen]:p-4">
           <UCard v-if="current">
             <template #header>
               <div class="flex flex-wrap items-center gap-3">

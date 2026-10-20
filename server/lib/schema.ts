@@ -13,7 +13,7 @@ import projectSchema from '../../docs/schemas/project.schema.json';
 import reportSchema from '../../docs/schemas/report.schema.json';
 import recordsSchema from '../../docs/schemas/records.schema.json';
 import skippedSchema from '../../docs/schemas/skipped.schema.json';
-import userflowSchema from '../../docs/schemas/userflow.schema.json';
+import userflowSchema from '../../docs/schemas/userflow.schema.json'; import customSchema from '../../docs/schemas/custommap.schema.json';
 
 /** Схемы берутся прямо из docs/schemas: копия разошлась бы с контрактом в первую же неделю. */
 
@@ -184,4 +184,29 @@ function explain(error: ErrorObject, field: string): string {
     default:
       return `${where}: ${error.message ?? 'значение не проходит проверку по схеме'}.`;
   }
+}
+
+// Компилируется в конце файла, а не рядом с остальными: строки выше цитируются
+// картой проекта как свидетельства, их номера сдвигать нельзя.
+const validateCustomSchema = ajv.compile(customSchema);
+
+/**
+ * Пользовательская карта (docs/adr/0028-custom-maps.md). Сверх схемы — одно
+ * правило, которое схема выразить не может: карта элемента обязана быть
+ * известна, своя или блока, иначе ключ свода `map:id` не собрать.
+ */
+export function validateCustom(data: unknown): SchemaIssue[] {
+  const issues = run(validateCustomSchema, data);
+  if (issues.length > 0) return issues;
+  const block = data as { map?: string; added?: Record<string, { map?: string }[]>; removed?: Record<string, { map?: string }[]> };
+  for (const side of ['added', 'removed'] as const) {
+    for (const field of ['nodes', 'relations'] as const) {
+      (block[side]?.[field] ?? []).forEach((item, index) => {
+        if (item.map || block.map) return;
+        const where = `${side}.${field}[${index}]`;
+        issues.push({ field: where, instancePath: `/${side}/${field}/${index}`, message: `${where}: не указана карта — задайте map у блока или у элемента.` });
+      });
+    }
+  }
+  return issues;
 }

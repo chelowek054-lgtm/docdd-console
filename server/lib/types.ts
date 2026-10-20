@@ -349,7 +349,7 @@ export interface ProjectManifest {
   policy?: Policy;
   architecture?: ArchitectureConfig;
   /** Стеки и снимки экранов (docs/16-design-system.md). */
-  design?: DesignManifest;
+  design?: DesignManifest; /** Карты проекта (docs/adr/0028-custom-maps.md). */ maps?: MapsManifest;
 }
 
 export interface DesignManifest {
@@ -482,4 +482,28 @@ export interface RecordDetail {
   map?: MapView;
   issues: IssueDto[];
   verifications: Record<string, VerificationOutcome>;
+}
+
+/** Стиль связи пользовательской карты — один из пяти стилей функциональной карты. */
+export type CustomRelationStyle = 'depends' | 'uses' | 'feeds' | 'triggers' | 'replaces';
+
+/** Что пользовательская карта берёт у встроенных (docs/adr/0028-custom-maps.md). */
+export type CustomMapFeature = 'status' | 'priority' | 'horizon' | 'evidence' | 'links';
+
+/** Определение пользовательской карты, секция `maps.custom` манифеста. */
+export interface CustomMapDefinition {
+  id: string;
+  title: string;
+  summary?: string;
+  node: { label: string; plural: string };
+  relations: { id: string; label: string; style: CustomRelationStyle }[];
+  features: CustomMapFeature[];
+  /** Незнакомые поля проекта сохраняются при записи манифеста. */
+  [key: string]: unknown;
+}
+
+export interface MapsManifest {
+  /** Сырые записи: проверяет и отбирает их customDefinitions (server/lib/custom-maps.ts). */
+  custom?: unknown[];
+  [key: string]: unknown;
 }

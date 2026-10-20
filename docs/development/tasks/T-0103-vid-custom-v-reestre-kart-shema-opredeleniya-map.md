@@ -2,7 +2,7 @@
 id: T-0103
 type: task
 title: Вид custom в реестре карт, схема, определения maps.custom в манифесте
-status: in_progress
+status: in_review
 change: feature
 created: 2026-10-20
 updated: 2026-10-20
@@ -20,3 +20,4 @@ links:
 - 2026-10-20 · заведена · приложение
 - 2026-10-20 · готова к работе · architect
 - 2026-10-20 · в разработку · architect
+- 2026-10-20 · на проверку · architect
