@@ -31,16 +31,16 @@ import {
 } from '~~/server/lib/flow-groups';
 import { ghostNeighbors, groupCard, groupModules, groupScope, portsOf } from '~~/server/lib/groups';
 import { layerOf } from '~~/server/lib/layers';
-import type { ProjectMap } from '~~/server/lib/maps';
+import { emptyProjectMap, type ProjectMap } from '~~/server/lib/maps';
 
 const route = useRoute();
 const projectId = computed(() => String(route.params['id'] ?? ''));
 
-type MapResponse = ProjectMap & { unverified: number };
+type MapResponse = ProjectMap & { unverified: number }; type MapKindName = 'functional' | 'codebase' | 'flows' | 'journeys'; const firstKind: MapKindName = route.query['fgroup'] || route.query['fkind'] || route.query['fview'] ? 'flows' : route.query['group'] || route.query['view'] ? 'codebase' : 'functional';
 
 const { data, refresh: refreshMap, status } = useFetch<MapResponse | { error: ApiFailure }>(
-  () => `/api/projects/${projectId.value}/map`,
-  { key: () => `map:${projectId.value}` }
+  () => `/api/projects/${projectId.value}/map?kind=${firstKind}`,
+  { key: () => `map:${projectId.value}:${firstKind}` }
 );
 
 /** Что стоит за возможностями в процессе — отдельный запрос: ему нужны требования, задачи и отчёты (docs/03-server-api.md). */
@@ -80,7 +80,7 @@ const violations = computed<ReadonlyMap<string, ArchViolationView>>(() => {
 
 /** Перечитать карту, покрытие и архитектуру вместе: подтверждённая карта или отметка меняет все три. */
 async function refresh() {
-  await Promise.all([refreshMap(), refreshCoverage(), refreshArchitecture()]);
+  await Promise.all([refreshMap(), refreshCoverage(), refreshArchitecture(), refreshLoadedKinds()]);
 }
 
 const saving = ref(false);
@@ -204,7 +204,7 @@ const aside = computed(() => {
 });
 
 const failure = computed(() => failureOf(data.value));
-const map = computed(() => (failure.value ? null : (data.value as MapResponse | null)));
+const map = computed(() => (failure.value ? null : mergedMap(data.value as Partial<MapResponse> | null)));
 
 /**
  * Записи карт видны всегда, а не только когда картина пуста (docs/04-ui.md,
@@ -1262,6 +1262,46 @@ async function onCustomCreated(definition: CustomMapDefinition) {
   await refreshCustom();
   customShown.value = definition.id;
 }
+
+// Догрузка видов (T-0112): первый вид пришёл с `data`, остальные — при переключении вкладки, и держатся в памяти.
+const KIND_OF_TAB = { functional: 'functional', codemap: 'codebase', dataflow: 'flows', userflow: 'journeys' } as const;
+const extraKinds = reactive<Partial<Record<MapKindName, Partial<MapResponse>>>>({});
+const loadedKinds = new Set<MapKindName>([firstKind]);
+
+async function loadKind(kind: MapKindName, force = false) {
+  if (!force && loadedKinds.has(kind)) return;
+  loadedKinds.add(kind);
+  // Ключ по виду, как у первого запроса: повторное открытие вкладки берёт ответ из памяти Nuxt.
+  const part = await $fetch<Partial<MapResponse> | { error: ApiFailure }>(
+    `/api/projects/${projectId.value}/map?kind=${kind}`,
+    { ignoreResponseError: true }
+  );
+  if (failureOf(part)) loadedKinds.delete(kind);
+  else extraKinds[kind] = part as Partial<MapResponse>;
+}
+
+async function refreshLoadedKinds() {
+  await Promise.all([...loadedKinds].filter((kind) => kind !== firstKind).map((kind) => loadKind(kind, true)));
+}
+
+/** Невыгруженные виды — пустые, не `undefined`: остальной код страницы читает `map.value.codemap.modules` без проверок. */
+function mergedMap(first: Partial<MapResponse> | null): MapResponse | null {
+  if (!first) return null;
+  const empty = emptyProjectMap();
+  const parts = [first, ...Object.values(extraKinds)];
+  const pick = <K extends 'codemap' | 'dataflow' | 'userflow' | 'functional'>(key: K) => parts.find((part) => part && part[key])?.[key] ?? empty[key];
+  return {
+    ...empty,
+    codemap: pick('codemap'),
+    dataflow: pick('dataflow'),
+    userflow: pick('userflow'),
+    functional: pick('functional'),
+    from: first.from ?? [],
+    unverified: first.unverified ?? 0
+  } as MapResponse;
+}
+
+watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true });
 </script>
 
 <template>

@@ -115,3 +115,44 @@ function countUnverified(map: ProjectMap): number {
   for (const item of map.userflow.calls) if (bad(item)) count += 1;
   return count;
 }
+
+export const MAP_KINDS = ['functional', 'codebase', 'flows', 'journeys', 'custom'] as const;
+export type MapKind = (typeof MAP_KINDS)[number];
+
+/** Числа для ярлыков вкладок: считаются по полному виду, но отдаются без содержимого других видов. */
+export interface MapSummary {
+  capabilities: number;
+  relations: number;
+  modules: number;
+  imports: number;
+  sources: number;
+  flows: number;
+  screens: number;
+  transitions: number;
+  calls: number;
+  customNodes: number;
+}
+
+/** Ответ `?kind=`: сводка + только запрошенный вид. Остальные части не попадают в ответ вовсе. */
+export function mapKindView(full: ProjectMapResult, kind: MapKind): Record<string, unknown> {
+  const summary: MapSummary = {
+    capabilities: full.functional.capabilities.length,
+    relations: full.functional.relations.length,
+    modules: full.codemap.modules.length,
+    imports: full.codemap.imports.length,
+    sources: full.dataflow.sources.length,
+    flows: full.dataflow.flows.length,
+    screens: full.userflow.screens.length,
+    transitions: full.userflow.transitions.length,
+    calls: full.userflow.calls.length,
+    customNodes: full.custom.nodes.length
+  };
+  const part: Record<MapKind, Record<string, unknown>> = {
+    functional: { functional: full.functional },
+    codebase: { codemap: full.codemap },
+    flows: { dataflow: full.dataflow },
+    journeys: { userflow: full.userflow },
+    custom: { custom: full.custom }
+  };
+  return { kind, from: full.from, unverified: full.unverified, summary, ...part[kind] };
+}
