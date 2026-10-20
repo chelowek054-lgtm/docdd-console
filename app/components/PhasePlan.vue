@@ -146,6 +146,7 @@ watch(() => props.answer, load, { immediate: true });
         <p v-if="chosen.length === 0" class="text-sm text-muted">Все фазы выключены — заводить нечего.</p>
       </div>
 
+      <OrderDiff :before="[{ id: 'без фазы', items: props.tasks }]" :after="chosen.map((row) => ({ id: row.title.trim(), items: row.covers }))" />
       <ul class="space-y-2">
         <li
           v-for="row in rows"
