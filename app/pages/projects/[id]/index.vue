@@ -154,7 +154,7 @@ function days(record: IndexRecord): string {
             <p class="text-sm text-muted">{{ statusLabel(item.state) }}</p>
           </div>
         </div>
-      </UCard>
+      </UCard><TeamCard :project-id="projectId" />
     </template>
   </div>
 </template>
