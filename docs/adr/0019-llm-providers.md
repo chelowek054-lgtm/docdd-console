@@ -54,3 +54,18 @@ OpenAI, OpenRouter, RouterAI, локальные модели. Держатьс�
   которым не нужен агент, он избыточен и дорог.
 - **Ключи в манифесте проекта.** Манифест лежит в git и уходит всем, у кого есть клон.
 - **Вызывать провайдера из браузера.** Ключ оказался бы у каждого посетителя.
+
+## Дополнение: интерфейс провайдера (T-0019)
+
+Контракт лежит в `server/lib/llm-provider.ts` и не зависит от Nuxt:
+
+- `Provider` — `id`, `label`, `kind` (`agent` | `chat`), `availability()`, `ask(request)`.
+- `ProviderRequest` — `prompt`, `system`, `model`, `timeoutMs`, `maxBytes`, `signal`, `onEvent`
+  и только для агентов `cwd`, `access`, `resume`, `effort`. Чат-провайдер агентские поля игнорирует.
+- `ProviderResult` — `{ ok: true, answer, ms, sessionId?, model?, usage? }` или `{ ok: false, failure }`
+  с кодами `unavailable`, `unauthorized`, `timeout`, `failed`, `empty`, `cancelled`.
+- Реестр: `registerProvider`, `unregisterProvider`, `getProvider`, `listProviders`. Повторная
+  регистрация заменяет запись, поэтому провайдер из `.data/llm.json` подхватывается без перезапуска.
+- Адаптеры: `claude-code` (поверх `server/utils/llm.ts`), `server/utils/llm-openai.ts`,
+  `server/utils/llm-anthropic.ts`. Настройки: `server/utils/llm-settings.ts`; ключ называется
+  переменной окружения (`apiKeyEnv`), значение в браузер не уходит.
