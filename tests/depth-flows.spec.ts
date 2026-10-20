@@ -56,8 +56,8 @@ describe('свёртка потоков по parent источников', () =>
   it('уровни кодовой карты берутся из дерева групп, если его передали', () => {
     const tree = groupTree(modules, []);
     const deep = foldFlows(flows, ctx, { codeLevel: 0, sourceLevel: 0, groupTree: tree });
-    const top = tree.nodes.find((n) => !n.parent)!;
-    expect(deep.links.every((l) => l.from === top.id || tree.nodes.some((n) => n.id === l.from))).toBe(true);
+    expect(tree.nodes.some((n) => n.parent)).toBe(true);
+    expect([...new Set(deep.links.map((l) => l.from))]).toEqual(['server']);
     const leaves = foldFlows(flows, ctx, { codeLevel: 99, sourceLevel: 0, groupTree: tree });
     expect(leaves.links.map((l) => l.from)).toContain('server/lib/a.ts');
   });

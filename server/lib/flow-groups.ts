@@ -265,6 +265,8 @@ export interface FoldFlowsOptions {
   openCode?: string | null;
   /** Источник, раскрытый на месте. */
   openSource?: string | null;
+  /** Дерево групп кодовой карты (groupTree): без него Group не знает parent, и конец-модуль поднимается только до верхней группы. */
+  groupTree?: { nodes: readonly (TreeNode & { members: readonly { id: string }[] })[] };
 }
 
 /**
@@ -276,7 +278,7 @@ export function foldFlows(
   context: FlowContext,
   options: FoldFlowsOptions
 ): FoldedFlows {
-  const code = codeTree(context);
+  const code = options.groupTree ? treeOfGroups(options.groupTree.nodes) : codeTree(context);
   const sources = sourceTree([...context.sources.values()]);
   // Пространства id модулей и источников могут пересечься — разводим префиксом.
   const edges = flows.map((flow, index) => ({
