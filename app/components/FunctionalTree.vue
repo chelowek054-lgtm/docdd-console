@@ -371,6 +371,26 @@ async function confirmDraft() {
     confirming.value = false;
   }
 }
+
+// Одна панель действий на всё дерево: по кнопке на каждую строку давали сотни
+// скрытых компонентов. Панель встаёт к строке под курсором или в фокусе.
+const wrapRef = ref<HTMLElement | null>(null);
+const panel = ref<{ item: Capability; top: number; left: number } | null>(null);
+
+function showPanel(item: Capability, anchor: HTMLElement) {
+  const wrap = wrapRef.value;
+  if (!wrap) return;
+  const base = wrap.getBoundingClientRect();
+  const rect = anchor.getBoundingClientRect();
+  panel.value = { item, top: rect.top - base.top, left: rect.right - base.left };
+}
+
+function hidePanel(event?: FocusEvent) {
+  const next = event?.relatedTarget as Node | null | undefined;
+  if (next && wrapRef.value?.contains(next)) return;
+  panel.value = null;
+}
+
 </script>
 
 <template>
@@ -498,7 +518,8 @@ async function confirmDraft() {
     <p v-if="roots.length === 0" v-show="!treeHidden" class="rounded border border-dashed border-default p-6 text-center text-sm text-muted">
       {{ capabilities.length === 0 ? 'Возможностей пока нет — добавьте первую.' : 'Под этот фильтр ничего не подошло.' }}
     </p>
-    <ul v-else v-show="!treeHidden" class="space-y-0.5">
+    <div v-else v-show="!treeHidden" ref="wrapRef" class="relative" @mouseleave="hidePanel()" @focusout="hidePanel">
+    <ul class="space-y-0.5">
       <FunctionalTreeNode
         v-for="item in roots"
         :key="item.id"
@@ -516,7 +537,19 @@ async function confirmDraft() {
         @relate="openRelate"
         @remove="removeCapability"
         @mark="mark"
+        @hover="showPanel"
       />
     </ul>
+    <div
+      v-if="panel"
+      class="absolute z-10 flex -translate-x-full gap-1 rounded bg-elevated"
+      :style="{ top: panel.top + 'px', left: panel.left + 'px' }"
+    >
+      <UButton icon="i-lucide-plus" size="xs" variant="ghost" color="neutral" title="Добавить подпункт" @click="openAdd(panel.item.id)" />
+      <UButton icon="i-lucide-pencil" size="xs" variant="ghost" color="neutral" title="Переименовать, описание, состояние, приоритет" @click="openEdit(panel.item)" />
+      <UButton icon="i-lucide-link" size="xs" variant="ghost" color="neutral" title="Связать с другой возможностью" @click="openRelate(panel.item)" />
+      <UButton icon="i-lucide-trash-2" size="xs" variant="ghost" color="neutral" title="Убрать" @click="removeCapability(panel.item)" />
+    </div>
+    </div>
   </div>
 </template>
