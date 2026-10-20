@@ -84,7 +84,7 @@ export default defineEventHandler(async (event) => {
         saveRecord(again, note, project.root);
       }
     }
-    return { record: saved.record };
+    notifyPatched(id, recordId, context.record.data, fields); return { record: saved.record };
   } catch (error) {
     if (error instanceof OutsideRootError) {
       return fail(event, 403, 'outside_root', error.message, error.requested);
@@ -114,3 +114,4 @@ function asLinks(value: unknown): Partial<Record<LinkKind, string[]>> {
   return links;
 }
 import { versionConflict } from '../../../../lib/version';
+import { notifyPatched } from '../../../../utils/notify-events';

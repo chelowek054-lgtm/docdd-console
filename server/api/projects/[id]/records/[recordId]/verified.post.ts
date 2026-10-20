@@ -33,7 +33,7 @@ export default defineEventHandler(async (event) => {
 
   try {
     const outcome = markVerified(project.root, recordId, body.verified, actor, {
-      by,
+      by, login: (event.context['user'] as { login?: string } | undefined)?.login,
       note,
       steps: Array.isArray(body.steps)
         ? body.steps.map((state) => ({ text: '', state: state === 'failed' ? 'failed' as const : 'passed' as const }))

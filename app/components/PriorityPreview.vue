@@ -18,7 +18,7 @@ const failure = ref<ApiFailure | null>(null);
 const loading = ref(false);
 const applying = ref(false);
 const done = ref<string[] | null>(null);
-const actor = ref(props.roles[0]?.id ?? '');
+const actor = ref(props.roles[0]?.id ?? ''); const { me } = useMe(() => props.projectId);
 
 async function parse() {
   loading.value = true;
@@ -98,8 +98,8 @@ const title = (id: string) => props.titles[id] ?? id;
       </ul>
 
       <div class="flex flex-wrap items-center gap-3">
-        <USelect v-if="roles.length" v-model="actor" size="sm" class="w-44" :items="roles.map((role) => ({ label: role.name, value: role.id }))" />
-        <UButton size="sm" icon="i-lucide-list-ordered" :loading="applying" :disabled="done !== null" @click="apply">Применить порядок</UButton>
+        <USelect v-if="(roles.length) && !me.required" v-model="actor" size="sm" class="w-44" :items="roles.map((role) => ({ label: role.name, value: role.id }))" /><span v-if="me.required && me.user" class="text-sm text-muted">Вошли: {{ me.user.name }}</span>
+        <UButton v-can="'reorder'" size="sm" icon="i-lucide-list-ordered" :loading="applying" :disabled="done !== null" @click="apply">Применить порядок</UButton>
         <p v-if="done" class="text-sm text-success">Записан порядок: фаз изменено {{ done.length }}.</p>
         <p v-else class="text-xs text-muted">Запишет rank у фаз и порядок covers; в журнале каждой изменённой фазы — строка.</p>
       </div>

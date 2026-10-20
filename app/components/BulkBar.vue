@@ -35,7 +35,7 @@ interface BulkReport {
   results: BulkResult[];
 }
 
-const actor = ref(props.roles[0]?.id ?? '');
+const actor = ref(props.roles[0]?.id ?? ''); const { me } = useMe(() => props.projectId);
 const busy = ref('');
 const failure = ref<ApiFailure | null>(null);
 const report = ref<BulkReport | null>(null);
@@ -147,7 +147,7 @@ async function run(direction: string) {
         Выбрано: <span class="font-medium">{{ props.selected.length }}</span> из {{ props.total }}
       </p>
 
-      <UButton
+      <UButton v-can="'approve'"
         v-for="action in ACTIONS"
         :key="action.direction"
         size="sm"
@@ -172,12 +172,12 @@ async function run(direction: string) {
       </p>
 
       <USelect
-        v-if="props.roles.length"
+        v-if="(props.roles.length) && !me.required"
         v-model="actor"
         size="sm"
         class="ml-auto w-48"
         :items="props.roles.map((role) => ({ label: role.name, value: role.id }))"
-      />
+      /><span v-if="me.required && me.user" class="text-sm text-muted">Вошли: {{ me.user.name }}</span>
     </div>
 
     <UAlert
@@ -212,7 +212,7 @@ async function run(direction: string) {
                 class="mr-2 font-mono text-xs hover:underline"
               >{{ result.id }}</NuxtLink>
             </p>
-            <UButton
+            <UButton v-can="'approve'"
               v-if="group.code === 'task_done_unverified'"
               class="mt-2"
               size="xs"
@@ -224,7 +224,7 @@ async function run(direction: string) {
             </UButton>
             <!-- Нет карты вовсе — заводится одна общая на пачку; подтверждает её человек. -->
             <div v-if="group.unmapped.length && !linked" class="mt-2">
-              <UButton
+              <UButton v-can="'approve'"
                 size="xs"
                 variant="soft"
                 icon="i-lucide-map-plus"

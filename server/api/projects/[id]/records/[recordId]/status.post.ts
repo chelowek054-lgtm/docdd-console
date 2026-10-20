@@ -75,7 +75,7 @@ export default defineEventHandler(async (event) => {
       markDescribed(project.root, outcome.text);
     }
 
-    return { record: saved.record, journal: outcome.journal };
+    notifyStatus(id, recordId, saved.record.type, status, context.record.data); return { record: saved.record, journal: outcome.journal };
   } catch (error) {
     if (error instanceof OutsideRootError) {
       return fail(event, 403, 'outside_root', error.message, error.requested);
@@ -87,3 +87,4 @@ export default defineEventHandler(async (event) => {
   }
 });
 import { versionConflict } from '../../../../../lib/version';
+import { notifyStatus } from '../../../../../utils/notify-events';

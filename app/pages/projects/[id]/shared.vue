@@ -12,7 +12,7 @@ import type { SharedSourceView } from '~~/server/utils/shared-service';
  * список самих источников по-прежнему правится в манифесте руками.
  */
 const route = useRoute();
-const projectId = computed(() => String(route.params['id'] ?? ''));
+const projectId = computed(() => String(route.params['id'] ?? '')); const { t } = useT();
 
 const { data, refresh } = useFetch<{ sources: SharedSourceView[] } | { error: ApiFailure }>(
   () => `/api/projects/${projectId.value}/shared`,
@@ -142,7 +142,7 @@ async function toggleTag(source: SharedSourceView, tag: string) {
     <ProjectFailure v-if="failure" :failure="failure" />
 
     <template v-else>
-      <h1 class="text-xl font-semibold">Практики</h1>
+      <h1 class="text-xl font-semibold">{{ t('shared.title') }}</h1>
 
       <!-- Правила проверки архитектуры: этого проекта и итог сложения (docs/12-practice-rules.md). -->
       <PracticeRules :project-id="projectId" />
@@ -152,8 +152,8 @@ async function toggleTag(source: SharedSourceView, tag: string) {
         color="neutral"
         variant="subtle"
         icon="i-lucide-book-open"
-        title="Источники не названы"
-        description="Впишите в манифест sources.shared — путь к другому DocDD-проекту. Без ключа приложение не догадывается, что показывать."
+        :title="t('shared.noneTitle')"
+        :description="t('shared.noneText')"
       />
 
       <UAlert
@@ -177,7 +177,7 @@ async function toggleTag(source: SharedSourceView, tag: string) {
           color="error"
           variant="subtle"
           icon="i-lucide-triangle-alert"
-          title="Источник не открылся"
+          :title="t('shared.failTitle')"
           :description="source.error"
         />
 
@@ -188,7 +188,7 @@ async function toggleTag(source: SharedSourceView, tag: string) {
             color="warning"
             variant="subtle"
             icon="i-lucide-triangle-alert"
-            title="Похоже не на источник практик"
+            :title="t('shared.oddTitle')"
             :description="`В источнике есть записи типа ${source.narrowDomain.join(', ')} — decision и design всё равно подключены ниже, но остальное из источника не подтягивается никогда. Проверьте, тот ли это путь.`"
           />
 
@@ -200,7 +200,7 @@ async function toggleTag(source: SharedSourceView, tag: string) {
             <!-- Галочки — не список записей источника: тег может подключать
                  несколько decision/design разом, и один и тот же тег виден
                  сразу у всех записей, которые он охватывает. -->
-            <p class="mt-3 text-xs text-muted">Подключить по тегам:</p>
+            <p class="mt-3 text-xs text-muted">{{ t('shared.byTags') }}</p>
             <div class="mt-1 flex flex-col gap-1">
               <label
                 v-for="tag in source.availableTags"
@@ -224,7 +224,8 @@ async function toggleTag(source: SharedSourceView, tag: string) {
             </p>
             <template v-else>
               <p v-if="source.records.length === 0" class="mt-3 text-sm text-muted">
-                По отмеченным тегам в источнике ничего подтверждённого не нашлось.
+                {{ t('shared.nothingFound') }}
+
               </p>
               <template v-else>
                 <ul class="mt-3 space-y-1">
@@ -253,7 +254,8 @@ async function toggleTag(source: SharedSourceView, tag: string) {
                   :icon="previewOpen.has(source.path) ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
                   @click="togglePreview(source.path)"
                 >
-                  Что уйдёт в запрос модели
+                  {{ t('shared.whatGoes') }}
+
                 </UButton>
                 <div v-if="previewOpen.has(source.path)" class="mt-2 space-y-3 rounded bg-elevated p-3">
                   <div v-for="practice in source.preview" :key="practice.id">
@@ -269,7 +271,7 @@ async function toggleTag(source: SharedSourceView, tag: string) {
 
       <template v-if="sources.length > 0">
         <div class="flex flex-wrap items-center gap-3">
-          <UButton v-if="!verifying" icon="i-lucide-search-check" @click="verify">Сверить код с практиками</UButton>
+          <UButton v-if="!verifying" icon="i-lucide-search-check" @click="verify">{{ t('shared.verify') }}</UButton>
           <p v-if="!verifying" class="text-sm text-muted">
             Разовая проверка: модель читает код проекта и подключённые практики, отвечает
             списком расхождений. Ничего в коде не меняет.
@@ -294,13 +296,13 @@ async function toggleTag(source: SharedSourceView, tag: string) {
             <p v-if="record.body" class="mt-2 whitespace-pre-wrap text-sm text-muted">{{ record.body }}</p>
           </div>
           <div class="flex flex-wrap items-center gap-3">
-            <UButton color="primary" :loading="verifySaving" @click="createVerification">Завести запись</UButton>
-            <p class="text-sm text-muted">Черновик, как и всё остальное — подтверждать всё равно вам.</p>
+            <UButton color="primary" :loading="verifySaving" @click="createVerification">{{ t('shared.create') }}</UButton>
+            <p class="text-sm text-muted">{{ t('shared.draftNote') }}</p>
           </div>
         </template>
 
         <div v-if="verifySaid && !verifyProposed.length && !verifying" class="ds-card p-3">
-          <p class="mb-2 text-sm font-medium">Ответ не сложился в запись</p>
+          <p class="mb-2 text-sm font-medium">{{ t('shared.notRecord') }}</p>
           <DocumentText :body="verifySaid" />
         </div>
 

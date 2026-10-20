@@ -19,7 +19,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ changed: [] }>();
 
-const actor = ref(props.roles[0]?.id ?? '');
+const actor = ref(props.roles[0]?.id ?? ''); const { me } = useMe(() => props.projectId);
 const busy = ref(false);
 const failure = ref<ApiFailure | null>(null);
 
@@ -75,12 +75,12 @@ async function toggle(value: boolean | 'indeterminate') {
         @update:model-value="toggle"
       />
       <USelect
-        v-if="!props.compact && props.roles.length"
+        v-if="(!props.compact && props.roles.length) && !me.required"
         v-model="actor"
         size="xs"
         class="w-44"
         :items="props.roles.map((role) => ({ label: role.name, value: role.id }))"
-      />
+      /><span v-if="me.required && me.user" class="text-sm text-muted">Вошли: {{ me.user.name }}</span>
       <span v-if="who" class="text-xs text-muted" :title="props.result?.note">{{ who }}</span>
     </div>
 

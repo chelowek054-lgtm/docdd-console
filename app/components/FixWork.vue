@@ -24,7 +24,7 @@ const { running, elapsed, outcome, log, stream, cancel } = useModelRequest(() =>
   onRecovered: (answer) => accept(answer as { state: FixState })
 });
 
-const actor = ref(props.roles[0]?.id ?? '');
+const actor = ref(props.roles[0]?.id ?? ''); const { me } = useMe(() => props.projectId);
 const state = ref<FixState | null>(null);
 const failure = ref<ApiFailure | null>(null);
 const busy = ref('');
@@ -82,7 +82,7 @@ async function decide(action: 'accept' | 'reject') {
 <template>
   <div class="mt-4 space-y-3 border-t border-default pt-4">
     <div class="flex flex-wrap items-center gap-3">
-      <UButton v-if="!running" icon="i-lucide-check" @click="apply">
+      <UButton v-can="'work'" v-if="!running" icon="i-lucide-check" @click="apply">
         {{ state?.started ? 'Починить заново' : 'Принять ответ' }}
       </UButton>
 
@@ -91,12 +91,12 @@ async function decide(action: 'accept' | 'reject') {
       </p>
 
       <USelect
-        v-if="props.roles.length"
+        v-if="(props.roles.length) && !me.required"
         v-model="actor"
         size="sm"
         class="ml-auto w-44"
         :items="props.roles.map((role) => ({ label: role.name, value: role.id }))"
-      />
+      /><span v-if="me.required && me.user" class="text-sm text-muted">Вошли: {{ me.user.name }}</span>
     </div>
 
     <ModelProgress :running="running" :elapsed="elapsed" :outcome="outcome" @cancel="cancel" />
@@ -132,10 +132,10 @@ async function decide(action: 'accept' | 'reject') {
       <pre class="max-h-96 overflow-auto rounded bg-elevated p-3 text-xs">{{ state.diff }}</pre>
 
       <div class="flex flex-wrap items-center gap-3">
-        <UButton color="primary" :loading="busy === 'accept'" :disabled="!!refused" @click="decide('accept')">
+        <UButton v-can="'work'" color="primary" :loading="busy === 'accept'" :disabled="!!refused" @click="decide('accept')">
           Принять и слить
         </UButton>
-        <UButton variant="ghost" color="neutral" :loading="busy === 'reject'" @click="decide('reject')">
+        <UButton v-can="'work'" variant="ghost" color="neutral" :loading="busy === 'reject'" @click="decide('reject')">
           Отклонить
         </UButton>
         <p class="min-w-0 flex-1 text-sm text-muted">

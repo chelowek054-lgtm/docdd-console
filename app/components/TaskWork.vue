@@ -22,7 +22,7 @@ const { data, refresh } = useFetch<WorkState | { error: ApiFailure }>(
 
 const state = computed(() => (failureOf(data.value) ? null : (data.value as WorkState | null)));
 
-const actor = ref(props.roles[0]?.id ?? '');
+const actor = ref(props.roles[0]?.id ?? ''); const { me } = useMe(() => props.projectId);
 const comment = ref('');
 const busy = ref('');
 const answer = ref('');
@@ -95,17 +95,17 @@ async function afterWork(result: { answer?: string }, action: string) {
           <template v-if="state.round > 0"> · {{ plural(state.round, 'заход', 'захода', 'заходов') }}</template>
         </p>
         <USelect
-          v-if="props.roles.length"
+          v-if="(props.roles.length) && !me.required"
           v-model="actor"
           size="sm"
           class="ml-auto w-44"
           :items="props.roles.map((role) => ({ label: role.name, value: role.id }))"
-        />
+        /><span v-if="me.required && me.user" class="text-sm text-muted">Вошли: {{ me.user.name }}</span>
       </div>
     </template>
 
     <div class="flex flex-wrap items-center gap-3">
-      <UButton
+      <UButton v-can="'work'"
         v-if="!working"
         :disabled="!canHandOver || !llm?.available"
         icon="i-lucide-play"
@@ -167,7 +167,7 @@ async function afterWork(result: { answer?: string }, action: string) {
 
       <div class="mt-4 space-y-3">
         <div class="flex flex-wrap items-center gap-3">
-          <UButton
+          <UButton v-can="'work'"
             color="primary"
             :loading="busy === 'accept'"
             :disabled="state.forbidden.length > 0"
@@ -175,7 +175,7 @@ async function afterWork(result: { answer?: string }, action: string) {
           >
             Принять и слить
           </UButton>
-          <UButton
+          <UButton v-can="'work'"
             variant="outline"
             color="neutral"
             :loading="busy === 'rework'"
@@ -184,7 +184,7 @@ async function afterWork(result: { answer?: string }, action: string) {
           >
             На доработку
           </UButton>
-          <UButton variant="ghost" color="neutral" :loading="busy === 'reject'" @click="act('reject')">
+          <UButton v-can="'work'" variant="ghost" color="neutral" :loading="busy === 'reject'" @click="act('reject')">
             Отклонить
           </UButton>
         </div>

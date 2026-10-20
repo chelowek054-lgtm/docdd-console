@@ -2,7 +2,7 @@
 import type { IndexRecord } from '~~/server/lib/types';
 
 const route = useRoute();
-const projectId = computed(() => String(route.params['id'] ?? ''));
+const projectId = computed(() => String(route.params['id'] ?? '')); const { t } = useT();
 
 const { index, failure, records, errors, warnings, refresh, status } = useProjectIndex(projectId);
 
@@ -45,9 +45,9 @@ function days(record: IndexRecord): string {
     <template v-else>
       <div class="flex flex-wrap items-center gap-4">
         <div>
-          <h1 class="text-xl font-semibold">{{ index?.project.name ?? 'Проект' }}</h1>
+          <h1 class="text-xl font-semibold">{{ index?.project.name ?? t('proj.fallbackName') }}</h1>
           <p class="text-sm text-muted">
-            Разбор собран {{ index ? new Date(index.builtAt).toLocaleString('ru-RU') : '—' }}
+            {{ t('proj.builtAt', { at: index ? new Date(index.builtAt).toLocaleString('ru-RU') : '—' }) }}
           </p>
         </div>
         <UButton
@@ -58,7 +58,8 @@ function days(record: IndexRecord): string {
           :loading="status === 'pending'"
           @click="refresh"
         >
-          Перечитать
+          {{ t('proj.reload') }}
+
         </UButton>
       </div>
 
@@ -83,14 +84,14 @@ function days(record: IndexRecord): string {
         <NuxtLink :to="`/projects/${projectId}/work?tab=tasks`" class="block">
           <UCard :ui="{ body: 'p-4' }">
             <p class="text-3xl font-semibold">{{ ready.length }}</p>
-            <p class="text-sm text-muted">можно брать</p>
+            <p class="text-sm text-muted">{{ t('proj.canTake') }}</p>
           </UCard>
         </NuxtLink>
 
         <NuxtLink :to="`/projects/${projectId}/work?tab=tasks`" class="block">
           <UCard :ui="{ body: 'p-4' }">
             <p class="text-3xl font-semibold">{{ inWork.length }}</p>
-            <p class="text-sm text-muted">в работе</p>
+            <p class="text-sm text-muted">{{ t('proj.inWork') }}</p>
           </UCard>
         </NuxtLink>
       </div>
@@ -98,7 +99,7 @@ function days(record: IndexRecord): string {
       <div class="grid gap-4 lg:grid-cols-3">
         <UCard>
           <template #header>
-            <h2 class="font-medium">Можно брать</h2>
+            <h2 class="font-medium">{{ t('proj.canTakeTitle') }}</h2>
           </template>
           <p v-if="ready.length === 0" class="text-sm text-muted">
             Готовых задач нет. Задача становится готовой, когда её документы подтверждены и есть связь <code>implements</code>.
@@ -113,9 +114,9 @@ function days(record: IndexRecord): string {
 
         <UCard>
           <template #header>
-            <h2 class="font-medium">В работе</h2>
+            <h2 class="font-medium">{{ t('proj.inWorkTitle') }}</h2>
           </template>
-          <p v-if="inWork.length === 0" class="text-sm text-muted">Никто ничего не начинал.</p>
+          <p v-if="inWork.length === 0" class="text-sm text-muted">{{ t('proj.nobodyStarted') }}</p>
           <ul v-else class="space-y-2">
             <li v-for="task in inWork" :key="task.id" class="flex items-start justify-between gap-2">
               <RecordLink :project-id="projectId" :record-id="task.id" :record="task" />
@@ -128,9 +129,9 @@ function days(record: IndexRecord): string {
 
         <UCard>
           <template #header>
-            <h2 class="font-medium">Мешает</h2>
+            <h2 class="font-medium">{{ t('proj.blocking') }}</h2>
           </template>
-          <p v-if="blocking.length === 0" class="text-sm text-muted">Ничего не мешает: ошибок процесса нет.</p>
+          <p v-if="blocking.length === 0" class="text-sm text-muted">{{ t('proj.nothingBlocking') }}</p>
           <ul v-else class="space-y-2">
             <li v-for="(issue, at) in blocking" :key="`${issue.code}:${at}`" class="text-sm">
               <NuxtLink
@@ -146,7 +147,7 @@ function days(record: IndexRecord): string {
 
       <UCard>
         <template #header>
-          <h2 class="font-medium">Задачи по статусам</h2>
+          <h2 class="font-medium">{{ t('proj.byStatus') }}</h2>
         </template>
         <div class="flex flex-wrap gap-4">
           <div v-for="item in counts" :key="item.state" class="min-w-24">
@@ -154,7 +155,7 @@ function days(record: IndexRecord): string {
             <p class="text-sm text-muted">{{ statusLabel(item.state) }}</p>
           </div>
         </div>
-      </UCard>
+      </UCard><TeamCard :project-id="projectId" />
     </template>
   </div>
 </template>

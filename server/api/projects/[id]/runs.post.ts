@@ -25,7 +25,7 @@ export default defineEventHandler(async (event) => {
       typeof body?.build === 'string' ? body.build : '',
       results,
       typeof body?.actor === 'string' ? body.actor : '',
-      { by: typeof body?.by === 'string' ? body.by : '', note: typeof body?.note === 'string' ? body.note : '' }
+      { by: typeof body?.by === 'string' ? body.by : '', note: typeof body?.note === 'string' ? body.note : '', login: (event.context['user'] as { login?: string } | undefined)?.login }
     );
     if (!outcome.ok) return fail(event, outcome.status, outcome.code, outcome.message);
     return outcome;

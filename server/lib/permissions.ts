@@ -68,7 +68,7 @@ export function actionFor(method: string, path: string): Action {
   const verb = method.toUpperCase();
   if (verb === 'GET' || verb === 'HEAD' || verb === 'OPTIONS') return 'read';
   // Предпросмотр ничего не пишет.
-  if (/\/preview\/?$/.test(path)) return 'read';
+  if (/\/preview\/?$/.test(path) || /\/progress-question\/?$/.test(path)) return 'read';
   if (/^\/api\/projects\/?$/.test(path) || /^\/api\/projects\/init\/?$/.test(path) || /^\/api\/projects\/[^/]+\/?$/.test(path)) {
     return 'admin';
   }
@@ -78,4 +78,20 @@ export function actionFor(method: string, path: string): Action {
   if (/\/(status|verified)\/?$/.test(path) || /\/bulk\/status\/?$/.test(path)) return 'approve';
   if (/\/priority\/apply\/?$/.test(path) || /\/phases\/?$/.test(path)) return 'reorder';
   return 'edit_draft';
+}
+
+/**
+ * Пишущие маршруты по именам файлов в server/api: `a/[id]/b.post.ts` →
+ * `POST /api/a/:id/b`. Чистая функция над строками, чтобы тест-обход
+ * (tests/permissions-routes.spec.ts) не зависел от файловой системы сервера.
+ */
+export function writeRoutes(files: readonly string[]): { method: string; path: string }[] {
+  const routes: { method: string; path: string }[] = [];
+  for (const file of files) {
+    const match = /^(.*?)(?:\.(post|put|patch|delete))\.ts$/.exec(file.split(String.fromCharCode(92)).join('/'));
+    if (!match?.[1] || !match[2]) continue;
+    const parts = match[1].split('/').filter((part) => part !== 'index').map((part) => (/^\[.+\]$/.test(part) ? 'x' : part));
+    routes.push({ method: match[2].toUpperCase(), path: `/api/${parts.join('/')}` });
+  }
+  return routes;
 }
