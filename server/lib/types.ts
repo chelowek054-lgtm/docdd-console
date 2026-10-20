@@ -288,6 +288,9 @@ export interface Report {
   started_at: string;
   total?: number;
   failed?: number;
+  /** Ручная отметка: кто проверил и что именно (docs/02-workspace-contract.md). */
+  checked_by?: string;
+  note?: string;
   verifications: Record<string, VerificationResult>;
 }
 
@@ -388,6 +391,9 @@ export interface VerificationOutcome {
   /** Время начала прогона, из которого взят результат. */
   at: string;
   runner: string;
+  /** Только у ручной отметки: имя проверившего и что проверено. */
+  checkedBy?: string;
+  note?: string;
 }
 
 export interface IndexRecord {

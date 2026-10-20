@@ -29,18 +29,42 @@ export function manualReportName(verificationId: string, now: Date): string {
   return `${date}-manual-${verificationId}-${time}.json`;
 }
 
-export function manualReportText(verificationId: string, state: ManualState, actor: string, now: Date): string {
+/** Кто проверил и что именно: необязательно, чтобы прежние вызовы жили как жили. */
+export interface ManualExtra {
+  by?: string | undefined;
+  note?: string | undefined;
+}
+
+/** Сколько знаков заметки идёт в строку журнала: журнал — след, а не пересказ. */
+export const NOTE_JOURNAL_LIMIT = 120;
+
+function oneLine(text: string): string {
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+export function manualReportText(verificationId: string, state: ManualState, actor: string, now: Date, extra?: ManualExtra): string {
+  const by = extra?.by?.trim() ?? '';
+  const note = extra?.note?.trim() ?? '';
   return JSON.stringify({
     contract: 'docdd.workspace/1',
     runner: manualRunner(actor),
     started_at: now.toISOString(),
     total: 1,
     failed: 0,
+    ...(by ? { checked_by: by } : {}),
+    ...(note ? { note } : {}),
     verifications: { [verificationId]: state }
   }, null, 2) + '\n';
 }
 
-/** Слова журнала записи проверки. */
-export function verifiedJournalAction(verified: boolean): string {
-  return verified ? 'проверена вручную' : 'отметка «проверено» снята';
+/**
+ * Слова журнала записи проверки: «проверена вручную · <роль> · проверил <Имя> ·
+ * <note>». Без аргументов — прежняя короткая подпись; снятие отметки имён не несёт.
+ */
+export function verifiedJournalAction(verified: boolean, actor = '', extra?: ManualExtra): string {
+  if (!verified) return 'отметка «проверено» снята';
+  const by = oneLine(extra?.by ?? '');
+  const note = oneLine(extra?.note ?? '');
+  const short = note.length > NOTE_JOURNAL_LIMIT ? `${note.slice(0, NOTE_JOURNAL_LIMIT - 1).trimEnd()}…` : note;
+  return ['проверена вручную', actor.trim(), by ? `проверил ${by}` : '', short].filter(Boolean).join(' · ');
 }

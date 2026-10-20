@@ -25,7 +25,13 @@ export function latestVerificationDetails(reports: readonly Report[]): Map<strin
   const results = new Map<string, VerificationOutcome>();
   for (const report of ordered) {
     for (const [id, state] of Object.entries(report.verifications)) {
-      results.set(id, { state, at: report.started_at, runner: report.runner });
+      results.set(id, {
+        state,
+        at: report.started_at,
+        runner: report.runner,
+        ...(report.checked_by ? { checkedBy: report.checked_by } : {}),
+        ...(report.note ? { note: report.note } : {})
+      });
     }
   }
   return results;

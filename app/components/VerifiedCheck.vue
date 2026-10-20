@@ -33,10 +33,17 @@ const who = computed(() => {
   const role = result.runner.startsWith('manual:') ? result.runner.slice('manual:'.length) : '';
   const name = props.roles.find((item) => item.id === role)?.name ?? role;
   const head = result.runner.startsWith('manual') ? 'проверено вручную' : `прогон ${result.runner}`;
-  return [head, name, result.at.slice(0, 10)].filter(Boolean).join(' · ');
+  return [head, name, result.checkedBy, result.at.slice(0, 10)].filter(Boolean).join(' · ');
 });
 
+const acceptOpen = ref(false);
+
 async function toggle(value: boolean | 'indeterminate') {
+  // Постановка отметки спрашивает, кто проверил и что (docs/04-ui.md, «Принять вручную»); снятие — как раньше.
+  if (value === true) {
+    acceptOpen.value = true;
+    return;
+  }
   busy.value = true;
   failure.value = null;
   try {
@@ -74,12 +81,20 @@ const REASON = 'факт приходит от сборки — положите
         class="w-44"
         :items="props.roles.map((role) => ({ label: role.name, value: role.id }))"
       />
-      <span v-if="who" class="text-xs text-muted">{{ who }}</span>
+      <span v-if="who" class="text-xs text-muted" :title="props.result?.note">{{ who }}</span>
     </div>
 
     <!-- Неактивный элемент без причины бесполезен (docs/04-ui.md). -->
     <p v-else-if="props.compact" class="text-xs text-muted" :title="REASON">от сборки</p>
     <p v-else class="text-muted">Флажка «Проверено» нет: {{ REASON }}.</p>
+
+    <ManualAcceptModal
+      v-model:open="acceptOpen"
+      :project-id="props.projectId"
+      :verification-ids="[props.record.id]"
+      :roles="props.roles"
+      @changed="emit('changed')"
+    />
 
     <p v-if="failure" class="mt-1 text-xs text-error">{{ failure.message }}</p>
   </div>

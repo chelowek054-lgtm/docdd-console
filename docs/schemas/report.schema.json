@@ -14,6 +14,8 @@
     "started_at": { "type": "string", "format": "date-time" },
     "total": { "type": "integer", "minimum": 0 },
     "failed": { "type": "integer", "minimum": 0 },
+    "checked_by": { "type": "string", "description": "Ручная отметка: имя того, кто проверил." },
+    "note": { "type": "string", "description": "Ручная отметка: что именно проверено (одна-две строки)." },
     "verifications": {
       "type": "object",
       "description": "Идентификатор проверки → результат последнего прогона.",

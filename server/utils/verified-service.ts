@@ -5,6 +5,7 @@ import { applyJournalNote } from '../lib/actions';
 import { dropCache } from '../lib/cache';
 import {
   isManualKind,
+  type ManualExtra,
   manualReportName,
   manualReportText,
   verifiedJournalAction,
@@ -27,7 +28,7 @@ export type VerifiedOutcome =
   | { ok: true; result: VerificationOutcome | null; journal: string | null; warning?: string }
   | { ok: false; status: number; code: string; message: string };
 
-export function markVerified(root: string, recordId: string, verified: boolean, actor: string): VerifiedOutcome {
+export function markVerified(root: string, recordId: string, verified: boolean, actor: string, extra?: ManualExtra): VerifiedOutcome {
   const context = openRecord(root, recordId);
   if (!context) {
     return { ok: false, status: 404, code: 'record_not_found', message: `Записи \`${recordId}\` в проекте нет` };
@@ -58,13 +59,13 @@ export function markVerified(root: string, recordId: string, verified: boolean, 
   const base = manualReportName(recordId, now);
   let name = base;
   for (let n = 2; existsSync(join(dir, name)); n += 1) name = base.replace(/\.json$/, `-${n}.json`);
-  writeFileSync(join(dir, name), manualReportText(recordId, state, actor, now), 'utf8');
+  writeFileSync(join(dir, name), manualReportText(recordId, state, actor, now, verified ? extra : undefined), 'utf8');
   dropCache(root);
   invalidateWorkspace(root);
 
   // Журнал — след для человека. Сторож отказал — отметка всё равно поставлена.
   const outcome = applyJournalNote(context.original, {
-    action: verifiedJournalAction(verified),
+    action: verifiedJournalAction(verified, actor, extra),
     actor,
     today: today(now)
   });
