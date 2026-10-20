@@ -91,7 +91,10 @@ const LINK_RULES: Readonly<Record<LinkKind, { from: readonly RecordType[]; to: r
   documents: { from: ['task'], to: ['design', 'contract'] },
   covers: { from: ['phase'], to: ['task'] },
   affects: { from: ['task'], to: ['map'] },
-  reuses: { from: ['task', 'design'], to: ['reference'] }
+  reuses: { from: ['task', 'design'], to: ['reference'] },
+  found_by: { from: ['defect'], to: ['verification'] },
+  fixed_by: { from: ['defect'], to: ['task'] },
+  breaks: { from: ['defect'], to: ['requirement'] }
 };
 
 const LINK_TITLES: Readonly<Record<LinkKind, string>> = {
@@ -105,7 +108,10 @@ const LINK_TITLES: Readonly<Record<LinkKind, string>> = {
   documents: 'правит документ',
   covers: 'входит в состав',
   affects: 'меняет карту',
-  reuses: 'переиспользует справку'
+  reuses: 'переиспользует справку',
+  found_by: 'найден проверкой',
+  fixed_by: 'чинится задачей',
+  breaks: 'нарушает требование'
 };
 
 // Из любого статуса, кроме начального `draft`, есть путь назад
@@ -160,7 +166,7 @@ export function checkRecordIdentity(record: WorkRecord): Violation[] {
     ));
   }
 
-  if (isRecordType(type) && /^[RDACTPVM]-\d{4}$/.test(record.id)) {
+  if (isRecordType(type) && /^[RDACTPVMSB]-\d{4}$/.test(record.id)) {
     const expectedPrefix = PREFIX_BY_TYPE[type];
     if (!record.id.startsWith(expectedPrefix + '-')) {
       found.push(violation(
@@ -1015,6 +1021,7 @@ function transitionsFor(type: string): Readonly<Record<string, readonly string[]
     case 'contract':
     case 'verification':
     case 'reference':
+    case 'defect':
     // Карта подтверждается тем же порядком, что документ: без этого её нельзя
     // утвердить, а без утверждения не начинается работа (docs/07-maps.md).
     case 'map':

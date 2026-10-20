@@ -19,7 +19,8 @@ export const DEFAULT_PATHS: Readonly<Record<SectionKey, string>> = {
   tests: 'tests',
   diagrams: 'diagrams',
   maps: 'maps',
-  reference: 'reference'
+  reference: 'reference',
+  defects: 'defects'
 };
 
 const CYRILLIC: Readonly<Record<string, string>> = {
@@ -78,7 +79,7 @@ export interface TemplateInput {
   owner?: string;
   links?: Partial<Record<LinkKind, string[]>>;
   /** Вид проверки: схема требует его у записей типа `verification`; у справки — вид (`component`, `api`, `technique`, `data`). */
-  kind?: string;
+  kind?: string; environment?: string; build?: string; /* у дефекта `kind` — серьёзность (R-0063) */
   /** Только у справки: одна строка — что решает; она попадает в индекс (docs/13-reference.md). */
   summary?: string;
   /** Только у справки: откуда взято. */
@@ -166,6 +167,11 @@ export function recordTemplate(input: TemplateInput, eol = '\n'): string {
   lines.push(`created: ${input.today}`, `updated: ${input.today}`);
   if (input.type === 'map' && input.intent) lines.push('intent: true');
   if (input.type === 'verification') lines.push(`kind: ${yamlSafe(input.kind ?? 'manual')}`);
+  if (input.type === 'defect') {
+    lines.push(`severity: ${yamlSafe(input.kind ?? 'major')}`);
+    if (input.environment) lines.push(`environment: ${yamlSafe(input.environment)}`);
+    if (input.build) lines.push(`build: ${yamlSafe(input.build)}`);
+  }
   if (input.type === 'reference') {
     lines.push(`summary: ${yamlSafe(input.summary ?? '')}`);
     if (input.kind) lines.push(`kind: ${yamlSafe(input.kind)}`);

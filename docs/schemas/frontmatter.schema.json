@@ -11,11 +11,11 @@
   "properties": {
     "id": {
       "type": "string",
-      "pattern": "^[RDACTPVMS]-[0-9]{4}$",
+      "pattern": "^[RDACTPVMSB]-[0-9]{4}$",
       "description": "Префикс типа, дефис, четыре цифры. Номера не переиспользуются."
     },
     "type": {
-      "enum": ["requirement", "design", "decision", "contract", "task", "phase", "verification", "map", "reference"]
+      "enum": ["requirement", "design", "decision", "contract", "task", "phase", "verification", "map", "reference", "defect"]
     },
     "title": { "type": "string", "minLength": 1 },
     "status": { "type": "string" },
@@ -39,7 +39,10 @@
         "documents": { "$ref": "#/$defs/idList" },
         "covers": { "$ref": "#/$defs/idList" },
         "affects": { "$ref": "#/$defs/idList" },
-        "reuses": { "$ref": "#/$defs/idList" }
+        "reuses": { "$ref": "#/$defs/idList" },
+        "found_by": { "$ref": "#/$defs/idList" },
+        "fixed_by": { "$ref": "#/$defs/idList" },
+        "breaks": { "$ref": "#/$defs/idList" }
       }
     }
   },
@@ -157,13 +160,26 @@
         },
         "required": ["kind"]
       }
+    },
+    {
+      "if": { "properties": { "type": { "const": "defect" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "id": { "pattern": "^B-[0-9]{4}$" },
+          "status": { "enum": ["draft", "review", "approved", "superseded", "dropped"] },
+          "severity": { "enum": ["blocker", "critical", "major", "minor", "trivial"], "description": "Серьёзность дефекта (R-0063)." },
+          "environment": { "type": "string", "description": "Окружение: ОС, браузер, конфигурация." },
+          "build": { "type": "string", "description": "Сборка или релиз, на которых найден дефект." }
+        },
+        "required": ["severity"]
+      }
     }
   ],
 
   "$defs": {
     "idList": {
       "type": "array",
-      "items": { "type": "string", "pattern": "^[RDACTPVMS]-[0-9]{4}$" },
+      "items": { "type": "string", "pattern": "^[RDACTPVMSB]-[0-9]{4}$" },
       "uniqueItems": true
     }
   }

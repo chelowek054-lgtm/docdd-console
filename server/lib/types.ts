@@ -16,7 +16,8 @@ export type RecordType =
   | 'phase'
   | 'verification'
   | 'map'
-  | 'reference';
+  | 'reference'
+  | 'defect';
 
 export const RECORD_TYPES: readonly RecordType[] = [
   'requirement',
@@ -27,7 +28,8 @@ export const RECORD_TYPES: readonly RecordType[] = [
   'phase',
   'verification',
   'map',
-  'reference'
+  'reference',
+  'defect'
 ];
 
 /**
@@ -49,7 +51,8 @@ export type SectionKey =
   | 'tests'
   | 'diagrams'
   | 'maps'
-  | 'reference';
+  | 'reference'
+  | 'defects';
 
 export type LinkKind =
   | 'implements'
@@ -62,7 +65,10 @@ export type LinkKind =
   | 'documents'
   | 'covers'
   | 'affects'
-  | 'reuses';
+  | 'reuses'
+  | 'found_by'
+  | 'fixed_by'
+  | 'breaks';
 
 export const LINK_KINDS: readonly LinkKind[] = [
   'implements',
@@ -75,7 +81,10 @@ export const LINK_KINDS: readonly LinkKind[] = [
   'documents',
   'covers',
   'affects',
-  'reuses'
+  'reuses',
+  'found_by',
+  'fixed_by',
+  'breaks'
 ];
 
 export type Severity = 'error' | 'warning';
@@ -161,7 +170,8 @@ export const PREFIX_BY_TYPE: Readonly<Record<RecordType, string>> = {
   phase: 'P',
   verification: 'V',
   map: 'M',
-  reference: 'S'
+  reference: 'S',
+  defect: 'B'
 };
 
 /** Раздел, в котором живёт тип. Имя папки берётся из манифеста, ключ — отсюда. */
@@ -174,7 +184,8 @@ export const SECTION_BY_TYPE: Readonly<Record<RecordType, SectionKey>> = {
   phase: 'phases',
   verification: 'tests',
   map: 'maps',
-  reference: 'reference'
+  reference: 'reference',
+  defect: 'defects'
 };
 
 /** Что за изменение вносит задача (docs/02-workspace-contract.md). */
