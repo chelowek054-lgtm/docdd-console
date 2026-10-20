@@ -18,7 +18,7 @@ export interface Capability {
   status?: ImplStatus;
   note?: string;
   priority?: Priority;
-  horizon?: Horizon;
+  horizon?: Horizon; owner?: string;
   declaredBy?: string;
   declaredAt?: string;
   declaredByRole?: string | null;
@@ -131,7 +131,7 @@ function onRow(event: Event) {
 
         <!-- Приоритет, горизонт и то, что за отметкой стоит в процессе; унаследованное приглушено. -->
         <div
-          v-if="view && (view.priority || view.horizon || tasks || checks || noTrace || view.replacedBy.length || consistency.length)"
+          v-if="view && (view.priority || view.horizon || view.owner || tasks || checks || noTrace || view.replacedBy.length || consistency.length)"
           class="mt-0.5 flex flex-wrap items-center gap-1"
         >
           <UBadge
@@ -154,6 +154,7 @@ function onRow(event: Event) {
           >
             {{ HORIZON_LABEL[view.horizon.value] }}
           </UBadge>
+          <UBadge v-if="view.owner" size="xs" variant="outline" color="neutral" :class="view.owner.inherited ? 'opacity-60' : ''" :title="view.owner.inherited ? `Владелец унаследован от «${titleOf(view.owner.from)}»` : 'Владелец возможности'">{{ view.owner.value }}</UBadge>
           <span v-if="tasks" class="text-xs text-muted" title="Задачи, связанные с возможностью через её карту">{{ tasks }}</span>
           <UIcon v-if="checks" :name="checks.icon" class="size-4" :class="checks.text" :title="checks.title" />
           <span v-if="noTrace" class="text-xs text-dimmed" title="Ни требований, ни задач за этой возможностью нет">нет следа</span>

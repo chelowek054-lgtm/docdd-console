@@ -75,7 +75,7 @@ export interface CapabilityLike {
   status?: string | undefined;
   note?: string | undefined;
   priority?: string | undefined;
-  horizon?: string | undefined;
+  horizon?: string | undefined; owner?: string | undefined; /* зона ответственности (T-0044) */
 }
 
 export interface RelationLike {
@@ -805,7 +805,7 @@ export interface StatusItem {
 export interface StatusDeclarations {
   declarations: {
     id: string; title?: string; parent?: string; summary?: string;
-    status?: ImplStatus; note?: string; priority?: Priority; horizon?: Horizon;
+    status?: ImplStatus; note?: string; priority?: Priority; horizon?: Horizon; owner?: string;
   }[];
   /** id, которых нет в картине: ничего не записывается, пока они есть. */
   unknown: string[];
@@ -844,7 +844,7 @@ export function statusDeclarations(
       ...(item.status ? { status: item.status } : {}),
       ...(note ? { note } : {}),
       ...(isPriority(current.priority) ? { priority: current.priority } : {}),
-      ...(isHorizon(current.horizon) ? { horizon: current.horizon } : {})
+      ...(isHorizon(current.horizon) ? { horizon: current.horizon } : {}), ...(current.owner ? { owner: current.owner } : {})
     });
   }
   return { declarations, unknown };
@@ -1194,4 +1194,24 @@ export function openGroupOverview(
   openId: string
 ): Overview {
   return overviewAt(capabilities, relations, openId, 1);
+}
+
+/**
+ * Владелец возможности (T-0044): как приоритет, не складывается из подпунктов —
+ * действует собственный, а нет его — ближайшего родителя. Логин берётся из
+ * поля `owner` объявления; незнакомый приложению логин не отвергается.
+ */
+export function effectiveOwner(
+  item: CapabilityLike,
+  byId: ReadonlyMap<string, CapabilityLike>
+): { value: string; inherited: boolean; from: string } | null {
+  const seen = new Set<string>();
+  let at: CapabilityLike | undefined = item;
+  while (at && !seen.has(at.id)) {
+    seen.add(at.id);
+    if (typeof at.owner === 'string' && at.owner.trim() !== '') return { value: at.owner.trim(), inherited: at.id !== item.id, from: at.id };
+    const parent = parentOf(at, byId);
+    at = parent ? byId.get(parent) : undefined;
+  }
+  return null;
 }

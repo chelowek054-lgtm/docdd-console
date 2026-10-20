@@ -97,7 +97,7 @@ export interface FunctionalPart {
     /** Состояние реализации; нет поля — «не оценено» (docs/07-maps.md). */
     status?: ImplStatus; note?: string;
     /** Насколько важна и когда нужна; нет поля — «без приоритета», «без горизонта» (docs/07-maps.md). */
-    priority?: Priority; horizon?: Horizon;
+    priority?: Priority; horizon?: Horizon; owner?: string;
     /** След правки курса: какая карта объявила, когда и кто подтвердил (docs/07-maps.md). */
     declaredBy?: string; declaredAt?: string; declaredByRole?: string | null;
     pending?: boolean;
