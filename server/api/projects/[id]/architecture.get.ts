@@ -3,6 +3,7 @@ import { defineEventHandler, getRouterParam } from 'h3';
 import { OutsideRootError, normalizeRoot } from '../../../lib/paths';
 import { WorkspaceError } from '../../../lib/workspace';
 import { buildArchitecture } from '../../../utils/architecture-service';
+import { fingerprintProject, memoByFingerprint } from '../../../utils/memo';
 import { fail } from '../../../utils/http';
 import { findProject } from '../../../utils/projects';
 
@@ -19,7 +20,9 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    return buildArchitecture(normalizeRoot(project.root));
+    const root = normalizeRoot(project.root);
+    // Проверка обходит манифест и файлы кода; пока отпечаток тот же, ответ тот же (T-0102).
+    return memoByFingerprint(root, 'architecture', () => fingerprintProject(root), () => buildArchitecture(root));
   } catch (error) {
     if (error instanceof OutsideRootError) {
       return fail(event, 403, 'outside_root', error.message, error.requested);

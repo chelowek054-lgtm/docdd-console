@@ -1,3 +1,4 @@
+import { fingerprintProject, memoByFingerprint } from '../../../../utils/memo';
 import { defineEventHandler, getRouterParam } from 'h3';
 
 import { analyze } from '../../../../lib/analyze';
@@ -24,7 +25,22 @@ export default defineEventHandler(async (event) => {
 
   try {
     const root = normalizeRoot(project.root);
-    const map = buildProjectMap(root);
+    // Покрытие — производное от записей и кода: считать его заново на каждое открытие карты незачем (T-0102).
+    return memoByFingerprint(root, 'coverage', () => fingerprintProject(root), () => computeCoverage(root));
+  } catch (error) {
+    if (error instanceof OutsideRootError) {
+      return fail(event, 403, 'outside_root', error.message, error.requested);
+    }
+    if (error instanceof WorkspaceError) {
+      return fail(event, 422, error.code, error.message, error.detail);
+    }
+    return fail(event, 500, 'coverage_failed', 'Не удалось собрать покрытие', String(error));
+  }
+});
+
+function computeCoverage(root: string) {
+  {
+    const map = memoByFingerprint(root, 'map', () => fingerprintProject(root), () => buildProjectMap(root));
     const workspace = readWorkspace(root);
     const analysis = analyze({
       files: workspace.files,
@@ -45,13 +61,5 @@ export default defineEventHandler(async (event) => {
       }))
     });
     return { coverage: Object.fromEntries(coverage) };
-  } catch (error) {
-    if (error instanceof OutsideRootError) {
-      return fail(event, 403, 'outside_root', error.message, error.requested);
-    }
-    if (error instanceof WorkspaceError) {
-      return fail(event, 422, error.code, error.message, error.detail);
-    }
-    return fail(event, 500, 'coverage_failed', 'Не удалось собрать покрытие', String(error));
   }
-});
+}
