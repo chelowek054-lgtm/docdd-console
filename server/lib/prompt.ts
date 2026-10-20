@@ -618,3 +618,59 @@ export function designPrompt(template: string, tokens: PlainTokens, inventory: D
     .replace(TOKENS_MARKER, () => tokenLines(tokens))
     .replace(SHOTS_MARKER, () => shotLines(inventory));
 }
+
+export const REVIEW_SETTINGS_MARKER = '<!-- НАСТРОЙКИ -->';
+export const REVIEW_TASKS_MARKER = '<!-- ЗАДАЧИ -->';
+export const REVIEW_BRANCH_MARKER = '<!-- ВЕТКА -->';
+
+export interface ReviewBatchSettings {
+  agents: number;
+  perAgent: number;
+  minutes: number;
+  branch: string;
+}
+
+export interface ReviewBatchTask {
+  id: string;
+  title: string;
+  path: string;
+  phase: string | null;
+  requirements: readonly { id: string; title: string }[];
+  verifications: readonly { id: string; title: string; kind: string | null; result: string | null; at: string | null }[];
+  maps: readonly { id: string; title: string }[];
+}
+
+function reviewTaskLines(task: ReviewBatchTask): string {
+  const lines = [`### ${task.id} — ${task.title}`, `Файл: \`${task.path}\``, `Фаза: ${task.phase ?? 'нет'}`];
+  lines.push(task.requirements.length
+    ? `Требования:${LF}${task.requirements.map((req) => `- ${req.id} — ${req.title}`).join(LF)}`
+    : 'Требования: нет — задача ни на что не опирается, это тоже находка');
+  lines.push(task.verifications.length
+    ? `Проверки:${LF}${task.verifications.map((check) =>
+      `- ${check.id} — ${check.title} (${check.kind ?? 'вид не указан'}; последний прогон: ${check.result ? `${check.result}, ${check.at ?? 'время неизвестно'}` : 'не запускалась'})`).join(LF)}`
+    : 'Проверки: нет');
+  lines.push(task.maps.length
+    ? `Карты: ${task.maps.map((map) => `${map.id} — ${map.title}`).join('; ')}`
+    : 'Карты: не указаны');
+  return lines.join(LF);
+}
+
+/**
+ * Запрос «Запрос на проверку» (docs/04-ui.md, «Задачи на проверке — запрос на
+ * проверку»): настройки и задачи `in_review` с опорой. Ветка подставляется во
+ * все места шаблона — основной агент читает её в нескольких шагах.
+ */
+export function reviewBatchPrompt(template: string, settings: ReviewBatchSettings, tasks: readonly ReviewBatchTask[]): string {
+  const settingLines = [
+    `- Агентов: ${settings.agents}`,
+    `- Задач на агента: не больше ${settings.perAgent}`,
+    `- Минут на задачу: не больше ${settings.minutes}`,
+    `- Ветка проверки: \`${settings.branch}\``,
+    `- Задач на проверке: ${tasks.length} — проверяются все`,
+    `- За одну волну: ${settings.agents * settings.perAgent}; волн: ${Math.max(1, Math.ceil(tasks.length / (settings.agents * settings.perAgent)))}`
+  ].join(LF);
+  return withoutFrontNote(template)
+    .replace(REVIEW_SETTINGS_MARKER, () => settingLines)
+    .replace(REVIEW_TASKS_MARKER, () => tasks.map(reviewTaskLines).join(LF + LF))
+    .split(REVIEW_BRANCH_MARKER).join(settings.branch);
+}

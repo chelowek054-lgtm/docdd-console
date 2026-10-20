@@ -59,7 +59,6 @@ function reset() {
   owner.value = '';
   tag.value = '';
 }
-
 </script>
 
 <template>
@@ -70,7 +69,8 @@ function reset() {
       <div class="flex flex-wrap items-center gap-3">
         <h2 class="text-lg font-semibold">Задачи</h2>
         <p class="text-sm text-muted">{{ shown.length }} из {{ tasks.length }}</p>
-        <NewRecord class="ml-auto" :project-id="projectId" type="task" :records="records" @created="refresh" />
+        <ReviewBatchPrompt v-if="status === 'in_review'" class="ml-auto" :project-id="projectId" :visible-ids="shown.map((task) => task.id)" :total="tasks.filter((task) => task.status === 'in_review').length" />
+        <NewRecord :class="status === 'in_review' ? '' : 'ml-auto'" :project-id="projectId" type="task" :records="records" @created="refresh" />
       </div>
 
       <!-- Общие: фильтры ниже на них не влияют (docs/04-ui.md, «Общие шкалы»). -->
