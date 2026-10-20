@@ -157,7 +157,10 @@
             "type": "string",
             "description": "Чем запускается: gradle, npm, pytest. Для ручной проверки пусто."
           },
-          "command": { "type": "string" }
+          "command": { "type": "string" },
+          "query": { "type": "string", "description": "Запрос Prometheus для проверки вида metric (R-0066)." },
+          "threshold": { "type": "number", "description": "Порог для значения запроса." },
+          "operator": { "enum": ["lte", "gte"], "description": "lte (по умолчанию) — значение не выше порога, gte — не ниже." }
         },
         "required": ["kind"]
       }

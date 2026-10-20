@@ -53,3 +53,20 @@ export function alertNote(payload: unknown): { title: string; body: string } {
   const body = [message, ...lines].filter(Boolean).join('\n') || 'Алерт пришёл без подробностей.';
   return { title: `Алерт: ${name}`.slice(0, 120), body: `Инцидент для сопровождения (Grafana).\n\n${body}` };
 }
+
+/** Значение из ответа Prometheus `/api/v1/query`: первый элемент вектора или скаляр. */
+export function prometheusValue(payload: unknown): number | null {
+  const data = (payload as { data?: { resultType?: string; result?: unknown } } | null)?.data;
+  if (!data) return null;
+  const pair = data.resultType === 'scalar'
+    ? data.result
+    : data.resultType === 'vector' && Array.isArray(data.result) ? (data.result[0] as { value?: unknown } | undefined)?.value : null;
+  const raw = Array.isArray(pair) ? pair[1] : null;
+  const value = typeof raw === 'string' || typeof raw === 'number' ? Number(raw) : NaN;
+  return Number.isFinite(value) ? value : null;
+}
+
+/** По умолчанию значение не должно превышать порог (ошибки, задержки); `gte` — наоборот (доступность). */
+export function passesThreshold(value: number, threshold: number, operator: unknown): boolean {
+  return operator === 'gte' ? value >= threshold : value <= threshold;
+}

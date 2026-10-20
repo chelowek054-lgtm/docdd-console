@@ -432,3 +432,7 @@ stateDiagram-v2
 ### Релиз (R-0064)
 
 Запись типа `release`, префикс `L-0001`, раздел `paths.releases` (ключа нет — релизов в проекте нет, старые проекты не меняются). Front matter: `version` (обязательно), `environments` (список окружений выкладки); связь `ships` (релиз → задачи, которые в него вошли). Статусы документа те же, что у проверки. Экран «Релизы» показывает, что ушло в какую версию и где выложено; у закрытой задачи виден релиз по обратной связи `ships`. Схема: [schemas/frontmatter.schema.json](schemas/frontmatter.schema.json).
+
+### Проверка-метрика и Grafana (R-0065, R-0066)
+
+Проверка вида `metric` может нести `query` (запрос Prometheus), `threshold` (число) и `operator` (`lte` по умолчанию, `gte`). Прогон — `POST /api/projects/:id/records/:recordId/metric-run`: значение берётся из `DOCDD_PROMETHEUS_URL`, отчёт `passed`/`failed`; нет адреса или ответа — `skipped` с причиной в заметке. Метрики процесса: `GET /api/projects/:id/metrics` (формат Prometheus). Алерты Grafana: `POST /api/projects/:id/inbox/alert` с `Authorization: Bearer $DOCDD_ALERT_TOKEN` — заметка во входящем; без токена в окружении маршрут закрыт. У возможности функциональной карты — поле `dashboards` (ссылки на панели).
