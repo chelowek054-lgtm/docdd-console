@@ -4,14 +4,14 @@
  * Вкладка живёт в адресе (`?tab=results`): пункт меню открывает свою.
  */
 const route = useRoute();
-const router = useRouter();
+const router = useRouter(); const { t } = useT();
 
-const TABS = [
-  { label: 'Проверки', value: 'checks' },
-  { label: 'Результат', value: 'results' },
-  { label: 'Нарушения', value: 'issues' },
-  { label: 'Граф', value: 'graph' }
-];
+const TABS = computed(() => [
+  { label: t('nav.checks'), value: 'checks' },
+  { label: t('nav.results'), value: 'results' },
+  { label: t('nav.issues'), value: 'issues' },
+  { label: t('nav.graph'), value: 'graph' }
+]);
 const KNOWN = ['checks', 'results', 'issues', 'graph'];
 
 const tab = computed({
@@ -26,7 +26,7 @@ const tab = computed({
 
 <template>
   <div class="space-y-5">
-    <h1 class="text-xl font-semibold">Сверка</h1>
+    <h1 class="text-xl font-semibold">{{ t('nav.verify') }}</h1>
     <UTabs v-model="tab" :items="TABS" :content="false" />
     <ChecksPanel v-if="tab === 'checks'" />
     <ResultsPanel v-else-if="tab === 'results'" />

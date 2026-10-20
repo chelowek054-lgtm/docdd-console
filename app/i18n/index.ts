@@ -2,6 +2,8 @@ import { design as enDesign } from './en/design';
 import { shell as enShell } from './en/shell';
 import { design as ruDesign } from './ru/design';
 import { shell as ruShell } from './ru/shell';
+import { screens as enScreens } from './en/screens';
+import { screens as ruScreens } from './ru/screens';
 
 /**
  * Словари интерфейса по языкам (docs/16-design-system.md, «i18n»). Языки
@@ -10,6 +12,6 @@ import { shell as ruShell } from './ru/shell';
  * исходнике: перевод идёт по группам, а не одним коммитом.
  */
 export const messages: Record<string, Record<string, string>> = {
-  ru: { ...ruShell, ...ruDesign },
-  en: { ...enShell, ...enDesign }
+  ru: { ...ruShell, ...ruDesign, ...ruScreens },
+  en: { ...enShell, ...enDesign, ...enScreens }
 };
