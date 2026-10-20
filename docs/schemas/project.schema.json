@@ -127,6 +127,19 @@
         }
       }
     },
+    "team": {
+      "type": "array",
+      "description": "Команда проекта: логин человека и его роли здесь. Незнакомый логин — предупреждение, не отказ (docs/adr/0020-people-roles-permissions.md).",
+      "items": {
+        "type": "object",
+        "required": ["login", "roles"],
+        "properties": {
+          "login": { "type": "string", "minLength": 1 },
+          "roles": { "type": "array", "items": { "type": "string" } },
+          "deny": { "type": "array", "items": { "type": "string" }, "description": "Действия, которые проект у этого человека отнимает: права можно только сузить." }
+        }
+      }
+    },
     "roles": {
       "type": "array",
       "items": {
