@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
   if (!authEnabled()) return;
   const path = getRequestURL(event).pathname;
   if (!path.startsWith('/api/')) return;
-  if (path === '/api/auth/login' || path === '/api/auth/me' || path === '/api/auth/logout') return;
+  if (path === '/api/auth/login' || path === '/api/auth/me' || path === '/api/auth/logout' || /^\/api\/projects\/[^/]+\/inbox\/alert$/.test(path)) return; // вебхук алертов сам проверяет DOCDD_ALERT_TOKEN
 
   const deny = (status: number, code: string, message: string) => {
     setResponseStatus(event, status);

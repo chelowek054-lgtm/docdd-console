@@ -75,7 +75,7 @@ export interface CapabilityLike {
   status?: string | undefined;
   note?: string | undefined;
   priority?: string | undefined;
-  horizon?: string | undefined; owner?: string | undefined; /* зона ответственности (T-0044) */
+  horizon?: string | undefined; owner?: string | undefined; /* зона ответственности (T-0044) */ dashboards?: readonly string[] | undefined;
 }
 
 export interface RelationLike {
@@ -805,7 +805,7 @@ export interface StatusItem {
 export interface StatusDeclarations {
   declarations: {
     id: string; title?: string; parent?: string; summary?: string;
-    status?: ImplStatus; note?: string; priority?: Priority; horizon?: Horizon; owner?: string;
+    status?: ImplStatus; note?: string; priority?: Priority; horizon?: Horizon; owner?: string; dashboards?: string[];
   }[];
   /** id, которых нет в картине: ничего не записывается, пока они есть. */
   unknown: string[];
@@ -844,7 +844,7 @@ export function statusDeclarations(
       ...(item.status ? { status: item.status } : {}),
       ...(note ? { note } : {}),
       ...(isPriority(current.priority) ? { priority: current.priority } : {}),
-      ...(isHorizon(current.horizon) ? { horizon: current.horizon } : {}), ...(current.owner ? { owner: current.owner } : {})
+      ...(isHorizon(current.horizon) ? { horizon: current.horizon } : {}), ...(current.owner ? { owner: current.owner } : {}), ...(current.dashboards?.length ? { dashboards: [...current.dashboards] } : {})
     });
   }
   return { declarations, unknown };
