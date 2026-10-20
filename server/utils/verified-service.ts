@@ -67,7 +67,7 @@ export function markVerified(root: string, recordId: string, verified: boolean, 
   const base = manualReportName(recordId, now);
   let name = base;
   for (let n = 2; existsSync(join(dir, name)); n += 1) name = base.replace(/\.json$/, `-${n}.json`);
-  writeFileSync(join(dir, name), manualReportText(recordId, state, actor, now, verified ? withKind : undefined), 'utf8');
+  writeFileSync(join(dir, name), manualReportText(recordId, state, actor, now, verified ? withKind : (extra?.login ? { login: extra.login } : undefined)), 'utf8');
   dropCache(root);
   invalidateWorkspace(root);
 
@@ -93,7 +93,7 @@ export type RunOutcome =
   | { ok: false; status: number; code: string; message: string };
 
 /** Прогон набора проверок на сборке (R-0062): один отчёт с полем `build` на весь набор. */
-export function recordRun(root: string, build: string, results: Record<string, 'passed' | 'failed' | 'skipped'>, actor: string, extra?: { by?: string; note?: string }): RunOutcome {
+export function recordRun(root: string, build: string, results: Record<string, 'passed' | 'failed' | 'skipped'>, actor: string, extra?: { by?: string; note?: string; login?: string }): RunOutcome {
   if (!build.trim()) return { ok: false, status: 400, code: 'build_required', message: 'Не названа сборка или релиз' };
   const ids = Object.keys(results);
   if (ids.length === 0) return { ok: false, status: 400, code: 'run_empty', message: 'В прогоне нет ни одной проверки' };

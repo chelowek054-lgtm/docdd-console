@@ -24,7 +24,7 @@ const { running, elapsed, outcome, log, stream, cancel } = useModelRequest(() =>
   onRecovered: (answer) => accept(answer as { state: FixState })
 });
 
-const actor = ref(props.roles[0]?.id ?? '');
+const actor = ref(props.roles[0]?.id ?? ''); const { me } = useMe(() => props.projectId);
 const state = ref<FixState | null>(null);
 const failure = ref<ApiFailure | null>(null);
 const busy = ref('');
@@ -91,12 +91,12 @@ async function decide(action: 'accept' | 'reject') {
       </p>
 
       <USelect
-        v-if="props.roles.length"
+        v-if="(props.roles.length) && !me.required"
         v-model="actor"
         size="sm"
         class="ml-auto w-44"
         :items="props.roles.map((role) => ({ label: role.name, value: role.id }))"
-      />
+      /><span v-if="me.required && me.user" class="text-sm text-muted">Вошли: {{ me.user.name }}</span>
     </div>
 
     <ModelProgress :running="running" :elapsed="elapsed" :outcome="outcome" @cancel="cancel" />

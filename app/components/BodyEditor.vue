@@ -30,7 +30,7 @@ const editing = ref(false);
 const draft = ref('');
 /** Тело целиком на момент открытия правки: по нему сервер ловит расхождение с диском. */
 const baseline = ref('');
-const actor = ref(props.roles[0]?.id ?? '');
+const actor = ref(props.roles[0]?.id ?? ''); const { me } = useMe(() => props.projectId);
 const busy = ref(false);
 const failure = ref<ApiFailure | null>(null);
 const done = ref('');
@@ -91,12 +91,12 @@ async function save() {
       <div class="flex flex-wrap items-center gap-3">
         <h2 class="font-medium">Текст документа</h2>
         <USelect
-          v-if="editing && roles.length"
+          v-if="(editing && roles.length) && !me.required"
           v-model="actor"
           size="sm"
           class="ml-auto w-48"
           :items="roles.map((role) => ({ label: role.name, value: role.id }))"
-        />
+        /><span v-if="me.required && me.user" class="text-sm text-muted">Вошли: {{ me.user.name }}</span>
         <UButton v-if="!editing && !locked" size="sm" variant="ghost" class="ml-auto" @click="startEdit">
           Редактировать
         </UButton>

@@ -22,7 +22,7 @@ const { data, refresh } = useFetch<WorkState | { error: ApiFailure }>(
 
 const state = computed(() => (failureOf(data.value) ? null : (data.value as WorkState | null)));
 
-const actor = ref(props.roles[0]?.id ?? '');
+const actor = ref(props.roles[0]?.id ?? ''); const { me } = useMe(() => props.projectId);
 const comment = ref('');
 const busy = ref('');
 const answer = ref('');
@@ -95,12 +95,12 @@ async function afterWork(result: { answer?: string }, action: string) {
           <template v-if="state.round > 0"> · {{ plural(state.round, 'заход', 'захода', 'заходов') }}</template>
         </p>
         <USelect
-          v-if="props.roles.length"
+          v-if="(props.roles.length) && !me.required"
           v-model="actor"
           size="sm"
           class="ml-auto w-44"
           :items="props.roles.map((role) => ({ label: role.name, value: role.id }))"
-        />
+        /><span v-if="me.required && me.user" class="text-sm text-muted">Вошли: {{ me.user.name }}</span>
       </div>
     </template>
 

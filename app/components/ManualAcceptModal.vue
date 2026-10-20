@@ -66,7 +66,7 @@ const notReady = computed(() => sharedTasks.value.filter((record) => record.stat
 const skipped = ref<string[]>([]);
 const alsoClose = computed(() => closable.value.filter((record) => !skipped.value.includes(record.id)));
 
-const actor = ref(props.roles[0]?.id ?? '');
+const actor = ref(props.roles[0]?.id ?? ''); const { me } = useMe(() => props.projectId);
 const by = ref('');
 const note = ref('');
 const confirmed = ref(false);
@@ -214,11 +214,11 @@ watch(open, (value) => {
 
         <template v-if="manual.length && outcome === null">
           <UFormField v-if="props.roles.length" label="Кто принял" help="Роль из манифеста; по умолчанию — ревьюер задачи.">
-            <USelect
+            <USelect v-if="!me.required"
               v-model="actor"
               class="w-full"
               :items="props.roles.map((role) => ({ label: role.name, value: role.id }))"
-            />
+            /><span v-if="me.required && me.user" class="text-sm text-muted">Вошли: {{ me.user.name }}</span>
           </UFormField>
           <UFormField label="Кто проверил" required :error="byProblem || undefined">
             <UInput v-model="by" class="w-full" placeholder="Имя того, кто проверил" />

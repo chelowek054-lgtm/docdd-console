@@ -36,7 +36,7 @@ export interface ManualExtra {
   /** Вид проверки, если она автоматическая: тогда ручная приёмка помечается честно. */
   kind?: string | undefined;
   /** Результат по шагам проверки (R-0061); нет — отчёт прежнего вида. */
-  steps?: ReportStep[] | undefined;
+  steps?: ReportStep[] | undefined; login?: string | undefined; // логин вошедшего: runner `manual:<логин>`, а не подпись
 }
 
 /** Сколько знаков заметки идёт в строку журнала: журнал — след, а не пересказ. */
@@ -52,7 +52,7 @@ export function manualReportText(verificationId: string, state: ManualState, act
   const kind = extra?.kind?.trim() ?? '';
   return JSON.stringify({
     contract: 'docdd.workspace/1',
-    runner: manualRunner(actor),
+    runner: manualRunner(extra?.login || actor),
     started_at: now.toISOString(),
     total: 1,
     failed: 0,
@@ -117,11 +117,11 @@ export function runReportName(build: string, now: Date): string {
  * Отчёт прогона набора проверок (R-0062): итог по каждой и общий (`total`, `failed`),
  * версия сборки — в `build`. Формат тот же, что у любого отчёта, поэтому читается как прежде.
  */
-export function runReportText(build: string, results: Record<string, 'passed' | 'failed' | 'skipped'>, actor: string, now: Date, extra?: { by?: string; note?: string }): string {
+export function runReportText(build: string, results: Record<string, 'passed' | 'failed' | 'skipped'>, actor: string, now: Date, extra?: { by?: string; note?: string; login?: string }): string {
   const states = Object.values(results);
   return JSON.stringify({
     contract: 'docdd.workspace/1',
-    runner: manualRunner(actor),
+    runner: manualRunner(extra?.login || actor),
     started_at: now.toISOString(),
     build: build.trim(),
     total: states.length,
