@@ -37,7 +37,7 @@ const chunk = useChunked(shown, 40);
 const onBulkDone = (results?: BulkMoved[]) => { selection.clear(); if (results) patchStatuses(results); else void refresh(); };
 
 /** Результаты проверок нужны, чтобы не выдавать объявленное за подтверждённое. */
-const results = computed(() => index.value?.verificationResults ?? {});
+const results = computed(() => index.value?.verificationResults ?? {}); const facts = computed(() => new Map(tasks.value.map((task) => [task.id, taskFact(task, results.value)] as const))); const factOf = (task: { id: string }) => facts.value.get(task.id) ?? null; // один расчёт на задачу, а не два на строку
 
 const unique = (values: string[]): string[] => [...new Set(values.filter(Boolean))].sort();
 
@@ -139,8 +139,8 @@ function reset() {
           <div class="flex flex-wrap items-center gap-3">
             <RecordLink :project-id="projectId" :record-id="task.id" :record="task" />
             <StatusBadge :status="task.status" /><DiffUnviewed :project-id="projectId" :record-id="task.id" :status="task.status" />
-            <LightBadge v-if="taskFact(task, results)" :color="taskFact(task, results)!.color" variant="subtle">
-              {{ taskFact(task, results)!.label }}
+            <LightBadge v-if="factOf(task)" :color="factOf(task)!.color" variant="subtle">
+              {{ factOf(task)!.label }}
             </LightBadge>
             <LightBadge v-if="task.phase" color="neutral" variant="subtle">{{ task.phase }}</LightBadge>
             <LightBadge v-for="name in task.tags" :key="name" color="neutral" variant="outline">{{ name }}</LightBadge>

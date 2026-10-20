@@ -134,53 +134,53 @@ function onRow(event: Event) {
           v-if="view && (view.priority || view.horizon || tasks || checks || noTrace || view.replacedBy.length || consistency.length)"
           class="mt-0.5 flex flex-wrap items-center gap-1"
         >
-          <UBadge
+          <LightBadge
             v-if="view.priority"
-            size="xs"
+           
             variant="subtle"
             :color="PRIORITY_COLOR[view.priority.value]"
             :class="view.priority.inherited ? 'opacity-60' : ''"
             :title="view.priority.inherited ? `Приоритет унаследован от «${titleOf(view.priority.from)}»` : 'Приоритет'"
           >
             {{ PRIORITY_LABEL[view.priority.value] }}
-          </UBadge>
-          <UBadge
+          </LightBadge>
+          <LightBadge
             v-if="view.horizon"
-            size="xs"
+           
             variant="outline"
             color="neutral"
             :class="view.horizon.inherited ? 'opacity-60' : ''"
             :title="view.horizon.inherited ? `Горизонт унаследован от «${titleOf(view.horizon.from)}»` : 'Горизонт'"
           >
             {{ HORIZON_LABEL[view.horizon.value] }}
-          </UBadge>
+          </LightBadge>
           <span v-if="tasks" class="text-xs text-muted" title="Задачи, связанные с возможностью через её карту">{{ tasks }}</span>
           <UIcon v-if="checks" :name="checks.icon" class="size-4" :class="checks.text" :title="checks.title" />
           <span v-if="noTrace" class="text-xs text-dimmed" title="Ни требований, ни задач за этой возможностью нет">нет следа</span>
-          <UBadge
+          <LightBadge
             v-for="flag in consistency"
             :key="flag"
-            size="xs"
+           
             variant="subtle"
             color="warning"
           >
             {{ RISK_LABEL[flag] }}
-          </UBadge>
-          <UBadge v-if="view.replacedBy.length" size="xs" variant="subtle" color="warning">
+          </LightBadge>
+          <LightBadge v-if="view.replacedBy.length" variant="subtle" color="warning">
             заменяется на {{ view.replacedBy.map(titleOf).join(', ') }}
-          </UBadge>
+          </LightBadge>
         </div>
 
         <p v-if="item.note && !isParent" class="text-xs text-muted">{{ item.note }}</p>
       </div>
 
-      <UBadge v-if="item.pending && !hidePending" size="xs" color="neutral" variant="subtle">ещё не устоялось</UBadge>
-      <UBadge v-if="view?.inCycle" size="xs" color="error" variant="subtle" title="Две возможности ждут друг друга — граница проведена неверно">
+      <LightBadge v-if="item.pending && !hidePending" color="neutral" variant="subtle">ещё не устоялось</LightBadge>
+      <LightBadge v-if="view?.inCycle" color="error" variant="subtle" title="Две возможности ждут друг друга — граница проведена неверно">
         цикл
-      </UBadge>
-      <UBadge v-else-if="waitingTitle" size="xs" color="warning" variant="subtle" :title="waitingTitle">
+      </LightBadge>
+      <LightBadge v-else-if="waitingTitle" color="warning" variant="subtle" :title="waitingTitle">
         {{ waitingTitle }}
-      </UBadge>
+      </LightBadge>
 
       <!-- Кнопки действий — одна панель на всё дерево, см. FunctionalTree.vue. -->
 
