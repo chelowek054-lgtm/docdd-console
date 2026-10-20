@@ -238,5 +238,13 @@ export const design: Record<string, string> = {
   'dsc.accept.note': 'What is accepted becomes a check report and appears in “Violations”. The model fixes nothing — fixing is a separate task.',
   'dsc.accepted': 'Accepted:',
   'dsc.script.title': 'Screenshot script',
-  'dsc.script.show': 'Show template'
+  'dsc.script.show': 'Show template',
+  'dc.kind.base': 'base',
+  'dc.kind.composite': 'composite',
+  'dc.contract.composed': 'Composed of',
+  'dc.contract.variants': 'Variants',
+  'dc.contract.props': 'Props',
+  'dc.contract.slots': 'Slots',
+  'dc.contract.events': 'Events',
+  'dc.contract.logic': 'Logic is inseparable'
 };

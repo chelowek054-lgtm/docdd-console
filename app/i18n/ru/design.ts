@@ -238,5 +238,13 @@ export const design: Record<string, string> = {
   'dsc.accept.note': 'Принятое ляжет отчётом проверки и попадёт в «Нарушения». Модель ничего не правит — исправление отдельной задачей.',
   'dsc.accepted': 'Принято:',
   'dsc.script.title': 'Скрипт снятия экранов',
-  'dsc.script.show': 'Показать шаблон'
+  'dsc.script.show': 'Показать шаблон',
+  'dc.kind.base': 'базовый',
+  'dc.kind.composite': 'составной',
+  'dc.contract.composed': 'Собран из',
+  'dc.contract.variants': 'Варианты',
+  'dc.contract.props': 'Свойства',
+  'dc.contract.slots': 'Слоты',
+  'dc.contract.events': 'События',
+  'dc.contract.logic': 'Логика неотделима'
 };

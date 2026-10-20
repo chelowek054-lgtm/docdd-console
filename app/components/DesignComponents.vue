@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { COMPONENT_NAMES, type DesignTokens } from '~~/server/lib/design';
+import type { ContractProp } from '~~/server/lib/design-contract';
 
 /**
  * Реестр обязательных компонентов (docs/16-design-system.md): что объявлено,
@@ -22,10 +23,17 @@ const rows = computed(() => {
     states: item.value.states ?? [],
     parts: item.value.parts ?? [],
     lifecycle: item.value.status ?? 'stable',
-    source: item.source
+    source: item.source,
+    kind: item.value.kind ?? null,
+    composedOf: item.value.composedOf ?? [],
+    variants: item.value.variants ?? [],
+    props: item.value.props ?? [],
+    slots: item.value.slots ?? [],
+    events: item.value.events ?? [],
+    logic: item.value.logic ?? ''
   }));
   const absent = COMPONENT_NAMES.filter((name) => !declared.some((row) => row.name === name))
-    .map((name) => ({ name: name as string, summary: '', states: [] as string[], parts: [] as string[], lifecycle: 'draft', source: '' }));
+    .map((name) => ({ name: name as string, summary: '', states: [] as string[], parts: [] as string[], lifecycle: 'draft', source: '', kind: null, composedOf: [] as string[], variants: [] as string[], props: [] as ContractProp[], slots: [] as string[], events: [] as string[], logic: '' }));
   return [...declared, ...absent];
 });
 
@@ -56,7 +64,8 @@ function state(name: string, source: string): { label: string; color: 'success' 
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in rows" :key="row.name" class="border-t border-default align-top">
+          <template v-for="row in rows" :key="row.name">
+          <tr class="border-t border-default align-top">
             <td class="py-1.5 pr-3 font-mono text-xs">{{ row.name }}</td>
             <td class="py-1.5 pr-3">
               <UBadge :color="state(row.name, row.source).color" variant="subtle" size="sm">{{ state(row.name, row.source).label }}</UBadge>
@@ -67,6 +76,17 @@ function state(name: string, source: string): { label: string; color: 'success' 
             <td class="py-1.5 pr-3 text-xs" :class="row.lifecycle === 'deprecated' ? 'text-warning' : ''">{{ row.lifecycle }}</td>
             <td class="py-1.5 text-xs text-muted">{{ row.source || '—' }}</td>
           </tr>
+          <tr v-if="row.kind || row.variants.length || row.props.length || row.slots.length || row.events.length || row.logic" class="align-top">
+            <td colspan="7" class="pb-2 pr-3 text-xs text-muted">
+              <span v-if="row.kind" class="mr-3">{{ t(`dc.kind.${row.kind}`) }}<template v-if="row.composedOf.length"> · {{ t('dc.contract.composed') }}: {{ row.composedOf.join(', ') }}</template></span>
+              <span v-if="row.variants.length" class="mr-3">{{ t('dc.contract.variants') }}: {{ row.variants.join(', ') }}</span>
+              <span v-if="row.props.length" class="mr-3">{{ t('dc.contract.props') }}: {{ row.props.map((prop) => `${prop.name}: ${prop.type}${prop.default !== undefined ? ` = ${prop.default}` : ''}`).join('; ') }}</span>
+              <span v-if="row.slots.length" class="mr-3">{{ t('dc.contract.slots') }}: {{ row.slots.join(', ') }}</span>
+              <span v-if="row.events.length" class="mr-3">{{ t('dc.contract.events') }}: {{ row.events.join(', ') }}</span>
+              <span v-if="row.logic" class="text-warning">{{ t('dc.contract.logic') }}: {{ row.logic }}</span>
+            </td>
+          </tr>
+          </template>
         </tbody>
       </table>
     </div>

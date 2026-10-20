@@ -13,7 +13,7 @@
  * прочитались бы как пиксели и разошлись бы в шестнадцать раз.
  */
 
-import { parseSurface, type SurfaceTokens } from './design-surface';
+import { parseSurface, type SurfaceTokens } from './design-surface'; import { compositionProblems, parseContract, type ComponentContract } from './design-contract';
 
 export interface DesignRecord {
   id: string;
@@ -127,7 +127,7 @@ export interface TypographyToken {
   weight?: number;
 }
 
-export interface DesignComponent {
+export interface DesignComponent extends ComponentContract {
   name: string;
   summary?: string;
   /** Состояния: default, hover, focus, active, disabled… */
@@ -551,7 +551,7 @@ export function parseDesignBlocks(record: DesignRecord): { blocks: ParsedBlock[]
             name: item['name'],
             ...(typeof item['summary'] === 'string' ? { summary: item['summary'] } : {}),
             ...(states ? { states } : {}),
-            ...(parts ? { parts } : {}),
+            ...(parts ? { parts } : {}), ...parseContract(item, bad),
             ...(typeof status === 'string' && (COMPONENT_STATUSES as readonly string[]).includes(status) ? { status: status as ComponentStatus } : {})
           });
         } else bad('у компонента в `components` нужно `name`.');
@@ -801,7 +801,7 @@ export function resolveDesign(input: { general: readonly DesignRecord[]; local: 
   tokens.changes.sort((a, b) => compareVersions(b.value.version, a.value.version));
 
   // Поверхности приходят «незнакомыми» ключами; негодное называется, а не пропадает молча.
-  for (const message of parseSurface(Object.fromEntries(Object.entries(tokens.extra).map(([key, item]) => [key, item.value]))).problems) {
+  for (const message of [...parseSurface(Object.fromEntries(Object.entries(tokens.extra).map(([key, item]) => [key, item.value]))).problems, ...compositionProblems(tokens.components.map((item) => item.value))]) {
     const first = Object.values(tokens.extra)[0];
     problems.push({ record: first ? first.source.replace(/^\[[^\]]*\]\s*/, '') : '', message: `Блок \`docdd-design\`: ${message}` });
   }
