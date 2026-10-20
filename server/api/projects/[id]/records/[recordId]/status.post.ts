@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
     return fail(event, 404, 'project_not_found', `Проект \`${id}\` не найден в списке`);
   }
 
-  const body = await readBody<{ status?: unknown; actor?: unknown }>(event);
+  const body = await readBody<{ status?: unknown; actor?: unknown; version?: unknown }>(event);
   const status = typeof body?.status === 'string' ? body.status : '';
   const actor = typeof body?.actor === 'string' ? body.actor : '';
   if (!status) {
@@ -35,6 +35,9 @@ export default defineEventHandler(async (event) => {
       return fail(event, 404, 'record_not_found', `Записи \`${recordId}\` в проекте нет`);
     }
     const { context, blockers } = opened;
+    if (versionConflict(context.record, body?.version)) {
+      return fail(event, 409, 'record_changed_since_load', 'Запись изменили с тех пор, как вы её открыли: перечитайте и повторите правку');
+    }
     if (blockers.length > 0) {
       return failWith(
         event,
@@ -83,3 +86,4 @@ export default defineEventHandler(async (event) => {
     return fail(event, 500, 'write_failed', 'Не удалось записать изменение', String(error));
   }
 });
+import { versionConflict } from '../../../../../lib/version';

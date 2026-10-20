@@ -148,3 +148,15 @@ export function openRecordWithBlockers(
   const context = { workspace, record, absolute, original: readFileSync(absolute, 'utf8'), rules: result.context };
   return { context, blockers: checkTransition(record, to, result.context) };
 }
+
+/**
+ * Пакетные маршруты: клиент присылает `versions` {номер: версия}; расхождение
+ * хоть у одной записи — отказ всей пачке, чтобы не записать поверх чужой правки.
+ */
+export function staleVersions(root: string, versions: unknown): string[] {
+  if (versions === null || typeof versions !== 'object') return [];
+  const known = new Map(loadIndex(root).records.map((record) => [record.id, record.version]));
+  return Object.entries(versions as Record<string, unknown>)
+    .filter(([id, version]) => typeof version === 'string' && known.has(id) && known.get(id) !== version)
+    .map(([id]) => id);
+}

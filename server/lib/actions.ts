@@ -39,7 +39,7 @@ const JOURNAL_ACTIONS: Record<string, string> = {
 export const STATUS_FIELDS = ['status', 'updated'] as const;
 
 /** Правка полей: тело документа не трогается вовсе, журнал не пишется. */
-export const PATCH_FIELDS = ['owner', 'reviewer', 'phase', 'tags', 'links', 'change', 'reuse', 'rank', 'updated'] as const;
+export const PATCH_FIELDS = ['owner', 'reviewer', 'phase', 'tags', 'links', 'change', 'reuse', 'rank', 'updated', 'assignee'] as const;
 
 export interface WriteOutcome {
   text: string;
@@ -104,6 +104,8 @@ export interface PatchFields {
   owner?: string | null;
   /** Кто принимает задачу (adr/0030-task-reviewer.md); `null` — по правилу. */
   reviewer?: string | null;
+  /** Исполнитель задачи (T-0016); `null` снимает. */
+  assignee?: string | null;
   /** Что за изменение: от него зависит, нужна ли задаче карта. */
   change?: string | null;
   /** `none` — «подходящего в справочнике нет»; `null` убирает запись. */
@@ -128,6 +130,7 @@ export function applyFieldPatch(
   const changes: FrontMatterChanges = { updated: today };
   if (fields.owner !== undefined) changes.owner = fields.owner;
   if (fields.reviewer !== undefined) changes.reviewer = fields.reviewer;
+  if (fields.assignee !== undefined) changes.assignee = fields.assignee;
   if (fields.change !== undefined) changes.change = fields.change;
   if (fields.reuse !== undefined) changes.reuse = fields.reuse;
   if (fields.rank !== undefined) changes.rank = fields.rank;

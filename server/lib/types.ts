@@ -419,6 +419,8 @@ export interface IndexRecord {
   backlinks: Partial<Record<LinkKind, string[]>>;
   /** Незнакомые поля front matter: приложение их не понимает, но обязано вернуть. */
   extra: Record<string, unknown>;
+  /** Версия содержания записи: клиент возвращает её при правке (оптимистическая блокировка). */
+  version?: string;
 }
 
 export interface IssueDto {

@@ -31,7 +31,7 @@ const titleOf = (id: string) => props.records.find((record) => record.id === id)
 async function link(requirementId: string) {
   const response = await $fetch(`/api/projects/${props.projectId}/records/${props.task.id}`, {
     method: 'PATCH',
-    body: { links: withImplements(props.task.links, requirementId) },
+    body: { links: withImplements(props.task.links, requirementId), version: props.task.version },
     ignoreResponseError: true
   });
   const problem = failureOf(response);
