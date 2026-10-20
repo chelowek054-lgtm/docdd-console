@@ -106,3 +106,28 @@ export function parseCheckSteps(body: string): CheckStep[] {
   if (last && !last.expected && overall) last.expected = overall;
   return steps;
 }
+
+/** Имя отчёта прогона набора на сборку: build в имени, чтобы прогоны разных сборок не затирались. */
+export function runReportName(build: string, now: Date): string {
+  const safe = build.trim().replace(/[^\p{L}\p{N}._-]+/gu, '-').slice(0, 40) || 'build';
+  return `${now.toISOString().slice(0, 10)}-run-${safe}-${now.toISOString().slice(11, 23).replace(/[:.]/g, '')}.json`;
+}
+
+/**
+ * Отчёт прогона набора проверок (R-0062): итог по каждой и общий (`total`, `failed`),
+ * версия сборки — в `build`. Формат тот же, что у любого отчёта, поэтому читается как прежде.
+ */
+export function runReportText(build: string, results: Record<string, 'passed' | 'failed' | 'skipped'>, actor: string, now: Date, extra?: { by?: string; note?: string }): string {
+  const states = Object.values(results);
+  return JSON.stringify({
+    contract: 'docdd.workspace/1',
+    runner: manualRunner(actor),
+    started_at: now.toISOString(),
+    build: build.trim(),
+    total: states.length,
+    failed: states.filter((state) => state === 'failed').length,
+    ...(extra?.by?.trim() ? { checked_by: extra.by.trim() } : {}),
+    ...(extra?.note?.trim() ? { note: extra.note.trim() } : {}),
+    verifications: results
+  }, null, 2) + '\n';
+}

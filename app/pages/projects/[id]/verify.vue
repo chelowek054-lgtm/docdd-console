@@ -10,9 +10,10 @@ const TABS = [
   { label: 'Проверки', value: 'checks' },
   { label: 'Результат', value: 'results' },
   { label: 'Нарушения', value: 'issues' },
-  { label: 'Граф', value: 'graph' }
+  { label: 'Граф', value: 'graph' },
+  { label: 'Прогон', value: 'run' }
 ];
-const KNOWN = ['checks', 'results', 'issues', 'graph'];
+const KNOWN = ['checks', 'results', 'issues', 'graph', 'run'];
 
 const tab = computed({
   get: () => {
@@ -31,6 +32,7 @@ const tab = computed({
     <ChecksPanel v-if="tab === 'checks'" />
     <ResultsPanel v-else-if="tab === 'results'" />
     <IssuesPanel v-else-if="tab === 'issues'" />
+    <RunPanel v-else-if="tab === 'run'" />
     <GraphPanel v-else />
   </div>
 </template>
