@@ -1084,3 +1084,7 @@ matter. **Текст документа не меняется** — ни стр�
 ### Отметка «Проверено»: кто проверил
 
 Тело `POST …/records/:recordId/verified`: `{ "verified": true, "actor": "architect", "by": "Имя", "note": "что проверено" }`. `by` и `note` необязательны для API, но экран «Принять вручную» требует оба. Они пишутся в отчёт (`checked_by`, `note`) и в строку журнала.
+
+### GET /api/projects/:id/records/:recordId/map-diff
+
+Разница карты на схеме (R-0069). Ответ: `{ recordId, structures: [{ structure, nodes: [{ key, id, title, parent?, mark, fields }], edges: [{ key, from, to, label, mark }] }] }`, где `mark` — `added | removed | changed | same`. «Было» — сложенная картина подтверждённых карт до этой записи, «станет» — вместе с ней; структуры, которых запись не касается, не приходят. Логика — `server/lib/map-diff.ts`.
