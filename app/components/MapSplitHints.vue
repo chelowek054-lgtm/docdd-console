@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Подсказки дробления группы (ADR-0027): слишком много детей, слабая связность,
 // цикл. Это совет, а не запрет; тексты и условия считает hierarchy.ts.
-import { splitHints, splitHintTexts, type Edge, type TreeNode } from '~~/server/lib/hierarchy';
+import { cyclesAt, foldEdges, splitHints, splitHintTexts, visibleAt, type Edge, type TreeNode } from '~~/server/lib/hierarchy';
 
 const props = defineProps<{ groupId: string; nodes: TreeNode[]; edges: Edge[] }>();
 
