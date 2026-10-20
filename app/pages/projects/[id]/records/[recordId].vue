@@ -107,7 +107,7 @@ function entries(
         @changed="reload"
       />
 
-      <RecordDiscussion :project-id="projectId" :record-id="recordId" /> <RecordAsk :project-id="projectId" :record-id="recordId" /><!-- Справочник: feature без reuses — выбрать справку или записать «подходящего нет» (docs/13-reference.md). -->
+      <RecordDiscussion :project-id="projectId" :record-id="recordId" /> <RecordAsk :project-id="projectId" :record-id="recordId" /><!-- Справочник: feature без reuses — выбрать справку или записать «подходящего нет» (docs/13-reference.md). --> <RecordCriteria v-if="detail.record.type === 'requirement'" :project-id="projectId" :record-id="recordId" :body="detail.body" :records="index?.records ?? []" @created="refresh" />
       <TaskReuse
         v-if="detail.record.type === 'task'"
         :project-id="projectId"
