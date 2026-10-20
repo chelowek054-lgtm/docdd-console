@@ -23,7 +23,7 @@ export default defineEventHandler(async (event) => {
     const index = loadIndex(project.root, refresh);
     await touchProject(id);
     // issues=0: нарушения (~26 КБ) уезжают отдельным запросом и не попадают в HTML.
-    if (getQuery(event)['issues'] === '0') return { ...index, issues: [] };
+    if (getQuery(event)['issues'] === '0') return { ...index, issues: [], records: index.records.map((record) => ({ ...record, backlinks: {}, extra: record.type === 'task' ? record.extra : {} })) }; // лёгкий индекс: backlinks уезжают в /backlinks, extra нужен только задачам
     return index;
   } catch (error) {
     if (error instanceof WorkspaceError) {

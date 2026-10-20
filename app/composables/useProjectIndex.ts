@@ -118,3 +118,15 @@ export function useChunked<T>(items: MaybeRefOrGetter<T[]>, step = 100) {
 }
 
 export { failureOf };
+
+type Backlinks = IndexRecord['backlinks'];
+
+/** Обратные связи по id записи: ленивый запрос на клиенте, пока грузятся — пусто (индекс в HTML их не несёт). */
+export function useBacklinks(projectId: MaybeRefOrGetter<string>) {
+  const id = computed(() => toValue(projectId));
+  const state = useFetch<{ backlinks?: Record<string, Backlinks> } | { error: ApiFailure }>(() => `/api/projects/${id.value}/backlinks`, {
+    key: () => `backlinks:${id.value}`, server: false, lazy: true, watch: [id]
+  });
+  const map = computed(() => (state.data.value as { backlinks?: Record<string, Backlinks> } | null)?.backlinks ?? {});
+  return (record: IndexRecord): Backlinks => map.value[record.id] ?? record.backlinks ?? {};
+}
