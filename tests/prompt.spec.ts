@@ -48,7 +48,7 @@ describe('functionalCheckPrompt', () => {
 });
 
 describe('groupsPrompt', () => {
-  const groupsTemplate = ['# Заголовок', 'Шапка для человека.', '---', '## Группы', GROUPS_MARKER, '## Модули', GROUP_MODULES_MARKER].join(LF);
+  const groupsTemplate = ['# Заголовок', 'Шапка для человека.', '---', '## Группы', GROUPS_MARKER, '## Возможности', CAPABILITIES_TREE_MARKER, '## Модули', GROUP_MODULES_MARKER].join(LF);
 
   it('подставляет модули с путём, слоем и описанием; путь, равный id, не повторяет', () => {
     const prompt = groupsPrompt(groupsTemplate, [
@@ -69,6 +69,26 @@ describe('groupsPrompt', () => {
       { id: 'knowledge', title: 'Граф знаний', paths: ['server/lib/graph', 'server/lib/links'] }
     ]);
     expect(prompt).toContain('- `knowledge` — Граф знаний; каталоги: server/lib/graph, server/lib/links');
+  });
+
+  it('у группы названы родитель и возможность — модель видит текущее дерево и срезы', () => {
+    const prompt = groupsPrompt(groupsTemplate, [{ id: 'a' }], [
+      { id: 'server', title: 'Сервер' },
+      { id: 'server.knowledge', title: 'Знания', parent: 'server', capability: 'graph.knowledge' }
+    ]);
+    expect(prompt).toContain('- `server` — Сервер');
+    expect(prompt).toContain('- `server.knowledge` — Знания; родитель: server; возможность: graph.knowledge');
+  });
+
+  it('возможности функциональной карты подставляются вместо метки; их нет — так и сказано', () => {
+    const withCaps = groupsPrompt(groupsTemplate, [{ id: 'a' }], [], [
+      { id: 'graph', title: 'Граф знаний' },
+      { id: 'graph.knowledge', title: 'Знания', parent: 'graph' }
+    ]);
+    expect(withCaps).toContain('- `graph.knowledge` — Знания (родитель: graph)');
+    expect(withCaps).toContain('Граф знаний');
+    expect(withCaps).not.toContain(CAPABILITIES_TREE_MARKER);
+    expect(groupsPrompt(groupsTemplate, [{ id: 'a' }], [])).toContain('Возможностей в карте пока нет.');
   });
 
   it('групп нет — так и сказано, а не пустая строка', () => {

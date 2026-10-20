@@ -239,11 +239,12 @@ export default defineEventHandler(async (event) => {
     }
 
     if (kind === 'groups') {
-      const { modules, groups } = buildProjectMap(project.root).codemap;
+      const map = buildProjectMap(project.root);
+      const { modules, groups } = map.codemap;
       if (modules.length === 0) {
         return fail(event, 422, 'groups_nothing_to_group', 'В кодовой карте нет ни одного модуля: группировать нечего');
       }
-      return { prompt: groupsPrompt(await template('groups.md'), modules, groups), count: modules.length };
+      return { prompt: groupsPrompt(await template('groups.md'), modules, groups, map.functional.capabilities), count: modules.length };
     }
 
     if (kind === 'architecture') {

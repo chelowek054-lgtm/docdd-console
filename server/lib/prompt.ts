@@ -465,6 +465,17 @@ export const GROUP_MODULES_MARKER = '<!-- МОДУЛИ -->';
 const SUMMARY_LIMIT = 160;
 
 /**
+ * Возможности для запроса групп — одной строкой: `id`, название, родитель. Состояние и пометки
+ * здесь ни к чему (на них модель не ссылается), а на сотне возможностей они съедают токены.
+ */
+function groupCapabilityLines(capabilities: readonly CapabilityLike[]): string {
+  if (capabilities.length === 0) return 'Возможностей в карте пока нет.';
+  return capabilities
+    .map((item) => `- \`${item.id}\`${item.title ? ` — ${item.title}` : ''}${item.parent ? ` (родитель: ${item.parent})` : ''}`)
+    .join(LF);
+}
+
+/**
  * Запрос «Сгруппировать модули» (docs/07-maps.md, «Группы: уровень над
  * модулями»). Модели уходят модули общей картины и уже объявленные группы — то,
  * что человек подтвердил, ей повторять не нужно. Ответ — блок `docdd-codemap`
@@ -473,7 +484,16 @@ const SUMMARY_LIMIT = 160;
 export function groupsPrompt(
   template: string,
   modules: readonly { id: string; path?: string | undefined; layer?: string | undefined; summary?: string | undefined }[],
-  groups: readonly { id: string; title?: string | undefined; summary?: string | undefined; paths?: readonly string[] | undefined }[]
+  groups: readonly {
+    id: string;
+    title?: string | undefined;
+    summary?: string | undefined;
+    parent?: string | undefined;
+    capability?: string | undefined;
+    paths?: readonly string[] | undefined;
+  }[],
+  /** Возможности функциональной карты: на них ссылаются `capability` групп, выдумывать их модель не вправе. */
+  capabilities: readonly CapabilityLike[] = []
 ): string {
   const modulesText = modules.map((module) => {
     const facts = [
@@ -488,6 +508,8 @@ export function groupsPrompt(
     ? groups.map((group) => {
       const facts = [
         group.title ?? '',
+        group.parent ? `родитель: ${group.parent}` : '',
+        group.capability ? `возможность: ${group.capability}` : '',
         group.paths?.length ? `каталоги: ${group.paths.join(', ')}` : ''
       ].filter(Boolean);
       return `- \`${group.id}\`${facts.length ? ` — ${facts.join('; ')}` : ''}`;
@@ -496,6 +518,7 @@ export function groupsPrompt(
 
   return withoutFrontNote(template)
     .replace(GROUPS_MARKER, () => groupsText)
+    .replace(CAPABILITIES_TREE_MARKER, () => groupCapabilityLines(capabilities))
     .replace(GROUP_MODULES_MARKER, () => modulesText);
 }
 
