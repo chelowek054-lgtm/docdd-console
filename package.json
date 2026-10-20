@@ -10,6 +10,7 @@
     "dev": "nuxt dev",
     "build": "nuxt build",
     "preview": "nuxt preview",
+    "start:built": "tsx cli/start-built.ts",
     "postinstall": "nuxt prepare",
     "check": "tsx cli/check.ts",
     "typecheck": "tsc --noEmit && nuxt typecheck",
