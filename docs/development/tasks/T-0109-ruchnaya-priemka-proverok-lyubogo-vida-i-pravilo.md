@@ -2,7 +2,7 @@
 id: T-0109
 type: task
 title: Ручная приёмка проверок любого вида и правило task_no_verification
-status: in_progress
+status: in_review
 change: feature
 created: 2026-10-20
 updated: 2026-10-20
@@ -20,3 +20,4 @@ links:
 - 2026-10-20 · заведена · приложение
 - 2026-10-20 · готова к работе · architect
 - 2026-10-20 · в разработку · architect
+- 2026-10-20 · на проверку · architect

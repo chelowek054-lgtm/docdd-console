@@ -33,6 +33,8 @@ export function manualReportName(verificationId: string, now: Date): string {
 export interface ManualExtra {
   by?: string | undefined;
   note?: string | undefined;
+  /** Вид проверки, если она автоматическая: тогда ручная приёмка помечается честно. */
+  kind?: string | undefined;
 }
 
 /** Сколько знаков заметки идёт в строку журнала: журнал — след, а не пересказ. */
@@ -45,6 +47,7 @@ function oneLine(text: string): string {
 export function manualReportText(verificationId: string, state: ManualState, actor: string, now: Date, extra?: ManualExtra): string {
   const by = extra?.by?.trim() ?? '';
   const note = extra?.note?.trim() ?? '';
+  const kind = extra?.kind?.trim() ?? '';
   return JSON.stringify({
     contract: 'docdd.workspace/1',
     runner: manualRunner(actor),
@@ -53,6 +56,7 @@ export function manualReportText(verificationId: string, state: ManualState, act
     failed: 0,
     ...(by ? { checked_by: by } : {}),
     ...(note ? { note } : {}),
+    ...(kind ? { verification_kind: kind } : {}),
     verifications: { [verificationId]: state }
   }, null, 2) + '\n';
 }
@@ -66,5 +70,6 @@ export function verifiedJournalAction(verified: boolean, actor = '', extra?: Man
   const by = oneLine(extra?.by ?? '');
   const note = oneLine(extra?.note ?? '');
   const short = note.length > NOTE_JOURNAL_LIMIT ? `${note.slice(0, NOTE_JOURNAL_LIMIT - 1).trimEnd()}…` : note;
-  return ['проверена вручную', actor.trim(), by ? `проверил ${by}` : '', short].filter(Boolean).join(' · ');
+  const kind = extra?.kind?.trim() ?? '';
+  return [kind ? `проверена вручную (вид ${kind})` : 'проверена вручную', actor.trim(), by ? `проверил ${by}` : '', short].filter(Boolean).join(' · ');
 }

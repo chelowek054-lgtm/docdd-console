@@ -148,7 +148,8 @@ export type ViolationCode =
   | 'requirement_unimplemented'
   | 'doc_changed_after_task'
   | 'task_stale'
-  | 'verification_never_run';
+  | 'verification_never_run'
+  | 'task_no_verification';
 
 /** Префикс идентификатора по типу записи. Контракт, а не соглашение. */
 export const PREFIX_BY_TYPE: Readonly<Record<RecordType, string>> = {
@@ -243,7 +244,8 @@ export const VIOLATION_LEVELS: Readonly<Record<ViolationCode, Severity>> = {
   requirement_unimplemented: 'warning',
   doc_changed_after_task: 'warning',
   task_stale: 'warning',
-  verification_never_run: 'warning'
+  verification_never_run: 'warning',
+  task_no_verification: 'warning'
 };
 
 export interface Violation {
@@ -291,6 +293,8 @@ export interface Report {
   /** Ручная отметка: кто проверил и что именно (docs/02-workspace-contract.md). */
   checked_by?: string;
   note?: string;
+  /** Вид проверки, принятой вручную без прогона сборки (unit, integration, metric…). */
+  verification_kind?: string;
   verifications: Record<string, VerificationResult>;
 }
 
@@ -394,6 +398,8 @@ export interface VerificationOutcome {
   /** Только у ручной отметки: имя проверившего и что проверено. */
   checkedBy?: string;
   note?: string;
+  /** Вид проверки в ручной приёмке автоматической проверки: экран подписывает «прогона сборки не было». */
+  manualKind?: string;
 }
 
 export interface IndexRecord {

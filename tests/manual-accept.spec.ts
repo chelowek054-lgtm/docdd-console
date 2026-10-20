@@ -26,6 +26,27 @@ describe('manualReportText с кто проверил и что проверен
   });
 });
 
+describe('ручная приёмка автоматического вида', () => {
+  it('verification_kind попадает в отчёт только когда вид передан', () => {
+    const auto = JSON.parse(manualReportText('V-0002', 'passed', 'architect', NOW, { by: 'Иван', note: 'глазами', kind: 'unit' }));
+    expect(auto.verification_kind).toBe('unit');
+    expect(JSON.parse(manualReportText('V-0001', 'passed', 'architect', NOW, { note: 'x' }))).not.toHaveProperty('verification_kind');
+  });
+
+  it('журнал называет вид', () => {
+    expect(verifiedJournalAction(true, 'architect', { by: 'Иван', note: 'глазами', kind: 'unit' }))
+      .toBe('проверена вручную (вид unit) · architect · проверил Иван · глазами');
+  });
+
+  it('вид из отчёта доходит до экрана как manualKind', () => {
+    const reports: Report[] = [{
+      contract: 'docdd.workspace/1', runner: 'manual:architect', started_at: '2026-10-20T10:00:00.000Z',
+      verification_kind: 'unit', verifications: { 'V-0002': 'passed' }
+    }];
+    expect(latestVerificationDetails(reports).get('V-0002')).toMatchObject({ manualKind: 'unit' });
+  });
+});
+
 describe('verifiedJournalAction', () => {
   it('без аргументов — прежняя подпись, снятие — как раньше', () => {
     expect(verifiedJournalAction(true)).toBe('проверена вручную');

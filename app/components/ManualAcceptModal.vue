@@ -5,8 +5,8 @@ import type { IndexRecord } from '~~/server/lib/types';
 /**
  * «Принять вручную» (docs/04-ui.md): отметка «Проверено» на ручных проверках
  * и повторный перевод задач. Окно само находит, чего не хватает задаче, —
- * по цепочке задача → требование → проверка. Автоматические проверки так не
- * принимаются: их факт приходит от сборки.
+ * по цепочке задача → требование → проверка. Автоматические проверки принимаются
+ * так же, но с пометкой «прогона сборки не было» (ADR-0029).
  */
 const props = defineProps<{
   projectId: string;
@@ -24,6 +24,8 @@ const { index, byId, refresh } = useProjectIndex(() => props.projectId);
 
 const MANUAL = ['manual', 'review'];
 const isManual = (record: IndexRecord) => MANUAL.includes(String(record.extra['kind'] ?? ''));
+/** У автоматических видов приёмка честно помечена: прогона сборки не было (ADR-0029). */
+const kindNote = (record: IndexRecord) => isManual(record) ? '' : `вид ${String(record.extra['kind'] ?? 'без вида')} — прогона сборки не было`;
 
 const tasks = computed(() => (props.taskIds ?? []).map((id) => byId.value.get(id)).filter((r): r is IndexRecord => !!r));
 
@@ -40,8 +42,7 @@ const pending = computed<IndexRecord[]>(() => {
     .map((id) => byId.value.get(id))
     .filter((r): r is IndexRecord => !!r && results[r.id]?.state !== 'passed');
 });
-const manual = computed(() => pending.value.filter(isManual));
-const waiting = computed(() => pending.value.filter((record) => !isManual(record)));
+const manual = pending;
 
 const actor = ref(props.roles[0]?.id ?? '');
 const by = ref('');
@@ -120,11 +121,8 @@ watch(open, (value) => {
           Задачи: <span v-for="task in tasks" :key="task.id" class="mr-2 font-mono text-xs">{{ task.id }}</span>
         </p>
 
-        <p v-if="manual.length === 0 && waiting.length === 0" class="text-muted">
+        <p v-if="manual.length === 0" class="text-muted">
           Принимать вручную нечего: непройденных проверок у этих записей нет.
-        </p>
-        <p v-else-if="manual.length === 0" class="text-muted">
-          Принимать вручную нечего: остались только проверки, ждущие прогона сборки.
         </p>
 
         <div v-if="manual.length">
@@ -132,16 +130,7 @@ watch(open, (value) => {
           <ul class="space-y-0.5">
             <li v-for="check in manual" :key="check.id">
               <span class="font-mono text-xs">{{ check.id }}</span> {{ check.title }}
-            </li>
-          </ul>
-        </div>
-
-        <div v-if="waiting.length">
-          <p class="mb-1 font-medium">Ждут прогона сборки: принять нельзя</p>
-          <ul class="space-y-0.5 text-muted">
-            <li v-for="check in waiting" :key="check.id">
-              <span class="font-mono text-xs">{{ check.id }}</span> {{ check.title }}
-              <span class="text-xs">· {{ String(check.extra['kind'] ?? 'без вида') }}</span>
+              <span v-if="kindNote(check)" class="text-xs text-muted">· {{ kindNote(check) }}</span>
             </li>
           </ul>
         </div>

@@ -36,14 +36,14 @@ export function markVerified(root: string, recordId: string, verified: boolean, 
   if (context.record.type !== 'verification') {
     return { ok: false, status: 409, code: 'not_a_verification', message: `${recordId} — не проверка: отметка «Проверено» ставится на проверках` };
   }
-  if (!isManualKind(context.record.data['kind'])) {
-    return {
-      ok: false,
-      status: 409,
-      code: 'not_manual',
-      message: `У проверки ${recordId} вид не \`manual\` и не \`review\`: факт приходит от сборки — положите отчёт в tests/reports`
-    };
+  // Вид не ограничивает приёмку (ADR-0029), но у автоматических видов ручной прогон
+  // не должен выдавать себя за прогон сборки: нужна заметка и честная пометка вида.
+  const rawKind = context.record.data['kind'];
+  const autoKind = isManualKind(rawKind) ? '' : (typeof rawKind === 'string' && rawKind.trim() ? rawKind.trim() : 'без вида');
+  if (verified && autoKind && !(extra?.note ?? '').trim()) {
+    return { ok: false, status: 400, code: 'note_required', message: 'Принимая проверку без прогона сборки, напишите, что проверено' };
   }
+  const withKind: ManualExtra | undefined = autoKind ? { ...extra, kind: autoKind } : extra;
 
   const testsFolder = context.workspace.manifest.paths?.tests;
   if (!testsFolder) {
@@ -59,13 +59,13 @@ export function markVerified(root: string, recordId: string, verified: boolean, 
   const base = manualReportName(recordId, now);
   let name = base;
   for (let n = 2; existsSync(join(dir, name)); n += 1) name = base.replace(/\.json$/, `-${n}.json`);
-  writeFileSync(join(dir, name), manualReportText(recordId, state, actor, now, verified ? extra : undefined), 'utf8');
+  writeFileSync(join(dir, name), manualReportText(recordId, state, actor, now, verified ? withKind : undefined), 'utf8');
   dropCache(root);
   invalidateWorkspace(root);
 
   // Журнал — след для человека. Сторож отказал — отметка всё равно поставлена.
   const outcome = applyJournalNote(context.original, {
-    action: verifiedJournalAction(verified, actor, extra),
+    action: verifiedJournalAction(verified, actor, withKind),
     actor,
     today: today(now)
   });

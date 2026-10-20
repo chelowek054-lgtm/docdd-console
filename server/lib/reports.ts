@@ -30,7 +30,8 @@ export function latestVerificationDetails(reports: readonly Report[]): Map<strin
         at: report.started_at,
         runner: report.runner,
         ...(report.checked_by ? { checkedBy: report.checked_by } : {}),
-        ...(report.note ? { note: report.note } : {})
+        ...(report.note ? { note: report.note } : {}),
+        ...(report.verification_kind ? { manualKind: report.verification_kind } : {})
       });
     }
   }
