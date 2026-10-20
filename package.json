@@ -12,6 +12,7 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "check": "tsx cli/check.ts",
+    "perf": "tsx cli/perf.ts",
     "typecheck": "tsc --noEmit && nuxt typecheck",
     "test": "vitest run",
     "lint": "eslint ."
