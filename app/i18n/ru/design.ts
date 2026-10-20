@@ -253,5 +253,9 @@ export const design: Record<string, string> = {
   'dc.matrix.gap': 'нет истории',
   'dc.matrix.state.missing': 'каталога нет',
   'dc.matrix.state.invalid': 'не разобрался',
-  'dc.matrix.findings': 'Находки'
+  'dc.matrix.findings': 'Находки',
+  'dc.port.title': 'Перенести компонент на стек',
+  'dc.port.build': 'Собрать запрос',
+  'dc.port.copy': 'Скопировать',
+  'dc.port.lead': 'Запрос собирает контракт, истории и токены стека. Работает модель в ветке задачи, сливает человек.'
 };

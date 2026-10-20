@@ -38,7 +38,7 @@ import { findProject } from '../../../../utils/projects';
 import { plainTokens } from '../../../../lib/design';
 import { designPrompt } from '../../../../lib/prompt';
 import { projectDesign } from '../../../../utils/design-service';
-import { projectScreens } from '../../../../utils/design-screens-service';
+import { projectScreens } from '../../../../utils/design-screens-service'; import { projectStoryPairs } from '../../../../utils/design-catalog-service'; import { withStoryPairs } from '../../../../lib/design-port';
 import { reviewerOf, roleName } from '../../../../lib/reviewer';
 
 /**
@@ -294,7 +294,7 @@ export default defineEventHandler(async (event) => {
         return fail(event, 422, 'design_no_shots', `Нет ни одного снимка из ${screens.total} нужных: положите их в \`${screens.screensDir}\` — шаблон скрипта снятия на экране «Дизайн», вкладка «Экраны»`);
       }
       const name = kind === 'design-responsive' ? 'design-responsive.md' : 'design-pixel-perfect.md';
-      return { prompt: designPrompt(await template(name), plainTokens(design.tokens), screens), count: present };
+      return { prompt: kind === 'design-pixel' ? withStoryPairs(designPrompt(await template(name), plainTokens(design.tokens), screens), projectStoryPairs(project.root)) : designPrompt(await template(name), plainTokens(design.tokens), screens), count: present };
     }
 
     if (kind === 'review-batch') {

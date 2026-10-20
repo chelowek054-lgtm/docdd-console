@@ -253,5 +253,9 @@ export const design: Record<string, string> = {
   'dc.matrix.gap': 'no story',
   'dc.matrix.state.missing': 'no catalog',
   'dc.matrix.state.invalid': 'unreadable',
-  'dc.matrix.findings': 'Findings'
+  'dc.matrix.findings': 'Findings',
+  'dc.port.title': 'Port a component to a stack',
+  'dc.port.build': 'Build request',
+  'dc.port.copy': 'Copy',
+  'dc.port.lead': 'The request carries the contract, stories and stack tokens. The model works in a task branch; a human merges.'
 };

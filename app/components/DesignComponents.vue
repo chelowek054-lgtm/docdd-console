@@ -15,6 +15,8 @@ const props = defineProps<{
   missing: string[] | null;
   /** Без проекта (глобальный экран) матрицу историй не читаем. */
   projectId?: string;
+  /** Стеки из манифеста: на них переносим. */
+  stacks?: { id: string; label: string }[];
 }>();
 
 const { t } = useT();
@@ -24,6 +26,24 @@ const { data: catalogData } = useFetch<{ report: CatalogReport | null } | { erro
   () => (props.projectId ? `/api/projects/${props.projectId}/design/catalog` : ''),
   { key: () => `design-catalog:${props.projectId ?? ''}`, immediate: Boolean(props.projectId) }
 );
+// Запрос переноса: собирается на сервере, отправляет его человек.
+const portComponent = ref('');
+const portStack = ref('');
+const portText = ref('');
+const portError = ref('');
+async function buildPort(): Promise<void> {
+  portError.value = '';
+  portText.value = '';
+  try {
+    const answer = await $fetch<{ prompt: string }>(`/api/projects/${props.projectId}/design/port-prompt`, {
+      method: 'POST',
+      body: { component: portComponent.value, stack: portStack.value }
+    });
+    portText.value = answer.prompt;
+  } catch (error) {
+    portError.value = (error as { data?: { message?: string } }).data?.message ?? String(error);
+  }
+}
 const catalog = computed(() => {
   const value = catalogData.value;
   return value && 'report' in value ? value.report : null;
@@ -102,6 +122,24 @@ function state(name: string, source: string): { label: string; color: 'success' 
           </template>
         </tbody>
       </table>
+    </div>
+    <div v-if="projectId && (stacks ?? []).length" class="space-y-2">
+      <h3 class="font-medium">{{ t('dc.port.title') }}</h3>
+      <p class="text-sm text-muted">{{ t('dc.port.lead') }}</p>
+      <div class="flex flex-wrap items-center gap-2">
+        <select v-model="portComponent" class="rounded border border-default bg-default px-2 py-1 text-sm">
+          <option value="" disabled>{{ t('dc.col.name') }}</option>
+          <option v-for="item in tokens.components" :key="item.value.name" :value="item.value.name">{{ item.value.name }}</option>
+        </select>
+        <select v-model="portStack" class="rounded border border-default bg-default px-2 py-1 text-sm">
+          <option value="" disabled>—</option>
+          <option v-for="stack in stacks" :key="stack.id" :value="stack.id">{{ stack.label }}</option>
+        </select>
+        <UButton size="sm" :disabled="!portComponent || !portStack" @click="buildPort">{{ t('dc.port.build') }}</UButton>
+        <UButton v-if="portText" size="sm" variant="outline" @click="navigator.clipboard?.writeText(portText)">{{ t('dc.port.copy') }}</UButton>
+      </div>
+      <p v-if="portError" class="text-sm text-error">{{ portError }}</p>
+      <textarea v-if="portText" :value="portText" readonly rows="12" class="w-full rounded border border-default bg-default p-2 font-mono text-xs" />
     </div>
     <div v-if="catalog" class="space-y-2">
       <h3 class="font-medium">{{ t('dc.matrix.title') }}</h3>
