@@ -1,0 +1,1857 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`выгрузка в стеки > compose: снимок и тот же текст при повторе 1`] = `
+"// color Color.kt
+// Сгенерировано консолью DocDD из токенов дизайна v1.8.0 (docs/16-design-system.md). Не правьте руками: меняются токены.
+package ui.theme
+
+import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.ui.graphics.Color
+
+val LightBg = Color(0xFFF6F7FB)
+val LightSurface = Color(0xFFFFFFFF)
+val LightSurfaceAlt = Color(0xFFECEFF7)
+val LightInk = Color(0xFF0F1530)
+val LightMuted = Color(0xFF566079)
+val LightLine = Color(0xFFD8DDEA)
+val LightAccent = Color(0xFF22C55E)
+val LightAccentText = Color(0xFF15703A)
+val LightOnAccent = Color(0xFFFFFFFF)
+val LightCore = Color(0xFF7336DE)
+val LightOk = Color(0xFF15703A)
+val LightInfo = Color(0xFF1F57D6)
+val LightWarn = Color(0xFF96520C)
+val LightDanger = Color(0xFFC0261E)
+val LightOnDanger = Color(0xFFFFFFFF)
+val LightFocus = Color(0xFF15803D)
+
+val DarkBg = Color(0xFF0E111A)
+val DarkSurface = Color(0xFF161A25)
+val DarkSurfaceAlt = Color(0xFF202636)
+val DarkInk = Color(0xFFE8EBF5)
+val DarkMuted = Color(0xFF9AA3BC)
+val DarkLine = Color(0xFF2C3345)
+val DarkAccent = Color(0xFF4ADE80)
+val DarkAccentText = Color(0xFF4ADE80)
+val DarkOnAccent = Color(0xFF04150B)
+val DarkCore = Color(0xFFA890F5)
+val DarkOk = Color(0xFF4ADE80)
+val DarkInfo = Color(0xFF6BA8F5)
+val DarkWarn = Color(0xFFF2C14E)
+val DarkDanger = Color(0xFFF08080)
+val DarkOnDanger = Color(0xFF2A0A07)
+val DarkFocus = Color(0xFF4ADE80)
+
+val ContrastBg = Color(0xFF000000)
+val ContrastSurface = Color(0xFF0A0A0A)
+val ContrastSurfaceAlt = Color(0xFF1A1A1A)
+val ContrastInk = Color(0xFFFFFFFF)
+val ContrastMuted = Color(0xFFE0E0E0)
+val ContrastLine = Color(0xFFFFFFFF)
+val ContrastAccent = Color(0xFFFFE600)
+val ContrastAccentText = Color(0xFFFFE600)
+val ContrastOnAccent = Color(0xFF000000)
+val ContrastCore = Color(0xFFFFB000)
+val ContrastOk = Color(0xFF00FF7F)
+val ContrastInfo = Color(0xFF80D8FF)
+val ContrastWarn = Color(0xFFFFD54F)
+val ContrastDanger = Color(0xFFFF8A80)
+val ContrastOnDanger = Color(0xFF000000)
+val ContrastFocus = Color(0xFFFFE600)
+
+val OledBg = Color(0xFF000000)
+val OledSurface = Color(0xFF090B10)
+val OledSurfaceAlt = Color(0xFF12151D)
+val OledInk = Color(0xFFE8EBF5)
+val OledMuted = Color(0xFF9AA3BC)
+val OledLine = Color(0xFF232838)
+val OledAccent = Color(0xFF4ADE80)
+val OledAccentText = Color(0xFF4ADE80)
+val OledOnAccent = Color(0xFF04150B)
+val OledCore = Color(0xFFA890F5)
+val OledOk = Color(0xFF4ADE80)
+val OledInfo = Color(0xFF6BA8F5)
+val OledWarn = Color(0xFFF2C14E)
+val OledDanger = Color(0xFFF08080)
+val OledOnDanger = Color(0xFF2A0A07)
+val OledFocus = Color(0xFF4ADE80)
+
+val LightColorScheme: ColorScheme = lightColorScheme(
+    background = LightBg,
+    onBackground = LightInk,
+    surface = LightSurface,
+    onSurface = LightInk,
+    surfaceVariant = LightSurfaceAlt,
+    onSurfaceVariant = LightMuted,
+    outline = LightLine,
+    primary = LightAccent,
+    onPrimary = LightOnAccent,
+    error = LightDanger,
+    onError = LightOnDanger,
+)
+
+val DarkColorScheme: ColorScheme = darkColorScheme(
+    background = DarkBg,
+    onBackground = DarkInk,
+    surface = DarkSurface,
+    onSurface = DarkInk,
+    surfaceVariant = DarkSurfaceAlt,
+    onSurfaceVariant = DarkMuted,
+    outline = DarkLine,
+    primary = DarkAccent,
+    onPrimary = DarkOnAccent,
+    error = DarkDanger,
+    onError = DarkOnDanger,
+)
+
+val ContrastColorScheme: ColorScheme = darkColorScheme(
+    background = ContrastBg,
+    onBackground = ContrastInk,
+    surface = ContrastSurface,
+    onSurface = ContrastInk,
+    surfaceVariant = ContrastSurfaceAlt,
+    onSurfaceVariant = ContrastMuted,
+    outline = ContrastLine,
+    primary = ContrastAccent,
+    onPrimary = ContrastOnAccent,
+    error = ContrastDanger,
+    onError = ContrastOnDanger,
+)
+
+val OledColorScheme: ColorScheme = darkColorScheme(
+    background = OledBg,
+    onBackground = OledInk,
+    surface = OledSurface,
+    onSurface = OledInk,
+    surfaceVariant = OledSurfaceAlt,
+    onSurfaceVariant = OledMuted,
+    outline = OledLine,
+    primary = OledAccent,
+    onPrimary = OledOnAccent,
+    error = OledDanger,
+    onError = OledOnDanger,
+)
+
+/** Роли, которых нет в Material 3: смысловой цвет ядра и состояния. */
+data class AppExtraColors(val core: Color, val ok: Color, val warn: Color)
+
+val LightExtraColors = AppExtraColors(accentText = LightAccentText, core = LightCore, ok = LightOk, info = LightInfo, warn = LightWarn)
+val DarkExtraColors = AppExtraColors(accentText = DarkAccentText, core = DarkCore, ok = DarkOk, info = DarkInfo, warn = DarkWarn)
+val ContrastExtraColors = AppExtraColors(accentText = ContrastAccentText, core = ContrastCore, ok = ContrastOk, info = ContrastInfo, warn = ContrastWarn)
+val OledExtraColors = AppExtraColors(accentText = OledAccentText, core = OledCore, ok = OledOk, info = OledInfo, warn = OledWarn)
+
+----
+// type Type.kt
+// Сгенерировано консолью DocDD из токенов дизайна v1.8.0 (docs/16-design-system.md). Не правьте руками: меняются токены.
+// Размеры — rem × 16; sp следует за масштабом шрифта системы.
+package ui.theme
+
+import androidx.compose.material3.Typography
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+
+val AppTypography = Typography(
+    labelSmall = TextStyle(fontSize = 12.sp, lineHeight = 17.sp, fontWeight = FontWeight.W400),
+    bodySmall = TextStyle(fontSize = 13.sp, lineHeight = 19.sp, fontWeight = FontWeight.W400),
+    bodyMedium = TextStyle(fontSize = 15.sp, lineHeight = 22.sp, fontWeight = FontWeight.W400),
+    titleMedium = TextStyle(fontSize = 17.sp, lineHeight = 25.sp, fontWeight = FontWeight.W500),
+    titleLarge = TextStyle(fontSize = 22.sp, lineHeight = 32.sp, fontWeight = FontWeight.W600),
+    headlineMedium = TextStyle(fontSize = 28.sp, lineHeight = 41.sp, fontWeight = FontWeight.W700),
+)
+
+----
+// shape Shape.kt
+// Сгенерировано консолью DocDD из токенов дизайна v1.8.0 (docs/16-design-system.md). Не правьте руками: меняются токены.
+package ui.theme
+
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Shapes
+import androidx.compose.ui.unit.dp
+
+val AppShapes = Shapes(
+    small = RoundedCornerShape(8.dp),
+    medium = RoundedCornerShape(12.dp),
+    large = RoundedCornerShape(12.dp),
+)
+
+/** Плашка: полностью скруглённая. */
+val PillShape = RoundedCornerShape(1000.dp)
+
+----
+// theme Theme.kt
+// Сгенерировано консолью DocDD из токенов дизайна v1.8.0 (docs/16-design-system.md). Не правьте руками: меняются токены.
+package ui.theme
+
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.unit.dp
+
+/** Темы продукта: светлая и тёмная — база, остальные поверх. */
+enum class AppThemeName { Light, Dark, Contrast, Oled }
+
+val LocalExtraColors = staticCompositionLocalOf { LightExtraColors }
+
+object AppSpacing {
+    val xs = 4.dp
+    val sm = 8.dp
+    val md = 12.dp
+    val lg = 16.dp
+    val xl = 24.dp
+    val xxl = 32.dp
+}
+
+object AppBorder {
+    val thin = 1.dp
+    val thick = 2.dp
+}
+
+object AppIcon {
+    val sm = 16.dp
+    val md = 20.dp
+    val lg = 24.dp
+}
+
+/** Длительности, мс; при «убрать анимации» в системе компонент обязан их обнулить. */
+object AppMotion {
+    const val fast = 120
+    const val base = 200
+    const val slow = 320
+}
+
+object AppFonts {
+    const val body = "system-ui, -apple-system, \\"Segoe UI\\", Roboto, \\"Helvetica Neue\\", Arial, sans-serif"
+    const val mono = "ui-monospace, SFMono-Regular, Menlo, Consolas, \\"Liberation Mono\\", monospace"
+    const val measure = 70
+}
+
+/** Сетка: колонки, поле и точки перелома в dp (rem × root). */
+object AppGrid {
+    const val columns = 12
+    val gutter = 24.dp
+    val breakpoints = mapOf("xs" to 0.dp, "sm" to 576.dp, "md" to 768.dp, "lg" to 992.dp, "xl" to 1200.dp, "xxl" to 1400.dp)
+    val containers = mapOf("sm" to 540.dp, "md" to 720.dp, "lg" to 960.dp, "xl" to 1140.dp, "xxl" to 1320.dp)
+}
+
+/** Языки продукта: точка подключения словарей. */
+object AppLocales {
+    const val default = "ru"
+    const val fallback = "en"
+    val all = listOf("ru", "en")
+}
+
+@Composable
+fun AppTheme(
+    theme: AppThemeName? = null,
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    content: @Composable () -> Unit,
+) {
+    val chosen = theme ?: if (darkTheme) AppThemeName.Dark else AppThemeName.Light
+    val scheme = when (chosen) {
+        AppThemeName.Light -> LightColorScheme
+        AppThemeName.Dark -> DarkColorScheme
+        AppThemeName.Contrast -> ContrastColorScheme
+        AppThemeName.Oled -> OledColorScheme
+    }
+    val extra = when (chosen) {
+        AppThemeName.Light -> LightExtraColors
+        AppThemeName.Dark -> DarkExtraColors
+        AppThemeName.Contrast -> ContrastExtraColors
+        AppThemeName.Oled -> OledExtraColors
+    }
+    CompositionLocalProvider(LocalExtraColors provides extra) {
+        MaterialTheme(
+            colorScheme = scheme,
+            typography = AppTypography,
+            shapes = AppShapes,
+            content = content,
+        )
+    }
+}
+"
+`;
+
+exports[`выгрузка в стеки > expo: снимок и тот же текст при повторе 1`] = `
+"// theme constants/theme.ts
+// Сгенерировано консолью DocDD из токенов дизайна v1.8.0 (docs/16-design-system.md). Не правьте руками: меняются токены.
+// Размеры — rem × 16: у React Native нет rem, а масштаб шрифта системы остаётся включённым.
+import { useColorScheme } from 'react-native';
+
+export const LightColors = {
+  bg: '#F6F7FB',
+  surface: '#FFFFFF',
+  surfaceAlt: '#ECEFF7',
+  ink: '#0F1530',
+  muted: '#566079',
+  line: '#D8DDEA',
+  accent: '#22C55E',
+  accentText: '#15703A',
+  onAccent: '#FFFFFF',
+  core: '#7336DE',
+  ok: '#15703A',
+  info: '#1F57D6',
+  warn: '#96520C',
+  danger: '#C0261E',
+  onDanger: '#FFFFFF',
+  focus: '#15803D',
+} as const;
+
+export const DarkColors = {
+  bg: '#0E111A',
+  surface: '#161A25',
+  surfaceAlt: '#202636',
+  ink: '#E8EBF5',
+  muted: '#9AA3BC',
+  line: '#2C3345',
+  accent: '#4ADE80',
+  accentText: '#4ADE80',
+  onAccent: '#04150B',
+  core: '#A890F5',
+  ok: '#4ADE80',
+  info: '#6BA8F5',
+  warn: '#F2C14E',
+  danger: '#F08080',
+  onDanger: '#2A0A07',
+  focus: '#4ADE80',
+} as const;
+
+export const ContrastColors = {
+  bg: '#000000',
+  surface: '#0A0A0A',
+  surfaceAlt: '#1A1A1A',
+  ink: '#FFFFFF',
+  muted: '#E0E0E0',
+  line: '#FFFFFF',
+  accent: '#FFE600',
+  accentText: '#FFE600',
+  onAccent: '#000000',
+  core: '#FFB000',
+  ok: '#00FF7F',
+  info: '#80D8FF',
+  warn: '#FFD54F',
+  danger: '#FF8A80',
+  onDanger: '#000000',
+  focus: '#FFE600',
+} as const;
+
+export const OledColors = {
+  bg: '#000000',
+  surface: '#090B10',
+  surfaceAlt: '#12151D',
+  ink: '#E8EBF5',
+  muted: '#9AA3BC',
+  line: '#232838',
+  accent: '#4ADE80',
+  accentText: '#4ADE80',
+  onAccent: '#04150B',
+  core: '#A890F5',
+  ok: '#4ADE80',
+  info: '#6BA8F5',
+  warn: '#F2C14E',
+  danger: '#F08080',
+  onDanger: '#2A0A07',
+  focus: '#4ADE80',
+} as const;
+
+/** Роли без привязки к значениям темы: иначе тёмная палитра не присваивается типу светлой. */
+export type ThemeColors = { -readonly [K in keyof typeof LightColors]: string };
+
+export const Themes = {
+  light: LightColors,
+  dark: DarkColors,
+  contrast: ContrastColors,
+  oled: OledColors,
+} as const;
+
+export type ThemeName = keyof typeof Themes;
+
+export const spacing = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  xxl: 32,
+} as const;
+
+export const radius = {
+  sm: 8,
+  md: 12,
+  pill: 1000,
+} as const;
+
+export const border = {
+  thin: 1,
+  thick: 2,
+} as const;
+
+export const icon = {
+  sm: 16,
+  md: 20,
+  lg: 24,
+} as const;
+
+/** Длительности, мс; при «уменьшить движение» в системе компонент обязан их обнулить. */
+export const motion = {
+  fast: 120,
+  base: 200,
+  slow: 320,
+} as const;
+
+export const fonts = {
+  body: "system-ui, -apple-system, \\"Segoe UI\\", Roboto, \\"Helvetica Neue\\", Arial, sans-serif",
+  mono: "ui-monospace, SFMono-Regular, Menlo, Consolas, \\"Liberation Mono\\", monospace",
+} as const;
+
+/** Длина строки в символах: ограничивайте ширину текстового блока. */
+export const measure = 70;
+
+export const typography = {
+  caption: { fontSize: 12, lineHeight: 17, fontWeight: '400' },
+  small: { fontSize: 13, lineHeight: 19, fontWeight: '400' },
+  body: { fontSize: 15, lineHeight: 22, fontWeight: '400' },
+  lead: { fontSize: 17, lineHeight: 25, fontWeight: '500' },
+  title: { fontSize: 22, lineHeight: 32, fontWeight: '600' },
+  display: { fontSize: 28, lineHeight: 41, fontWeight: '700' },
+} as const;
+
+export const grid = {
+  columns: 12,
+  gutter: 24,
+  breakpoints: {
+    xs: 0,
+    sm: 576,
+    md: 768,
+    lg: 992,
+    xl: 1200,
+    xxl: 1400,
+  },
+  containers: {
+    sm: 540,
+    md: 720,
+    lg: 960,
+    xl: 1140,
+    xxl: 1320,
+  },
+} as const;
+
+/** Точка сетки для ширины экрана в dp: наибольшая из тех, что не больше ширины. */
+export function breakpointFor(width: number): keyof typeof grid.breakpoints {
+  const names = Object.keys(grid.breakpoints) as (keyof typeof grid.breakpoints)[];
+  return names.filter((name) => grid.breakpoints[name] <= width).pop() ?? names[0]!;
+}
+
+export const i18n = {
+  default: 'ru',
+  fallback: 'en',
+  locales: ['ru', 'en'],
+} as const;
+
+/** Палитра по имени темы; без имени — по системной теме, \`null\` из \`useColorScheme()\` — светлая. */
+export function useThemeColors(name?: ThemeName): ThemeColors {
+  const scheme = useColorScheme();
+  return Themes[name ?? (scheme === 'dark' ? 'dark' : 'light')];
+}
+"
+`;
+
+exports[`выгрузка в стеки > nuxt-ui: снимок и тот же текст при повторе 1`] = `
+"// css app/assets/css/main.css
+/* docdd-design:start — Сгенерировано консолью DocDD из токенов дизайна v1.8.0 (docs/16-design-system.md). Не правьте руками: меняются токены. */
+/* Размеры в rem: следуют за настройкой шрифта пользователя; корень не задаётся в px. */
+html { font-size: 100%; }
+
+/* Точки перелома Tailwind совпадают с сеткой, поэтому md: и ds-col-md-* срабатывают на одной ширине. */
+@theme {
+  --breakpoint-sm: 36rem;
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 62rem;
+  --breakpoint-xl: 75rem;
+  --breakpoint-xxl: 87.5rem;
+}
+
+:root {
+  --ds-space-xs: 0.25rem;
+  --ds-space-sm: 0.5rem;
+  --ds-space-md: 0.75rem;
+  --ds-space-lg: 1rem;
+  --ds-space-xl: 1.5rem;
+  --ds-space-xxl: 2rem;
+  --ds-radius-sm: 0.5rem;
+  --ds-radius-md: 0.75rem;
+  --ds-radius-pill: 62.5rem;
+  --ds-font-caption: 0.75rem;
+  --ds-line-caption: 1.0625rem;
+  --ds-weight-caption: 400;
+  --ds-font-small: 0.8125rem;
+  --ds-line-small: 1.1875rem;
+  --ds-weight-small: 400;
+  --ds-font-body: 0.9375rem;
+  --ds-line-body: 1.375rem;
+  --ds-weight-body: 400;
+  --ds-font-lead: 1.0625rem;
+  --ds-line-lead: 1.5625rem;
+  --ds-weight-lead: 500;
+  --ds-font-title: 1.375rem;
+  --ds-line-title: 2rem;
+  --ds-weight-title: 600;
+  --ds-font-display: 1.75rem;
+  --ds-line-display: 2.5625rem;
+  --ds-weight-display: 700;
+  --ds-grid-columns: 12;
+  --ds-grid-gutter: 1.5rem;
+  --ds-bp-xs: 0rem;
+  --ds-bp-sm: 36rem;
+  --ds-bp-md: 48rem;
+  --ds-bp-lg: 62rem;
+  --ds-bp-xl: 75rem;
+  --ds-bp-xxl: 87.5rem;
+  --ds-border-thin: 0.0625rem;
+  --ds-border-thick: 0.125rem;
+  --ds-icon-sm: 1rem;
+  --ds-icon-md: 1.25rem;
+  --ds-icon-lg: 1.5rem;
+  --ds-motion-fast: 120ms;
+  --ds-motion-base: 200ms;
+  --ds-motion-slow: 320ms;
+  --ds-font-family-body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --ds-font-family-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --ds-measure: 70ch;
+}
+
+:root {
+  color-scheme: light;
+  --ds-color-bg: #F6F7FB;
+  --ds-color-surface: #FFFFFF;
+  --ds-color-surface-alt: #ECEFF7;
+  --ds-color-ink: #0F1530;
+  --ds-color-muted: #566079;
+  --ds-color-line: #D8DDEA;
+  --ds-color-accent: #22C55E;
+  --ds-color-accent-text: #15703A;
+  --ds-color-on-accent: #FFFFFF;
+  --ds-color-core: #7336DE;
+  --ds-color-ok: #15703A;
+  --ds-color-info: #1F57D6;
+  --ds-color-warn: #96520C;
+  --ds-color-danger: #C0261E;
+  --ds-color-on-danger: #FFFFFF;
+  --ds-color-focus: #15803D;
+  --ui-bg: #F6F7FB;
+  --ui-bg-elevated: #FFFFFF;
+  --ui-bg-muted: #ECEFF7;
+  --ui-bg-accented: #ECEFF7;
+  --ui-text: #0F1530;
+  --ui-text-highlighted: #0F1530;
+  --ui-text-muted: #566079;
+  --ui-border: #D8DDEA;
+  --ui-primary: #22C55E;
+  --ui-success: #15703A;
+  --ui-info: #1F57D6;
+  --ui-warning: #96520C;
+  --ui-error: #C0261E;
+}
+
+.dark {
+  color-scheme: dark;
+  --ds-color-bg: #0E111A;
+  --ds-color-surface: #161A25;
+  --ds-color-surface-alt: #202636;
+  --ds-color-ink: #E8EBF5;
+  --ds-color-muted: #9AA3BC;
+  --ds-color-line: #2C3345;
+  --ds-color-accent: #4ADE80;
+  --ds-color-accent-text: #4ADE80;
+  --ds-color-on-accent: #04150B;
+  --ds-color-core: #A890F5;
+  --ds-color-ok: #4ADE80;
+  --ds-color-info: #6BA8F5;
+  --ds-color-warn: #F2C14E;
+  --ds-color-danger: #F08080;
+  --ds-color-on-danger: #2A0A07;
+  --ds-color-focus: #4ADE80;
+  --ui-bg: #0E111A;
+  --ui-bg-elevated: #161A25;
+  --ui-bg-muted: #202636;
+  --ui-bg-accented: #202636;
+  --ui-text: #E8EBF5;
+  --ui-text-highlighted: #E8EBF5;
+  --ui-text-muted: #9AA3BC;
+  --ui-border: #2C3345;
+  --ui-primary: #4ADE80;
+  --ui-success: #4ADE80;
+  --ui-info: #6BA8F5;
+  --ui-warning: #F2C14E;
+  --ui-error: #F08080;
+}
+
+.theme-contrast {
+  color-scheme: dark;
+  --ds-color-bg: #000000;
+  --ds-color-surface: #0A0A0A;
+  --ds-color-surface-alt: #1A1A1A;
+  --ds-color-ink: #FFFFFF;
+  --ds-color-muted: #E0E0E0;
+  --ds-color-line: #FFFFFF;
+  --ds-color-accent: #FFE600;
+  --ds-color-accent-text: #FFE600;
+  --ds-color-on-accent: #000000;
+  --ds-color-core: #FFB000;
+  --ds-color-ok: #00FF7F;
+  --ds-color-info: #80D8FF;
+  --ds-color-warn: #FFD54F;
+  --ds-color-danger: #FF8A80;
+  --ds-color-on-danger: #000000;
+  --ds-color-focus: #FFE600;
+  --ui-bg: #000000;
+  --ui-bg-elevated: #0A0A0A;
+  --ui-bg-muted: #1A1A1A;
+  --ui-bg-accented: #1A1A1A;
+  --ui-text: #FFFFFF;
+  --ui-text-highlighted: #FFFFFF;
+  --ui-text-muted: #E0E0E0;
+  --ui-border: #FFFFFF;
+  --ui-primary: #FFE600;
+  --ui-success: #00FF7F;
+  --ui-info: #80D8FF;
+  --ui-warning: #FFD54F;
+  --ui-error: #FF8A80;
+}
+
+.theme-oled {
+  color-scheme: dark;
+  --ds-color-bg: #000000;
+  --ds-color-surface: #090B10;
+  --ds-color-surface-alt: #12151D;
+  --ds-color-ink: #E8EBF5;
+  --ds-color-muted: #9AA3BC;
+  --ds-color-line: #232838;
+  --ds-color-accent: #4ADE80;
+  --ds-color-accent-text: #4ADE80;
+  --ds-color-on-accent: #04150B;
+  --ds-color-core: #A890F5;
+  --ds-color-ok: #4ADE80;
+  --ds-color-info: #6BA8F5;
+  --ds-color-warn: #F2C14E;
+  --ds-color-danger: #F08080;
+  --ds-color-on-danger: #2A0A07;
+  --ds-color-focus: #4ADE80;
+  --ui-bg: #000000;
+  --ui-bg-elevated: #090B10;
+  --ui-bg-muted: #12151D;
+  --ui-bg-accented: #12151D;
+  --ui-text: #E8EBF5;
+  --ui-text-highlighted: #E8EBF5;
+  --ui-text-muted: #9AA3BC;
+  --ui-border: #232838;
+  --ui-primary: #4ADE80;
+  --ui-success: #4ADE80;
+  --ui-info: #6BA8F5;
+  --ui-warning: #F2C14E;
+  --ui-error: #F08080;
+}
+
+/* Системная настройка «повысить контраст» включает палитру темы contrast. */
+@media (prefers-contrast: more) {
+  :root {
+    color-scheme: dark;
+    --ds-color-bg: #000000;
+    --ds-color-surface: #0A0A0A;
+    --ds-color-surface-alt: #1A1A1A;
+    --ds-color-ink: #FFFFFF;
+    --ds-color-muted: #E0E0E0;
+    --ds-color-line: #FFFFFF;
+    --ds-color-accent: #FFE600;
+    --ds-color-accent-text: #FFE600;
+    --ds-color-on-accent: #000000;
+    --ds-color-core: #FFB000;
+    --ds-color-ok: #00FF7F;
+    --ds-color-info: #80D8FF;
+    --ds-color-warn: #FFD54F;
+    --ds-color-danger: #FF8A80;
+    --ds-color-on-danger: #000000;
+    --ds-color-focus: #FFE600;
+    --ui-bg: #000000;
+    --ui-bg-elevated: #0A0A0A;
+    --ui-bg-muted: #1A1A1A;
+    --ui-bg-accented: #1A1A1A;
+    --ui-text: #FFFFFF;
+    --ui-text-highlighted: #FFFFFF;
+    --ui-text-muted: #E0E0E0;
+    --ui-border: #FFFFFF;
+    --ui-primary: #FFE600;
+    --ui-success: #00FF7F;
+    --ui-info: #80D8FF;
+    --ui-warning: #FFD54F;
+    --ui-error: #FF8A80;
+  }
+}
+
+.ds-container {
+  width: 100%;
+  margin-inline: auto;
+  padding-inline: calc(var(--ds-grid-gutter) / 2);
+}
+.ds-row {
+  display: flex;
+  flex-wrap: wrap;
+  margin-inline: calc(var(--ds-grid-gutter) / -2);
+}
+.ds-row > * {
+  box-sizing: border-box;
+  flex-shrink: 0;
+  width: 100%;
+  max-width: 100%;
+  padding-inline: calc(var(--ds-grid-gutter) / 2);
+}
+.ds-col { flex: 1 0 0%; }
+.ds-col-auto { flex: 0 0 auto; width: auto; }
+.ds-col-1 { flex: 0 0 auto; width: 8.333333%; }
+.ds-col-2 { flex: 0 0 auto; width: 16.666667%; }
+.ds-col-3 { flex: 0 0 auto; width: 25%; }
+.ds-col-4 { flex: 0 0 auto; width: 33.333333%; }
+.ds-col-5 { flex: 0 0 auto; width: 41.666667%; }
+.ds-col-6 { flex: 0 0 auto; width: 50%; }
+.ds-col-7 { flex: 0 0 auto; width: 58.333333%; }
+.ds-col-8 { flex: 0 0 auto; width: 66.666667%; }
+.ds-col-9 { flex: 0 0 auto; width: 75%; }
+.ds-col-10 { flex: 0 0 auto; width: 83.333333%; }
+.ds-col-11 { flex: 0 0 auto; width: 91.666667%; }
+.ds-col-12 { flex: 0 0 auto; width: 100%; }
+@media (min-width: 36rem) {
+  .ds-container { max-width: 33.75rem; }
+  .ds-col-sm { flex: 1 0 0%; }
+  .ds-col-sm-auto { flex: 0 0 auto; width: auto; }
+  .ds-col-sm-1 { flex: 0 0 auto; width: 8.333333%; }
+  .ds-col-sm-2 { flex: 0 0 auto; width: 16.666667%; }
+  .ds-col-sm-3 { flex: 0 0 auto; width: 25%; }
+  .ds-col-sm-4 { flex: 0 0 auto; width: 33.333333%; }
+  .ds-col-sm-5 { flex: 0 0 auto; width: 41.666667%; }
+  .ds-col-sm-6 { flex: 0 0 auto; width: 50%; }
+  .ds-col-sm-7 { flex: 0 0 auto; width: 58.333333%; }
+  .ds-col-sm-8 { flex: 0 0 auto; width: 66.666667%; }
+  .ds-col-sm-9 { flex: 0 0 auto; width: 75%; }
+  .ds-col-sm-10 { flex: 0 0 auto; width: 83.333333%; }
+  .ds-col-sm-11 { flex: 0 0 auto; width: 91.666667%; }
+  .ds-col-sm-12 { flex: 0 0 auto; width: 100%; }
+}
+@media (min-width: 48rem) {
+  .ds-container { max-width: 45rem; }
+  .ds-col-md { flex: 1 0 0%; }
+  .ds-col-md-auto { flex: 0 0 auto; width: auto; }
+  .ds-col-md-1 { flex: 0 0 auto; width: 8.333333%; }
+  .ds-col-md-2 { flex: 0 0 auto; width: 16.666667%; }
+  .ds-col-md-3 { flex: 0 0 auto; width: 25%; }
+  .ds-col-md-4 { flex: 0 0 auto; width: 33.333333%; }
+  .ds-col-md-5 { flex: 0 0 auto; width: 41.666667%; }
+  .ds-col-md-6 { flex: 0 0 auto; width: 50%; }
+  .ds-col-md-7 { flex: 0 0 auto; width: 58.333333%; }
+  .ds-col-md-8 { flex: 0 0 auto; width: 66.666667%; }
+  .ds-col-md-9 { flex: 0 0 auto; width: 75%; }
+  .ds-col-md-10 { flex: 0 0 auto; width: 83.333333%; }
+  .ds-col-md-11 { flex: 0 0 auto; width: 91.666667%; }
+  .ds-col-md-12 { flex: 0 0 auto; width: 100%; }
+}
+@media (min-width: 62rem) {
+  .ds-container { max-width: 60rem; }
+  .ds-col-lg { flex: 1 0 0%; }
+  .ds-col-lg-auto { flex: 0 0 auto; width: auto; }
+  .ds-col-lg-1 { flex: 0 0 auto; width: 8.333333%; }
+  .ds-col-lg-2 { flex: 0 0 auto; width: 16.666667%; }
+  .ds-col-lg-3 { flex: 0 0 auto; width: 25%; }
+  .ds-col-lg-4 { flex: 0 0 auto; width: 33.333333%; }
+  .ds-col-lg-5 { flex: 0 0 auto; width: 41.666667%; }
+  .ds-col-lg-6 { flex: 0 0 auto; width: 50%; }
+  .ds-col-lg-7 { flex: 0 0 auto; width: 58.333333%; }
+  .ds-col-lg-8 { flex: 0 0 auto; width: 66.666667%; }
+  .ds-col-lg-9 { flex: 0 0 auto; width: 75%; }
+  .ds-col-lg-10 { flex: 0 0 auto; width: 83.333333%; }
+  .ds-col-lg-11 { flex: 0 0 auto; width: 91.666667%; }
+  .ds-col-lg-12 { flex: 0 0 auto; width: 100%; }
+}
+@media (min-width: 75rem) {
+  .ds-container { max-width: 71.25rem; }
+  .ds-col-xl { flex: 1 0 0%; }
+  .ds-col-xl-auto { flex: 0 0 auto; width: auto; }
+  .ds-col-xl-1 { flex: 0 0 auto; width: 8.333333%; }
+  .ds-col-xl-2 { flex: 0 0 auto; width: 16.666667%; }
+  .ds-col-xl-3 { flex: 0 0 auto; width: 25%; }
+  .ds-col-xl-4 { flex: 0 0 auto; width: 33.333333%; }
+  .ds-col-xl-5 { flex: 0 0 auto; width: 41.666667%; }
+  .ds-col-xl-6 { flex: 0 0 auto; width: 50%; }
+  .ds-col-xl-7 { flex: 0 0 auto; width: 58.333333%; }
+  .ds-col-xl-8 { flex: 0 0 auto; width: 66.666667%; }
+  .ds-col-xl-9 { flex: 0 0 auto; width: 75%; }
+  .ds-col-xl-10 { flex: 0 0 auto; width: 83.333333%; }
+  .ds-col-xl-11 { flex: 0 0 auto; width: 91.666667%; }
+  .ds-col-xl-12 { flex: 0 0 auto; width: 100%; }
+}
+@media (min-width: 87.5rem) {
+  .ds-container { max-width: 82.5rem; }
+  .ds-col-xxl { flex: 1 0 0%; }
+  .ds-col-xxl-auto { flex: 0 0 auto; width: auto; }
+  .ds-col-xxl-1 { flex: 0 0 auto; width: 8.333333%; }
+  .ds-col-xxl-2 { flex: 0 0 auto; width: 16.666667%; }
+  .ds-col-xxl-3 { flex: 0 0 auto; width: 25%; }
+  .ds-col-xxl-4 { flex: 0 0 auto; width: 33.333333%; }
+  .ds-col-xxl-5 { flex: 0 0 auto; width: 41.666667%; }
+  .ds-col-xxl-6 { flex: 0 0 auto; width: 50%; }
+  .ds-col-xxl-7 { flex: 0 0 auto; width: 58.333333%; }
+  .ds-col-xxl-8 { flex: 0 0 auto; width: 66.666667%; }
+  .ds-col-xxl-9 { flex: 0 0 auto; width: 75%; }
+  .ds-col-xxl-10 { flex: 0 0 auto; width: 83.333333%; }
+  .ds-col-xxl-11 { flex: 0 0 auto; width: 91.666667%; }
+  .ds-col-xxl-12 { flex: 0 0 auto; width: 100%; }
+}
+
+/* Видимый фокус: условие работы с клавиатуры (WCAG 2.1 AA). */
+:focus-visible {
+  outline: var(--ds-border-thick, 0.125rem) solid var(--ds-color-focus, currentColor);
+  outline-offset: 0.125rem;
+}
+
+/* Тем, кому движение вредит, оно отключается само. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ds-motion-fast: 0ms;
+    --ds-motion-base: 0ms;
+    --ds-motion-slow: 0ms;
+  }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Версия для печати: светлая и на всю ширину. */
+@media print {
+  :root { color-scheme: light; }
+  .ds-container { max-width: none; }
+}
+/* docdd-design:end */
+
+----
+// config app/design-tokens.ts
+// Сгенерировано консолью DocDD из токенов дизайна v1.8.0 (docs/16-design-system.md). Не правьте руками: меняются токены.
+// Размеры в rem. Языки — точка подключения словарей (@nuxtjs/i18n и подобные).
+
+export const designTokens = {
+  "unit": "rem",
+  "spacing": {
+    "xs": 0.25,
+    "sm": 0.5,
+    "md": 0.75,
+    "lg": 1,
+    "xl": 1.5,
+    "xxl": 2
+  },
+  "radius": {
+    "sm": 0.5,
+    "md": 0.75,
+    "pill": 62.5
+  },
+  "typography": {
+    "caption": {
+      "size": 0.75,
+      "line": 1.0625,
+      "weight": 400
+    },
+    "small": {
+      "size": 0.8125,
+      "line": 1.1875,
+      "weight": 400
+    },
+    "body": {
+      "size": 0.9375,
+      "line": 1.375,
+      "weight": 400
+    },
+    "lead": {
+      "size": 1.0625,
+      "line": 1.5625,
+      "weight": 500
+    },
+    "title": {
+      "size": 1.375,
+      "line": 2,
+      "weight": 600
+    },
+    "display": {
+      "size": 1.75,
+      "line": 2.5625,
+      "weight": 700
+    }
+  },
+  "border": {
+    "thin": 0.0625,
+    "thick": 0.125
+  },
+  "icon": {
+    "sm": 1,
+    "md": 1.25,
+    "lg": 1.5
+  },
+  "motion": {
+    "fast": 120,
+    "base": 200,
+    "slow": 320
+  },
+  "fonts": {
+    "body": "system-ui, -apple-system, \\"Segoe UI\\", Roboto, \\"Helvetica Neue\\", Arial, sans-serif",
+    "mono": "ui-monospace, SFMono-Regular, Menlo, Consolas, \\"Liberation Mono\\", monospace"
+  },
+  "measure": 70,
+  "grid": {
+    "columns": 12,
+    "gutter": 1.5,
+    "breakpoints": {
+      "xs": 0,
+      "sm": 36,
+      "md": 48,
+      "lg": 62,
+      "xl": 75,
+      "xxl": 87.5
+    },
+    "containers": {
+      "sm": 33.75,
+      "md": 45,
+      "lg": 60,
+      "xl": 71.25,
+      "xxl": 82.5
+    }
+  },
+  "palette": {
+    "light": {
+      "bg": "#F6F7FB",
+      "surface": "#FFFFFF",
+      "surfaceAlt": "#ECEFF7",
+      "ink": "#0F1530",
+      "muted": "#566079",
+      "line": "#D8DDEA",
+      "accent": "#22C55E",
+      "accentText": "#15703A",
+      "onAccent": "#FFFFFF",
+      "core": "#7336DE",
+      "ok": "#15703A",
+      "info": "#1F57D6",
+      "warn": "#96520C",
+      "danger": "#C0261E",
+      "onDanger": "#FFFFFF",
+      "focus": "#15803D"
+    },
+    "dark": {
+      "bg": "#0E111A",
+      "surface": "#161A25",
+      "surfaceAlt": "#202636",
+      "ink": "#E8EBF5",
+      "muted": "#9AA3BC",
+      "line": "#2C3345",
+      "accent": "#4ADE80",
+      "accentText": "#4ADE80",
+      "onAccent": "#04150B",
+      "core": "#A890F5",
+      "ok": "#4ADE80",
+      "info": "#6BA8F5",
+      "warn": "#F2C14E",
+      "danger": "#F08080",
+      "onDanger": "#2A0A07",
+      "focus": "#4ADE80"
+    }
+  },
+  "themes": {
+    "contrast": {
+      "minContrast": 7,
+      "label": "High contrast",
+      "labels": {
+        "ru": "Высокий контраст",
+        "en": "High contrast"
+      },
+      "mode": "dark",
+      "palette": {
+        "bg": "#000000",
+        "surface": "#0A0A0A",
+        "surfaceAlt": "#1A1A1A",
+        "ink": "#FFFFFF",
+        "muted": "#E0E0E0",
+        "line": "#FFFFFF",
+        "accent": "#FFE600",
+        "accentText": "#FFE600",
+        "onAccent": "#000000",
+        "core": "#FFB000",
+        "ok": "#00FF7F",
+        "info": "#80D8FF",
+        "warn": "#FFD54F",
+        "danger": "#FF8A80",
+        "onDanger": "#000000",
+        "focus": "#FFE600"
+      }
+    },
+    "oled": {
+      "minContrast": 4.5,
+      "label": "OLED",
+      "labels": {
+        "ru": "OLED",
+        "en": "OLED"
+      },
+      "mode": "dark",
+      "palette": {
+        "bg": "#000000",
+        "surface": "#090B10",
+        "surfaceAlt": "#12151D",
+        "ink": "#E8EBF5",
+        "muted": "#9AA3BC",
+        "line": "#232838",
+        "accent": "#4ADE80",
+        "accentText": "#4ADE80",
+        "onAccent": "#04150B",
+        "core": "#A890F5",
+        "ok": "#4ADE80",
+        "info": "#6BA8F5",
+        "warn": "#F2C14E",
+        "danger": "#F08080",
+        "onDanger": "#2A0A07",
+        "focus": "#4ADE80"
+      }
+    }
+  },
+  "surface": {
+    "elevation": {},
+    "backdrop": {},
+    "tint": {},
+    "caps": {}
+  },
+  "i18n": {
+    "default": "ru",
+    "fallback": "en",
+    "locales": [
+      "ru",
+      "en"
+    ]
+  }
+} as const;
+
+export type DesignTokens = typeof designTokens;
+export const locales = designTokens.i18n.locales;
+"
+`;
+
+exports[`выгрузка в стеки > swiftui: снимок и тот же текст при повторе 1`] = `
+"// theme Theme.swift
+// Сгенерировано консолью DocDD из токенов дизайна v1.8.0 (docs/16-design-system.md). Не правьте руками: меняются токены.
+// Размеры — rem × 16; у SwiftUI нет rem, а Dynamic Type остаётся включённым.
+import SwiftUI
+
+extension SwiftUI.Color {
+    /// Цвет из 0xAARRGGBB: для тем, которых нет в каталоге ассетов.
+    init(argb: UInt32) {
+        self.init(
+            .sRGB,
+            red: Double((argb >> 16) & 0xFF) / 255,
+            green: Double((argb >> 8) & 0xFF) / 255,
+            blue: Double(argb & 0xFF) / 255,
+            opacity: Double((argb >> 24) & 0xFF) / 255
+        )
+    }
+}
+
+/// Цвета светлой и тёмной тем берутся из каталога ассетов: у каждой роли варианты Any и Dark.
+enum AppTheme {
+    enum Colors {
+        static let bg = SwiftUI.Color("bg")
+        static let surface = SwiftUI.Color("surface")
+        static let surfaceAlt = SwiftUI.Color("surfaceAlt")
+        static let ink = SwiftUI.Color("ink")
+        static let muted = SwiftUI.Color("muted")
+        static let line = SwiftUI.Color("line")
+        static let accent = SwiftUI.Color("accent")
+        static let accentText = SwiftUI.Color("accentText")
+        static let onAccent = SwiftUI.Color("onAccent")
+        static let core = SwiftUI.Color("core")
+        static let ok = SwiftUI.Color("ok")
+        static let info = SwiftUI.Color("info")
+        static let warn = SwiftUI.Color("warn")
+        static let danger = SwiftUI.Color("danger")
+        static let onDanger = SwiftUI.Color("onDanger")
+        static let focus = SwiftUI.Color("focus")
+    }
+
+    /// Тема «High contrast»: база dark, цвета в коде, а не в каталоге ассетов.
+    enum Contrast {
+        static let bg = SwiftUI.Color(argb: 0xFF000000)
+        static let surface = SwiftUI.Color(argb: 0xFF0A0A0A)
+        static let surfaceAlt = SwiftUI.Color(argb: 0xFF1A1A1A)
+        static let ink = SwiftUI.Color(argb: 0xFFFFFFFF)
+        static let muted = SwiftUI.Color(argb: 0xFFE0E0E0)
+        static let line = SwiftUI.Color(argb: 0xFFFFFFFF)
+        static let accent = SwiftUI.Color(argb: 0xFFFFE600)
+        static let accentText = SwiftUI.Color(argb: 0xFFFFE600)
+        static let onAccent = SwiftUI.Color(argb: 0xFF000000)
+        static let core = SwiftUI.Color(argb: 0xFFFFB000)
+        static let ok = SwiftUI.Color(argb: 0xFF00FF7F)
+        static let info = SwiftUI.Color(argb: 0xFF80D8FF)
+        static let warn = SwiftUI.Color(argb: 0xFFFFD54F)
+        static let danger = SwiftUI.Color(argb: 0xFFFF8A80)
+        static let onDanger = SwiftUI.Color(argb: 0xFF000000)
+        static let focus = SwiftUI.Color(argb: 0xFFFFE600)
+    }
+
+    /// Тема «OLED»: база dark, цвета в коде, а не в каталоге ассетов.
+    enum Oled {
+        static let bg = SwiftUI.Color(argb: 0xFF000000)
+        static let surface = SwiftUI.Color(argb: 0xFF090B10)
+        static let surfaceAlt = SwiftUI.Color(argb: 0xFF12151D)
+        static let ink = SwiftUI.Color(argb: 0xFFE8EBF5)
+        static let muted = SwiftUI.Color(argb: 0xFF9AA3BC)
+        static let line = SwiftUI.Color(argb: 0xFF232838)
+        static let accent = SwiftUI.Color(argb: 0xFF4ADE80)
+        static let accentText = SwiftUI.Color(argb: 0xFF4ADE80)
+        static let onAccent = SwiftUI.Color(argb: 0xFF04150B)
+        static let core = SwiftUI.Color(argb: 0xFFA890F5)
+        static let ok = SwiftUI.Color(argb: 0xFF4ADE80)
+        static let info = SwiftUI.Color(argb: 0xFF6BA8F5)
+        static let warn = SwiftUI.Color(argb: 0xFFF2C14E)
+        static let danger = SwiftUI.Color(argb: 0xFFF08080)
+        static let onDanger = SwiftUI.Color(argb: 0xFF2A0A07)
+        static let focus = SwiftUI.Color(argb: 0xFF4ADE80)
+    }
+
+    enum Spacing {
+        static let xs: CGFloat = 4
+        static let sm: CGFloat = 8
+        static let md: CGFloat = 12
+        static let lg: CGFloat = 16
+        static let xl: CGFloat = 24
+        static let xxl: CGFloat = 32
+    }
+
+    enum Radius {
+        static let sm: CGFloat = 8
+        static let md: CGFloat = 12
+        static let pill: CGFloat = 1000
+    }
+
+    enum Border {
+        static let thin: CGFloat = 1
+        static let thick: CGFloat = 2
+    }
+
+    enum Icon {
+        static let sm: CGFloat = 16
+        static let md: CGFloat = 20
+        static let lg: CGFloat = 24
+    }
+
+    /// Длительности в секундах; при «уменьшить движение» компонент обязан их обнулить.
+    enum Motion {
+        static let fast: Double = 0.12
+        static let base: Double = 0.2
+        static let slow: Double = 0.32
+    }
+
+    enum Fonts {
+        static let body = "system-ui, -apple-system, \\"Segoe UI\\", Roboto, \\"Helvetica Neue\\", Arial, sans-serif"
+        static let mono = "ui-monospace, SFMono-Regular, Menlo, Consolas, \\"Liberation Mono\\", monospace"
+        static let measure = 70
+    }
+
+    enum Typography {
+        static let caption = Font.system(size: 12, weight: .regular)
+        static let small = Font.system(size: 13, weight: .regular)
+        static let body = Font.system(size: 15, weight: .regular)
+        static let lead = Font.system(size: 17, weight: .medium)
+        static let title = Font.system(size: 22, weight: .semibold)
+        static let display = Font.system(size: 28, weight: .bold)
+    }
+
+    /// Сетка: колонки, поле и точки перелома.
+    enum Grid {
+        static let columns = 12
+        static let gutter: CGFloat = 24
+        static let breakpoints: [String: CGFloat] = [
+            "xs": 0,
+            "sm": 576,
+            "md": 768,
+            "lg": 992,
+            "xl": 1200,
+            "xxl": 1400
+        ]
+        static let containers: [String: CGFloat] = [
+            "sm": 540,
+            "md": 720,
+            "lg": 960,
+            "xl": 1140,
+            "xxl": 1320
+        ]
+    }
+
+    /// Языки продукта: точка подключения словарей.
+    enum Locales {
+        static let standard = "ru"
+        static let fallback = "en"
+        static let all = ["ru", "en"]
+    }
+}
+
+----
+// colors:bg Assets.xcassets/bg.colorset/Contents.json
+{
+  "colors": [
+    {
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.984",
+          "green": "0.969",
+          "red": "0.965"
+        }
+      },
+      "idiom": "universal"
+    },
+    {
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ],
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.102",
+          "green": "0.067",
+          "red": "0.055"
+        }
+      },
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
+
+----
+// colors:surface Assets.xcassets/surface.colorset/Contents.json
+{
+  "colors": [
+    {
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "1.000",
+          "green": "1.000",
+          "red": "1.000"
+        }
+      },
+      "idiom": "universal"
+    },
+    {
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ],
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.145",
+          "green": "0.102",
+          "red": "0.086"
+        }
+      },
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
+
+----
+// colors:surfaceAlt Assets.xcassets/surfaceAlt.colorset/Contents.json
+{
+  "colors": [
+    {
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.969",
+          "green": "0.937",
+          "red": "0.925"
+        }
+      },
+      "idiom": "universal"
+    },
+    {
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ],
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.212",
+          "green": "0.149",
+          "red": "0.125"
+        }
+      },
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
+
+----
+// colors:ink Assets.xcassets/ink.colorset/Contents.json
+{
+  "colors": [
+    {
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.188",
+          "green": "0.082",
+          "red": "0.059"
+        }
+      },
+      "idiom": "universal"
+    },
+    {
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ],
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.961",
+          "green": "0.922",
+          "red": "0.910"
+        }
+      },
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
+
+----
+// colors:muted Assets.xcassets/muted.colorset/Contents.json
+{
+  "colors": [
+    {
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.475",
+          "green": "0.376",
+          "red": "0.337"
+        }
+      },
+      "idiom": "universal"
+    },
+    {
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ],
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.737",
+          "green": "0.639",
+          "red": "0.604"
+        }
+      },
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
+
+----
+// colors:line Assets.xcassets/line.colorset/Contents.json
+{
+  "colors": [
+    {
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.918",
+          "green": "0.867",
+          "red": "0.847"
+        }
+      },
+      "idiom": "universal"
+    },
+    {
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ],
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.271",
+          "green": "0.200",
+          "red": "0.173"
+        }
+      },
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
+
+----
+// colors:accent Assets.xcassets/accent.colorset/Contents.json
+{
+  "colors": [
+    {
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.369",
+          "green": "0.773",
+          "red": "0.133"
+        }
+      },
+      "idiom": "universal"
+    },
+    {
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ],
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.502",
+          "green": "0.871",
+          "red": "0.290"
+        }
+      },
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
+
+----
+// colors:accentText Assets.xcassets/accentText.colorset/Contents.json
+{
+  "colors": [
+    {
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.227",
+          "green": "0.439",
+          "red": "0.082"
+        }
+      },
+      "idiom": "universal"
+    },
+    {
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ],
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.502",
+          "green": "0.871",
+          "red": "0.290"
+        }
+      },
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
+
+----
+// colors:onAccent Assets.xcassets/onAccent.colorset/Contents.json
+{
+  "colors": [
+    {
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "1.000",
+          "green": "1.000",
+          "red": "1.000"
+        }
+      },
+      "idiom": "universal"
+    },
+    {
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ],
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.043",
+          "green": "0.082",
+          "red": "0.016"
+        }
+      },
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
+
+----
+// colors:core Assets.xcassets/core.colorset/Contents.json
+{
+  "colors": [
+    {
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.871",
+          "green": "0.212",
+          "red": "0.451"
+        }
+      },
+      "idiom": "universal"
+    },
+    {
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ],
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.961",
+          "green": "0.565",
+          "red": "0.659"
+        }
+      },
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
+
+----
+// colors:ok Assets.xcassets/ok.colorset/Contents.json
+{
+  "colors": [
+    {
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.227",
+          "green": "0.439",
+          "red": "0.082"
+        }
+      },
+      "idiom": "universal"
+    },
+    {
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ],
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.502",
+          "green": "0.871",
+          "red": "0.290"
+        }
+      },
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
+
+----
+// colors:info Assets.xcassets/info.colorset/Contents.json
+{
+  "colors": [
+    {
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.839",
+          "green": "0.341",
+          "red": "0.122"
+        }
+      },
+      "idiom": "universal"
+    },
+    {
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ],
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.961",
+          "green": "0.659",
+          "red": "0.420"
+        }
+      },
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
+
+----
+// colors:warn Assets.xcassets/warn.colorset/Contents.json
+{
+  "colors": [
+    {
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.047",
+          "green": "0.322",
+          "red": "0.588"
+        }
+      },
+      "idiom": "universal"
+    },
+    {
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ],
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.306",
+          "green": "0.757",
+          "red": "0.949"
+        }
+      },
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
+
+----
+// colors:danger Assets.xcassets/danger.colorset/Contents.json
+{
+  "colors": [
+    {
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.118",
+          "green": "0.149",
+          "red": "0.753"
+        }
+      },
+      "idiom": "universal"
+    },
+    {
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ],
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.502",
+          "green": "0.502",
+          "red": "0.941"
+        }
+      },
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
+
+----
+// colors:onDanger Assets.xcassets/onDanger.colorset/Contents.json
+{
+  "colors": [
+    {
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "1.000",
+          "green": "1.000",
+          "red": "1.000"
+        }
+      },
+      "idiom": "universal"
+    },
+    {
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ],
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.027",
+          "green": "0.039",
+          "red": "0.165"
+        }
+      },
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
+
+----
+// colors:focus Assets.xcassets/focus.colorset/Contents.json
+{
+  "colors": [
+    {
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.239",
+          "green": "0.502",
+          "red": "0.082"
+        }
+      },
+      "idiom": "universal"
+    },
+    {
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ],
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.502",
+          "green": "0.871",
+          "red": "0.290"
+        }
+      },
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
+"
+`;
