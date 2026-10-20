@@ -88,7 +88,7 @@ function entries(
         <span class="font-mono text-sm text-muted">{{ detail.record.id }}</span>
         <h1 class="text-xl font-semibold">{{ detail.record.title }}</h1>
         <UBadge color="neutral" variant="subtle">{{ typeLabel(detail.record.type) }}</UBadge>
-        <StatusBadge :status="detail.record.status" />
+        <StatusBadge :status="detail.record.status" :type="detail.record.type" />
       </div>
 
       <p class="text-sm text-muted">

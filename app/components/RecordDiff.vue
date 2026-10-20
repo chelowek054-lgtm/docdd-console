@@ -6,7 +6,7 @@ import type { RecordDiff } from '~~/server/lib/record-diff';
  * Открытие разворачивает блок и ставит отметку просмотра на сервере: от неё
  * зависит строка журнала при подтверждении.
  */
-const props = defineProps<{ projectId: string; recordId: string; status: string }>();
+const props = defineProps<{ projectId: string; recordId: string; status: string; type?: string }>();
 
 const open = ref(false);
 const diff = ref<RecordDiff | null>(null);
@@ -20,7 +20,7 @@ async function toggle() {
       `/api/projects/${props.projectId}/records/${props.recordId}/diff`, { ignoreResponseError: true }
     );
     if ('error' in answer) { error.value = answer.error.message; return; }
-    diff.value = answer;
+    diff.value = answer; if (props.type === 'map') void loadMap();
     await $fetch(`/api/projects/${props.projectId}/records/${props.recordId}/diff/viewed`, { method: 'POST' });
   } catch (cause) {
     error.value = String(cause);
@@ -30,6 +30,8 @@ async function toggle() {
 const mark = { add: '+ ', del: '− ', same: '  ' } as const;
 const tone = { add: 'bg-success/10', del: 'bg-error/10 line-through', same: 'text-muted' } as const;
 const changedLines = computed(() => (diff.value?.text ?? []).filter((line) => line.kind !== 'same'));
+// Карта: разница ещё и на самой схеме (T-0133, R-0069). Отказ маршрута не мешает текстовой разнице.
+const mapDiff = ref<import('~~/server/lib/map-diff').MapDiff | null>(null); async function loadMap() { const answer = await $fetch<import('~~/server/lib/map-diff').MapDiff | { error: unknown }>(`/api/projects/${props.projectId}/records/${props.recordId}/map-diff`, { ignoreResponseError: true }).catch(() => null); if (answer && !('error' in answer)) mapDiff.value = answer; }
 </script>
 
 <template>
@@ -52,7 +54,7 @@ const changedLines = computed(() => (diff.value?.text ?? []).filter((line) => li
         <template v-else>Было: версия на коммите <span class="font-mono">{{ diff.base.commit.slice(0, 8) }}</span>
           ({{ diff.base.reason === 'approved' ? 'последнее подтверждение' : 'предыдущий коммит' }}).</template>
       </p>
-      <p v-if="diff.empty" class="text-muted">Разницы нет.</p>
+      <p v-if="diff.empty" class="text-muted">Разницы нет.</p><MapDiff v-if="mapDiff" :diff="mapDiff" />
 
       <section v-if="diff.vision">
         <h3 class="mb-1 font-medium">Вектор проекта</h3>
