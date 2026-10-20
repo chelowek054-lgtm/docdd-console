@@ -297,7 +297,7 @@ export function looksLikeRefusal(text: string): boolean {
 }
 
 export async function ask(prompt: string, options: AskOptions = {}): Promise<LlmResult> {
-  const found = availability();
+  const found = availability(); const jail = sharedJailFailure(options); if (jail) return { ok: false, failure: jail };
   if (!found.available && !options.run) {
     return { ok: false, failure: { code: 'unavailable', message: found.reason ?? 'Claude Code не найден' } };
   }
@@ -547,5 +547,28 @@ function scopedAccessArgs(access: Access, cwd: string): string[] {
     const list = args.slice(at + 1, end === -1 ? undefined : end).map((tool) => (tool === 'Bash' ? tool : scoped(tool)));
     args.splice(at + 1, list.length, ...list);
   }
-  return args;
+  return [...args, ...SHARED_DENY];
 }
+
+/**
+ * Явный запрет секретов (T-0009): `.data` (учётки, ключ сессий) и `.env*` недоступны ни
+ * одному инструменту, даже внутри корня проекта и даже при `bypassPermissions`: правила
+ * Deny проверяются раньше любых разрешений.
+ */
+export const SHARED_DENY: readonly string[] = [
+  '--disallowed-tools',
+  ...['Read', 'Edit', 'Write', 'NotebookEdit', 'Glob', 'Grep'].flatMap((tool) => [`${tool}(**/.data/**)`, `${tool}(**/.env*)`])
+];
+
+/**
+ * На общем сервере модель с инструментами запускается только в корне проекта из
+ * списка разрешённых: без `cwd` или с `cwd` вне корней ей нечем ограничить чтение, значит отказ.
+ */
+export function sharedJailFailure(options: { access?: Access; cwd?: string }, shared = process.env.DOCDD_MODE === 'shared', allowed: (root: string) => boolean = rootAllowed): LlmFailure | null {
+  if (!shared || !options.access || options.access === 'none') return null;
+  if (options.cwd && allowed(options.cwd)) return null;
+  return { code: 'unauthorized', message: 'На общем сервере модель с инструментами работает только в корне проекта' };
+}
+
+// Импорт внизу файла: наверху он сдвинул бы строки, на которые ссылаются свидетельства карты.
+import { rootAllowed } from './mode';
