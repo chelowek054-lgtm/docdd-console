@@ -61,7 +61,7 @@ const status = useStatusFilter(statuses);
 const documents = computed(() => (status.value ? listed.value.filter((record) => record.status === status.value) : listed.value));
 
 const selection = useSelection(documents);
-const chunk = useChunked(documents);
+const chunk = useChunked(documents, 40);
 const onBulkDone = (results?: BulkMoved[]) => { selection.clear(); if (results) patchStatuses(results); else void refresh(); };
 
 
@@ -224,7 +224,7 @@ const EMPTY: Record<string, string> = {
                   <span v-else class="text-muted">нет</span>
                 </td>
                 <td class="p-3">
-                  <UBadge :color="outcome(document).color" variant="subtle" size="sm">{{ outcome(document).label }}</UBadge>
+                  <LightBadge :color="outcome(document).color" variant="subtle">{{ outcome(document).label }}</LightBadge>
                 </td>
               </template>
               <template v-else>

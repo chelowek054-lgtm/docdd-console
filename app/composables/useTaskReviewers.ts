@@ -1,5 +1,5 @@
 import type { Ref } from 'vue';
-import { reviewerOf, roleName, type ReviewerPick } from '~~/server/lib/reviewer';
+import { buildRecordsLookup, reviewerOf, roleName, type ReviewerPick } from '~~/server/lib/reviewer';
 import type { IndexRecord, ProjectIndex } from '~~/server/lib/types';
 
 /**
@@ -11,7 +11,9 @@ export function useTaskReviewers(tasks: Ref<IndexRecord[]>, index: Ref<ProjectIn
   const roles = computed(() => index.value?.project.roles ?? []);
   const picks = computed(() => {
     const records = index.value?.records ?? [];
-    return new Map<string, ReviewerPick | null>(tasks.value.map((task) => [task.id, reviewerOf(task, records, roles.value)]));
+    // Индекс строим один раз на все задачи, а не перебираем записи на каждой.
+    const lookup = buildRecordsLookup(records);
+    return new Map<string, ReviewerPick | null>(tasks.value.map((task) => [task.id, reviewerOf(task, records, roles.value, lookup)]));
   });
   const reviewers = computed(() => [...new Set([...picks.value.values()].map((pick) => pick?.role ?? '').filter(Boolean))]
     .sort()

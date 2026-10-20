@@ -88,21 +88,21 @@ function verifiesOf(check: (typeof checks.value)[number]): string[] {
                 <span v-else class="text-muted">ничего</span>
               </td>
               <td class="p-3">
-                <UBadge
+                <LightBadge
                   v-if="results[check.id]"
                   :color="statusColor(results[check.id]!.state)"
                   variant="subtle"
-                  size="sm"
-                >{{ resultLabel(results[check.id]!.state) }} · {{ results[check.id]!.at.slice(0, 10) }}</UBadge>
-                <UBadge v-else color="neutral" variant="subtle" size="sm">не запускалась</UBadge>
+                 
+                >{{ resultLabel(results[check.id]!.state) }} · {{ results[check.id]!.at.slice(0, 10) }}</LightBadge>
+                <LightBadge v-else color="neutral" variant="subtle">не запускалась</LightBadge>
                 <!-- Результат засчитывается как есть, но под ним — неподтверждённый способ. -->
-                <UBadge
+                <LightBadge
                   v-if="checkNote(check.status, !!results[check.id])"
                   color="warning"
                   variant="subtle"
-                  size="sm"
+                 
                   class="ml-1"
-                >{{ checkNote(check.status, !!results[check.id]) }}</UBadge>
+                >{{ checkNote(check.status, !!results[check.id]) }}</LightBadge>
                 <!-- Ручную проверку некому прогнать, кроме человека (docs/04-ui.md). -->
                 <VerifiedCheck
                   class="mt-1"
