@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docdd/custommap.schema.json",
+  "title": "Изменение пользовательской карты",
+  "description": "Блок ```docdd-custom в записи типа map (docs/adr/0028-custom-maps.md). Определение карты — в манифесте, секция maps.custom; здесь — изменение содержания. `map` блока — умолчание для элементов; у каждого узла и связи карта должна быть известна — своя или блока. Связь со `evidence` сверяется с кодом, без него — подтверждается человеком.",
+
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "map": { "$ref": "#/$defs/mapId" },
+    "added": { "$ref": "#/$defs/part" },
+    "removed": { "$ref": "#/$defs/part" }
+  },
+
+  "$defs": {
+    "mapId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9-]+$",
+      "description": "id пользовательской карты из манифеста: латиница, цифры, дефис."
+    },
+    "part": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "nodes": { "type": "array", "items": { "$ref": "#/$defs/node" } },
+        "relations": { "type": "array", "items": { "$ref": "#/$defs/relation" } }
+      }
+    },
+    "links": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Ссылки узла на другие карты: возможности функциональной, модули кодовой базы, источники потоков данных.",
+      "properties": {
+        "capabilities": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "modules": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "sources": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "relation": {
+      "type": "object",
+      "required": ["from", "to", "type"],
+      "additionalProperties": false,
+      "description": "Связь между узлами одной карты. В removed нужны from, to и type (и map, если не задан у блока).",
+      "properties": {
+        "map": { "$ref": "#/$defs/mapId" },
+        "from": { "type": "string", "minLength": 1, "description": "id узла, который зависит, пользуется или передаёт." },
+        "to": { "type": "string", "minLength": 1, "description": "id узла, от которого зависят." },
+        "type": { "type": "string", "minLength": 1, "description": "id вида связи из определения карты (relations[].id)." },
+        "summary": { "type": "string", "description": "Одна фраза: что именно связано." },
+        "evidence": { "$ref": "https://docdd/evidence.schema.json" }
+      }
+    },
+    "node": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "map": { "$ref": "#/$defs/mapId" },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]+$",
+          "description": "Идентификатор узла: латиница, цифры, дефис, точка, подчёркивание. Уникален в пределах карты."
+        },
+        "title": { "type": "string" },
+        "parent": { "type": "string", "description": "id родительского узла той же карты — так набирается дерево." },
+        "summary": { "type": "string" },
+        "status": {
+          "enum": ["implemented", "partial", "not_implemented"],
+          "description": "Состояние реализации, как у функциональной карты. Нет поля — «не оценено»."
+        },
+        "note": { "type": "string" },
+        "priority": { "enum": ["must", "should", "could", "wont"], "description": "Как у функциональной карты." },
+        "horizon": { "enum": ["now", "next", "later"], "description": "Как у функциональной карты." },
+        "links": { "$ref": "#/$defs/links" }
+      }
+    }
+  }
+}

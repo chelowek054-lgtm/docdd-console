@@ -131,12 +131,26 @@ describe('markVerified', () => {
     expect(loadIndex(root, true).verificationResults['V-0001']?.state).toBe('passed');
   });
 
-  it('автоматической проверке отметку не поставить: факт приходит от сборки', () => {
+  it('автоматической проверке нужна заметка (ADR-0029): без неё отчёт не пишется', () => {
     const before = reports().length;
-    const outcome = markVerified(root, 'V-0002', true, 'architect');
-
-    expect(outcome).toMatchObject({ ok: false, status: 409, code: 'not_manual' });
+    for (const extra of [undefined, { by: 'Иван', note: '  ' }]) {
+      const outcome = markVerified(root, 'V-0002', true, 'architect', extra);
+      expect(outcome).toMatchObject({ ok: false, status: 400, code: 'note_required' });
+    }
     expect(reports()).toHaveLength(before);
+  });
+
+  it('автоматическая проверка с заметкой: вид в отчёте, на экране и в журнале', () => {
+    const outcome = markVerified(root, 'V-0002', true, 'architect', { by: 'Иван', note: 'прогнал руками' });
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.result).toMatchObject({ state: 'passed', runner: 'manual:architect', manualKind: 'unit', checkedBy: 'Иван' });
+    const text = readFileSync(join(root, 'docs', 'development', 'tests', 'V-0002-unit.md'), 'utf8');
+    expect(text).toContain('проверена вручную (вид unit) · architect · проверил Иван · прогнал руками');
+  });
+
+  it('снять отметку с автоматической проверки можно без заметки', () => {
+    expect(markVerified(root, 'V-0002', false, 'architect').ok).toBe(true);
   });
 
   it('черновую проверку отметить можно: статус не мешает', () => {

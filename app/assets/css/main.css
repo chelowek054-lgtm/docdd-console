@@ -9,6 +9,40 @@
   --color-primary-500: var(--color-sky-500);
 }
 
+/*
+ * Полоса прокрутки в цветах темы: системная (серая, со стрелками) выбивается из
+ * интерфейса. Цвета — из токенов (--ui-border, --ui-text-muted), поэтому полоса
+ * сама следует за светлой, тёмной и добавленными темами.
+ */
+/* Стандартные свойства — только там, где нет ::-webkit-scrollbar (Firefox): в Chrome
+   они отключают webkit-оформление и возвращают стрелки по краям. */
+@supports not selector(::-webkit-scrollbar) {
+  .ds-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--ui-border) transparent;
+  }
+  .ds-scroll:hover {
+    scrollbar-color: var(--ui-text-muted) transparent;
+  }
+}
+.ds-scroll::-webkit-scrollbar {
+  height: 0.375rem;
+  width: 0.375rem;
+}
+.ds-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.ds-scroll::-webkit-scrollbar-thumb {
+  background: var(--ui-border);
+  border-radius: 9999px;
+}
+.ds-scroll:hover::-webkit-scrollbar-thumb {
+  background: var(--ui-text-muted);
+}
+.ds-scroll::-webkit-scrollbar-button {
+  display: none;
+}
+
 /* docdd-design:start — Сгенерировано консолью DocDD из токенов дизайна v1.9.0 (docs/16-design-system.md). Не правьте руками: меняются токены. */
 /* Размеры в rem: следуют за настройкой шрифта пользователя; корень не задаётся в px. */
 html { font-size: 100%; }

@@ -21,18 +21,19 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody<Record<string, unknown>>(event);
-  const unknown = Object.keys(body ?? {}).filter((key) => !['owner', 'phase', 'tags', 'links', 'change', 'reuse'].includes(key));
+  const unknown = Object.keys(body ?? {}).filter((key) => !['owner', 'reviewer', 'phase', 'tags', 'links', 'change', 'reuse'].includes(key));
   if (unknown.length > 0) {
     return fail(
       event,
       400,
       'field_not_editable',
-      `Полей \`${unknown.join('`, `')}\` этот маршрут не меняет: правке подлежат owner, phase, tags, links, change и reuse`
+      `Полей \`${unknown.join('`, `')}\` этот маршрут не меняет: правке подлежат owner, reviewer, phase, tags, links, change и reuse`
     );
   }
 
   const fields: PatchFields = {};
   if ('owner' in body) fields.owner = asStringOrNull(body['owner']);
+  if ('reviewer' in body) fields.reviewer = asStringOrNull(body['reviewer']);
   if ('change' in body) fields.change = asStringOrNull(body['change']);
   if ('reuse' in body) fields.reuse = asStringOrNull(body['reuse']);
   if ('phase' in body) fields.phase = asStringOrNull(body['phase']);
@@ -43,6 +44,15 @@ export default defineEventHandler(async (event) => {
     const context = openRecord(project.root, recordId);
     if (!context) {
       return fail(event, 404, 'record_not_found', `Записи \`${recordId}\` в проекте нет`);
+    }
+
+    // Ревьюер — роль манифеста (adr/0030): незнакомую роль принять некому.
+    const roles = context.workspace.manifest.roles ?? [];
+    if (fields.reviewer && roles.length > 0 && !roles.some((role) => role.id === fields.reviewer)) {
+      return fail(event, 400, 'reviewer_unknown', 'Роли «' + fields.reviewer + '» нет в манифесте проекта');
+    }
+    if (fields.reviewer !== undefined && context.record.type !== 'task') {
+      return fail(event, 400, 'reviewer_not_task', 'Ревьюер назначается только задаче');
     }
 
     const outcome = applyFieldPatch(context.original, fields, today());

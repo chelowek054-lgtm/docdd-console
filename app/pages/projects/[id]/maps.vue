@@ -1178,6 +1178,40 @@ const splitHints = computed(() => {
   const edges: HierarchyEdge[] = base.imports.map((edge) => ({ from: edge.from, to: edge.to, kind: 'import' }));
   return { nodes, edges };
 });
+// Пользовательские карты (docs/adr/0028-custom-maps.md): вкладки рядом со встроенными
+// видами и форма «Новая карта». Код — в конце скрипта: M-0001 цитирует строки выше.
+import type { CustomMapView as CustomMapContent } from '~~/server/lib/custom-maps';
+import type { CustomMapDefinition } from '~~/server/lib/types';
+
+type CustomMapsResponse = {
+  definitions: CustomMapDefinition[];
+  problems: string[];
+  maps: Record<string, CustomMapContent>;
+};
+const { data: customData, refresh: refreshCustom } = useFetch<CustomMapsResponse | { error: ApiFailure }>(
+  () => `/api/projects/${projectId.value}/maps/custom`
+);
+const customMaps = computed<CustomMapsResponse>(() =>
+  customData.value && !('error' in customData.value)
+    ? customData.value
+    : { definitions: [], problems: [], maps: {} }
+);
+/** Открытая пользовательская карта; null — показан встроенный вид. */
+// Открытая пользовательская карта живёт в адресе (?cmap=), как и её глубина:
+// ссылку на «карту, группу, уровень» можно переслать (ADR-0027).
+const customShown = computed<string | null>({
+  get: () => (typeof route.query['cmap'] === 'string' && route.query['cmap'] ? route.query['cmap'] : null),
+  set: (value) => {
+    void router.push({ query: { ...route.query, cmap: value ?? undefined, cgroup: undefined, cdepth: undefined, copen: undefined } });
+  }
+});
+const customFormOpen = ref(false);
+const customCurrent = computed(() => customMaps.value.definitions.find((item) => item.id === customShown.value) ?? null);
+
+async function onCustomCreated(definition: CustomMapDefinition) {
+  await refreshCustom();
+  customShown.value = definition.id;
+}
 </script>
 
 <template>
@@ -1302,8 +1336,43 @@ const splitHints = computed(() => {
         входят: пока человек не подтвердил, это намерение, а не устройство проекта.
       </p>
 
+      <!-- Пользовательские карты от общей картины не зависят (docs/adr/0028-custom-maps.md):
+           их вкладки и «Новая карта» видны и тогда, когда подтверждённых карт нет. -->
+      <!-- Все карты — одной строкой с прокруткой: встроенные (плашки), затем
+           пользовательские (подчёркнутые) и «Новая карта». Вид разный нарочно:
+           встроенные заданы консолью, свои — проектом. -->
+      <div class="ds-scroll flex flex-nowrap items-center gap-3 overflow-x-auto pb-2">
+        <UTabs
+          v-if="map && map.from.length > 0"
+          :model-value="customShown ? '' : shown"
+          :items="views.map((view) => ({ label: view.title, value: view.key, badge: view.count }))"
+          :ui="{ root: 'w-auto shrink-0', list: 'w-auto' }"
+          @update:model-value="(value) => { shown = value as typeof shown; customShown = null }"
+        />
+        <UTabs
+          v-if="customMaps.definitions.length"
+          :model-value="customShown ?? ''"
+          variant="link"
+          :items="customMaps.definitions.map((item) => ({ label: item.title, value: item.id, badge: customMaps.maps[item.id]?.nodes.length ?? 0 }))"
+          :ui="{ root: 'w-auto shrink-0', list: 'w-auto' }"
+          @update:model-value="(value) => (customShown = String(value) || null)"
+        />
+        <UButton class="shrink-0" icon="i-lucide-plus" size="sm" variant="soft" label="Новая карта" @click="customFormOpen = true" />
+      </div>
+      <p v-for="problem in customMaps.problems" :key="problem" class="text-sm text-warning">{{ problem }}</p>
+      <CustomMapForm v-model:open="customFormOpen" :project-id="projectId" @created="onCustomCreated" />
+      <CustomMapView
+        v-if="customCurrent"
+        :project-id="projectId"
+        :definition="customCurrent"
+        :nodes="customMaps.maps[customCurrent.id]?.nodes ?? []"
+        :relations="customMaps.maps[customCurrent.id]?.relations ?? []"
+        @changed="refreshCustom"
+      />
+
       <div
         v-if="map && map.from.length === 0"
+        v-show="!customCurrent"
         class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted"
       >
         <!-- Пусто — тоже ответ, и он обязан назвать причину (docs/04-ui.md). -->
@@ -1332,15 +1401,11 @@ const splitHints = computed(() => {
       <template v-else-if="map">
         <!-- Подвкладка на вид карты: у каждой свой смысл (вопрос, на который
              она отвечает), а не просто разные данные под одной кнопкой. -->
-        <UTabs
-          v-model="shown"
-          :items="views.map((view) => ({ label: view.title, value: view.key, badge: view.count }))"
-        />
 
         <!-- Общий контейнер диаграммы и карточки узла: на весь экран
              разворачивается он, а не сама диаграмма, — иначе карточка (портал
              рядом) из фуллскрина не видна (docs/04-ui.md, «Карты»). -->
-        <div ref="stage" class="[&:fullscreen]:overflow-auto [&:fullscreen]:bg-default [&:fullscreen]:p-4">
+        <div v-show="!customCurrent" ref="stage" class="[&:fullscreen]:overflow-auto [&:fullscreen]:bg-default [&:fullscreen]:p-4">
           <UCard v-if="current">
             <template #header>
               <div class="flex flex-wrap items-center gap-3">

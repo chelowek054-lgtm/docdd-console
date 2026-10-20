@@ -252,7 +252,7 @@
 
 ### `PATCH /api/projects/:id/records/:recordId`
 
-Правка полей front matter: `owner`, `phase`, `tags`, `links`, `change`. Тело
+Правка полей front matter: `owner`, `reviewer`, `phase`, `tags`, `links`, `change`, `reuse`. Тело
 документа не принимается вовсе — этого маршрута для него нет намеренно.
 
 `change` правится здесь же, а не только руками в файле: от него зависит, нужна
@@ -458,6 +458,36 @@
 ответ, а не пропуск. `maps` — карты, объявлявшие возможность; `ids` — чтобы
 экран мог дать ссылку на запись. `level` — `failing`, `verified`,
 `unchecked`, `no_check` или `none`, по правилу из 07-maps.md.
+
+### `GET /api/projects/:id/maps/custom`
+
+Пользовательские карты ([adr/0028](adr/0028-custom-maps.md)):
+`{ definitions, problems, maps }`. `definitions` — годные определения из
+`maps.custom` манифеста; `problems` — беды неверных (такое определение
+пропущено, остальные живут); `maps` — по `id` карты её `{ nodes, relations }`
+из той же сложенной картины, что у `GET …/map`. Поля, которых карта в
+`features` не взяла, не приходят.
+
+### `POST /api/projects/:id/maps/custom`
+
+Тело — определение: `id`, `title`, `summary?`, `node { label, plural }`,
+`relations?` (без них — пять видов функциональной карты), `features`.
+Проверяется тем же отбором, что читает манифест, и дописывается в
+`project.yaml` точечно: остальной файл и комментарии не трогаются. Ответ —
+`{ definition }`. Ошибки: `409 custom_map_exists` — карта с таким `id` уже
+объявлена; `422 custom_map_invalid` — определение не прошло проверку;
+`422 manifest_form` — секция `maps` записана в форме, которую приложение не
+правит, — допишите вручную.
+
+### `POST /api/projects/:id/maps/custom/:mapId/node`
+
+Правка пользовательской карты, как `POST …/map/capability`: заводит черновик
+записи `map` с блоком `docdd-custom` и отвечает `{ record, path }`. Тело —
+`{ action, node?, relation?, statuses? }`: `add`/`remove` — узел (`node.id`
+обязателен); `relate`/`unrelate` — связь `{ from, to, type }`, `type` — вид
+из определения карты, концы — существующие узлы; `status` — пачка
+`{ id: состояние | null }`, только если карта взяла `status`. Карты `mapId`
+нет среди определений — `404 custom_map_not_found`.
 
 ### `GET /api/projects/:id/architecture`
 
@@ -1033,3 +1063,13 @@ matter. **Текст документа не меняется** — ни стр�
 - Обращений к сети.
 
 Это не пропуски, а граница ответственности инструмента.
+
+
+### Запрос `review-batch`
+
+`POST /api/projects/:id/prompt` с `{ "kind": "review-batch", "agents": 3, "perAgent": 4, "minutes": 10, "branch": "review/2026-10-20", "taskIds": ["T-0001"] }` → `{ prompt, count }`. Задачи — в статусе `in_review` (`taskIds` сужает список; пусто — все), к каждой подставляются требования (`implements`), их проверки (`verifies`) с последним результатом, карты (`affects`), фаза и ревьюер (поле `reviewer` или правило [adr/0030](adr/0030-task-reviewer.md)) с причиной выбора. Числа ограничены: агентов 1–10, задач на агента 1–20, минут 1–60. Задач на проверке нет — `422 no_review_tasks`.
+
+
+### Отметка «Проверено»: кто проверил
+
+Тело `POST …/records/:recordId/verified`: `{ "verified": true, "actor": "architect", "by": "Имя", "note": "что проверено" }`. `by` и `note` необязательны для API, но экран «Принять вручную» требует оба. Они пишутся в отчёт (`checked_by`, `note`) и в строку журнала.

@@ -5,8 +5,8 @@ import type { IndexRecord, VerificationOutcome } from '~~/server/lib/types';
 /**
  * Флажок «Проверено» на ручной проверке (docs/04-ui.md, «Отметка „Проверено“»).
  * Фиксируется отчётом в tests/reports и строкой в журнале; снятие — не провал,
- * а возврат в «не проверено». У автоматических проверок флажка нет: факт
- * приходит от сборки.
+ * а возврат в «не проверено». Флажок у проверки любого вида (ADR-0029); у автоматических видов приёмка
+ * подписана «прогона сборки не было».
  */
 const props = defineProps<{
   projectId: string;
@@ -23,7 +23,6 @@ const actor = ref(props.roles[0]?.id ?? '');
 const busy = ref(false);
 const failure = ref<ApiFailure | null>(null);
 
-const manual = computed(() => ['manual', 'review'].includes(String(props.record.extra['kind'] ?? '')));
 const checked = computed(() => props.result?.state === 'passed');
 
 /** «проверено вручную · Архитектор · 2026-10-01»: ручной прогон не выдаёт себя за прогон сборки. */
@@ -32,11 +31,21 @@ const who = computed(() => {
   if (!result || result.state !== 'passed') return '';
   const role = result.runner.startsWith('manual:') ? result.runner.slice('manual:'.length) : '';
   const name = props.roles.find((item) => item.id === role)?.name ?? role;
-  const head = result.runner.startsWith('manual') ? 'проверено вручную' : `прогон ${result.runner}`;
-  return [head, name, result.at.slice(0, 10)].filter(Boolean).join(' · ');
+  // Ручная приёмка автоматического вида не выдаёт себя за прогон сборки.
+  const head = !result.runner.startsWith('manual')
+    ? `прогон ${result.runner}`
+    : result.manualKind ? 'принята вручную, прогона сборки не было' : 'проверено вручную';
+  return [head, name, result.checkedBy, result.at.slice(0, 10)].filter(Boolean).join(' · ');
 });
 
+const acceptOpen = ref(false);
+
 async function toggle(value: boolean | 'indeterminate') {
+  // Постановка отметки спрашивает, кто проверил и что (docs/04-ui.md, «Принять вручную»); снятие — как раньше.
+  if (value === true) {
+    acceptOpen.value = true;
+    return;
+  }
   busy.value = true;
   failure.value = null;
   try {
@@ -54,13 +63,11 @@ async function toggle(value: boolean | 'indeterminate') {
     busy.value = false;
   }
 }
-
-const REASON = 'факт приходит от сборки — положите отчёт в tests/reports';
 </script>
 
 <template>
   <div class="text-sm">
-    <div v-if="manual" class="flex flex-wrap items-center gap-2">
+    <div class="flex flex-wrap items-center gap-2">
       <UCheckbox
         :model-value="checked"
         :disabled="busy"
@@ -74,12 +81,17 @@ const REASON = 'факт приходит от сборки — положите
         class="w-44"
         :items="props.roles.map((role) => ({ label: role.name, value: role.id }))"
       />
-      <span v-if="who" class="text-xs text-muted">{{ who }}</span>
+      <span v-if="who" class="text-xs text-muted" :title="props.result?.note">{{ who }}</span>
     </div>
 
-    <!-- Неактивный элемент без причины бесполезен (docs/04-ui.md). -->
-    <p v-else-if="props.compact" class="text-xs text-muted" :title="REASON">от сборки</p>
-    <p v-else class="text-muted">Флажка «Проверено» нет: {{ REASON }}.</p>
+
+    <ManualAcceptModal
+      v-model:open="acceptOpen"
+      :project-id="props.projectId"
+      :verification-ids="[props.record.id]"
+      :roles="props.roles"
+      @changed="emit('changed')"
+    />
 
     <p v-if="failure" class="mt-1 text-xs text-error">{{ failure.message }}</p>
   </div>

@@ -17,7 +17,7 @@ export interface FlowSource {
   kind: string;
   title?: string | undefined;
   where?: string | undefined;
-  declaredBy?: string | undefined;
+  declaredBy?: string | undefined; parent?: string | undefined;
   pending?: boolean | undefined;
 }
 
@@ -265,6 +265,8 @@ export interface FoldFlowsOptions {
   openCode?: string | null;
   /** Источник, раскрытый на месте. */
   openSource?: string | null;
+  /** Дерево групп кодовой карты (groupTree): без него Group не знает parent, и конец-модуль поднимается только до верхней группы. */
+  groupTree?: { nodes: readonly (TreeNode & { members: readonly { id: string }[] })[] };
 }
 
 /**
@@ -276,7 +278,7 @@ export function foldFlows(
   context: FlowContext,
   options: FoldFlowsOptions
 ): FoldedFlows {
-  const code = codeTree(context);
+  const code = options.groupTree ? treeOfGroups(options.groupTree.nodes) : codeTree(context);
   const sources = sourceTree([...context.sources.values()]);
   // Пространства id модулей и источников могут пересечься — разводим префиксом.
   const edges = flows.map((flow, index) => ({
@@ -304,4 +306,14 @@ export function foldFlows(
       flows: edge.members.map((member) => flows[(member as unknown as { index: number }).index]!)
     }))
   };
+}
+
+/** Узлы дерева групп плюс их модули: модуль висит под своей самой глубокой группой. */
+function treeOfGroups(nodes: readonly (TreeNode & { members: readonly { id: string }[] })[]): TreeNode[] {
+  const ids = new Set(nodes.map((node) => node.id));
+  const out: TreeNode[] = nodes.map((node) => ({ id: node.id, parent: node.parent }));
+  for (const node of nodes) {
+    for (const member of node.members) if (!ids.has(member.id)) out.push({ id: member.id, parent: node.id });
+  }
+  return out;
 }

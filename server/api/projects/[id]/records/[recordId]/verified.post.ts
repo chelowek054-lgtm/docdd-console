@@ -18,14 +18,21 @@ export default defineEventHandler(async (event) => {
     return fail(event, 404, 'project_not_found', `Проект \`${id}\` не найден в списке`);
   }
 
-  const body = await readBody<{ verified?: unknown; actor?: unknown }>(event);
+  const body = await readBody<{ verified?: unknown; actor?: unknown; by?: unknown; note?: unknown }>(event);
   if (typeof body?.verified !== 'boolean') {
     return fail(event, 400, 'verified_required', 'Не сказано, ставится отметка или снимается: нужно `verified: true` или `false`');
   }
   const actor = typeof body.actor === 'string' ? body.actor : '';
+  const by = typeof body.by === 'string' ? body.by.trim() : '';
+  const note = typeof body.note === 'string' ? body.note.trim() : '';
+  if (by.length > 80) return fail(event, 400, 'by_too_long', 'Имя проверившего — не длиннее 80 знаков');
+  // Одна-две строки: заметка — подпись к отметке, а не отчёт.
+  if (note.length > 300 || note.split('\n').length > 2) {
+    return fail(event, 400, 'note_too_long', 'Что проверено — до 300 знаков и не больше двух строк');
+  }
 
   try {
-    const outcome = markVerified(project.root, recordId, body.verified, actor);
+    const outcome = markVerified(project.root, recordId, body.verified, actor, { by, note });
     if (!outcome.ok) return fail(event, outcome.status, outcome.code, outcome.message);
     return outcome;
   } catch (error) {

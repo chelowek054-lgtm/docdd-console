@@ -124,3 +124,49 @@ export function toggleSharedTag(
 
   return { ok: true, text: nextLines.join(eol) };
 }
+
+/**
+ * Дописывает определение пользовательской карты в `maps.custom`
+ * (docs/adr/0028-custom-maps.md) тем же точечным приёмом: остальной файл,
+ * комментарии и порядок, не трогается. Определение пишется одной строкой
+ * JSON — это валидный YAML, и не нужно угадывать отступы чужих значений.
+ * Понимает `maps:` блоком с `custom:` блочным списком (или `custom: []`),
+ * либо их отсутствие; иную форму не правит, а отказывает.
+ */
+export function appendCustomMap(manifestText: string, definition: Record<string, unknown>): ManifestEdit | ManifestEditFailed {
+  const eol = manifestText.includes('\r\n') ? '\r\n' : NEW_LINE;
+  const lines = manifestText.split(/\r?\n/);
+  const entry = `    - ${JSON.stringify(definition)}`;
+  const topLevel = (line: string) => /^\S/.test(line) && !line.startsWith('#');
+
+  const maps = lines.findIndex((line) => /^maps:/.test(line));
+  if (maps < 0) {
+    const trimmed = lines[lines.length - 1] === '' ? lines.slice(0, -1) : lines;
+    return { ok: true, text: [...trimmed, 'maps:', '  custom:', entry, ''].join(eol) };
+  }
+  if (!/^maps:\s*(#.*)?$/.test(lines[maps] ?? '')) {
+    return { ok: false, message: 'Секция `maps` записана не блоком — допишите карту вручную.' };
+  }
+
+  let end = maps + 1;
+  while (end < lines.length && !topLevel(lines[end] ?? '')) end += 1;
+  // Пустые строки в конце секции оставляем после вставки — за ними следующая секция.
+  let last = end;
+  while (last > maps + 1 && (lines[last - 1] ?? '').trim() === '') last -= 1;
+
+  const custom = lines.findIndex((line, at) => at > maps && at < end && /^\s{2}custom:/.test(line));
+  if (custom < 0) {
+    return { ok: true, text: [...lines.slice(0, last), '  custom:', entry, ...lines.slice(last)].join(eol) };
+  }
+  const head = lines[custom] ?? '';
+  if (/^\s{2}custom:\s*\[\s*\]\s*(#.*)?$/.test(head)) {
+    return { ok: true, text: [...lines.slice(0, custom), '  custom:', entry, ...lines.slice(custom + 1)].join(eol) };
+  }
+  if (!/^\s{2}custom:\s*(#.*)?$/.test(head)) {
+    return { ok: false, message: 'Список `maps.custom` записан не блоком — допишите карту вручную.' };
+  }
+  let tail = custom + 1;
+  while (tail < last && (/^\s{3,}\S/.test(lines[tail] ?? '') || (lines[tail] ?? '').trim() === '')) tail += 1;
+  while (tail > custom + 1 && (lines[tail - 1] ?? '').trim() === '') tail -= 1;
+  return { ok: true, text: [...lines.slice(0, tail), entry, ...lines.slice(tail)].join(eol) };
+}

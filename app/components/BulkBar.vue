@@ -80,6 +80,14 @@ async function linkMap(ids: string[]) {
   }
 }
 
+/** «Принять вручную…»: задачи, которых держит только непройденная ручная проверка. */
+const acceptOpen = ref(false);
+const acceptIds = ref<string[]>([]);
+function openAccept(ids: string[]) {
+  acceptIds.value = ids;
+  acceptOpen.value = true;
+}
+
 const groups = computed(() => {
   const byCode = new Map<string, BulkResult[]>();
   for (const result of skipped.value) {
@@ -204,6 +212,16 @@ async function run(direction: string) {
                 class="mr-2 font-mono text-xs hover:underline"
               >{{ result.id }}</NuxtLink>
             </p>
+            <UButton
+              v-if="group.code === 'task_done_unverified'"
+              class="mt-2"
+              size="xs"
+              variant="soft"
+              icon="i-lucide-hand-helping"
+              @click="openAccept(group.items.map((item) => item.id))"
+            >
+              Принять вручную…
+            </UButton>
             <!-- Нет карты вовсе — заводится одна общая на пачку; подтверждает её человек. -->
             <div v-if="group.unmapped.length && !linked" class="mt-2">
               <UButton
@@ -221,6 +239,14 @@ async function run(direction: string) {
         </ul>
       </template>
     </UAlert>
+
+    <ManualAcceptModal
+      v-model:open="acceptOpen"
+      :project-id="props.projectId"
+      :task-ids="acceptIds"
+      :roles="props.roles"
+      @changed="emit('done')"
+    />
 
     <UAlert
       v-if="linked"

@@ -18,7 +18,7 @@ import {
 } from '../../../../lib/prompt';
 import { withBuiltin } from '../../../../lib/builtin';
 import { priorityInput } from '../../../../utils/priority-service';
-import { priorityPrompt } from '../../../../lib/prompt';
+import { priorityPrompt, reviewBatchPrompt, type ReviewBatchTask } from '../../../../lib/prompt';
 import { referenceIndexText } from '../../../../utils/reference-service';
 import { buildArchitecture } from '../../../../utils/architecture-service';
 import { resolveProjectRules } from '../../../../utils/rules-service';
@@ -39,6 +39,7 @@ import { plainTokens } from '../../../../lib/design';
 import { designPrompt } from '../../../../lib/prompt';
 import { projectDesign } from '../../../../utils/design-service';
 import { projectScreens } from '../../../../utils/design-screens-service';
+import { reviewerOf, roleName } from '../../../../lib/reviewer';
 
 /**
  * Сборка запроса к модели по шаблону из репозитория. Приложение подставляет
@@ -63,6 +64,11 @@ export default defineEventHandler(async (event) => {
     tasks?: unknown;
     skip?: unknown;
     limit?: unknown;
+    agents?: unknown;
+    perAgent?: unknown;
+    minutes?: unknown;
+    branch?: unknown;
+    taskIds?: unknown;
   }>(event);
   const kind = typeof body?.kind === 'string' ? body.kind : '';
 
@@ -288,7 +294,68 @@ export default defineEventHandler(async (event) => {
       return { prompt: designPrompt(await template(name), plainTokens(design.tokens), screens), count: present };
     }
 
-    return fail(event, 400, 'kind_invalid', 'Известны запросы: `fix`, `maps`, `map-fix`, `inbox`, `verify`, `functional-check`, `relations`, `phases`, `groups`, `architecture`, `priority`, `design-responsive`, `design-pixel`');
+    if (kind === 'review-batch') {
+      // Числа ограничены (docs/03-server-api.md, «Запрос review-batch»): запрос
+      // уходит команде агентов, и «100 агентов по 999 минут» — это опечатка, а не план.
+      const agents = bounded(body?.agents, 1, 10, 3);
+      const perAgent = bounded(body?.perAgent, 1, 20, 4);
+      const minutes = bounded(body?.minutes, 1, 60, 10);
+      const branch = typeof body?.branch === 'string' && body.branch.trim() !== ''
+        ? body.branch.trim()
+        : `review/${new Date().toISOString().slice(0, 10)}`;
+      // Имя ветки попадает в команды git в тексте запроса: лишние символы там — повод для беды.
+      if (!/^[A-Za-z0-9._][A-Za-z0-9._/-]*$/.test(branch) || branch.includes('..')) {
+        return fail(event, 400, 'branch_invalid', 'Имя ветки: только латиница, цифры и `._/-`, без `..`');
+      }
+      const picked = Array.isArray(body?.taskIds)
+        ? new Set(body.taskIds.filter((task): task is string => typeof task === 'string'))
+        : null;
+
+      const index = loadIndex(project.root);
+      const byId = new Map(index.records.map((record) => [record.id, record]));
+      const reviewerPick = (task: (typeof index.records)[number]) => {
+        const pick = reviewerOf(task, index.records, index.project.roles);
+        return pick ? { role: pick.role, name: roleName(pick.role, index.project.roles), why: pick.why } : null;
+      };
+      const tasks: ReviewBatchTask[] = index.records
+        .filter((record) => record.type === 'task' && record.status === 'in_review')
+        .filter((record) => picked === null || picked.size === 0 || picked.has(record.id))
+        .map((task) => {
+          const requirements = task.links.implements ?? [];
+          return {
+            id: task.id,
+            title: task.title,
+            path: task.path,
+            phase: task.phase,
+            requirements: requirements.map((id) => ({ id, title: byId.get(id)?.title ?? 'не найдено' })),
+            verifications: index.records
+              .filter((record) => record.type === 'verification'
+                && (record.links.verifies ?? []).some((id) => requirements.includes(id)))
+              .map((record) => {
+                const outcome = index.verificationResults[record.id];
+                const recordKind = record.extra['kind'];
+                return {
+                  id: record.id,
+                  title: record.title,
+                  kind: typeof recordKind === 'string' ? recordKind : null,
+                  result: outcome?.state ?? null,
+                  at: outcome?.at ?? null
+                };
+              }),
+            maps: (task.links.affects ?? []).map((id) => ({ id, title: byId.get(id)?.title ?? 'не найдено' })),
+            reviewer: reviewerPick(task)
+          };
+        });
+      if (tasks.length === 0) {
+        return fail(event, 422, 'no_review_tasks', 'Задач в статусе «на проверке» нет: проверять нечего');
+      }
+      return {
+        prompt: reviewBatchPrompt(await template('review-batch.md'), { agents, perAgent, minutes, branch }, tasks),
+        count: tasks.length
+      };
+    }
+
+    return fail(event, 400, 'kind_invalid', 'Известны запросы: `fix`, `maps`, `map-fix`, `inbox`, `verify`, `functional-check`, `relations`, `phases`, `groups`, `architecture`, `priority`, `design-responsive`, `design-pixel`, `review-batch`');
   } catch (error) {
     if (error instanceof WorkspaceError) {
       return fail(event, 422, error.code, error.message, error.detail);
@@ -343,4 +410,10 @@ async function mapsState(root: string): Promise<MapsState> {
 function readRecordBody(root: string, path: string): string {
   const read = sourceReader(root);
   return read(path) ?? '';
+}
+
+/** Целое в границах; не число — значение по умолчанию, а не ошибка: поле необязательное. */
+function bounded(value: unknown, min: number, max: number, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(value)));
 }

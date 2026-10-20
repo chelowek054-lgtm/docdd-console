@@ -71,6 +71,9 @@ const expected = [
   'task_done_unverified T-0006',
   'task_maps_unapproved T-0011',
   'task_no_requirement T-0012',
+  'task_no_verification T-0003',
+  'task_no_verification T-0011',
+  'task_no_verification T-0012',
   'task_not_ready_docs T-0002',
   'task_stale T-0002',
   'title_mismatch T-0008',
@@ -92,7 +95,7 @@ describe('набор файлов-примеров', () => {
     // transition_forbidden отвечает на запрос действия, а не на состояние
     // набора записей, поэтому в этом списке его нет — он проверен в rules.spec.
     const covered = new Set(result.violations.map((item) => item.code));
-    expect(covered.size).toBe(26);
+    expect(covered.size).toBe(27);
     expect(covered.has('transition_forbidden')).toBe(false);
   });
 

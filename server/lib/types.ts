@@ -148,7 +148,8 @@ export type ViolationCode =
   | 'requirement_unimplemented'
   | 'doc_changed_after_task'
   | 'task_stale'
-  | 'verification_never_run';
+  | 'verification_never_run'
+  | 'task_no_verification';
 
 /** Префикс идентификатора по типу записи. Контракт, а не соглашение. */
 export const PREFIX_BY_TYPE: Readonly<Record<RecordType, string>> = {
@@ -243,7 +244,8 @@ export const VIOLATION_LEVELS: Readonly<Record<ViolationCode, Severity>> = {
   requirement_unimplemented: 'warning',
   doc_changed_after_task: 'warning',
   task_stale: 'warning',
-  verification_never_run: 'warning'
+  verification_never_run: 'warning',
+  task_no_verification: 'warning'
 };
 
 export interface Violation {
@@ -288,6 +290,11 @@ export interface Report {
   started_at: string;
   total?: number;
   failed?: number;
+  /** Ручная отметка: кто проверил и что именно (docs/02-workspace-contract.md). */
+  checked_by?: string;
+  note?: string;
+  /** Вид проверки, принятой вручную без прогона сборки (unit, integration, metric…). */
+  verification_kind?: string;
   verifications: Record<string, VerificationResult>;
 }
 
@@ -349,7 +356,7 @@ export interface ProjectManifest {
   policy?: Policy;
   architecture?: ArchitectureConfig;
   /** Стеки и снимки экранов (docs/16-design-system.md). */
-  design?: DesignManifest;
+  design?: DesignManifest; /** Карты проекта (docs/adr/0028-custom-maps.md). */ maps?: MapsManifest;
 }
 
 export interface DesignManifest {
@@ -388,6 +395,11 @@ export interface VerificationOutcome {
   /** Время начала прогона, из которого взят результат. */
   at: string;
   runner: string;
+  /** Только у ручной отметки: имя проверившего и что проверено. */
+  checkedBy?: string;
+  note?: string;
+  /** Вид проверки в ручной приёмке автоматической проверки: экран подписывает «прогона сборки не было». */
+  manualKind?: string;
 }
 
 export interface IndexRecord {
@@ -482,4 +494,28 @@ export interface RecordDetail {
   map?: MapView;
   issues: IssueDto[];
   verifications: Record<string, VerificationOutcome>;
+}
+
+/** Стиль связи пользовательской карты — один из пяти стилей функциональной карты. */
+export type CustomRelationStyle = 'depends' | 'uses' | 'feeds' | 'triggers' | 'replaces';
+
+/** Что пользовательская карта берёт у встроенных (docs/adr/0028-custom-maps.md). */
+export type CustomMapFeature = 'status' | 'priority' | 'horizon' | 'evidence' | 'links';
+
+/** Определение пользовательской карты, секция `maps.custom` манифеста. */
+export interface CustomMapDefinition {
+  id: string;
+  title: string;
+  summary?: string;
+  node: { label: string; plural: string };
+  relations: { id: string; label: string; style: CustomRelationStyle }[];
+  features: CustomMapFeature[];
+  /** Незнакомые поля проекта сохраняются при записи манифеста. */
+  [key: string]: unknown;
+}
+
+export interface MapsManifest {
+  /** Сырые записи: проверяет и отбирает их customDefinitions (server/lib/custom-maps.ts). */
+  custom?: unknown[];
+  [key: string]: unknown;
 }

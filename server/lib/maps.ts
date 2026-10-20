@@ -1,5 +1,5 @@
 import type { Horizon, ImplStatus, Priority, RelationType } from './functional';
-import { validateCodemap, validateDataflow, validateFunctional, validateSkipped, validateUserflow } from './schema';
+import { validateCodemap, validateDataflow, validateFunctional, validateSkipped, validateUserflow, validateCustom } from './schema';
 import type { WorkRecord } from './types';
 import { yamlSafe } from './write';
 
@@ -12,7 +12,7 @@ const LF = String.fromCharCode(10);
  * (docs/adr/0007-maps-lead-code.md).
  */
 
-export type MapStructure = 'codemap' | 'dataflow' | 'userflow' | 'functional';
+export type MapStructure = 'codemap' | 'dataflow' | 'userflow' | 'functional' | 'custom';
 
 export interface Evidence {
   path: string;
@@ -116,7 +116,7 @@ export interface MapChange {
   codemap?: { added?: CodemapPart; removed?: CodemapPart };
   dataflow?: { added?: DataflowPart; removed?: DataflowPart };
   userflow?: { added?: UserflowPart; removed?: UserflowPart };
-  functional?: { added?: FunctionalPart; removed?: FunctionalPart };
+  functional?: { added?: FunctionalPart; removed?: FunctionalPart }; custom?: CustomChange;
   /** Не структура, а решение: этих файлов в карте нет, и вот почему. */
   skipped?: SkippedFile[];
 }
@@ -146,13 +146,13 @@ interface MapField {
   name: string;
   keyOf: (item: any) => string;
   /** Есть ли у элементов поля свидетельство — тогда сверка их не обходит. */
-  evidence?: (item: any) => { label: string; evidence: Evidence };
+  evidence?: (item: any) => { label: string; evidence: Evidence } | null;
 }
 
 interface MapKind {
   name: MapStructure;
   validate: (data: unknown) => { message: string }[];
-  fields: readonly MapField[];
+  fields: readonly MapField[]; normalize?: (data: any) => unknown;
 }
 
 const MAP_KINDS: readonly MapKind[] = [
@@ -209,7 +209,7 @@ const MAP_KINDS: readonly MapKind[] = [
       // Тип входит в ключ: между двумя возможностями бывает и зависимость, и передача данных.
       { name: 'relations', keyOf: (item) => `${item.from}>${item.to}:${item.type}` }
     ]
-  }
+  }, customKind()
 ];
 
 export const MAP_STRUCTURES: readonly MapStructure[] = MAP_KINDS.map((kind) => kind.name);
@@ -279,7 +279,7 @@ export function parseMapRecord(body: string): ParsedMap {
 
     // Присваиваем после проверки: в карту не должно попасть ничего, что не
     // прошло схему, иначе общая картина соберётся из мусора.
-    Object.assign(change, { [kind.name]: parsed });
+    Object.assign(change, { [kind.name]: kind.normalize ? kind.normalize(parsed) : parsed });
   }
 
   // Четвёртый блок — не структура, а решение: эти файлы посмотрели и в карту
@@ -336,7 +336,7 @@ export function evidenceClaims(change: MapChange): EvidenceClaim[] {
       for (const field of kind.fields) {
         if (!field.evidence) continue;
         for (const item of part?.[field.name] ?? []) {
-          const { label, evidence } = field.evidence(item);
+          const claim = field.evidence(item); if (!claim) continue; const { label, evidence } = claim;
           claims.push({ structure: kind.name, side, label, evidence });
         }
       }
@@ -392,7 +392,7 @@ export function annotateEvidenceStatus(map: ProjectMap, read: (path: string) => 
   for (const item of map.codemap.imports) mark(item);
   for (const item of map.dataflow.flows) mark(item);
   for (const item of map.userflow.transitions) mark(item);
-  for (const item of map.userflow.calls) mark(item);
+  for (const item of map.userflow.calls) mark(item); for (const item of map.custom.relations) if (item.evidence) mark(item as CustomRelation & { evidence: Evidence });
 }
 
 /**
@@ -422,7 +422,7 @@ export function annotatePending(map: ProjectMap, pendingMaps: ReadonlySet<string
   for (const item of map.userflow.screens) mark(item);
   for (const item of map.userflow.transitions) markEdge(item);
   for (const item of map.userflow.calls) markEdge(item);
-  for (const item of map.functional.capabilities) mark(item);
+  for (const item of map.functional.capabilities) mark(item); for (const item of map.custom.nodes) mark(item); for (const item of map.custom.relations) markEdge(item);
 }
 
 /**
@@ -441,7 +441,7 @@ export function approvedMaps(records: readonly WorkRecord[]): WorkRecord[] {
 export interface ProjectMap {
   codemap: Required<CodemapPart>;
   dataflow: Required<DataflowPart>;
-  userflow: Required<UserflowPart>;
+  userflow: Required<UserflowPart>; custom: { nodes: CustomNode[]; relations: CustomRelation[] };
   functional: {
     capabilities: NonNullable<FunctionalPart['capabilities']>;
     relations: NonNullable<FunctionalPart['relations']>;
@@ -456,7 +456,7 @@ export function emptyProjectMap(): ProjectMap {
   return {
     codemap: { modules: [], imports: [], groups: [] },
     dataflow: { sources: [], flows: [] },
-    userflow: { screens: [], transitions: [], calls: [] },
+    userflow: { screens: [], transitions: [], calls: [] }, custom: { nodes: [], relations: [] },
     functional: { capabilities: [], relations: [], vision: null },
     from: []
   };
@@ -571,3 +571,84 @@ export function mapDraftText(
   lines.push('## Журнал', '', `- ${today} · заведена черновиком · модель`, '');
   return lines.join(LF);
 }
+
+/**
+ * Пользовательская карта (docs/adr/0028-custom-maps.md): определение — в манифесте,
+ * содержание — блок `docdd-custom`. Узел — как возможность функциональной карты,
+ * плюс `map` и `links`; связь может нести `evidence`, тогда её сверяют с кодом.
+ */
+export interface CustomLinks {
+  capabilities?: string[];
+  modules?: string[];
+  sources?: string[];
+}
+
+export interface CustomNode {
+  /** Какой пользовательской карте принадлежит; в блоке может стоять один раз на весь блок. */
+  map: string;
+  id: string; title?: string; parent?: string; summary?: string;
+  status?: ImplStatus; note?: string;
+  priority?: Priority; horizon?: Horizon;
+  links?: CustomLinks;
+  declaredBy?: string;
+  pending?: boolean;
+}
+
+export interface CustomRelation {
+  map: string;
+  from: string; to: string;
+  /** id вида связи из определения карты, не обязательно один из пяти встроенных. */
+  type: string;
+  summary?: string;
+  evidence?: Evidence;
+  declaredBy?: string;
+  status?: EvidenceVerdict;
+  pending?: boolean;
+}
+
+export interface CustomPart {
+  nodes?: CustomNode[];
+  relations?: CustomRelation[];
+}
+
+export interface CustomChange {
+  /** Карта по умолчанию для элементов блока; после разбора проставлена каждому элементу. */
+  map?: string;
+  added?: CustomPart;
+  removed?: CustomPart;
+}
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// Объявлено функцией, а не константой: реестр собирается выше по файлу, и
+// поднятие объявления избавляет от перестановки строк, на которые ссылаются карты.
+function customKind(): MapKind {
+  return {
+    name: 'custom',
+    validate: validateCustom,
+    // `map` блока — умолчание для элементов: ключи свода (`map:id`) и общая
+    // машина реестра должны видеть карту у каждого элемента, а не искать её у блока.
+    normalize: (data: any) => {
+      const withMap = (part: any) => {
+        if (!part) return part;
+        const fill = (item: any) => ({ ...item, map: item.map ?? data.map });
+        return {
+          ...part,
+          ...(part.nodes ? { nodes: part.nodes.map(fill) } : {}),
+          ...(part.relations ? { relations: part.relations.map(fill) } : {})
+        };
+      };
+      return { ...data, ...(data.added ? { added: withMap(data.added) } : {}), ...(data.removed ? { removed: withMap(data.removed) } : {}) };
+    },
+    fields: [
+      { name: 'nodes', keyOf: (item) => `${item.map}:${item.id}` },
+      {
+        name: 'relations',
+        keyOf: (item) => `${item.map}:${item.from}>${item.to}:${item.type}`,
+        // Свидетельство — по желанию карты (`features: evidence`): связь без него
+        // подтверждается человеком, как функциональная, и в сверку не идёт.
+        evidence: (item) => (item.evidence ? { label: `${item.map}: ${item.from} → ${item.to}`, evidence: item.evidence } : null)
+      }
+    ]
+  };
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */

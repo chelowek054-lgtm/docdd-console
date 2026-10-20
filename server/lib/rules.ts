@@ -223,7 +223,8 @@ export function checkAll(ctx: RuleContext): Violation[] {
     ...requirementUnimplemented(ctx),
     ...docChangedAfterTask(ctx),
     ...taskStale(ctx),
-    ...verificationNeverRun(ctx)
+    ...verificationNeverRun(ctx),
+    ...taskNoVerification(ctx)
   ];
 }
 
@@ -809,13 +810,17 @@ export function taskNoRequirement(ctx: RuleContext): Violation[] {
   return found;
 }
 
-export function taskDoneUnverified(ctx: RuleContext): Violation[] {
+export function taskDoneUnverified(ctx: RuleContext, blockEmpty = false): Violation[] {
   if (!(ctx.policy.require_verification_before_done ?? DEFAULT_POLICY.require_verification_before_done)) {
     return [];
   }
   const found: Violation[] = [];
   for (const task of tasks(ctx)) {
     if (task.status !== 'done') continue;
+    // Закрытые раньше без проверок получают лишь предупреждение; блок — только на переходе.
+    if (blockEmpty && taskVerificationIds(ctx, task).size === 0) {
+      found.push(violation('task_done_unverified', task.id, task.source.path, NO_VERIFICATION_TEXT + '.'));
+    }
     for (const id of task.links.verified_by ?? []) {
       if (!ctx.graph.byId.has(id)) continue;
       const result = ctx.verifications.get(id);
@@ -998,7 +1003,7 @@ export function checkTransition(record: WorkRecord, to: string, ctx: RuleContext
     ];
   }
   if (to === 'done') {
-    return taskDoneUnverified(scoped);
+    return taskDoneUnverified(scoped, true);
   }
   return [];
 }
@@ -1086,4 +1091,36 @@ export function resolvePath(baseDir: string, relative: string): string | null {
 function isInside(root: string, path: string): boolean {
   const normalized = root.replace(/\/+$/, '');
   return normalized === '' || path === normalized || path.startsWith(normalized + '/');
+}
+
+/**
+ * Все проверки задачи: свои `verified_by`, `verified_by` её требований и проверки,
+ * сославшиеся на эти требования через `verifies` (связь можно объявить с любой стороны).
+ */
+function taskVerificationIds(ctx: RuleContext, task: WorkRecord): Set<string> {
+  const ids = new Set<string>(task.links.verified_by ?? []);
+  for (const requirementId of task.links.implements ?? []) {
+    const requirement = ctx.graph.byId.get(requirementId);
+    for (const id of requirement?.links.verified_by ?? []) ids.add(id);
+    for (const edge of incomingEdges(ctx.graph, requirementId, 'verifies')) ids.add(edge.from);
+  }
+  return ids;
+}
+
+const NO_VERIFICATION_TEXT = 'У задачи нет ни одной проверки: ни у её требований, ни своей. Закрытая задача без проверки — обещание, а не факт';
+
+/** Пустое множество проверок не значит «все пройдены» (ADR-0029). Предупреждение, не ошибка: прежние задачи не ломаются. */
+export function taskNoVerification(ctx: RuleContext): Violation[] {
+  const found: Violation[] = [];
+  for (const task of tasks(ctx)) {
+    if (!TASK_READY_AND_BEYOND.includes(task.status)) continue;
+    if (taskVerificationIds(ctx, task).size > 0) continue;
+    found.push(violation(
+      'task_no_verification',
+      task.id,
+      task.source.path,
+      'Задача ' + task.id + ' в статусе `' + task.status + '`: ' + NO_VERIFICATION_TEXT + '. Заведите проверку и свяжите её с требованием (`verified_by`).'
+    ));
+  }
+  return found;
 }

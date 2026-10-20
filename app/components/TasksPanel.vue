@@ -14,6 +14,7 @@ const status = useStatusFilter(statuses);
 const phase = ref<string>('');
 const owner = ref<string>('');
 const tag = ref<string>('');
+const reviewers = useTaskReviewers(tasks, index);
 
 const phases = computed(() => unique(tasks.value.map((task) => task.phase ?? '')));
 const owners = computed(() => unique(tasks.value.map((task) => task.owner ?? '')));
@@ -23,7 +24,7 @@ const shown = computed(() => tasks.value.filter((task) =>
   (!status.value || task.status === status.value)
   && (!phase.value || task.phase === phase.value)
   && (!owner.value || task.owner === owner.value)
-  && (!tag.value || task.tags.includes(tag.value))));
+  && (!tag.value || task.tags.includes(tag.value)) && reviewers.matches(task)));
 
 const selection = useSelection(shown);
 const chunk = useChunked(shown);
@@ -32,9 +33,7 @@ const onBulkDone = (results?: BulkMoved[]) => { selection.clear(); if (results) 
 /** Результаты проверок нужны, чтобы не выдавать объявленное за подтверждённое. */
 const results = computed(() => index.value?.verificationResults ?? {});
 
-function unique(values: string[]): string[] {
-  return [...new Set(values.filter(Boolean))].sort();
-}
+const unique = (values: string[]): string[] => [...new Set(values.filter(Boolean))].sort();
 
 /**
  * Задачи очереди, чья опора ещё не подтверждена: в `ready` они не уйдут, и
@@ -58,8 +57,8 @@ function reset() {
   phase.value = '';
   owner.value = '';
   tag.value = '';
+  reviewers.reviewer.value = '';
 }
-
 </script>
 
 <template>
@@ -70,7 +69,8 @@ function reset() {
       <div class="flex flex-wrap items-center gap-3">
         <h2 class="text-lg font-semibold">Задачи</h2>
         <p class="text-sm text-muted">{{ shown.length }} из {{ tasks.length }}</p>
-        <NewRecord class="ml-auto" :project-id="projectId" type="task" :records="records" @created="refresh" />
+        <ReviewBatchPrompt v-if="status === 'in_review'" class="ml-auto" :project-id="projectId" :visible-ids="shown.map((task) => task.id)" :total="tasks.filter((task) => task.status === 'in_review').length" />
+        <NewRecord :class="status === 'in_review' ? '' : 'ml-auto'" :project-id="projectId" type="task" :records="records" @created="refresh" />
       </div>
 
       <!-- Общие: фильтры ниже на них не влияют (docs/04-ui.md, «Общие шкалы»). -->
@@ -79,10 +79,10 @@ function reset() {
       <StatusTabs v-model="status" :statuses="statuses" :order="TASK_STATUS_ORDER" />
 
       <div class="flex flex-wrap gap-2">
-        <!-- Пустое значение в списке библиотека запрещает: «ничего не выбрано»
-             показывается подсказкой, а снимается кнопкой «Сбросить». -->
+        <!-- Пустое значение USelect запрещает: «ничего не выбрано» — подсказка, снимается «Сбросить». -->
         <USelect v-model="phase" placeholder="Любая фаза" :items="phases.map((p) => ({ label: p, value: p }))" class="w-40" />
         <USelect v-model="owner" placeholder="Любой исполнитель" :items="owners.map((o) => ({ label: o, value: o }))" class="w-48" />
+        <USelect v-model="reviewers.reviewer.value" placeholder="Любой ревьюер" :items="reviewers.reviewers.value" class="w-44" />
         <USelect v-model="tag" placeholder="Любой тег" :items="tags.map((t) => ({ label: t, value: t }))" class="w-40" />
         <UButton variant="ghost" color="neutral" @click="reset">Сбросить</UButton>
       </div>
@@ -176,6 +176,7 @@ function reset() {
               </template>
             </span>
             <span v-else>без проверки</span>
+            <span v-if="reviewers.label(task)">ревьюер: <span class="text-default">{{ reviewers.label(task) }}</span></span>
           </div>
           </div>
         </li>

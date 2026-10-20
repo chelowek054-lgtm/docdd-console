@@ -124,6 +124,16 @@ function entries(
         @changed="reload"
       />
 
+      <!-- Кто принимает задачу: явно или по правилу (docs/adr/0030-task-reviewer.md). -->
+      <TaskReviewer
+        v-if="detail.record.type === 'task'"
+        :project-id="projectId"
+        :task="detail.record"
+        :records="index?.records ?? []"
+        :roles="index?.project.roles ?? []"
+        @changed="reload"
+      />
+
       <!-- Ручная проверка: флажок «Проверено» фиксирует прогон (docs/04-ui.md). -->
       <UCard v-if="detail.record.type === 'verification'">
         <template #header>

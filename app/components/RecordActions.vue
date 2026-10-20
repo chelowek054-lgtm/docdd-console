@@ -17,6 +17,10 @@ const busy = ref('');
 const failure = ref<ApiFailure | null>(null);
 const done = ref('');
 
+/** Закрытие держит ручная проверка — предлагаем принять её вручную (docs/04-ui.md). */
+const acceptOpen = ref(false);
+const unverified = (blockers: { code: string }[] | undefined) => (blockers ?? []).some((blocker) => blocker.code === 'task_done_unverified');
+
 async function run(action: RecordAction) {
   busy.value = action.status;
   failure.value = null;
@@ -81,6 +85,15 @@ async function run(action: RecordAction) {
           <p v-if="!action.allowed" class="min-w-0 flex-1 text-sm text-muted">
             {{ action.blockers.map((blocker) => blocker.message).join(' ') }}
           </p>
+          <UButton
+            v-if="!action.allowed && unverified(action.blockers)"
+            size="xs"
+            variant="soft"
+            icon="i-lucide-hand-helping"
+            @click="acceptOpen = true"
+          >
+            Принять вручную…
+          </UButton>
         </div>
       </li>
     </ul>
@@ -103,6 +116,24 @@ async function run(action: RecordAction) {
       icon="i-lucide-check"
       title="Статус изменён"
       :description="`В журнал добавлено: ${done}`"
+    />
+    <UButton
+      v-if="failure && (failure.code === 'task_done_unverified' || unverified(failure.blockers))"
+      class="mt-2"
+      size="xs"
+      variant="soft"
+      icon="i-lucide-hand-helping"
+      @click="acceptOpen = true"
+    >
+      Принять вручную…
+    </UButton>
+
+    <ManualAcceptModal
+      v-model:open="acceptOpen"
+      :project-id="props.projectId"
+      :task-ids="[props.recordId]"
+      :roles="props.roles"
+      @changed="emit('changed')"
     />
   </UCard>
 </template>
