@@ -150,7 +150,7 @@ const tab = computed({
           :checks="design.checks"
           :developer="mode === 'developer'"
         />
-        <DesignComponents v-else-if="tab === 'components'" :tokens="design.tokens" :missing="design.componentsMissing ?? null" />
+        <DesignComponents v-else-if="tab === 'components'" :tokens="design.tokens" :missing="design.componentsMissing ?? null" :project-id="projectId" />
         <DesignThemeBuilder v-else-if="tab === 'themes'" :project-id="projectId" :tokens="design.tokens" />
         <DesignStacks v-else-if="tab === 'stacks'" :project-id="projectId" />
         <DesignConstructors

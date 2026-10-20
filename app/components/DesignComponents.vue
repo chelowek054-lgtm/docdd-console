@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { COMPONENT_NAMES, type DesignTokens } from '~~/server/lib/design';
 import type { ContractProp } from '~~/server/lib/design-contract';
+import type { CatalogReport } from '~~/server/lib/design-catalog';
 
 /**
  * Реестр обязательных компонентов (docs/16-design-system.md): что объявлено,
@@ -12,9 +13,21 @@ const props = defineProps<{
   tokens: DesignTokens;
   /** Имена компонентов, которых нет в коде; `null` — сверять не с чем. */
   missing: string[] | null;
+  /** Без проекта (глобальный экран) матрицу историй не читаем. */
+  projectId?: string;
 }>();
 
 const { t } = useT();
+
+// Матрица историй: `null` — каталоги в манифесте не объявлены.
+const { data: catalogData } = useFetch<{ report: CatalogReport | null } | { error: unknown }>(
+  () => (props.projectId ? `/api/projects/${props.projectId}/design/catalog` : ''),
+  { key: () => `design-catalog:${props.projectId ?? ''}`, immediate: Boolean(props.projectId) }
+);
+const catalog = computed(() => {
+  const value = catalogData.value;
+  return value && 'report' in value ? value.report : null;
+});
 
 const rows = computed(() => {
   const declared = props.tokens.components.map((item) => ({
@@ -89,6 +102,36 @@ function state(name: string, source: string): { label: string; color: 'success' 
           </template>
         </tbody>
       </table>
+    </div>
+    <div v-if="catalog" class="space-y-2">
+      <h3 class="font-medium">{{ t('dc.matrix.title') }}</h3>
+      <p class="text-sm text-muted">{{ t('dc.matrix.lead') }}</p>
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[32rem] text-left text-sm">
+          <thead class="text-xs text-muted">
+            <tr>
+              <th class="pr-3">{{ t('dc.col.name') }}</th>
+              <th class="pr-3">{{ t('dc.matrix.item') }}</th>
+              <th v-for="column in catalog.columns" :key="column.stack" class="pr-3">
+                {{ column.label }}
+                <span v-if="column.state !== 'ok'" class="text-warning">({{ t(`dc.matrix.state.${column.state}`) }})</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in catalog.rows" :key="`${row.component}:${row.item}`" class="border-t border-default">
+              <td class="py-1 pr-3 font-mono text-xs">{{ row.component }}</td>
+              <td class="py-1 pr-3 text-xs">{{ row.item }}</td>
+              <td v-for="cell in row.cells" :key="cell.stack" class="py-1 pr-3 text-xs" :class="cell.stories.length ? '' : 'text-error'">
+                {{ cell.stories.length ? cell.stories.length : t('dc.matrix.gap') }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <ul v-if="catalog.findings.length" class="list-disc pl-5 text-xs text-muted">
+        <li v-for="(finding, at) in catalog.findings" :key="at"><code>{{ finding.code }}</code> · {{ finding.message }}</li>
+      </ul>
     </div>
   </div>
 </template>

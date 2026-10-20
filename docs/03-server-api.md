@@ -978,6 +978,14 @@ Claude Code не найден или отказал в доступе — `503`;
 "missing": 4, "widths": [375, 768, 1280], "themes": ["light","dark"], "script": "…" }`. Экран берётся из
 подтверждённой карты пользовательских путей; `script` — шаблон скрипта снятия, текстом.
 
+### `GET /api/projects/:id/design/catalog`
+
+Матрица историй по выгрузкам каталогов (`design.catalog`, `design.stacks[].catalog`): `{ "report": { "columns":
+[{ "stack": "storybook", "label": "…", "path": "…/index.json", "state": "ok", "stories": 12 }], "rows": [{ "component":
+"Button", "item": "disabled", "kind": "state", "cells": [{ "stack": "storybook", "stories": ["button--disabled"] }] }],
+"findings": [{ "code": "design_story_missing", "stack": "expo", "component": "Button", "message": "…" }] } }`.
+Каталоги в манифесте не объявлены — `{ "report": null }`. Storybook не запускается, файлы только читаются.
+
 ### `POST /api/projects/:id/design/findings/preview`
 
 Тело `{ "answer": "…ответ модели с блоком docdd-design-findings…" }`. Разбирает находки, ничего не пишет:

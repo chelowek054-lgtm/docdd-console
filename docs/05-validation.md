@@ -130,6 +130,8 @@ flowchart LR
 | `design_conflict` | warning | Блок `docdd-design` противоречит более раннему уровню, и ключа нет в `overrides` |
 | `design_theme_drift` | warning | Файл темы проекта расходится с выгрузкой токенов |
 | `design_component_missing` | warning | Компонента из реестра дизайна нет в коде проекта |
+| `design_story_missing` | warning | В каталоге историй проекта или стека нет истории для варианта или состояния из контракта компонента, либо самого каталога нет ([16-design-system.md](16-design-system.md), «Storybook как контракт») |
+| `design_contract_drift` | warning | Свойства историй стека расходятся с контрактом, либо в каталоге есть история компонента, которого нет в реестре |
 | `design_screen_finding` | warning | Находка проверки экранов моделью (Responsive или Pixel-Perfect): экран, ширина, тема |
 
 Покрытие называется числом: «проверено 412 из 479 импортов» — файлы языков без

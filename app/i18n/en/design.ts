@@ -246,5 +246,12 @@ export const design: Record<string, string> = {
   'dc.contract.props': 'Props',
   'dc.contract.slots': 'Slots',
   'dc.contract.events': 'Events',
-  'dc.contract.logic': 'Logic is inseparable'
+  'dc.contract.logic': 'Logic is inseparable',
+  'dc.matrix.title': 'Stories by stack',
+  'dc.matrix.lead': 'Component × state (variant) × stack. Catalogs are read from the project CI exports; the console never runs Storybook.',
+  'dc.matrix.item': 'Contract item',
+  'dc.matrix.gap': 'no story',
+  'dc.matrix.state.missing': 'no catalog',
+  'dc.matrix.state.invalid': 'unreadable',
+  'dc.matrix.findings': 'Findings'
 };

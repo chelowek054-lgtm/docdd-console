@@ -246,5 +246,12 @@ export const design: Record<string, string> = {
   'dc.contract.props': 'Свойства',
   'dc.contract.slots': 'Слоты',
   'dc.contract.events': 'События',
-  'dc.contract.logic': 'Логика неотделима'
+  'dc.contract.logic': 'Логика неотделима',
+  'dc.matrix.title': 'Истории по стекам',
+  'dc.matrix.lead': 'Компонент × состояние (вариант) × стек. Каталоги читаются из выгрузок CI проекта; консоль Storybook не запускает.',
+  'dc.matrix.item': 'Пункт контракта',
+  'dc.matrix.gap': 'нет истории',
+  'dc.matrix.state.missing': 'каталога нет',
+  'dc.matrix.state.invalid': 'не разобрался',
+  'dc.matrix.findings': 'Находки'
 };

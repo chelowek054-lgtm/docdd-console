@@ -135,6 +135,8 @@ export type ViolationCode =
   | 'design_theme_drift'
   | 'design_component_missing'
   | 'design_screen_finding'
+  | 'design_story_missing'
+  | 'design_contract_drift'
   // выполнение
   | 'work_unreviewed'
   | 'work_branch_orphan'
@@ -233,6 +235,8 @@ export const VIOLATION_LEVELS: Readonly<Record<ViolationCode, Severity>> = {
   design_theme_drift: 'warning',
   design_component_missing: 'warning',
   design_screen_finding: 'warning',
+  design_story_missing: 'warning',
+  design_contract_drift: 'warning',
   work_unreviewed: 'warning',
   work_branch_orphan: 'warning',
   task_not_ready_docs: 'error',
@@ -360,7 +364,7 @@ export interface ProjectManifest {
 }
 
 export interface DesignManifest {
-  stacks?: { id: 'nuxt-ui' | 'expo' | 'compose' | 'swiftui'; files?: Record<string, string>; package?: string }[];
+  stacks?: { id: 'nuxt-ui' | 'expo' | 'compose' | 'swiftui'; files?: Record<string, string>; package?: string; /** Выгрузка каталога историй стека из CI. */ catalog?: string }[]; /** Выгрузка Storybook проекта: `index.json` или каталог с ним. */ catalog?: string; /** Каталог снимков историй: `<каталог>/<стек>/<id истории>.png`. */ snapshots?: string;
   /** Каталог снимков экранов от корня проекта. */
   screens?: string;
   /** Каталог эталонных макетов экранов. */

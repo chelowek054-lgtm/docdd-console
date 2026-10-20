@@ -396,6 +396,32 @@ docs/development/design/mockups/<экран>.png                       # эта�
 Разбор — `server/lib/design-contract.ts`; ошибки контракта — `design_block_invalid`.
 Контракт виден на экране «Дизайн», вкладка «Компоненты».
 
+## Storybook как контракт
+
+Storybook проекта — эталон и шаблон переноса (R-0054…R-0057;
+[inbox/принятое/storybook-kak-kontrakt-komponentov-pri-perenose.md](inbox/принятое/storybook-kak-kontrakt-komponentov-pri-perenose.md)).
+**Консоль его не запускает и своей базы не заводит**: читает выгрузки, которые собирает
+CI проекта. Включается манифестом ([02-workspace-contract.md](02-workspace-contract.md)):
+`design.catalog` — выгрузка Storybook проекта, `design.stacks[].catalog` — выгрузка
+каталога стека (Storybook RN, Compose `@Preview`/Showkase, SwiftUI Previews, приведённая CI к
+тому же виду). Значение — файл `index.json` или каталог с ним.
+
+**Формат.** `index.json` Storybook 7+ (`entries`) или прежний (`stories`). Компонент истории —
+последний сегмент `title` (`Components/Button` → `Button`), а пункт контракта показан, если все
+слова пункта (вариант или состояние) есть в имени истории (`Outline Disabled` показывает
+`disabled`). Необязательные `args`/`argTypes` записи дают имена свойств для сверки.
+
+**Матрица** «компонент × состояние (вариант) × стек» — на экране «Дизайн», вкладка
+«Компоненты». Компонент без вариантов и состояний обязан иметь хотя бы одну историю.
+
+| Код | Когда |
+|---|---|
+| `design_story_missing` | у пункта контракта нет истории в каталоге; каталог назван, но файла нет или он не разобрался |
+| `design_contract_drift` | свойства историй не из контракта или нет обязательных (`required`); в каталоге есть компонент, которого нет в реестре |
+
+Разбор и сверка — `server/lib/design-catalog.ts`, чистые функции; чтение файлов —
+`server/utils/design-catalog-service.ts`, `GET /api/projects/:id/design/catalog`.
+
 ## Что не делает
 
 - Не правит дизайн проекта сам и не пишет в файлы темы.
