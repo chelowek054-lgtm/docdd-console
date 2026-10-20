@@ -226,7 +226,7 @@ function text(value: unknown): string | undefined {
 
 function asCapability(value: unknown): {
   id: string; title?: string; parent?: string; summary?: string; status?: string; note?: string;
-  priority?: string; horizon?: string;
+  priority?: string; horizon?: string; dashboards?: string[];
 } | null {
   if (!value || typeof value !== 'object') return null;
   const raw = value as Record<string, unknown>;
@@ -243,7 +243,7 @@ function asCapability(value: unknown): {
     ...(text(raw['note']) ? { note: text(raw['note']) as string } : {}),
     // Как и `status`: незнакомое значение схема отвергнет и назовёт причину.
     ...(text(raw['priority']) ? { priority: text(raw['priority']) as string } : {}),
-    ...(text(raw['horizon']) ? { horizon: text(raw['horizon']) as string } : {})
+    ...(text(raw['horizon']) ? { horizon: text(raw['horizon']) as string } : {}), ...(Array.isArray(raw['dashboards']) && raw['dashboards'].some((url) => typeof url === 'string' && /^https?:\/\//.test(url.trim())) ? { dashboards: raw['dashboards'].filter((url): url is string => typeof url === 'string' && /^https?:\/\//.test(url.trim())).map((url) => url.trim()) } : {})
   };
 }
 

@@ -68,6 +68,11 @@
         "horizon": {
           "enum": ["now", "next", "later"],
           "description": "Когда нужна: now — в работе или берём следующей, next — после того, что сейчас, later — не в ближайших шагах. Нет поля — «без горизонта». Наследуется вниз, как priority."
+        },
+        "dashboards": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^https?://" },
+          "description": "Ссылки на панели Grafana, которые показывают, как возможность живёт в проде (R-0065)."
         }
       }
     }
