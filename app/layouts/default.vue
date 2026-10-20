@@ -215,7 +215,7 @@ function isActive(to: string): boolean {
 
         <div class="ml-auto flex shrink-0 items-center gap-1">
           <!-- Доступно всегда: инструкция нужна раньше, чем выбран проект. -->
-          <ModelJobsBar />
+          <ModelJobsBar /><NotificationsBell />
           <UButton
             to="/usage"
             :variant="route.path === '/usage' ? 'soft' : 'ghost'"

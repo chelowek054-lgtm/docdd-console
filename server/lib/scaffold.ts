@@ -249,7 +249,7 @@ export function manifestYaml(input: ManifestInput, eol = '\n'): string {
     `  inbox: [${input.inbox ?? DEFAULT_INBOX}]`,
     'roles:',
     '  - id: architect',
-    '    name: Архитектор',
+    '    name: Архитектор', ...EXTRA_ROLE_LINES,
     'policy:',
     '  require_approved_docs_before_dev: true',
     '  require_verification_before_done: true',
@@ -421,3 +421,15 @@ export function claudeMd(input: ManifestInput, eol = NEW_LINE): string {
 export function isRecordType(value: string): value is RecordType {
   return (RECORD_TYPES as readonly string[]).includes(value);
 }
+
+/**
+ * Роли команды сверх архитектора (R-0058). Вынесены в конец файла и вставлены в
+ * ту же строку шаблона: так не сдвигаются строки, на которые ссылаются карты.
+ */
+const EXTRA_ROLE_LINES: readonly string[] = [
+  '  - id: developer', '    name: Разработчик',
+  '  - id: designer', '    name: Дизайнер',
+  '  - id: qa', '    name: Тестировщик',
+  '  - id: devops', '    name: Девопс',
+  '  - id: support', '    name: Сопровождение'
+];
