@@ -6,7 +6,7 @@ status: planned
 created: 2026-10-10
 updated: 2026-10-20
 links:
-  covers: [T-0012, T-0013, T-0014, T-0015, T-0017, T-0016, T-0018]
+  covers: [T-0012, T-0013, T-0014, T-0015, T-0017, T-0016, T-0018, T-0045]
 rank: 4
 ---
 
