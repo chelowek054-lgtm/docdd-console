@@ -2,7 +2,7 @@
 id: T-0127
 type: task
 title: Запись о дефекте
-status: backlog
+status: in_progress
 change: feature
 reuse: none
 created: 2026-10-20
@@ -19,3 +19,5 @@ links:
 ## Журнал
 
 - 2026-10-20 · заведена из docs/inbox/rabochee-mesto-testirovschika-shagi-progony-defe.md · приложение
+- 2026-10-20 · готова к работе · architect
+- 2026-10-20 · в разработку · architect

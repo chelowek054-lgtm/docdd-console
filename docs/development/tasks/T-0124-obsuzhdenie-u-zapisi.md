@@ -2,7 +2,7 @@
 id: T-0124
 type: task
 title: Обсуждение у записи
-status: backlog
+status: in_progress
 change: feature
 reuse: none
 created: 2026-10-20
@@ -19,3 +19,5 @@ links:
 ## Журнал
 
 - 2026-10-20 · заведена из docs/inbox/uvedomleniya-i-obsuzhdenie-u-zapisey.md · приложение
+- 2026-10-20 · готова к работе · architect
+- 2026-10-20 · в разработку · architect
