@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script setup lang="ts"> const { me } = useMe(() => "");
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import type { ProjectEntry } from '~~/server/lib/types';
 
@@ -94,7 +94,7 @@ function shortDate(iso: string): string {
 <template>
   <div class="space-y-6">
     <div>
-      <h1 class="text-xl font-semibold">{{ t('home.title') }}</h1>
+      <h1 class="text-xl font-semibold">{{ t('home.title') }}</h1><NuxtLink v-if="me.user?.admin" to="/people" class="text-sm text-primary hover:underline">Люди</NuxtLink>
       <p class="text-sm text-muted">{{ t('home.lead') }}</p>
     </div>
 
