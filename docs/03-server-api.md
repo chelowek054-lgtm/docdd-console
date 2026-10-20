@@ -1088,3 +1088,7 @@ matter. **Текст документа не меняется** — ни стр�
 ### GET /api/projects/:id/records/:recordId/map-diff
 
 Разница карты на схеме (R-0069). Ответ: `{ recordId, structures: [{ structure, nodes: [{ key, id, title, parent?, mark, fields }], edges: [{ key, from, to, label, mark }] }] }`, где `mark` — `added | removed | changed | same`. «Было» — сложенная картина подтверждённых карт до этой записи, «станет» — вместе с ней; структуры, которых запись не касается, не приходят. Логика — `server/lib/map-diff.ts`.
+
+### GET /api/projects/:id/design/record-diff?record=ID
+
+Разница токенов записи дизайна (R-0073): `{ palette: [{ theme, rows: [{ role, before, after, state }] }], contrast: [{ theme, pair, before, after, okBefore, okAfter, min, regressed }], stacks: [{ id, label, files: [{ key, defaultPath, state, diff }] }] }`. «Было» — подтверждённые записи без этой, «станет» — вместе с ней. Логика — `server/lib/design-diff.ts`.
