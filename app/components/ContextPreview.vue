@@ -6,7 +6,7 @@ import type { ApiFailure } from '~/composables/useProjectIndex';
  * оценка цены до отправки. Снятая галочка исключает кусок из запроса.
  */
 const props = defineProps<{ projectId: string; centerId: string; need?: string }>();
-const emit = defineEmits<{ ready: [prompt: string] }>();
+const emit = defineEmits<{ ready: [prompt: string]; exclude: [keys: string[]] }>();
 
 interface Chunk { key: string; kind: string; title: string; why: string; size: number; confidential: boolean; excluded: boolean; withheld: boolean }
 interface Preview { chunks: Chunk[]; cut: { key: string; title: string; size: number }[]; size: number; budget: number; tokens: number; costUsd: number; prompt: string }
@@ -27,7 +27,7 @@ async function load() {
     });
     if ('error' in response) { failure.value = response.error; return; }
     preview.value = response;
-    emit('ready', response.prompt);
+    emit('ready', response.prompt); emit('exclude', excluded.value);
   } catch (error) {
     failure.value = { code: 'network', message: 'Не удалось собрать пакет контекста', detail: String(error) };
   } finally {
