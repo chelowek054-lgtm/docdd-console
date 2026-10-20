@@ -1341,7 +1341,7 @@ async function onCustomCreated(definition: CustomMapDefinition) {
       <!-- Все карты — одной строкой с прокруткой: встроенные (плашки), затем
            пользовательские (подчёркнутые) и «Новая карта». Вид разный нарочно:
            встроенные заданы консолью, свои — проектом. -->
-      <div class="flex flex-nowrap items-center gap-3 overflow-x-auto pb-1">
+      <div class="ds-scroll flex flex-nowrap items-center gap-3 overflow-x-auto pb-2">
         <UTabs
           v-if="map && map.from.length > 0"
           :model-value="customShown ? '' : shown"
