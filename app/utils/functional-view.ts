@@ -5,6 +5,7 @@ import {
   consistencyFlags,
   dependsCycle,
   effectiveHorizon,
+  effectiveOwner,
   effectivePriority,
   impactOf,
   replacedBy,
@@ -57,7 +58,7 @@ export interface CapabilityView {
   inCycle: boolean;
   /** Эффективные приоритет и горизонт: свои или унаследованные от родителя. */
   priority: Effective<Priority> | null;
-  horizon: Effective<Horizon> | null;
+  horizon: Effective<Horizon> | null; owner?: { value: string; inherited: boolean; from: string } | null;
   /** Кто её заменяет (входящая `replaces`). */
   replacedBy: string[];
   /** Сколько не реализованных возможностей стоят за ней по цепочке `depends`. */
@@ -107,7 +108,7 @@ export function capabilityViews(
       waiting: own,
       inCycle,
       priority: effectivePriority(item, byId),
-      horizon: effectiveHorizon(item, byId),
+      horizon: effectiveHorizon(item, byId), owner: effectiveOwner(item, byId),
       replacedBy: replaced.get(item.id) ?? [],
       unblocks: unblocks.get(item.id) ?? 0,
       reliesOn: impact.reliesOn.length,

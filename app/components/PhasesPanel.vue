@@ -55,6 +55,7 @@ const counts = computed(() => Object.fromEntries(PHASE_FILTERS.map((item) => [it
               <span v-if="mode === 'importance' && rankOf(item.phase)" class="font-mono text-xs text-muted" title="Место по важности">№{{ rankOf(item.phase) }}</span>
               <RecordLink :project-id="projectId" :record-id="item.phase.id" :record="item.phase" />
               <LightBadge :color="statusColor(item.state)" variant="subtle">{{ statusLabel(item.state) }}</LightBadge>
+              <span v-if="item.phase.owner" class="text-xs text-muted" title="Владелец фазы">{{ item.phase.owner }}</span>
               <span v-if="item.total" class="ml-auto text-sm text-muted">
                 закрыто {{ item.done }} из {{ item.total }}
               </span>

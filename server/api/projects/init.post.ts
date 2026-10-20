@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { defineEventHandler, readBody } from 'h3';
 
 import { normalizeRoot } from '../../lib/paths';
-import { claudeMd, DEFAULT_PATHS, fileNameFor, gitignoreWithDocdd, manifestYaml, recordTemplate } from '../../lib/scaffold';
+import { claudeMd, DEFAULT_PATHS, fileNameFor, gitignoreWithDocdd, manifestYaml, recordTemplate, VISION_STUB } from '../../lib/scaffold';
 import type { SectionKey } from '../../lib/types';
 import { developmentDir, hasWorkspace, MANIFEST_FILE } from '../../lib/workspace';
 import { fail } from '../../utils/http';
@@ -71,6 +71,9 @@ export default defineEventHandler(async (event) => {
       recordTemplate(first),
       'utf8'
     );
+
+    // Вектор-заготовка: функциональная карта с `vision` (черновик, подтверждает человек).
+    writeFileSync(join(development, DEFAULT_PATHS.maps, fileNameFor('M-0001', 'Функциональная карта')), recordTemplate({ id: 'M-0001', type: 'map', title: 'Функциональная карта', today: today(), vision: VISION_STUB }), 'utf8');
 
     // Правила для модели — в корень проекта. Файл уже есть — не трогаем его
     // вовсе: это чужие правила, и заводить формат не значит их переписывать.
