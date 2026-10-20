@@ -99,7 +99,7 @@ const title = (id: string) => props.titles[id] ?? id;
 
       <div class="flex flex-wrap items-center gap-3">
         <USelect v-if="(roles.length) && !me.required" v-model="actor" size="sm" class="w-44" :items="roles.map((role) => ({ label: role.name, value: role.id }))" /><span v-if="me.required && me.user" class="text-sm text-muted">Вошли: {{ me.user.name }}</span>
-        <UButton size="sm" icon="i-lucide-list-ordered" :loading="applying" :disabled="done !== null" @click="apply">Применить порядок</UButton>
+        <UButton v-can="'reorder'" size="sm" icon="i-lucide-list-ordered" :loading="applying" :disabled="done !== null" @click="apply">Применить порядок</UButton>
         <p v-if="done" class="text-sm text-success">Записан порядок: фаз изменено {{ done.length }}.</p>
         <p v-else class="text-xs text-muted">Запишет rank у фаз и порядок covers; в журнале каждой изменённой фазы — строка.</p>
       </div>

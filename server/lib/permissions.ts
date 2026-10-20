@@ -68,7 +68,7 @@ export function actionFor(method: string, path: string): Action {
   const verb = method.toUpperCase();
   if (verb === 'GET' || verb === 'HEAD' || verb === 'OPTIONS') return 'read';
   // Предпросмотр ничего не пишет.
-  if (/\/preview\/?$/.test(path)) return 'read';
+  if (/\/preview\/?$/.test(path) || /\/progress-question\/?$/.test(path)) return 'read';
   if (/^\/api\/projects\/?$/.test(path) || /^\/api\/projects\/init\/?$/.test(path) || /^\/api\/projects\/[^/]+\/?$/.test(path)) {
     return 'admin';
   }

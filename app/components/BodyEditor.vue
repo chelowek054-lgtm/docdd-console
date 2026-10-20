@@ -97,7 +97,7 @@ async function save() {
           class="ml-auto w-48"
           :items="roles.map((role) => ({ label: role.name, value: role.id }))"
         /><span v-if="me.required && me.user" class="text-sm text-muted">Вошли: {{ me.user.name }}</span>
-        <UButton v-if="!editing && !locked" size="sm" variant="ghost" class="ml-auto" @click="startEdit">
+        <UButton v-can="'edit_draft'" v-if="!editing && !locked" size="sm" variant="ghost" class="ml-auto" @click="startEdit">
           Редактировать
         </UButton>
       </div>
@@ -122,7 +122,7 @@ async function save() {
       />
       <UTextarea v-model="draft" :rows="16" autoresize class="w-full font-mono text-sm" />
       <div class="mt-3 flex items-center gap-2">
-        <UButton :loading="busy" :disabled="stale" @click="save">Сохранить</UButton>
+        <UButton v-can="'edit_draft'" :loading="busy" :disabled="stale" @click="save">Сохранить</UButton>
         <UButton variant="ghost" color="neutral" :disabled="busy" @click="cancel">Отменить</UButton>
       </div>
     </template>

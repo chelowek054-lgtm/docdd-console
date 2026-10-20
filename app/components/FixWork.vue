@@ -82,7 +82,7 @@ async function decide(action: 'accept' | 'reject') {
 <template>
   <div class="mt-4 space-y-3 border-t border-default pt-4">
     <div class="flex flex-wrap items-center gap-3">
-      <UButton v-if="!running" icon="i-lucide-check" @click="apply">
+      <UButton v-can="'work'" v-if="!running" icon="i-lucide-check" @click="apply">
         {{ state?.started ? 'Починить заново' : 'Принять ответ' }}
       </UButton>
 
@@ -132,10 +132,10 @@ async function decide(action: 'accept' | 'reject') {
       <pre class="max-h-96 overflow-auto rounded bg-elevated p-3 text-xs">{{ state.diff }}</pre>
 
       <div class="flex flex-wrap items-center gap-3">
-        <UButton color="primary" :loading="busy === 'accept'" :disabled="!!refused" @click="decide('accept')">
+        <UButton v-can="'work'" color="primary" :loading="busy === 'accept'" :disabled="!!refused" @click="decide('accept')">
           Принять и слить
         </UButton>
-        <UButton variant="ghost" color="neutral" :loading="busy === 'reject'" @click="decide('reject')">
+        <UButton v-can="'work'" variant="ghost" color="neutral" :loading="busy === 'reject'" @click="decide('reject')">
           Отклонить
         </UButton>
         <p class="min-w-0 flex-1 text-sm text-muted">

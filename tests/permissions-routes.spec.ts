@@ -46,6 +46,7 @@ const EXPECTED: Record<string, Action> = {
   'POST /api/projects/x/phases/preview': 'read',
   'POST /api/projects/x/priority/apply': 'reorder',
   'POST /api/projects/x/priority/preview': 'read',
+  'POST /api/projects/x/progress-question': 'read', // единственный вопрос к модели у наблюдателя: без инструментов
   'POST /api/projects/x/prompt': 'model',
   'POST /api/projects/x/records/bulk/link-map': 'edit_draft',
   'POST /api/projects/x/records/bulk/status': 'approve',

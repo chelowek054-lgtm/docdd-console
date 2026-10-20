@@ -105,7 +105,7 @@ async function afterWork(result: { answer?: string }, action: string) {
     </template>
 
     <div class="flex flex-wrap items-center gap-3">
-      <UButton
+      <UButton v-can="'work'"
         v-if="!working"
         :disabled="!canHandOver || !llm?.available"
         icon="i-lucide-play"
@@ -167,7 +167,7 @@ async function afterWork(result: { answer?: string }, action: string) {
 
       <div class="mt-4 space-y-3">
         <div class="flex flex-wrap items-center gap-3">
-          <UButton
+          <UButton v-can="'work'"
             color="primary"
             :loading="busy === 'accept'"
             :disabled="state.forbidden.length > 0"
@@ -175,7 +175,7 @@ async function afterWork(result: { answer?: string }, action: string) {
           >
             Принять и слить
           </UButton>
-          <UButton
+          <UButton v-can="'work'"
             variant="outline"
             color="neutral"
             :loading="busy === 'rework'"
@@ -184,7 +184,7 @@ async function afterWork(result: { answer?: string }, action: string) {
           >
             На доработку
           </UButton>
-          <UButton variant="ghost" color="neutral" :loading="busy === 'reject'" @click="act('reject')">
+          <UButton v-can="'work'" variant="ghost" color="neutral" :loading="busy === 'reject'" @click="act('reject')">
             Отклонить
           </UButton>
         </div>

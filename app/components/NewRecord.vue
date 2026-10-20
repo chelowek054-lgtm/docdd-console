@@ -78,7 +78,7 @@ async function create() {
 
 <template>
   <div>
-    <UButton size="sm" icon="i-lucide-plus" variant="soft" @click="open = !open">
+    <UButton v-can="'edit_draft'" size="sm" icon="i-lucide-plus" variant="soft" @click="open = !open">
       Новая запись
     </UButton>
 
@@ -106,7 +106,7 @@ async function create() {
           статус меняется действиями на её экране.
         </p>
         <div class="flex gap-2">
-          <UButton :loading="busy" :disabled="!title.trim() || (props.type === 'reference' && !summary.trim())" @click="create">Создать</UButton>
+          <UButton v-can="'edit_draft'" :loading="busy" :disabled="!title.trim() || (props.type === 'reference' && !summary.trim())" @click="create">Создать</UButton>
           <UButton variant="ghost" color="neutral" @click="open = false">Отмена</UButton>
         </div>
 
