@@ -15,12 +15,34 @@ const props = defineProps<{
 }>();
 
 const open = ref(false);
-const agents = ref(3);
 // По умолчанию — столько, чтобы одна волна взяла все задачи (в пределах 20 на агента).
-const perAgent = ref(Math.min(20, Math.max(1, Math.ceil((props.total || 1) / 3))));
+const onlyFiltered = ref(false);
+/** Сколько задач берётся в проверку: все «на проверке» или только видимые под фильтрами. */
+const taskCount = computed(() => (onlyFiltered.value ? props.visibleIds.length : props.total));
+
+/**
+ * Числа считаются от количества задач на проверке: на агента — не больше пяти
+ * (столько агент успевает проверить внимательно), агентов — сколько нужно, чтобы
+ * хватило одной волны, но не больше десяти; задач больше — идут волны. Поле,
+ * поправленное руками, больше не пересчитывается, пока не нажато «авто».
+ */
+const PER_AGENT_TARGET = 5;
+const MAX_AGENTS = 10;
+const agentsManual = ref<number | null>(null);
+const perAgentManual = ref<number | null>(null);
+const autoAgents = computed(() => Math.min(MAX_AGENTS, Math.max(1, Math.ceil(taskCount.value / PER_AGENT_TARGET))));
+const agents = computed({
+  get: () => agentsManual.value ?? autoAgents.value,
+  set: (value: number) => { agentsManual.value = value; }
+});
+const autoPerAgent = computed(() => Math.min(PER_AGENT_TARGET, Math.max(1, Math.ceil(taskCount.value / Math.max(1, Number(agents.value) || 1)))));
+const perAgent = computed({
+  get: () => perAgentManual.value ?? autoPerAgent.value,
+  set: (value: number) => { perAgentManual.value = value; }
+});
+const waves = computed(() => Math.max(1, Math.ceil(taskCount.value / Math.max(1, Number(agents.value) * Number(perAgent.value)))));
 const minutes = ref(10);
 const branch = ref(`review/${new Date().toISOString().slice(0, 10)}`);
-const onlyFiltered = ref(false);
 
 const prompt = ref('');
 const count = ref(0);
@@ -90,18 +112,24 @@ async function copy() {
       <form class="space-y-4" @submit.prevent="build">
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <UFormField label="Агентов">
-            <UInput v-model.number="agents" type="number" :min="1" :max="10" class="w-full" />
+            <div class="flex items-center gap-2">
+              <UInput v-model.number="agents" type="number" :min="1" :max="10" class="w-full" />
+              <UButton v-if="agentsManual !== null" size="xs" variant="ghost" color="neutral" label="авто" title="Считать от числа задач на проверке" @click="agentsManual = null" />
+            </div>
           </UFormField>
           <UFormField label="Задач на агента">
-            <UInput v-model.number="perAgent" type="number" :min="1" :max="20" class="w-full" />
+            <div class="flex items-center gap-2">
+              <UInput v-model.number="perAgent" type="number" :min="1" :max="20" class="w-full" />
+              <UButton v-if="perAgentManual !== null" size="xs" variant="ghost" color="neutral" label="авто" title="Считать от числа задач на проверке" @click="perAgentManual = null" />
+            </div>
           </UFormField>
           <UFormField label="Минут на задачу">
             <UInput v-model.number="minutes" type="number" :min="1" :max="60" class="w-full" />
           </UFormField>
         </div>
         <p class="text-sm text-muted">
-          Проверяются все {{ onlyFiltered ? visibleIds.length : total }} задач: за волну — {{ agents * perAgent }},
-          волн — {{ Math.max(1, Math.ceil((onlyFiltered ? visibleIds.length : total) / Math.max(1, agents * perAgent))) }}.
+          Проверяются все {{ taskCount }} задач «на проверке»: {{ agents }} агентов по {{ perAgent }}, за волну — {{ agents * perAgent }}, волн — {{ waves }}.
+          <template v-if="agentsManual === null && perAgentManual === null">Считается от числа задач: до 5 на агента.</template>
         </p>
         <UFormField label="Ветка проверки" hint="латиница, цифры и ._/-">
           <UInput v-model="branch" class="w-full font-mono" />
