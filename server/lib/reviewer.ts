@@ -96,7 +96,7 @@ export function reviewerOf(
   const kinds = new Set(taskChecks(task, records, lookup).map((check) => String(check.extra['kind'] ?? '')));
   const change = String(task.extra['change'] ?? '');
   const candidates: Candidate[] = [
-    ...BY_KIND.filter(([kind]) => kinds.has(kind)).map(([, role, why]): Candidate => [role, why]),
+    ...EXTRA_BY_KIND.filter(([kind, role]) => kinds.has(kind) && known.has(role)).map(([, role, why]): Candidate => [role, why]), ...BY_KIND.filter(([kind]) => kinds.has(kind)).map(([, role, why]): Candidate => [role, why]),
     BY_CHANGE[change] ?? ['developer', change ? `изменение ${change} — второй взгляд разработчика` : 'второй взгляд разработчика'],
     ...FALLBACK
   ];
@@ -108,3 +108,14 @@ export function reviewerOf(
 export function roleName(role: string, roles: readonly { id: string; name: string }[]): string {
   return roles.find((item) => item.id === role)?.name ?? role;
 }
+
+/**
+ * Роли R-0058: приёмку вручную ведёт тестировщик, экраны и дизайн — дизайнер.
+ * Берутся только если роль есть в манифесте: проект без них работает как раньше.
+ * Лежит в конце файла, чтобы не сдвигать строки со свидетельствами карт.
+ */
+const EXTRA_BY_KIND: readonly [kind: string, role: string, why: string][] = [
+  ['manual', 'qa', 'ручная проверка — приёмка тестировщиком'],
+  ['design', 'designer', 'проверка дизайна — приёмка дизайнером'],
+  ['screens', 'designer', 'экраны — приёмка дизайнером']
+];
