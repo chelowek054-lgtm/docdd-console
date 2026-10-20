@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import type { BulkMoved } from '~/composables/useProjectIndex';
 // Вкладка «Проверки» экрана «Сверка»: проверки, результат, нарушения и граф на одном экране (docs/04-ui.md, «Навигация»).
 const route = useRoute();
 const projectId = computed(() => String(route.params['id'] ?? ''));
 
-const { index, failure, records, refresh } = useProjectIndex(projectId);
+const { index, failure, records, refresh, patchStatuses } = useProjectIndex(projectId);
 
 const listed = computed(() => records.value.filter((record) => record.type === 'verification'));
 const statuses = computed(() => listed.value.map((record) => record.status));
@@ -11,6 +12,10 @@ const status = useStatusFilter(statuses);
 const checks = computed(() => (status.value ? listed.value.filter((record) => record.status === status.value) : listed.value));
 const results = computed(() => index.value?.verificationResults ?? {});
 const selection = useSelection(checks);
+// Порциями: сотни проверок разом тормозят отрисовку.
+const chunk = useChunked(checks);
+// Статус обновляем строкой из ответа, а не перечитыванием всего индекса (R-0041).
+const onBulkDone = (results?: BulkMoved[]) => { selection.clear(); if (results) patchStatuses(results); else void refresh(); };
 
 /** Что проверяет: связь ставится в обе стороны, показываем как одно множество. */
 function verifiesOf(check: (typeof checks.value)[number]): string[] {
@@ -37,7 +42,7 @@ function verifiesOf(check: (typeof checks.value)[number]): string[] {
         :total="checks.length"
         :roles="index?.project.roles ?? []"
         kind="document"
-        @done="selection.clear(); refresh()"
+        @done="onBulkDone"
       />
 
       <div v-if="listed.length === 0" class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted">
@@ -62,7 +67,7 @@ function verifiesOf(check: (typeof checks.value)[number]): string[] {
             </tr>
           </thead>
           <tbody class="divide-y divide-default">
-            <tr v-for="check in checks" :key="check.path">
+            <tr v-for="check in chunk.visible.value" :key="check.path">
               <td class="p-3">
                 <UCheckbox
                   :model-value="selection.has(check.id)"
@@ -117,6 +122,9 @@ function verifiesOf(check: (typeof checks.value)[number]): string[] {
             </tr>
           </tbody>
         </table>
+        <div v-if="chunk.rest.value > 0" class="border-t border-default p-3 text-center">
+          <UButton variant="ghost" color="neutral" @click="chunk.more()">Показать ещё {{ Math.min(chunk.step, chunk.rest.value) }}</UButton>
+        </div>
       </div>
     </template>
   </div>
