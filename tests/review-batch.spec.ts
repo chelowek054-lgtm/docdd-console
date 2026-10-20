@@ -115,14 +115,14 @@ describe('маршрут review-batch (числа и ветка)', () => {
     expect(source).toContain('bounded(body?.agents, 1, 10, 3)');
     expect(source).toContain('bounded(body?.perAgent, 1, 20, 4)');
     expect(source).toContain('bounded(body?.minutes, 1, 60, 10)');
-    const pattern = /\/\^\[A-Za-z0-9\._\/-\]\+\$\//.test(source);
-    expect(pattern).toBe(true);
+    // Имя не начинается с «-»: в команде git оно сошло бы за опцию.
+    expect(source).toContain('/^[A-Za-z0-9._][A-Za-z0-9._/-]*$/.test(branch)');
     expect(source).toContain("branch.includes('..')");
     expect(source).toContain("'branch_invalid'");
 
     // Само правило — то же выражение, что в маршруте.
-    const valid = (name: string) => /^[A-Za-z0-9._/-]+$/.test(name) && !name.includes('..');
+    const valid = (name: string) => /^[A-Za-z0-9._][A-Za-z0-9._/-]*$/.test(name) && !name.includes('..');
     expect(valid('review/2026-10-20')).toBe(true);
-    for (const bad of ['a b', 'a;rm -rf', 'a..b', '$(x)', 'ветка', 'a`b`', 'a\nb']) expect(valid(bad)).toBe(false);
+    for (const bad of ['a b', 'a;rm -rf', 'a..b', '$(x)', 'ветка', 'a`b`', 'a\nb', '-D', '--force', '-x/y']) expect(valid(bad)).toBe(false);
   });
 });
