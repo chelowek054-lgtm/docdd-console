@@ -50,9 +50,9 @@ describe('reviewerOf', () => {
   });
 
   it('роли нет в манифесте — берётся следующая; не подошла ни одна — ревьюера нет', () => {
-    const pick = reviewerOf(task({ change: 'feature' }), [requirement], [{ id: 'developer', name: 'D' }, { id: 'pm', name: 'P' }]);
+    const pick = reviewerOf(task({ change: 'feature' }), [requirement], [{ id: 'developer' }, { id: 'pm' }]);
     expect(pick?.role).toBe('pm');
-    expect(reviewerOf(task({ change: 'feature' }, 'pm'), [requirement], [{ id: 'pm', name: 'P' }])).toBeNull();
+    expect(reviewerOf(task({ change: 'feature' }, 'pm'), [requirement], [{ id: 'pm' }])).toBeNull();
   });
 
   it('проверки задачи: свои verified_by и проверки её требований с обеих сторон связи', () => {
