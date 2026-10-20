@@ -20,6 +20,16 @@ const EXPECTED: Record<string, Action> = {
   'POST /api/auth/logout': 'edit_draft', // пропускается middleware до проверки права
   'POST /api/auth/users': 'edit_draft', // middleware сам требует admin для /api/auth/users
   'POST /api/llm/ask': 'model',
+  // Новые маршруты волны 2: право выбрано сознательно. alert — вебхук Grafana, закрыт токеном, права роли ему не нужны.
+  'POST /api/llm/models/check': 'model',
+  'PUT /api/llm/models': 'model',
+  'POST /api/projects/x/analyst': 'edit_draft',
+  'POST /api/projects/x/context': 'edit_draft',
+  'POST /api/projects/x/inbox/alert': 'edit_draft',
+  'POST /api/projects/x/inbox/external': 'edit_draft',
+  'POST /api/projects/x/records/x/ask': 'edit_draft',
+  'POST /api/projects/x/records/x/metric-run': 'edit_draft',
+  'POST /api/projects/x/records/x/target': 'edit_draft',
   'POST /api/projects': 'admin',
   'POST /api/projects/init': 'admin',
   'DELETE /api/projects/x': 'admin',
