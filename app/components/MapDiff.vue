@@ -50,7 +50,7 @@ const fieldsOf = (structure: StructureDiff, id: string) => structure.nodes.find(
         <span class="font-mono text-xs">{{ countsText(diffCounts(structure)) }}</span>
         <label v-if="depthMax(structure) > 0" class="ml-auto flex items-center gap-2 text-xs text-muted">
           Глубина
-          <input v-model.number="level[structure.structure]" type="range" min="0" :max="depthMax(structure)" :value="level[structure.structure] ?? depthMax(structure)">
+          <input type="range" min="0" :max="depthMax(structure)" :value="level[structure.structure] ?? depthMax(structure)" @input="level[structure.structure] = Number(($event.target as HTMLInputElement).value)">
         </label>
       </header>
       <ul class="space-y-1">

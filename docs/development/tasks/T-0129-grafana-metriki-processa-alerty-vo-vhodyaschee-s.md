@@ -2,7 +2,7 @@
 id: T-0129
 type: task
 title: 'Grafana: метрики процесса, алерты во входящее, ссылки на панели'
-status: ready
+status: in_review
 change: feature
 reuse: none
 created: 2026-10-20
@@ -22,3 +22,5 @@ GET /metrics, webhook алертов во входящее (после фаз 25
 - 2026-10-20 · готова к работе · architect
 - 2026-10-20 · в разработку · architect
 - 2026-10-20 · готова к работе · architect
+- 2026-10-20 · в разработку · architect
+- 2026-10-20 · на проверку · architect

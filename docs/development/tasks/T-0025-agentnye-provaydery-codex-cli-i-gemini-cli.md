@@ -2,10 +2,10 @@
 id: T-0025
 type: task
 title: 'Агентные провайдеры: Codex CLI и Gemini CLI'
-status: backlog
+status: in_progress
 change: feature
 created: 2026-10-10
-updated: 2026-10-10
+updated: 2026-10-20
 owner: developer
 links:
   implements: [R-0008]
@@ -20,3 +20,5 @@ links:
 ## Журнал
 
 - 2026-10-10 · заведена: план «Платформа команды вместо Jira и Confluence» (docs/15-team-platform.md) · модель
+- 2026-10-20 · готова к работе · architect
+- 2026-10-20 · в разработку · architect
