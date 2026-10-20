@@ -120,7 +120,8 @@ async function send() {
     prompt: prompt.value,
     projectId: props.projectId,
     // Порядок по важности ставится по краткому описанию из самого запроса: читать репозиторий модели незачем.
-    ...(props.kind === 'priority' ? { tools: false } : {})
+    // Порядок по важности и группы модулей решаются по тексту запроса: код проекта модели читать незачем.
+    ...(props.kind === 'priority' || props.kind === 'groups' ? { tools: false } : {})
   });
   if (!result) return;
 

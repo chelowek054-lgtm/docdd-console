@@ -240,7 +240,9 @@ export default defineEventHandler(async (event) => {
 
     if (kind === 'groups') {
       const map = buildProjectMap(project.root);
-      const { modules, groups } = map.codemap;
+      const { groups } = map.codemap;
+      // Только описания существующего кода: модули карт-намерений (pending) в запрос не идут.
+      const modules = map.codemap.modules.filter((module) => !module.pending);
       if (modules.length === 0) {
         return fail(event, 422, 'groups_nothing_to_group', 'В кодовой карте нет ни одного модуля: группировать нечего');
       }
