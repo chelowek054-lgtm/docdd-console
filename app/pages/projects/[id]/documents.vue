@@ -188,7 +188,7 @@ const EMPTY: Record<string, string> = {
               </td>
               <td v-if="type === 'all'" class="p-3 text-muted">{{ typeLabel(document.type) }}</td>
               <td class="p-3">
-                <StatusBadge :status="document.status" />
+                <StatusBadge :status="document.status" /><DiffUnviewed :project-id="projectId" :record-id="document.id" :status="document.status" />
                 <!-- От устаревшего до действующего — один щелчок, а не поиск по номерам. -->
                 <span v-if="document.backlinks.supersedes?.length" class="ml-2 text-xs text-muted">
                   заменён

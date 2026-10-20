@@ -138,7 +138,7 @@ function reset() {
           <div class="min-w-0 flex-1">
           <div class="flex flex-wrap items-center gap-3">
             <RecordLink :project-id="projectId" :record-id="task.id" :record="task" />
-            <StatusBadge :status="task.status" />
+            <StatusBadge :status="task.status" /><DiffUnviewed :project-id="projectId" :record-id="task.id" :status="task.status" />
             <LightBadge v-if="taskFact(task, results)" :color="taskFact(task, results)!.color" variant="subtle">
               {{ taskFact(task, results)!.label }}
             </LightBadge>

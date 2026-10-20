@@ -7,6 +7,7 @@ import { fail, failWith } from '../../../../../utils/http';
 import { markDescribed } from '../../../../../utils/inventory-service';
 import { findProject } from '../../../../../utils/projects';
 import { openRecordWithBlockers, saveRecord, today } from '../../../../../utils/record-write';
+import { wasViewed } from '../../../../../utils/record-diff-service';
 
 /**
  * Смена статуса. Разрешён переход — меняем `status`, обновляем `updated`,
@@ -44,7 +45,15 @@ export default defineEventHandler(async (event) => {
       );
     }
 
-    const outcome = applyStatusChange(context.original, { status, actor, today: today() });
+    const outcome = applyStatusChange(context.original, {
+      status,
+      actor,
+      today: today(),
+      // Журнал честно различает подтверждение с просмотром разницы и без (R-0068).
+      ...(status === 'approved' && wasViewed(project.root, recordId, context.record.source.path)
+        ? { action: 'подтверждено после просмотра разницы' }
+        : {})
+    });
     const saved = saveRecord(context, outcome, project.root);
     if (!saved.ok) {
       // Сторож не пропустил: документ остаётся таким, каким был.

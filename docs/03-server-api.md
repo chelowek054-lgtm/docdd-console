@@ -151,6 +151,14 @@
 }
 ```
 
+### `GET /api/projects/:id/records/:recordId/diff`
+
+«Что меняется» для записи на подтверждении. Ответ: `kind` (`text` | `vision` | `new`), `base` (`{commit, reason: approved | previous}` или `null`), `fields` (`поле · было · стало`), `links` (`+`/`−`, вид, цель), `text` (построчно, `same | add | del`), для карты с вектором — `vision` (поля «проблема, для кого, успех, чего не делает» и задетые возможности), `empty`, `viewed`. «Было» — файл на последнем коммите со статусом `approved`, иначе на предыдущем; своей базы снимков нет.
+
+### `POST /api/projects/:id/records/:recordId/diff/viewed`
+
+Отметка «разницу открывали» (файл `.docdd/diff-viewed.json`, привязан к хэшу файла). Подтверждение (`status` → `approved`) после отметки пишет в журнал «подтверждено после просмотра разницы». `GET /api/projects/:id/diff-unviewed` отдаёт `ids` записей на подтверждении без отметки — по ним список рисует значок «разница не открывалась».
+
 ### `POST /api/projects/:id/records/bulk/status`
 
 Массовая смена статуса ([04-ui.md](04-ui.md), «Массовые действия»): одно
