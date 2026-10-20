@@ -2,7 +2,7 @@
 id: T-0065
 type: task
 title: 'Выгрузка токенов в Nuxt UI, Expo, Compose и SwiftUI'
-status: in_review
+status: done
 change: feature
 links:
   implements: [R-0032]
@@ -11,7 +11,7 @@ links:
   affects: [M-0030]
 reuse: none
 created: 2026-10-11
-updated: 2026-10-11
+updated: 2026-10-20
 ---
 
 # Выгрузка токенов в Nuxt UI, Expo, Compose и SwiftUI
@@ -24,3 +24,4 @@ updated: 2026-10-11
 - 2026-10-11 · готова к работе · architect
 - 2026-10-11 · в разработку · architect
 - 2026-10-11 · на проверку · architect
+- 2026-10-20 · закрыта · agent-review

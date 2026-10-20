@@ -2,10 +2,10 @@
 id: T-0080
 type: task
 title: Конструкторы форм и таблиц с заготовкой словаря на два языка
-status: in_review
+status: done
 change: feature
 created: 2026-10-11
-updated: 2026-10-11
+updated: 2026-10-20
 links:
   implements: [R-0035]
   affects: [M-0038]
@@ -21,3 +21,4 @@ links:
 - 2026-10-11 · готова к работе · architect
 - 2026-10-11 · в разработку · architect
 - 2026-10-11 · на проверку · architect
+- 2026-10-20 · закрыта · agent-review

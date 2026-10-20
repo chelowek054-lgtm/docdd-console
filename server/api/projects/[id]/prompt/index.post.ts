@@ -303,7 +303,7 @@ export default defineEventHandler(async (event) => {
         ? body.branch.trim()
         : `review/${new Date().toISOString().slice(0, 10)}`;
       // Имя ветки попадает в команды git в тексте запроса: лишние символы там — повод для беды.
-      if (!/^[A-Za-z0-9._/-]+$/.test(branch) || branch.includes('..')) {
+      if (!/^[A-Za-z0-9._][A-Za-z0-9._/-]*$/.test(branch) || branch.includes('..')) {
         return fail(event, 400, 'branch_invalid', 'Имя ветки: только латиница, цифры и `._/-`, без `..`');
       }
       const picked = Array.isArray(body?.taskIds)

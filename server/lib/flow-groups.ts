@@ -17,7 +17,7 @@ export interface FlowSource {
   kind: string;
   title?: string | undefined;
   where?: string | undefined;
-  declaredBy?: string | undefined;
+  declaredBy?: string | undefined; parent?: string | undefined;
   pending?: boolean | undefined;
 }
 

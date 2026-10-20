@@ -1,0 +1,811 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`выгрузка токенов в стеки > compose: снимок и повторный запуск дают один и тот же текст 1`] = `
+"// color -> Color.kt
+// Сгенерировано консолью DocDD из токенов дизайна v1.2.0 (docs/16-design-system.md). Не правьте руками: меняются токены.
+package ui.theme
+
+import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.ui.graphics.Color
+
+val LightBg = Color(0xFFFFFFFF)
+val LightInk = Color(0xFF111111)
+val LightAccent = Color(0xFF2255CC)
+val LightShadow = Color(0xFF000000)
+
+val DarkBg = Color(0xFF101010)
+val DarkInk = Color(0xFFEEEEEE)
+val DarkAccent = Color(0xFF88AAFF)
+val DarkShadow = Color(0xFF000000)
+
+val LightColorScheme: ColorScheme = lightColorScheme(
+    background = LightBg,
+    onBackground = LightInk,
+    onSurface = LightInk,
+    primary = LightAccent,
+)
+
+val DarkColorScheme: ColorScheme = darkColorScheme(
+    background = DarkBg,
+    onBackground = DarkInk,
+    onSurface = DarkInk,
+    primary = DarkAccent,
+)
+
+/** Роли, которых нет в Material 3: смысловой цвет ядра и состояния. */
+data class AppExtraColors(val core: Color, val ok: Color, val warn: Color)
+
+val LightExtraColors = AppExtraColors()
+val DarkExtraColors = AppExtraColors()
+
+// type -> Type.kt
+// Сгенерировано консолью DocDD из токенов дизайна v1.2.0 (docs/16-design-system.md). Не правьте руками: меняются токены.
+// Размеры — rem × 16; sp следует за масштабом шрифта системы.
+package ui.theme
+
+import androidx.compose.material3.Typography
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+
+val AppTypography = Typography(
+    bodyMedium = TextStyle(fontSize = 16.sp, lineHeight = 24.sp, fontWeight = FontWeight.W400),
+    titleLarge = TextStyle(fontSize = 24.sp, lineHeight = 32.sp, fontWeight = FontWeight.W700),
+)
+
+// shape -> Shape.kt
+// Сгенерировано консолью DocDD из токенов дизайна v1.2.0 (docs/16-design-system.md). Не правьте руками: меняются токены.
+package ui.theme
+
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Shapes
+import androidx.compose.ui.unit.dp
+
+val AppShapes = Shapes(
+    small = RoundedCornerShape(4.dp),
+    medium = RoundedCornerShape(8.dp),
+    large = RoundedCornerShape(8.dp),
+)
+
+/** Плашка: полностью скруглённая. */
+val PillShape = RoundedCornerShape(1000.dp)
+
+// theme -> Theme.kt
+// Сгенерировано консолью DocDD из токенов дизайна v1.2.0 (docs/16-design-system.md). Не правьте руками: меняются токены.
+package ui.theme
+
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.unit.dp
+
+/** Темы продукта: светлая и тёмная — база, остальные поверх. */
+enum class AppThemeName { Light, Dark }
+
+val LocalExtraColors = staticCompositionLocalOf { LightExtraColors }
+
+object AppSpacing {
+    val xs = 4.dp
+    val sm = 8.dp
+    val md = 16.dp
+    val lg = 24.dp
+    val xl = 32.dp
+    val xxl = 48.dp
+}
+
+object AppBorder {
+}
+
+object AppIcon {
+}
+
+/** Длительности, мс; при «убрать анимации» в системе компонент обязан их обнулить. */
+object AppMotion {
+}
+
+object AppFonts {
+    const val measure = 70
+}
+
+/** Сетка: колонки, поле и точки перелома в dp (rem × root). */
+object AppGrid {
+    const val columns = 12
+    val gutter = 24.dp
+    val breakpoints = mapOf("xs" to 0.dp, "sm" to 576.dp, "md" to 768.dp, "lg" to 992.dp, "xl" to 1200.dp, "xxl" to 1400.dp)
+    val containers = mapOf("sm" to 540.dp, "md" to 720.dp, "lg" to 960.dp, "xl" to 1140.dp, "xxl" to 1320.dp)
+}
+
+/** Языки продукта: точка подключения словарей. */
+object AppLocales {
+    const val default = "ru"
+    const val fallback = "en"
+    val all = listOf("ru", "en")
+}
+
+@Composable
+fun AppTheme(
+    theme: AppThemeName? = null,
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    content: @Composable () -> Unit,
+) {
+    val chosen = theme ?: if (darkTheme) AppThemeName.Dark else AppThemeName.Light
+    val scheme = when (chosen) {
+        AppThemeName.Light -> LightColorScheme
+        AppThemeName.Dark -> DarkColorScheme
+    }
+    val extra = when (chosen) {
+        AppThemeName.Light -> LightExtraColors
+        AppThemeName.Dark -> DarkExtraColors
+    }
+    CompositionLocalProvider(LocalExtraColors provides extra) {
+        MaterialTheme(
+            colorScheme = scheme,
+            typography = AppTypography,
+            shapes = AppShapes,
+            content = content,
+        )
+    }
+}
+"
+`;
+
+exports[`выгрузка токенов в стеки > expo: снимок и повторный запуск дают один и тот же текст 1`] = `
+"// theme -> constants/theme.ts
+// Сгенерировано консолью DocDD из токенов дизайна v1.2.0 (docs/16-design-system.md). Не правьте руками: меняются токены.
+// Размеры — rem × 16: у React Native нет rem, а масштаб шрифта системы остаётся включённым.
+import { useColorScheme } from 'react-native';
+
+export const LightColors = {
+  bg: '#FFFFFF',
+  ink: '#111111',
+  accent: '#2255CC',
+  shadow: '#000000',
+} as const;
+
+export const DarkColors = {
+  bg: '#101010',
+  ink: '#EEEEEE',
+  accent: '#88AAFF',
+  shadow: '#000000',
+} as const;
+
+/** Роли без привязки к значениям темы: иначе тёмная палитра не присваивается типу светлой. */
+export type ThemeColors = { -readonly [K in keyof typeof LightColors]: string };
+
+export const Themes = {
+  light: LightColors,
+  dark: DarkColors,
+} as const;
+
+export type ThemeName = keyof typeof Themes;
+
+export const spacing = {
+  xs: 4,
+  sm: 8,
+  md: 16,
+  lg: 24,
+  xl: 32,
+  xxl: 48,
+} as const;
+
+export const radius = {
+  sm: 4,
+  md: 8,
+  pill: 1000,
+} as const;
+
+export const border = {
+} as const;
+
+export const icon = {
+} as const;
+
+/** Длительности, мс; при «уменьшить движение» в системе компонент обязан их обнулить. */
+export const motion = {
+} as const;
+
+export const fonts = {
+} as const;
+
+/** Длина строки в символах: ограничивайте ширину текстового блока. */
+export const measure = 70;
+
+export const typography = {
+  body: { fontSize: 16, lineHeight: 24, fontWeight: '400' },
+  title: { fontSize: 24, lineHeight: 32, fontWeight: '700' },
+} as const;
+
+export const grid = {
+  columns: 12,
+  gutter: 24,
+  breakpoints: {
+    xs: 0,
+    sm: 576,
+    md: 768,
+    lg: 992,
+    xl: 1200,
+    xxl: 1400,
+  },
+  containers: {
+    sm: 540,
+    md: 720,
+    lg: 960,
+    xl: 1140,
+    xxl: 1320,
+  },
+} as const;
+
+/** Точка сетки для ширины экрана в dp: наибольшая из тех, что не больше ширины. */
+export function breakpointFor(width: number): keyof typeof grid.breakpoints {
+  const names = Object.keys(grid.breakpoints) as (keyof typeof grid.breakpoints)[];
+  return names.filter((name) => grid.breakpoints[name] <= width).pop() ?? names[0]!;
+}
+
+export const i18n = {
+  default: 'ru',
+  fallback: 'en',
+  locales: ['ru', 'en'],
+} as const;
+
+/** Палитра по имени темы; без имени — по системной теме, \`null\` из \`useColorScheme()\` — светлая. */
+export function useThemeColors(name?: ThemeName): ThemeColors {
+  const scheme = useColorScheme();
+  return Themes[name ?? (scheme === 'dark' ? 'dark' : 'light')];
+}
+"
+`;
+
+exports[`выгрузка токенов в стеки > nuxt-ui: снимок и повторный запуск дают один и тот же текст 1`] = `
+"// css -> app/assets/css/main.css
+/* docdd-design:start — Сгенерировано консолью DocDD из токенов дизайна v1.2.0 (docs/16-design-system.md). Не правьте руками: меняются токены. */
+/* Размеры в rem: следуют за настройкой шрифта пользователя; корень не задаётся в px. */
+html { font-size: 100%; }
+
+/* Точки перелома Tailwind совпадают с сеткой, поэтому md: и ds-col-md-* срабатывают на одной ширине. */
+@theme {
+  --breakpoint-sm: 36rem;
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 62rem;
+  --breakpoint-xl: 75rem;
+  --breakpoint-xxl: 87.5rem;
+}
+
+:root {
+  --ds-space-xs: 0.25rem;
+  --ds-space-sm: 0.5rem;
+  --ds-space-md: 1rem;
+  --ds-space-lg: 1.5rem;
+  --ds-space-xl: 2rem;
+  --ds-space-xxl: 3rem;
+  --ds-radius-sm: 0.25rem;
+  --ds-radius-md: 0.5rem;
+  --ds-radius-pill: 62.5rem;
+  --ds-font-body: 1rem;
+  --ds-line-body: 1.5rem;
+  --ds-weight-body: 400;
+  --ds-font-title: 1.5rem;
+  --ds-line-title: 2rem;
+  --ds-weight-title: 700;
+  --ds-grid-columns: 12;
+  --ds-grid-gutter: 1.5rem;
+  --ds-bp-xs: 0rem;
+  --ds-bp-sm: 36rem;
+  --ds-bp-md: 48rem;
+  --ds-bp-lg: 62rem;
+  --ds-bp-xl: 75rem;
+  --ds-bp-xxl: 87.5rem;
+  --ds-measure: 70ch;
+}
+
+:root {
+  color-scheme: light;
+  --ds-color-bg: #FFFFFF;
+  --ds-color-ink: #111111;
+  --ds-color-accent: #2255CC;
+  --ds-color-shadow: #000000;
+  --ui-bg: #FFFFFF;
+  --ui-text: #111111;
+  --ui-text-highlighted: #111111;
+  --ui-primary: #2255CC;
+}
+
+.dark {
+  color-scheme: dark;
+  --ds-color-bg: #101010;
+  --ds-color-ink: #EEEEEE;
+  --ds-color-accent: #88AAFF;
+  --ds-color-shadow: #000000;
+  --ui-bg: #101010;
+  --ui-text: #EEEEEE;
+  --ui-text-highlighted: #EEEEEE;
+  --ui-primary: #88AAFF;
+}
+
+.ds-container {
+  width: 100%;
+  margin-inline: auto;
+  padding-inline: calc(var(--ds-grid-gutter) / 2);
+}
+.ds-row {
+  display: flex;
+  flex-wrap: wrap;
+  margin-inline: calc(var(--ds-grid-gutter) / -2);
+}
+.ds-row > * {
+  box-sizing: border-box;
+  flex-shrink: 0;
+  width: 100%;
+  max-width: 100%;
+  padding-inline: calc(var(--ds-grid-gutter) / 2);
+}
+.ds-col { flex: 1 0 0%; }
+.ds-col-auto { flex: 0 0 auto; width: auto; }
+.ds-col-1 { flex: 0 0 auto; width: 8.333333%; }
+.ds-col-2 { flex: 0 0 auto; width: 16.666667%; }
+.ds-col-3 { flex: 0 0 auto; width: 25%; }
+.ds-col-4 { flex: 0 0 auto; width: 33.333333%; }
+.ds-col-5 { flex: 0 0 auto; width: 41.666667%; }
+.ds-col-6 { flex: 0 0 auto; width: 50%; }
+.ds-col-7 { flex: 0 0 auto; width: 58.333333%; }
+.ds-col-8 { flex: 0 0 auto; width: 66.666667%; }
+.ds-col-9 { flex: 0 0 auto; width: 75%; }
+.ds-col-10 { flex: 0 0 auto; width: 83.333333%; }
+.ds-col-11 { flex: 0 0 auto; width: 91.666667%; }
+.ds-col-12 { flex: 0 0 auto; width: 100%; }
+@media (min-width: 36rem) {
+  .ds-container { max-width: 33.75rem; }
+  .ds-col-sm { flex: 1 0 0%; }
+  .ds-col-sm-auto { flex: 0 0 auto; width: auto; }
+  .ds-col-sm-1 { flex: 0 0 auto; width: 8.333333%; }
+  .ds-col-sm-2 { flex: 0 0 auto; width: 16.666667%; }
+  .ds-col-sm-3 { flex: 0 0 auto; width: 25%; }
+  .ds-col-sm-4 { flex: 0 0 auto; width: 33.333333%; }
+  .ds-col-sm-5 { flex: 0 0 auto; width: 41.666667%; }
+  .ds-col-sm-6 { flex: 0 0 auto; width: 50%; }
+  .ds-col-sm-7 { flex: 0 0 auto; width: 58.333333%; }
+  .ds-col-sm-8 { flex: 0 0 auto; width: 66.666667%; }
+  .ds-col-sm-9 { flex: 0 0 auto; width: 75%; }
+  .ds-col-sm-10 { flex: 0 0 auto; width: 83.333333%; }
+  .ds-col-sm-11 { flex: 0 0 auto; width: 91.666667%; }
+  .ds-col-sm-12 { flex: 0 0 auto; width: 100%; }
+}
+@media (min-width: 48rem) {
+  .ds-container { max-width: 45rem; }
+  .ds-col-md { flex: 1 0 0%; }
+  .ds-col-md-auto { flex: 0 0 auto; width: auto; }
+  .ds-col-md-1 { flex: 0 0 auto; width: 8.333333%; }
+  .ds-col-md-2 { flex: 0 0 auto; width: 16.666667%; }
+  .ds-col-md-3 { flex: 0 0 auto; width: 25%; }
+  .ds-col-md-4 { flex: 0 0 auto; width: 33.333333%; }
+  .ds-col-md-5 { flex: 0 0 auto; width: 41.666667%; }
+  .ds-col-md-6 { flex: 0 0 auto; width: 50%; }
+  .ds-col-md-7 { flex: 0 0 auto; width: 58.333333%; }
+  .ds-col-md-8 { flex: 0 0 auto; width: 66.666667%; }
+  .ds-col-md-9 { flex: 0 0 auto; width: 75%; }
+  .ds-col-md-10 { flex: 0 0 auto; width: 83.333333%; }
+  .ds-col-md-11 { flex: 0 0 auto; width: 91.666667%; }
+  .ds-col-md-12 { flex: 0 0 auto; width: 100%; }
+}
+@media (min-width: 62rem) {
+  .ds-container { max-width: 60rem; }
+  .ds-col-lg { flex: 1 0 0%; }
+  .ds-col-lg-auto { flex: 0 0 auto; width: auto; }
+  .ds-col-lg-1 { flex: 0 0 auto; width: 8.333333%; }
+  .ds-col-lg-2 { flex: 0 0 auto; width: 16.666667%; }
+  .ds-col-lg-3 { flex: 0 0 auto; width: 25%; }
+  .ds-col-lg-4 { flex: 0 0 auto; width: 33.333333%; }
+  .ds-col-lg-5 { flex: 0 0 auto; width: 41.666667%; }
+  .ds-col-lg-6 { flex: 0 0 auto; width: 50%; }
+  .ds-col-lg-7 { flex: 0 0 auto; width: 58.333333%; }
+  .ds-col-lg-8 { flex: 0 0 auto; width: 66.666667%; }
+  .ds-col-lg-9 { flex: 0 0 auto; width: 75%; }
+  .ds-col-lg-10 { flex: 0 0 auto; width: 83.333333%; }
+  .ds-col-lg-11 { flex: 0 0 auto; width: 91.666667%; }
+  .ds-col-lg-12 { flex: 0 0 auto; width: 100%; }
+}
+@media (min-width: 75rem) {
+  .ds-container { max-width: 71.25rem; }
+  .ds-col-xl { flex: 1 0 0%; }
+  .ds-col-xl-auto { flex: 0 0 auto; width: auto; }
+  .ds-col-xl-1 { flex: 0 0 auto; width: 8.333333%; }
+  .ds-col-xl-2 { flex: 0 0 auto; width: 16.666667%; }
+  .ds-col-xl-3 { flex: 0 0 auto; width: 25%; }
+  .ds-col-xl-4 { flex: 0 0 auto; width: 33.333333%; }
+  .ds-col-xl-5 { flex: 0 0 auto; width: 41.666667%; }
+  .ds-col-xl-6 { flex: 0 0 auto; width: 50%; }
+  .ds-col-xl-7 { flex: 0 0 auto; width: 58.333333%; }
+  .ds-col-xl-8 { flex: 0 0 auto; width: 66.666667%; }
+  .ds-col-xl-9 { flex: 0 0 auto; width: 75%; }
+  .ds-col-xl-10 { flex: 0 0 auto; width: 83.333333%; }
+  .ds-col-xl-11 { flex: 0 0 auto; width: 91.666667%; }
+  .ds-col-xl-12 { flex: 0 0 auto; width: 100%; }
+}
+@media (min-width: 87.5rem) {
+  .ds-container { max-width: 82.5rem; }
+  .ds-col-xxl { flex: 1 0 0%; }
+  .ds-col-xxl-auto { flex: 0 0 auto; width: auto; }
+  .ds-col-xxl-1 { flex: 0 0 auto; width: 8.333333%; }
+  .ds-col-xxl-2 { flex: 0 0 auto; width: 16.666667%; }
+  .ds-col-xxl-3 { flex: 0 0 auto; width: 25%; }
+  .ds-col-xxl-4 { flex: 0 0 auto; width: 33.333333%; }
+  .ds-col-xxl-5 { flex: 0 0 auto; width: 41.666667%; }
+  .ds-col-xxl-6 { flex: 0 0 auto; width: 50%; }
+  .ds-col-xxl-7 { flex: 0 0 auto; width: 58.333333%; }
+  .ds-col-xxl-8 { flex: 0 0 auto; width: 66.666667%; }
+  .ds-col-xxl-9 { flex: 0 0 auto; width: 75%; }
+  .ds-col-xxl-10 { flex: 0 0 auto; width: 83.333333%; }
+  .ds-col-xxl-11 { flex: 0 0 auto; width: 91.666667%; }
+  .ds-col-xxl-12 { flex: 0 0 auto; width: 100%; }
+}
+
+/* Видимый фокус: условие работы с клавиатуры (WCAG 2.1 AA). */
+:focus-visible {
+  outline: var(--ds-border-thick, 0.125rem) solid var(--ds-color-focus, currentColor);
+  outline-offset: 0.125rem;
+}
+
+/* Тем, кому движение вредит, оно отключается само. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+  }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Версия для печати: светлая и на всю ширину. */
+@media print {
+  :root { color-scheme: light; }
+  .ds-container { max-width: none; }
+}
+/* docdd-design:end */
+
+// config -> app/design-tokens.ts
+// Сгенерировано консолью DocDD из токенов дизайна v1.2.0 (docs/16-design-system.md). Не правьте руками: меняются токены.
+// Размеры в rem. Языки — точка подключения словарей (@nuxtjs/i18n и подобные).
+
+export const designTokens = {
+  "unit": "rem",
+  "spacing": {
+    "xs": 0.25,
+    "sm": 0.5,
+    "md": 1,
+    "lg": 1.5,
+    "xl": 2,
+    "xxl": 3
+  },
+  "radius": {
+    "sm": 0.25,
+    "md": 0.5,
+    "pill": 62.5
+  },
+  "typography": {
+    "body": {
+      "size": 1,
+      "line": 1.5,
+      "weight": 400
+    },
+    "title": {
+      "size": 1.5,
+      "line": 2,
+      "weight": 700
+    }
+  },
+  "border": {},
+  "icon": {},
+  "motion": {},
+  "fonts": {},
+  "measure": 70,
+  "grid": {
+    "columns": 12,
+    "gutter": 1.5,
+    "breakpoints": {
+      "xs": 0,
+      "sm": 36,
+      "md": 48,
+      "lg": 62,
+      "xl": 75,
+      "xxl": 87.5
+    },
+    "containers": {
+      "sm": 33.75,
+      "md": 45,
+      "lg": 60,
+      "xl": 71.25,
+      "xxl": 82.5
+    }
+  },
+  "palette": {
+    "light": {
+      "bg": "#FFFFFF",
+      "ink": "#111111",
+      "accent": "#2255CC",
+      "shadow": "#000000"
+    },
+    "dark": {
+      "bg": "#101010",
+      "ink": "#EEEEEE",
+      "accent": "#88AAFF",
+      "shadow": "#000000"
+    }
+  },
+  "themes": {},
+  "surface": {
+    "elevation": {},
+    "backdrop": {},
+    "tint": {},
+    "caps": {}
+  },
+  "i18n": {
+    "default": "ru",
+    "fallback": "en",
+    "locales": [
+      "ru",
+      "en"
+    ]
+  }
+} as const;
+
+export type DesignTokens = typeof designTokens;
+export const locales = designTokens.i18n.locales;
+"
+`;
+
+exports[`выгрузка токенов в стеки > swiftui: снимок и повторный запуск дают один и тот же текст 1`] = `
+"// theme -> Theme.swift
+// Сгенерировано консолью DocDD из токенов дизайна v1.2.0 (docs/16-design-system.md). Не правьте руками: меняются токены.
+// Размеры — rem × 16; у SwiftUI нет rem, а Dynamic Type остаётся включённым.
+import SwiftUI
+
+extension SwiftUI.Color {
+    /// Цвет из 0xAARRGGBB: для тем, которых нет в каталоге ассетов.
+    init(argb: UInt32) {
+        self.init(
+            .sRGB,
+            red: Double((argb >> 16) & 0xFF) / 255,
+            green: Double((argb >> 8) & 0xFF) / 255,
+            blue: Double(argb & 0xFF) / 255,
+            opacity: Double((argb >> 24) & 0xFF) / 255
+        )
+    }
+}
+
+/// Цвета светлой и тёмной тем берутся из каталога ассетов: у каждой роли варианты Any и Dark.
+enum AppTheme {
+    enum Colors {
+        static let bg = SwiftUI.Color("bg")
+        static let ink = SwiftUI.Color("ink")
+        static let accent = SwiftUI.Color("accent")
+        static let shadow = SwiftUI.Color("shadow")
+    }
+
+    enum Spacing {
+        static let xs: CGFloat = 4
+        static let sm: CGFloat = 8
+        static let md: CGFloat = 16
+        static let lg: CGFloat = 24
+        static let xl: CGFloat = 32
+        static let xxl: CGFloat = 48
+    }
+
+    enum Radius {
+        static let sm: CGFloat = 4
+        static let md: CGFloat = 8
+        static let pill: CGFloat = 1000
+    }
+
+    enum Border {
+    }
+
+    enum Icon {
+    }
+
+    /// Длительности в секундах; при «уменьшить движение» компонент обязан их обнулить.
+    enum Motion {
+    }
+
+    enum Fonts {
+        static let measure = 70
+    }
+
+    enum Typography {
+        static let body = Font.system(size: 16, weight: .regular)
+        static let title = Font.system(size: 24, weight: .bold)
+    }
+
+    /// Сетка: колонки, поле и точки перелома.
+    enum Grid {
+        static let columns = 12
+        static let gutter: CGFloat = 24
+        static let breakpoints: [String: CGFloat] = [
+            "xs": 0,
+            "sm": 576,
+            "md": 768,
+            "lg": 992,
+            "xl": 1200,
+            "xxl": 1400
+        ]
+        static let containers: [String: CGFloat] = [
+            "sm": 540,
+            "md": 720,
+            "lg": 960,
+            "xl": 1140,
+            "xxl": 1320
+        ]
+    }
+
+    /// Языки продукта: точка подключения словарей.
+    enum Locales {
+        static let standard = "ru"
+        static let fallback = "en"
+        static let all = ["ru", "en"]
+    }
+}
+
+// colors:bg -> Assets.xcassets/bg.colorset/Contents.json
+{
+  "colors": [
+    {
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "1.000",
+          "green": "1.000",
+          "red": "1.000"
+        }
+      },
+      "idiom": "universal"
+    },
+    {
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ],
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.063",
+          "green": "0.063",
+          "red": "0.063"
+        }
+      },
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
+
+// colors:ink -> Assets.xcassets/ink.colorset/Contents.json
+{
+  "colors": [
+    {
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.067",
+          "green": "0.067",
+          "red": "0.067"
+        }
+      },
+      "idiom": "universal"
+    },
+    {
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ],
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.933",
+          "green": "0.933",
+          "red": "0.933"
+        }
+      },
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
+
+// colors:accent -> Assets.xcassets/accent.colorset/Contents.json
+{
+  "colors": [
+    {
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.800",
+          "green": "0.333",
+          "red": "0.133"
+        }
+      },
+      "idiom": "universal"
+    },
+    {
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ],
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "1.000",
+          "green": "0.667",
+          "red": "0.533"
+        }
+      },
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
+
+// colors:shadow -> Assets.xcassets/shadow.colorset/Contents.json
+{
+  "colors": [
+    {
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.000",
+          "green": "0.000",
+          "red": "0.000"
+        }
+      },
+      "idiom": "universal"
+    },
+    {
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ],
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0.000",
+          "green": "0.000",
+          "red": "0.000"
+        }
+      },
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
+"
+`;
