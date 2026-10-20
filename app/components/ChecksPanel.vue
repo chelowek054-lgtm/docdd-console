@@ -4,7 +4,7 @@ import type { BulkMoved } from '~/composables/useProjectIndex';
 const route = useRoute();
 const projectId = computed(() => String(route.params['id'] ?? ''));
 
-const { index, failure, records, refresh, patchStatuses } = useProjectIndex(projectId);
+const { index, failure, records, refresh, patchStatuses } = useProjectIndex(projectId); const backlinksOf = useBacklinks(projectId);
 
 const listed = computed(() => records.value.filter((record) => record.type === 'verification'));
 const statuses = computed(() => listed.value.map((record) => record.status));
@@ -19,7 +19,7 @@ const onBulkDone = (results?: BulkMoved[]) => { selection.clear(); if (results) 
 
 /** Что проверяет: связь ставится в обе стороны, показываем как одно множество. */
 function verifiesOf(check: (typeof checks.value)[number]): string[] {
-  return [...new Set([...(check.links.verifies ?? []), ...(check.backlinks.verified_by ?? [])])];
+  return [...new Set([...(check.links.verifies ?? []), ...(backlinksOf(check).verified_by ?? [])])];
 }
 </script>
 

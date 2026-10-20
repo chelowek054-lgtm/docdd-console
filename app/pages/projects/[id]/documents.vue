@@ -5,7 +5,7 @@ const route = useRoute();
 const router = useRouter();
 const projectId = computed(() => String(route.params['id'] ?? ''));
 
-const { index, failure, records, byId, refresh, patchStatuses } = useProjectIndex(projectId);
+const { index, failure, records, byId, refresh, patchStatuses } = useProjectIndex(projectId); const backlinksOf = useBacklinks(projectId);
 
 /**
  * Проектные документы, решения и контракты — один экран, а не три: вопрос к
@@ -68,9 +68,9 @@ const onBulkDone = (results?: BulkMoved[]) => { selection.clear(); if (results) 
 /** Кто опирается: задачи, которые документ правят, и записи, что его уточняют или стоят на решении. */
 function reliedOnBy(document: IndexRecord): string[] {
   return [...new Set([
-    ...(document.backlinks.documents ?? []),
-    ...(document.backlinks.refines ?? []),
-    ...(document.backlinks.decided_by ?? [])
+    ...(backlinksOf(document).documents ?? []),
+    ...(backlinksOf(document).refines ?? []),
+    ...(backlinksOf(document).decided_by ?? [])
   ])].sort();
 }
 
@@ -84,12 +84,12 @@ const results = computed(() => index.value?.verificationResults ?? {});
 function verificationsOf(requirement: IndexRecord): string[] {
   return [...new Set([
     ...(requirement.links.verified_by ?? []),
-    ...(requirement.backlinks.verifies ?? [])
+    ...(backlinksOf(requirement).verifies ?? [])
   ])];
 }
 
 function tasksOf(requirement: IndexRecord): string[] {
-  return requirement.backlinks.implements ?? [];
+  return backlinksOf(requirement).implements ?? [];
 }
 
 /** Факт — результат прогонов; «подтверждён» в колонке статуса — другое (docs/04-ui.md). */
@@ -190,10 +190,10 @@ const EMPTY: Record<string, string> = {
               <td class="p-3">
                 <StatusBadge :status="document.status" /><DiffUnviewed :project-id="projectId" :record-id="document.id" :status="document.status" />
                 <!-- От устаревшего до действующего — один щелчок, а не поиск по номерам. -->
-                <span v-if="document.backlinks.supersedes?.length" class="ml-2 text-xs text-muted">
+                <span v-if="backlinksOf(document).supersedes?.length" class="ml-2 text-xs text-muted">
                   заменён
                   <NuxtLink
-                    v-for="id in document.backlinks.supersedes"
+                    v-for="id in backlinksOf(document).supersedes"
                     :key="id"
                     :to="`/projects/${projectId}/records/${id}`"
                     class="ml-1 font-mono hover:underline"
