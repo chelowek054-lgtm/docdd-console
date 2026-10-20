@@ -1068,3 +1068,8 @@ matter. **Текст документа не меняется** — ни стр�
 ### Запрос `review-batch`
 
 `POST /api/projects/:id/prompt` с `{ "kind": "review-batch", "agents": 3, "perAgent": 4, "minutes": 10, "branch": "review/2026-10-20", "taskIds": ["T-0001"] }` → `{ prompt, count }`. Задачи — в статусе `in_review` (`taskIds` сужает список; пусто — все), к каждой подставляются требования (`implements`), их проверки (`verifies`) с последним результатом, карты (`affects`) и фаза. Числа ограничены: агентов 1–10, задач на агента 1–20, минут 1–60. Задач на проверке нет — `422 no_review_tasks`.
+
+
+### Отметка «Проверено»: кто проверил
+
+Тело `POST …/records/:recordId/verified`: `{ "verified": true, "actor": "architect", "by": "Имя", "note": "что проверено" }`. `by` и `note` необязательны для API, но экран «Принять вручную» требует оба. Они пишутся в отчёт (`checked_by`, `note`) и в строку журнала.

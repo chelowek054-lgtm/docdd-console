@@ -2,7 +2,7 @@
 id: T-0063
 type: task
 title: 'Проверки токенов: контраст, обе темы, полнота шкал'
-status: in_review
+status: done
 change: feature
 links:
   implements: [R-0031]
@@ -11,7 +11,7 @@ links:
   affects: [M-0030]
 reuse: none
 created: 2026-10-11
-updated: 2026-10-11
+updated: 2026-10-20
 ---
 
 # Проверки токенов: контраст, обе темы, полнота шкал
@@ -24,3 +24,4 @@ updated: 2026-10-11
 - 2026-10-11 · готова к работе · architect
 - 2026-10-11 · в разработку · architect
 - 2026-10-11 · на проверку · architect
+- 2026-10-20 · закрыта · architect

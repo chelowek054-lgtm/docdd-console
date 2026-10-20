@@ -2,10 +2,10 @@
 id: T-0089
 type: task
 title: 'Палитра PRAXIS v1.8.0: белая подпись на заливке акцента в светлой теме'
-status: in_review
+status: done
 change: fix
 created: 2026-10-11
-updated: 2026-10-11
+updated: 2026-10-20
 links:
   implements: [R-0039]
   affects: [M-0045]
@@ -21,3 +21,4 @@ links:
 - 2026-10-11 · готова к работе · architect
 - 2026-10-11 · в разработку · architect
 - 2026-10-11 · на проверку · architect
+- 2026-10-20 · закрыта · architect
