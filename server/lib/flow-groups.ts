@@ -305,3 +305,13 @@ export function foldFlows(
     }))
   };
 }
+
+/** Узлы дерева групп плюс их модули: модуль висит под своей самой глубокой группой. */
+function treeOfGroups(nodes: readonly (TreeNode & { members: readonly { id: string }[] })[]): TreeNode[] {
+  const ids = new Set(nodes.map((node) => node.id));
+  const out: TreeNode[] = nodes.map((node) => ({ id: node.id, parent: node.parent }));
+  for (const node of nodes) {
+    for (const member of node.members) if (!ids.has(member.id)) out.push({ id: member.id, parent: node.id });
+  }
+  return out;
+}
