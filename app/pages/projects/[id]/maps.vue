@@ -1338,15 +1338,26 @@ async function onCustomCreated(definition: CustomMapDefinition) {
 
       <!-- Пользовательские карты от общей картины не зависят (docs/adr/0028-custom-maps.md):
            их вкладки и «Новая карта» видны и тогда, когда подтверждённых карт нет. -->
-      <div class="flex flex-wrap items-center gap-2">
+      <!-- Все карты — одной строкой с прокруткой: встроенные (плашки), затем
+           пользовательские (подчёркнутые) и «Новая карта». Вид разный нарочно:
+           встроенные заданы консолью, свои — проектом. -->
+      <div class="flex flex-nowrap items-center gap-3 overflow-x-auto pb-1">
+        <UTabs
+          v-if="map && map.from.length > 0"
+          :model-value="customShown ? '' : shown"
+          :items="views.map((view) => ({ label: view.title, value: view.key, badge: view.count }))"
+          :ui="{ root: 'w-auto shrink-0', list: 'w-auto' }"
+          @update:model-value="(value) => { shown = value as typeof shown; customShown = null }"
+        />
         <UTabs
           v-if="customMaps.definitions.length"
           :model-value="customShown ?? ''"
           variant="link"
           :items="customMaps.definitions.map((item) => ({ label: item.title, value: item.id, badge: customMaps.maps[item.id]?.nodes.length ?? 0 }))"
+          :ui="{ root: 'w-auto shrink-0', list: 'w-auto' }"
           @update:model-value="(value) => (customShown = String(value) || null)"
         />
-        <UButton icon="i-lucide-plus" size="sm" variant="soft" label="Новая карта" @click="customFormOpen = true" />
+        <UButton class="shrink-0" icon="i-lucide-plus" size="sm" variant="soft" label="Новая карта" @click="customFormOpen = true" />
       </div>
       <p v-for="problem in customMaps.problems" :key="problem" class="text-sm text-warning">{{ problem }}</p>
       <CustomMapForm v-model:open="customFormOpen" :project-id="projectId" @created="onCustomCreated" />
@@ -1390,13 +1401,6 @@ async function onCustomCreated(definition: CustomMapDefinition) {
       <template v-else-if="map">
         <!-- Подвкладка на вид карты: у каждой свой смысл (вопрос, на который
              она отвечает), а не просто разные данные под одной кнопкой. -->
-        <div class="flex flex-wrap items-center gap-2">
-          <UTabs
-            v-model="shown"
-            :items="views.map((view) => ({ label: view.title, value: view.key, badge: view.count }))"
-            @update:model-value="customShown = null"
-          />
-        </div>
 
         <!-- Общий контейнер диаграммы и карточки узла: на весь экран
              разворачивается он, а не сама диаграмма, — иначе карточка (портал
