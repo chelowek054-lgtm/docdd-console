@@ -7,7 +7,9 @@ import { groupTree, type DeclaredGroup, type GroupImport, type GroupModule } fro
 
 const props = defineProps<{
   /** Какая карта: от неё зависит имя параметра группы в адресе. */
-  kind: 'functional' | 'codemap' | 'dataflow';
+  kind: 'functional' | 'codemap' | 'dataflow' | 'custom';
+  /** Готовое дерево (пользовательские карты): узлы приходят как есть, без сборки групп. */
+  tree?: readonly { id: string; title?: string | undefined; parent?: string | undefined }[];
   capabilities?: readonly { id: string; title?: string | undefined; parent?: string | undefined }[];
   modules?: readonly GroupModule[];
   imports?: readonly GroupImport[];
@@ -18,9 +20,18 @@ const route = useRoute();
 const router = useRouter();
 
 /** У каждой карты свой параметр группы (так уже устроен адрес экрана). */
-const groupKey = computed(() => (props.kind === 'functional' ? 'capgroup' : props.kind === 'dataflow' ? 'fgroup' : 'group'));
+const groupKey = computed(() =>
+  props.kind === 'custom' ? 'cgroup' : props.kind === 'functional' ? 'capgroup' : props.kind === 'dataflow' ? 'fgroup' : 'group'
+);
+// У пользовательской карты свои имена глубины и раскрытия: её ?cmap= живёт рядом
+// со встроенной вкладкой, и общий ?depth= не должен перескакивать между ними.
+const depthKey = computed(() => (props.kind === 'custom' ? 'cdepth' : 'depth'));
+const openKey = computed(() => (props.kind === 'custom' ? 'copen' : 'open'));
 
 const nodes = computed<(TreeNode & { title: string })[]>(() => {
+  if (props.kind === 'custom') {
+    return (props.tree ?? []).map((item) => ({ id: item.id, parent: item.parent, title: item.title ?? item.id }));
+  }
   if (props.kind === 'functional') {
     return (props.capabilities ?? []).map((item) => ({ id: item.id, parent: item.parent, title: item.title ?? item.id }));
   }
@@ -43,7 +54,7 @@ const trail = computed(() => {
 });
 
 const depth = computed(() => {
-  const wanted = String(route.query['depth'] ?? '');
+  const wanted = String(route.query[depthKey.value] ?? '');
   return wanted === 'all' || /^[1-9]$/.test(wanted) ? wanted : '';
 });
 const levels = computed(() => [
@@ -51,14 +62,14 @@ const levels = computed(() => [
   { value: 'all', label: 'все' }
 ]);
 const canOpen = computed(() => !!selected.value && nodes.value.some((node) => node.parent === selected.value));
-const opened = computed(() => String(route.query['open'] ?? '') === selected.value && !!selected.value);
+const opened = computed(() => String(route.query[openKey.value] ?? '') === selected.value && !!selected.value);
 
 function change(query: Record<string, string | undefined>) {
   void router.push({ query: { ...route.query, ...query } });
 }
-const goGroup = (id: string | null) => change({ [groupKey.value]: id ?? undefined, open: undefined });
-const setDepth = (value: string) => change({ depth: depth.value === value ? undefined : value, open: undefined });
-const openInPlace = () => change({ open: opened.value ? undefined : selected.value });
+const goGroup = (id: string | null) => change({ [groupKey.value]: id ?? undefined, [openKey.value]: undefined });
+const setDepth = (value: string) => change({ [depthKey.value]: depth.value === value ? undefined : value, [openKey.value]: undefined });
+const openInPlace = () => change({ [openKey.value]: opened.value ? undefined : selected.value });
 </script>
 
 <template>

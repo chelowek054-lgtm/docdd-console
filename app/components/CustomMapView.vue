@@ -3,7 +3,8 @@
 // правки в маршруты функциональной карты (`…/map/capability`), поэтому дерево здесь своё,
 // а граф — тот же MermaidDiagram. Любая правка заводит черновик `map`, а не меняет карту.
 import type { ApiFailure } from '~/composables/useProjectIndex';
-import { IMPL_LABEL, IMPL_STATUSES } from '~~/server/lib/functional';
+import { HORIZONS, HORIZON_LABEL, IMPL_LABEL, IMPL_STATUSES, PRIORITIES, PRIORITY_LABEL } from '~~/server/lib/functional';
+import { ancestors, depthOf, foldEdges, visibleAt, type Edge, type TreeNode } from '~~/server/lib/hierarchy';
 import { slugify } from '~~/server/lib/scaffold';
 import type { CustomNodeView, CustomRelationView } from '~~/server/lib/custom-maps';
 import type { CustomMapDefinition, CustomRelationStyle } from '~~/server/lib/types';
@@ -20,8 +21,125 @@ const view = ref<'tree' | 'graph'>('tree');
 const hasStatus = computed(() => props.definition.features.includes('status'));
 const kindLabel = computed(() => new Map(props.definition.relations.map((item) => [item.id, item.label])));
 
+const hasPriority = computed(() => props.definition.features.includes('priority'));
+const hasHorizon = computed(() => props.definition.features.includes('horizon'));
+
+// Узлы с висячим родителем поднимаем в корень: иначе hierarchy.ts посчитает
+// им глубину по несуществующему предку, а дерево их не покажет вовсе.
+const tree = computed<CustomNodeView[]>(() => {
+  const ids = new Set(props.nodes.map((node) => node.id));
+  return props.nodes.map((node) => (node.parent && ids.has(node.parent) ? node : { ...node, parent: undefined }));
+});
+const edges = computed<Edge[]>(() =>
+  props.relations.map((edge) => ({ from: edge.from, to: edge.to, kind: edge.type, ...(edge.verdict ? { verdict: edge.verdict } : {}) }))
+);
+
+// Группа, глубина и раскрытие — в адресе (ADR-0027), их пишет MapDepthBar.
+const route = useRoute();
+const group = computed(() => {
+  const id = String(route.query['cgroup'] ?? '');
+  return tree.value.some((node) => node.id === id) ? id : null;
+});
+const opened = computed(() => !!group.value && String(route.query['copen'] ?? '') === group.value);
+/** Сколько уровней показывать ниже точки обзора; «все» и пусто — без предела. */
+const levels = computed(() => {
+  const wanted = String(route.query['cdepth'] ?? '');
+  return /^[1-9]$/.test(wanted) ? Number(wanted) : Number.POSITIVE_INFINITY;
+});
+
+// Фильтры только читают: сужают картину, ничего не записывая (как у функциональной карты).
+const UNRATED = 'unrated';
+const NONE = 'none';
+const statusFilter = ref<string[]>([]);
+const priorityFilter = ref<string | null>(null);
+const horizonFilter = ref<string | null>(null);
+const hiddenKinds = ref<string[]>([]);
+const search = ref('');
+function resetFilters() {
+  statusFilter.value = [];
+  priorityFilter.value = null;
+  horizonFilter.value = null;
+  hiddenKinds.value = [];
+  search.value = '';
+}
+watch(() => props.definition.id, resetFilters);
+const filtering = computed(
+  () => statusFilter.value.length > 0 || !!priorityFilter.value || !!horizonFilter.value || !!search.value.trim()
+);
+function matches(node: CustomNodeView): boolean {
+  if (hasStatus.value && statusFilter.value.length && !statusFilter.value.includes(node.status ?? UNRATED)) return false;
+  if (hasPriority.value && priorityFilter.value && (node.priority ?? NONE) !== priorityFilter.value) return false;
+  if (hasHorizon.value && horizonFilter.value && (node.horizon ?? NONE) !== horizonFilter.value) return false;
+  const needle = search.value.trim().toLowerCase();
+  return !needle || (node.title ?? node.id).toLowerCase().includes(needle) || node.id.toLowerCase().includes(needle);
+}
+
+/** Узлы после фильтров и выбора группы. Предки совпавших остаются, чтобы дерево не рвалось. */
+const kept = computed<Set<string>>(() => {
+  const all = tree.value;
+  let ids = all.map((node) => node.id);
+  if (filtering.value) {
+    const hit = new Set<string>();
+    for (const node of all) {
+      if (!matches(node)) continue;
+      hit.add(node.id);
+      for (const up of ancestors(node.id, all)) hit.add(up);
+    }
+    ids = ids.filter((id) => hit.has(id));
+  }
+  // «Раскрыть на месте» оставляет соседей; простой выбор группы сужает картину до её поддерева.
+  if (group.value && !opened.value) {
+    const root = group.value;
+    ids = ids.filter((id) => id === root || ancestors(id, all).includes(root));
+  }
+  return new Set(ids);
+});
+const shownNodes = computed(() => tree.value.filter((node) => kept.value.has(node.id)));
+const shownEdges = computed(() =>
+  edges.value.filter((edge) => !hiddenKinds.value.includes(edge.kind ?? '') && kept.value.has(edge.from) && kept.value.has(edge.to))
+);
+
+/** Видимый представитель узла на текущей глубине (свёртка — hierarchy.ts). */
+function visibleOf(id: string): string {
+  const depth = Number.isFinite(levels.value) ? levels.value : 99;
+  // Глубина 1 у корня — сами корни (уровень 0), у группы — её дети.
+  return group.value ? visibleAt(id, tree.value, group.value, depth) : visibleAt(id, tree.value, null, depth - 1);
+}
+
+const kindCounts = computed(() => {
+  const counts: Record<string, number> = {};
+  for (const edge of props.relations) counts[edge.type] = (counts[edge.type] ?? 0) + 1;
+  return counts;
+});
+function toggleKind(kind: string) {
+  hiddenKinds.value = hiddenKinds.value.includes(kind)
+    ? hiddenKinds.value.filter((item) => item !== kind)
+    : [...hiddenKinds.value, kind];
+}
+const statusItems = computed(() =>
+  [...IMPL_STATUSES, UNRATED].map((value) => ({ label: IMPL_LABEL[value as keyof typeof IMPL_LABEL], value }))
+);
+const priorityItems = computed(() => [
+  ...PRIORITIES.map((value) => ({ label: PRIORITY_LABEL[value], value })),
+  { label: 'без приоритета', value: NONE }
+]);
+const horizonItems = computed(() => [
+  ...HORIZONS.map((value) => ({ label: HORIZON_LABEL[value], value })),
+  { label: 'без горизонта', value: NONE }
+]);
+const splitNodes = computed<TreeNode[]>(() => tree.value.map((node) => ({ id: node.id, parent: node.parent })));
+
 interface Row { node: CustomNodeView; depth: number }
 const rows = computed<Row[]>(() => {
+  // Дерево режется той же глубиной, что и граф: от корня или от выбранной группы.
+  const base = group.value ? depthOf(group.value, tree.value) + 1 : 0;
+  return allRows.value.filter((row) => {
+    if (!kept.value.has(row.node.id)) return false;
+    if (!Number.isFinite(levels.value)) return true;
+    return row.depth < base + levels.value || (!!group.value && opened.value && row.depth < base);
+  });
+});
+const allRows = computed<Row[]>(() => {
   const ids = new Set(props.nodes.map((node) => node.id));
   const out: Row[] = [];
   const seen = new Set<string>();
@@ -102,6 +220,9 @@ function slugOf(title: string): string {
 }
 
 const nodeItems = computed(() => props.nodes.map((node) => ({ label: node.title ?? node.id, value: node.id })));
+const shownRelations = computed(() =>
+  props.relations.filter((edge) => !hiddenKinds.value.includes(edge.type) && kept.value.has(edge.from) && kept.value.has(edge.to))
+);
 const titleOf = (id: string) => props.nodes.find((node) => node.id === id)?.title ?? id;
 
 // Стрелка mermaid под каждый из пяти стилей функциональной карты.
@@ -112,21 +233,35 @@ const ARROW: Record<CustomRelationStyle, string> = {
   triggers: '--o',
   replaces: '--x'
 };
+// Граф строится по свёрнутой картине: узлы — видимые представители, связи
+// схлопнуты foldEdges, на стрелке — вид и число исходных связей (×N).
 const graphSource = computed(() => {
-  const index = new Map(props.nodes.map((node, at) => [node.id, `n${at}`]));
+  const visible = new Map<string, string>();
+  for (const node of shownNodes.value) visible.set(node.id, visibleOf(node.id));
+  const drawn = [...new Set(visible.values())];
+  const index = new Map(drawn.map((id, at) => [id, `n${at}`]));
+  const byId = new Map(tree.value.map((node) => [node.id, node]));
   const style = new Map(props.definition.relations.map((item) => [item.id, item.style]));
   const quote = (text: string) => text.replace(/"/g, '#quot;');
   const lines = ['flowchart LR'];
-  for (const node of props.nodes) lines.push(`  ${index.get(node.id)}["${quote(node.title ?? node.id)}"]`);
-  for (const node of props.nodes) {
-    if (node.parent && index.has(node.parent)) lines.push(`  ${index.get(node.parent)} --- ${index.get(node.id)}`);
+  for (const id of drawn) {
+    const hidden = shownNodes.value.filter((item) => visible.get(item.id) === id).length - 1;
+    const title = (byId.get(id)?.title ?? id) + (hidden > 0 ? ` (+${hidden})` : '');
+    lines.push(`  ${index.get(id)}["${quote(title)}"]`);
   }
-  for (const edge of props.relations) {
+  for (const id of drawn) {
+    const parent = byId.get(id)?.parent;
+    if (parent && index.has(parent)) lines.push(`  ${index.get(parent)} --- ${index.get(id)}`);
+  }
+  const { edges: folded } = foldEdges(shownEdges.value, (id) => visible.get(id) ?? id);
+  for (const edge of folded) {
     const from = index.get(edge.from);
     const to = index.get(edge.to);
     if (!from || !to) continue;
-    const arrow = ARROW[style.get(edge.type) ?? 'depends'];
-    lines.push(`  ${from} ${arrow}|"${quote(kindLabel.value.get(edge.type) ?? edge.type)}"| ${to}`);
+    const single = edge.kinds.length === 1 ? style.get(edge.kinds[0] ?? '') : undefined;
+    const arrow = ARROW[single ?? 'depends'];
+    const label = edge.kinds.map((kind) => kindLabel.value.get(kind) ?? kind).join(', ') + (edge.count > 1 ? ` ×${edge.count}` : '');
+    lines.push(`  ${from} ${arrow}|"${quote(label)}"| ${to}`);
   }
   return lines.join('\n');
 });
@@ -159,6 +294,61 @@ const graphSource = computed(() => {
         description="Правка войдёт в карту, когда человек подтвердит черновик."
       />
       <UAlert v-if="error" color="error" variant="subtle" :description="error" />
+
+      <MapDepthBar kind="custom" :tree="tree" />
+      <MapSplitHints v-if="group" :group-id="group" :nodes="splitNodes" :edges="edges" />
+
+      <div v-if="nodes.length" class="flex flex-wrap items-center gap-2 text-sm">
+        <UInput v-model="search" size="xs" icon="i-lucide-search" placeholder="Поиск по названию" class="w-48" />
+        <USelectMenu
+          v-if="hasStatus"
+          v-model="statusFilter"
+          multiple
+          size="xs"
+          class="w-48"
+          value-key="value"
+          :items="statusItems"
+          placeholder="Состояние: все"
+        />
+        <USelect
+          v-if="hasPriority"
+          :model-value="priorityFilter ?? undefined"
+          size="xs"
+          class="w-40"
+          :items="priorityItems"
+          placeholder="Приоритет: все"
+          @update:model-value="(value) => (priorityFilter = value ? String(value) : null)"
+        />
+        <USelect
+          v-if="hasHorizon"
+          :model-value="horizonFilter ?? undefined"
+          size="xs"
+          class="w-40"
+          :items="horizonItems"
+          placeholder="Горизонт: все"
+          @update:model-value="(value) => (horizonFilter = value ? String(value) : null)"
+        />
+        <UButton
+          v-for="kind in definition.relations.filter((item) => kindCounts[item.id])"
+          :key="kind.id"
+          size="xs"
+          color="neutral"
+          :variant="hiddenKinds.includes(kind.id) ? 'outline' : 'soft'"
+          :class="hiddenKinds.includes(kind.id) ? 'line-through opacity-60' : ''"
+          :title="hiddenKinds.includes(kind.id) ? 'Показать вид связи' : 'Скрыть вид связи'"
+          @click="toggleKind(kind.id)"
+        >
+          {{ kind.label }} · {{ kindCounts[kind.id] }}
+        </UButton>
+        <UButton
+          v-if="filtering || hiddenKinds.length"
+          size="xs"
+          variant="link"
+          color="neutral"
+          label="Сбросить фильтры"
+          @click="resetFilters"
+        />
+      </div>
 
       <template v-if="view === 'tree'">
         <p v-if="!nodes.length" class="text-sm text-muted">
@@ -202,9 +392,9 @@ const graphSource = computed(() => {
           <UButton size="xs" color="neutral" variant="ghost" label="Сбросить" @click="statusMarks = {}" />
         </div>
 
-        <div v-if="relations.length" class="space-y-1">
+        <div v-if="shownRelations.length" class="space-y-1">
           <p class="text-sm font-medium">Связи</p>
-          <div v-for="edge in relations" :key="`${edge.from}:${edge.type}:${edge.to}`" class="flex items-center gap-2 text-sm">
+          <div v-for="edge in shownRelations" :key="`${edge.from}:${edge.type}:${edge.to}`" class="flex items-center gap-2 text-sm">
             <span>{{ titleOf(edge.from) }}</span>
             <span class="text-muted">{{ kindLabel.get(edge.type) ?? edge.type }}</span>
             <span>{{ titleOf(edge.to) }}</span>
@@ -241,7 +431,7 @@ const graphSource = computed(() => {
       </template>
 
       <template v-else>
-        <p v-if="!nodes.length" class="text-sm text-muted">Рисовать пока нечего.</p>
+        <p v-if="!shownNodes.length" class="text-sm text-muted">{{ nodes.length ? 'Под фильтры ничего не попало.' : 'Рисовать пока нечего.' }}</p>
         <MermaidDiagram v-else :id="`custom-${definition.id}`" :source="graphSource" />
       </template>
     </div>

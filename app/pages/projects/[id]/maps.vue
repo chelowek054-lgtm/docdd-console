@@ -1197,7 +1197,14 @@ const customMaps = computed<CustomMapsResponse>(() =>
     : { definitions: [], problems: [], maps: {} }
 );
 /** Открытая пользовательская карта; null — показан встроенный вид. */
-const customShown = ref<string | null>(null);
+// Открытая пользовательская карта живёт в адресе (?cmap=), как и её глубина:
+// ссылку на «карту, группу, уровень» можно переслать (ADR-0027).
+const customShown = computed<string | null>({
+  get: () => (typeof route.query['cmap'] === 'string' && route.query['cmap'] ? route.query['cmap'] : null),
+  set: (value) => {
+    void router.push({ query: { ...route.query, cmap: value ?? undefined, cgroup: undefined, cdepth: undefined, copen: undefined } });
+  }
+});
 const customFormOpen = ref(false);
 const customCurrent = computed(() => customMaps.value.definitions.find((item) => item.id === customShown.value) ?? null);
 
@@ -1329,8 +1336,32 @@ async function onCustomCreated(definition: CustomMapDefinition) {
         входят: пока человек не подтвердил, это намерение, а не устройство проекта.
       </p>
 
+      <!-- Пользовательские карты от общей картины не зависят (docs/adr/0028-custom-maps.md):
+           их вкладки и «Новая карта» видны и тогда, когда подтверждённых карт нет. -->
+      <div class="flex flex-wrap items-center gap-2">
+        <UTabs
+          v-if="customMaps.definitions.length"
+          :model-value="customShown ?? ''"
+          variant="link"
+          :items="customMaps.definitions.map((item) => ({ label: item.title, value: item.id, badge: customMaps.maps[item.id]?.nodes.length ?? 0 }))"
+          @update:model-value="(value) => (customShown = String(value) || null)"
+        />
+        <UButton icon="i-lucide-plus" size="sm" variant="soft" label="Новая карта" @click="customFormOpen = true" />
+      </div>
+      <p v-for="problem in customMaps.problems" :key="problem" class="text-sm text-warning">{{ problem }}</p>
+      <CustomMapForm v-model:open="customFormOpen" :project-id="projectId" @created="onCustomCreated" />
+      <CustomMapView
+        v-if="customCurrent"
+        :project-id="projectId"
+        :definition="customCurrent"
+        :nodes="customMaps.maps[customCurrent.id]?.nodes ?? []"
+        :relations="customMaps.maps[customCurrent.id]?.relations ?? []"
+        @changed="refreshCustom"
+      />
+
       <div
         v-if="map && map.from.length === 0"
+        v-show="!customCurrent"
         class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted"
       >
         <!-- Пусто — тоже ответ, и он обязан назвать причину (docs/04-ui.md). -->
@@ -1365,26 +1396,7 @@ async function onCustomCreated(definition: CustomMapDefinition) {
             :items="views.map((view) => ({ label: view.title, value: view.key, badge: view.count }))"
             @update:model-value="customShown = null"
           />
-          <!-- Пользовательские карты — рядом со встроенными (docs/04-ui.md, «Карты по желанию пользователя»). -->
-          <UTabs
-            v-if="customMaps.definitions.length"
-            :model-value="customShown ?? ''"
-            variant="link"
-            :items="customMaps.definitions.map((item) => ({ label: item.title, value: item.id, badge: customMaps.maps[item.id]?.nodes.length ?? 0 }))"
-            @update:model-value="(value) => (customShown = String(value) || null)"
-          />
-          <UButton icon="i-lucide-plus" size="sm" variant="soft" label="Новая карта" @click="customFormOpen = true" />
         </div>
-        <p v-for="problem in customMaps.problems" :key="problem" class="text-sm text-warning">{{ problem }}</p>
-        <CustomMapForm v-model:open="customFormOpen" :project-id="projectId" @created="onCustomCreated" />
-        <CustomMapView
-          v-if="customCurrent"
-          :project-id="projectId"
-          :definition="customCurrent"
-          :nodes="customMaps.maps[customCurrent.id]?.nodes ?? []"
-          :relations="customMaps.maps[customCurrent.id]?.relations ?? []"
-          @changed="refreshCustom"
-        />
 
         <!-- Общий контейнер диаграммы и карточки узла: на весь экран
              разворачивается он, а не сама диаграмма, — иначе карточка (портал
