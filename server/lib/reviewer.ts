@@ -33,22 +33,56 @@ const FALLBACK: readonly Candidate[] = [
   ['pm', 'запасной порядок']
 ];
 
+/** Индекс записей, построенный один раз: без него каждая задача перебирает все записи заново. */
+export interface RecordsLookup {
+  byId: ReadonlyMap<string, IndexRecord>;
+  /** Проверки по требованию, которое они проверяют (`verifies`). */
+  checksByRequirement: ReadonlyMap<string, IndexRecord[]>;
+}
+
+export function buildRecordsLookup(records: readonly IndexRecord[]): RecordsLookup {
+  const byId = new Map<string, IndexRecord>();
+  const checksByRequirement = new Map<string, IndexRecord[]>();
+  for (const record of records) {
+    byId.set(record.id, record);
+    if (record.type !== 'verification') continue;
+    for (const id of record.links.verifies ?? []) {
+      const list = checksByRequirement.get(id);
+      if (list) list.push(record); else checksByRequirement.set(id, [record]);
+    }
+  }
+  return { byId, checksByRequirement };
+}
+
 /** Проверки задачи — как у правил: свои `verified_by` и проверки её требований. */
-export function taskChecks(task: IndexRecord, records: readonly IndexRecord[]): IndexRecord[] {
+export function taskChecks(task: IndexRecord, records: readonly IndexRecord[], lookup?: RecordsLookup): IndexRecord[] {
   const requirements = new Set(task.links.implements ?? []);
   const own = new Set(task.links.verified_by ?? []);
-  for (const id of requirements) {
-    const requirement = records.find((record) => record.id === id);
-    for (const check of requirement?.links.verified_by ?? []) own.add(check);
+  if (!lookup) {
+    for (const id of requirements) {
+      const requirement = records.find((record) => record.id === id);
+      for (const check of requirement?.links.verified_by ?? []) own.add(check);
+    }
+    return records.filter((record) => record.type === 'verification'
+      && (own.has(record.id) || (record.links.verifies ?? []).some((id) => requirements.has(id))));
   }
-  return records.filter((record) => record.type === 'verification'
-    && (own.has(record.id) || (record.links.verifies ?? []).some((id) => requirements.has(id))));
+  const found = new Map<string, IndexRecord>();
+  for (const id of requirements) {
+    for (const check of lookup.byId.get(id)?.links.verified_by ?? []) own.add(check);
+    for (const check of lookup.checksByRequirement.get(id) ?? []) found.set(check.id, check);
+  }
+  for (const id of own) {
+    const check = lookup.byId.get(id);
+    if (check?.type === 'verification') found.set(check.id, check);
+  }
+  return [...found.values()];
 }
 
 export function reviewerOf(
   task: IndexRecord,
   records: readonly IndexRecord[],
-  roles: readonly { id: string }[]
+  roles: readonly { id: string }[],
+  lookup?: RecordsLookup
 ): ReviewerPick | null {
   const explicit = task.extra['reviewer'];
   if (typeof explicit === 'string' && explicit.trim() !== '') {
@@ -59,7 +93,7 @@ export function reviewerOf(
   // Свою работу не принимают; роль, которой в проекте нет, принять не сможет.
   const fits = (role: string) => role !== task.owner && (known.size === 0 || known.has(role));
 
-  const kinds = new Set(taskChecks(task, records).map((check) => String(check.extra['kind'] ?? '')));
+  const kinds = new Set(taskChecks(task, records, lookup).map((check) => String(check.extra['kind'] ?? '')));
   const change = String(task.extra['change'] ?? '');
   const candidates: Candidate[] = [
     ...BY_KIND.filter(([kind]) => kinds.has(kind)).map(([, role, why]): Candidate => [role, why]),

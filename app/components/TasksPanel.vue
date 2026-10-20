@@ -27,7 +27,7 @@ const shown = computed(() => tasks.value.filter((task) =>
   && (!tag.value || task.tags.includes(tag.value)) && reviewers.matches(task)));
 
 const selection = useSelection(shown);
-const chunk = useChunked(shown);
+const chunk = useChunked(shown, 40);
 const onBulkDone = (results?: BulkMoved[]) => { selection.clear(); if (results) patchStatuses(results); else void refresh(); };
 
 /** Результаты проверок нужны, чтобы не выдавать объявленное за подтверждённое. */
@@ -139,11 +139,11 @@ function reset() {
           <div class="flex flex-wrap items-center gap-3">
             <RecordLink :project-id="projectId" :record-id="task.id" :record="task" />
             <StatusBadge :status="task.status" />
-            <UBadge v-if="taskFact(task, results)" :color="taskFact(task, results)!.color" variant="subtle" size="sm">
+            <LightBadge v-if="taskFact(task, results)" :color="taskFact(task, results)!.color" variant="subtle">
               {{ taskFact(task, results)!.label }}
-            </UBadge>
-            <UBadge v-if="task.phase" color="neutral" variant="subtle" size="sm">{{ task.phase }}</UBadge>
-            <UBadge v-for="name in task.tags" :key="name" color="neutral" variant="outline" size="sm">{{ name }}</UBadge>
+            </LightBadge>
+            <LightBadge v-if="task.phase" color="neutral" variant="subtle">{{ task.phase }}</LightBadge>
+            <LightBadge v-for="name in task.tags" :key="name" color="neutral" variant="outline">{{ name }}</LightBadge>
             <span v-if="task.owner" class="text-sm text-muted">{{ task.owner }}</span>
           </div>
 
@@ -159,20 +159,19 @@ function reset() {
             </span>
             <!-- Задача без требования помечена: это и есть работа, которая
                  никому не понадобилась (docs/04-ui.md). -->
-            <UBadge v-else color="warning" variant="subtle" size="sm">без требования</UBadge>
+            <LightBadge v-else color="warning" variant="subtle">без требования</LightBadge>
 
             <span v-if="task.links.verified_by?.length">
               проверяется:
               <template v-for="id in task.links.verified_by" :key="id">
                 <NuxtLink :to="`/projects/${projectId}/records/${id}`" class="ml-1 font-mono hover:underline">{{ id }}</NuxtLink>
-                <UBadge
+                <LightBadge
                   v-if="results[id]"
                   :color="statusColor(results[id]!.state)"
                   variant="subtle"
-                  size="sm"
                   class="ml-1"
-                >{{ resultLabel(results[id]!.state) }}</UBadge>
-                <UBadge v-else color="neutral" variant="subtle" size="sm" class="ml-1">не запускалась</UBadge>
+                >{{ resultLabel(results[id]!.state) }}</LightBadge>
+                <LightBadge v-else color="neutral" variant="subtle" class="ml-1">не запускалась</LightBadge>
               </template>
             </span>
             <span v-else>без проверки</span>
