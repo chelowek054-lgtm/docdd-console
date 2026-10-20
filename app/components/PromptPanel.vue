@@ -46,14 +46,10 @@ onMounted(() => {
   if (asking.value || outcome.value) open.value = true;
 });
 
-async function build() {
-  open.value = true;
-  building.value = true;
-  failure.value = null;
-  answer.value = '';
-  try {
-    const response = await $fetch<{ prompt: string; count: number } | { error: ApiFailure }>(
-      `/api/projects/${props.projectId}/prompt`,
+/** Запрос собирает сервер по шаблону; ответ — текст и число того, что в него вошло, или причина отказа. */
+async function fetchPrompt(): Promise<{ prompt: string; count: number } | ApiFailure> {
+  const response = await $fetch<{ prompt: string; count: number } | { error: ApiFailure }>(
+    `/api/projects/${props.projectId}/prompt`,
       {
         method: 'POST',
         body: {
@@ -66,12 +62,20 @@ async function build() {
         ignoreResponseError: true
       }
     );
-    const problem = failureOf(response);
-    if (problem) {
-      failure.value = problem;
+  return failureOf(response) ?? (response as { prompt: string; count: number });
+}
+
+async function build() {
+  open.value = true;
+  building.value = true;
+  failure.value = null;
+  answer.value = '';
+  try {
+    const built = await fetchPrompt();
+    if ('message' in built) {
+      failure.value = built;
       return;
     }
-    const built = response as { prompt: string; count: number };
     prompt.value = built.prompt;
     count.value = built.count;
   } finally {
@@ -83,6 +87,29 @@ async function copy() {
   await navigator.clipboard.writeText(prompt.value);
   copied.value = true;
   setTimeout(() => { copied.value = false; }, 2000);
+}
+
+/** «Скопировать» рядом с кнопкой: собирает запрос и кладёт в буфер, панель не открывает и модели ничего не шлёт. */
+const copying = ref(false);
+const copiedDirect = ref(false);
+async function copyDirect() {
+  copying.value = true;
+  failure.value = null;
+  try {
+    const built = await fetchPrompt();
+    if ('message' in built) {
+      failure.value = built;
+      open.value = true;
+      return;
+    }
+    prompt.value = built.prompt;
+    count.value = built.count;
+    await navigator.clipboard.writeText(built.prompt);
+    copiedDirect.value = true;
+    setTimeout(() => { copiedDirect.value = false; }, 2000);
+  } finally {
+    copying.value = false;
+  }
 }
 
 async function send() {
@@ -120,6 +147,20 @@ function accept(result: { answer: string }) {
         @click="build"
       >
         {{ props.label }}
+      </UButton>
+
+      <UButton
+        size="sm"
+        variant="outline"
+        color="neutral"
+        :icon="copiedDirect ? 'i-lucide-check' : 'i-lucide-copy'"
+        :loading="copying"
+        :disabled="props.disabled"
+        :aria-label="`Скопировать запрос: ${props.label}`"
+        :title="props.hint"
+        @click="copyDirect"
+      >
+        {{ copiedDirect ? 'Скопировано' : 'Скопировать' }}
       </UButton>
 
       <!-- Неактивная кнопка обязана назвать причину (docs/04-ui.md). -->
