@@ -2,7 +2,7 @@
 id: T-0122
 type: task
 title: Роли дизайнера, тестировщика, девопса и сопровождения
-status: in_progress
+status: ready
 change: feature
 reuse: none
 created: 2026-10-20
@@ -21,3 +21,4 @@ links:
 - 2026-10-20 · заведена из docs/inbox/komanda-shire-dizaynery-testirovschiki-devopsy-s.md · приложение
 - 2026-10-20 · готова к работе · architect
 - 2026-10-20 · в разработку · architect
+- 2026-10-20 · готова к работе · architect

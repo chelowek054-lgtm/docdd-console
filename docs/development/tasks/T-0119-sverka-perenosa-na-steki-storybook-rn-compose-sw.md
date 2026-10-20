@@ -2,7 +2,7 @@
 id: T-0119
 type: task
 title: 'Сверка переноса на стеки: Storybook RN, Compose, SwiftUI'
-status: in_progress
+status: ready
 change: feature
 reuse: none
 created: 2026-10-20
@@ -21,3 +21,4 @@ links:
 - 2026-10-20 · заведена из docs/inbox/storybook-kak-kontrakt-komponentov-pri-perenose.md · приложение
 - 2026-10-20 · готова к работе · architect
 - 2026-10-20 · в разработку · architect
+- 2026-10-20 · готова к работе · architect

@@ -2,7 +2,7 @@
 id: T-0125
 type: task
 title: Шаги и ожидаемый результат в проверке
-status: in_progress
+status: ready
 change: feature
 reuse: none
 created: 2026-10-20
@@ -21,3 +21,4 @@ links:
 - 2026-10-20 · заведена из docs/inbox/rabochee-mesto-testirovschika-shagi-progony-defe.md · приложение
 - 2026-10-20 · готова к работе · architect
 - 2026-10-20 · в разработку · architect
+- 2026-10-20 · готова к работе · architect
