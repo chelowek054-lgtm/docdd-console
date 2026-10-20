@@ -15,6 +15,11 @@ const phase = ref<string>('');
 const owner = ref<string>('');
 const tag = ref<string>('');
 const reviewers = useTaskReviewers(tasks, index);
+// «Мои задачи»: без входа имя вводится вручную и помнится в браузере (T-0016).
+const me = ref('');
+const mineOnly = ref(false);
+onMounted(() => { try { me.value = localStorage.getItem('docdd.me') ?? ''; } catch { /* хранилище недоступно */ } });
+watch(me, (value) => { try { localStorage.setItem('docdd.me', value); } catch { /* не страшно */ } });
 
 const phases = computed(() => unique(tasks.value.map((task) => task.phase ?? '')));
 const owners = computed(() => unique(tasks.value.map((task) => task.owner ?? '')));
@@ -24,7 +29,8 @@ const shown = computed(() => tasks.value.filter((task) =>
   (!status.value || task.status === status.value)
   && (!phase.value || task.phase === phase.value)
   && (!owner.value || task.owner === owner.value)
-  && (!tag.value || task.tags.includes(tag.value)) && reviewers.matches(task)));
+  && (!tag.value || task.tags.includes(tag.value)) && reviewers.matches(task)
+  && (!mineOnly.value || !me.value || task.extra['assignee'] === me.value)));
 
 const selection = useSelection(shown);
 const chunk = useChunked(shown, 40);
@@ -84,6 +90,8 @@ function reset() {
         <USelect v-model="owner" placeholder="Любой исполнитель" :items="owners.map((o) => ({ label: o, value: o }))" class="w-48" />
         <USelect v-model="reviewers.reviewer.value" placeholder="Любой ревьюер" :items="reviewers.reviewers.value" class="w-44" />
         <USelect v-model="tag" placeholder="Любой тег" :items="tags.map((t) => ({ label: t, value: t }))" class="w-40" />
+        <UInput v-model="me" placeholder="Моё имя" class="w-36" />
+        <UCheckbox v-model="mineOnly" label="Мои задачи" />
         <UButton variant="ghost" color="neutral" @click="reset">Сбросить</UButton>
       </div>
 

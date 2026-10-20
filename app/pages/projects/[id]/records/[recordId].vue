@@ -134,6 +134,13 @@ function entries(
         @changed="reload"
       />
 
+      <TaskAssignee
+        v-if="detail.record.type === 'task'"
+        :project-id="projectId"
+        :task="detail.record"
+        @changed="reload"
+      />
+
       <!-- Ручная проверка: флажок «Проверено» фиксирует прогон (docs/04-ui.md). -->
       <UCard v-if="detail.record.type === 'verification'">
         <template #header>
