@@ -9,6 +9,7 @@ import { eventStream } from '../../../../../../utils/sse';
 import { loadIndex } from '../../../../../../utils/index-service';
 import { findProject } from '../../../../../../utils/projects';
 import { accept, handover, reject } from '../../../../../../utils/work-service';
+import { sharedDenied } from '../../../../../../utils/mode';
 
 /**
  * Действия над работой: отдать модели, принять дифф, отправить на доработку,
@@ -25,6 +26,8 @@ export default defineEventHandler(async (event) => {
 
   const body = await readBody<{ action?: unknown; actor?: unknown; comment?: unknown }>(event);
   const action = typeof body?.action === 'string' ? body.action : '';
+  // Работа с полным доступом и слияние на общем сервере закрыты, пока нет прав (фаза 26).
+  if (action === 'handover' || action === 'rework' || action === 'accept') { const denied = sharedDenied(event, 'Работа над задачей и слияние'); if (denied) return denied; }
   const actor = typeof body?.actor === 'string' ? body.actor : '';
   const comment = typeof body?.comment === 'string' ? body.comment : '';
 

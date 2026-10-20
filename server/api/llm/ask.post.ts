@@ -5,6 +5,7 @@ import { ask } from '../../utils/llm';
 import { eventStream } from '../../utils/sse';
 import { fail } from '../../utils/http';
 import { findProject } from '../../utils/projects';
+import { sharedDenied } from '../../utils/mode';
 
 /**
  * Один запрос к модели через Claude Code. Ответ идёт лентой событий: видно, что
@@ -13,7 +14,7 @@ import { findProject } from '../../utils/projects';
  * (docs/adr/0008-llm-through-claude-code.md).
  */
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ prompt?: unknown; projectId?: unknown; tools?: unknown }>(event);
+  const denied = sharedDenied(event, 'Свободный запрос к модели'); if (denied) return denied; const body = await readBody<{ prompt?: unknown; projectId?: unknown; tools?: unknown }>(event);
   const prompt = typeof body?.prompt === 'string' ? body.prompt.trim() : '';
   const projectId = typeof body?.projectId === 'string' ? body.projectId : '';
 

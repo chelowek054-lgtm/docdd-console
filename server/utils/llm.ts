@@ -314,7 +314,7 @@ export async function ask(prompt: string, options: AskOptions = {}): Promise<Llm
     // Лента событий нужна, только когда её кто-то показывает.
     if (options.onEvent) args.push(...STREAM_ARGS);
     if (options.resume) args.push('--resume', options.resume);
-    if (options.access) args.push(...ACCESS_ARGS[options.access]);
+    if (options.access) args.push(...(process.env.DOCDD_MODE === 'shared' && options.cwd ? scopedAccessArgs(options.access, options.cwd) : ACCESS_ARGS[options.access]));
     if (options.effort) args.push('--effort', options.effort);
 
     const parser = createStreamParser();
@@ -529,4 +529,23 @@ export function unfence(answer: string, language?: string): string {
     : /```[a-zA-Z-]*[ \t]*\r?\n([\s\S]*?)```/m;
   const match = pattern.exec(answer);
   return (match?.[1] ?? answer).trim();
+}
+
+/**
+ * На общем сервере чтение и правка ограничены корнем проекта правилами прав Claude Code
+ * (`Read(//путь/**)` — абсолютный путь): запрос «прочитай /etc/passwd» получает отказ
+ * инструмента. Остальное — те же белый и чёрный списки, что и в локальном режиме.
+ */
+function scopedAccessArgs(access: Access, cwd: string): string[] {
+  const base = cwd.split(String.fromCharCode(92)).join('/').replace(/^[/]+/, '');
+  const inside = `//${base}/**`;
+  const scoped = (tool: string) => `${tool}(${inside})`;
+  const args = [...ACCESS_ARGS[access]];
+  const at = args.indexOf('--allowed-tools');
+  if (at >= 0) {
+    const end = args.findIndex((item, i) => i > at && item.startsWith('--'));
+    const list = args.slice(at + 1, end === -1 ? undefined : end).map((tool) => (tool === 'Bash' ? tool : scoped(tool)));
+    args.splice(at + 1, list.length, ...list);
+  }
+  return args;
 }

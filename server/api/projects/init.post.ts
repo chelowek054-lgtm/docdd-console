@@ -10,6 +10,7 @@ import { developmentDir, hasWorkspace, MANIFEST_FILE } from '../../lib/workspace
 import { fail } from '../../utils/http';
 import { findProject, saveProject } from '../../utils/projects';
 import { today } from '../../utils/record-write';
+import { rootAllowed } from '../../utils/mode';
 
 /**
  * Заведение формата в пустом проекте: манифест, папки разделов и первая
@@ -22,6 +23,7 @@ export default defineEventHandler(async (event) => {
   const name = typeof body?.name === 'string' ? body.name.trim() : '';
 
   if (!root) return fail(event, 400, 'root_required', 'Не указан путь к корню проекта');
+  if (!rootAllowed(normalizeRoot(root))) return fail(event, 403, 'root_not_allowed', 'Путь вне каталогов из DOCDD_PROJECT_ROOTS (в режиме shared переменная обязательна)');
   if (!/^[a-z0-9][a-z0-9-]*$/.test(id)) {
     return fail(
       event,
