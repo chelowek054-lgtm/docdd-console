@@ -98,7 +98,7 @@ const entries = computed<NavEntry[]>(() => {
         { label: t('nav.import'), to: `${base}/fill?tab=import` }
       ]
     },
-    { kind: 'link', label: t('nav.practices'), to: `${base}/shared` },
+    { kind: 'link', label: t('nav.practices'), to: `${base}/shared` }, /* знания */ ...[{ label: t('nav.knowledge'), to: `${base}/knowledge` }, { label: t('nav.search'), to: `${base}/search` }, { label: t('nav.glossary'), to: `${base}/glossary` }, { label: t('nav.analyst'), to: `${base}/analyst` }].map((link) => ({ kind: 'link' as const, ...link })),
     { kind: 'link', label: t('nav.design'), to: `${base}/design` }
   ];
 });
