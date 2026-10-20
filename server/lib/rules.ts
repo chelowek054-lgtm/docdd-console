@@ -23,7 +23,7 @@ import {
   type WorkRecord
 } from './types';
 import { plainTokens, type DesignResolution } from './design';
-import { PASS_LABEL, latestReports, type DesignReport } from './design-screens';
+import { PASS_LABEL, latestReports, type DesignReport } from './design-screens'; import { buildCatalogReport, catalogSources } from './design-catalog';
 import {
   STACK_LABEL,
   compareFile,
@@ -45,7 +45,7 @@ export interface RuleContext {
   /** Токены дизайна после сложения «общее → локальное» (docs/16-design-system.md). */
   design?: DesignResolution;
   /** Стеки и файлы темы проекта из манифеста: по ним сверяется выгрузка (docs/16-design-system.md). */
-  designStacks?: NonNullable<ProjectManifest['design']>['stacks'];
+  designStacks?: NonNullable<ProjectManifest['design']>['stacks']; /** Выгрузка Storybook проекта (`design.catalog`). */ designCatalog?: string;
   /** Принятые отчёты проверки экранов моделью. */
   designReports?: readonly DesignReport[];
   /** Справочник включён (`paths.reference`): путь к индексу и порог устаревания (docs/13-reference.md). */
@@ -209,7 +209,7 @@ export function checkAll(ctx: RuleContext): Violation[] {
     ...architectureRules(ctx),
     ...rulesConflict(ctx),
     ...designRules(ctx),
-    ...designDrift(ctx),
+    ...designDrift(ctx), ...designCatalogRules(ctx),
     ...designScreenFindings(ctx),
     ...referenceRules(ctx),
     ...taskReuseUnchecked(ctx),
@@ -1123,4 +1123,23 @@ export function taskNoVerification(ctx: RuleContext): Violation[] {
     ));
   }
   return found;
+}
+
+/**
+ * Каталоги историй против контракта (docs/16-design-system.md, «Storybook как
+ * контракт»): пробелы — `design_story_missing`, расхождение свойств и лишние
+ * истории — `design_contract_drift`. Включается манифестом: нет `design.catalog`
+ * и `stacks[].catalog` — нет проверки. Файлы выгрузок читает `readSource`.
+ */
+export function designCatalogRules(ctx: RuleContext): Violation[] {
+  const design = ctx.design;
+  if (!design || design.empty || !ctx.readSource) return [];
+  const sources = catalogSources(
+    { ...(ctx.designCatalog ? { catalog: ctx.designCatalog } : {}), stacks: ctx.designStacks },
+    STACK_LABEL,
+    ctx.readSource
+  );
+  if (sources.length === 0) return [];
+  const components = design.tokens.components.map((item) => item.value);
+  return buildCatalogReport(components, sources).findings.map((finding) => violation(finding.code, null, '', finding.message));
 }

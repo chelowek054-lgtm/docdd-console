@@ -84,8 +84,11 @@ design:
     - id: nuxt-ui            # nuxt-ui | expo | compose | swiftui
       files:                 # ключ → путь от корня проекта; нет ключа — умолчание стека
         css: app/assets/css/main.css
+      catalog: ci/storybook-nuxt   # выгрузка каталога историй этого стека из CI
   screens: docs/development/design/screens    # каталог снимков экранов
   mockups: docs/development/design/mockups    # эталонные макеты
+  catalog: storybook-static            # выгрузка Storybook проекта (index.json или каталог с ним)
+  snapshots: docs/development/design/stories   # снимки историй от CI: <каталог>/<стек>/<id истории>.png
   widths: [375, 768, 1280]    # ширины снимков в px
   themes: [light, dark]       # темы снимков; не названы — все темы проекта (в том числе добавленные)
 ```
