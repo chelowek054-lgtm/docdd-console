@@ -97,6 +97,8 @@ function entries(
         <template v-if="detail.record.owner"> · {{ detail.record.owner }}</template>
       </p>
 
+      <RecordDiff :project-id="projectId" :record-id="recordId" :status="detail.record.status" />
+
       <RecordActions
         :project-id="projectId"
         :record-id="recordId"

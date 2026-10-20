@@ -50,14 +50,14 @@ export interface WriteOutcome {
 
 export function applyStatusChange(
   original: string,
-  options: { status: string; actor: string; today: string }
+  options: { status: string; actor: string; today: string; action?: string }
 ): WriteOutcome {
   const file = splitRecord(original);
   if (!file) {
     return { text: original, problems: ['Файл не является записью с front matter.'] };
   }
 
-  const action = JOURNAL_ACTIONS[options.status] ?? options.status;
+  const action = options.action ?? JOURNAL_ACTIONS[options.status] ?? options.status;
   const line = journalLine(options.today, action, options.actor);
 
   const changed = appendJournal(
