@@ -2,10 +2,10 @@
 id: T-0096
 type: task
 title: Подсказки дробления и запрос «Сгруппировать модули» для многоуровневых групп
-status: in_review
+status: done
 change: feature
 created: 2026-10-19
-updated: 2026-10-19
+updated: 2026-10-20
 links:
   implements: [R-0040]
   affects: [M-0046]
@@ -21,3 +21,4 @@ links:
 - 2026-10-19 · готова к работе · architect
 - 2026-10-19 · в разработку · architect
 - 2026-10-19 · на проверку · architect
+- 2026-10-20 · закрыта · agent-review

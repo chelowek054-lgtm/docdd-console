@@ -75,7 +75,7 @@ export function projectScreens(root: string): ScreensReport {
     widths: design.widths,
     themes: design.themes ?? projectThemes(normalized)
   });
-  return { ...inventory, fromMap: screens.length > 0, script: captureScript(inventory) };
+  return { ...inventory, fromMap: screens.length > 0, script: captureScript(inventory, darkThemesOf(normalized)) };
 }
 
 /** Принятые отчёты проверки экранов: файлы JSON в каталоге отчётов проекта. */
@@ -138,5 +138,16 @@ function projectThemes(root: string): string[] | undefined {
     return design.empty ? undefined : themeNames(design.tokens);
   } catch {
     return undefined;
+  }
+}
+
+/** Темы на базе `dark`: скрипту снятия нужно знать, каким темам включать `.dark` (docs/16-design-system.md). */
+function darkThemesOf(root: string): string[] {
+  try {
+    const design = projectDesign(root);
+    if (design.empty) return [];
+    return themeNames(design.tokens).filter((name) => name !== 'light' && name !== 'dark' && design.tokens.themes[name]?.mode?.value === 'dark');
+  } catch {
+    return [];
   }
 }

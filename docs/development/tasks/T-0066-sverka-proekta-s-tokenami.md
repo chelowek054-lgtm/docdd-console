@@ -2,7 +2,7 @@
 id: T-0066
 type: task
 title: 'Сверка проекта с токенами: файл темы и компоненты реестра'
-status: in_review
+status: done
 change: feature
 links:
   implements: [R-0032]
@@ -10,7 +10,7 @@ links:
   depends_on: [T-0065]
   affects: [M-0030]
 created: 2026-10-11
-updated: 2026-10-11
+updated: 2026-10-20
 ---
 
 # Сверка проекта с токенами: файл темы и компоненты реестра
@@ -23,3 +23,4 @@ updated: 2026-10-11
 - 2026-10-11 · готова к работе · architect
 - 2026-10-11 · в разработку · architect
 - 2026-10-11 · на проверку · architect
+- 2026-10-20 · закрыта · agent-review

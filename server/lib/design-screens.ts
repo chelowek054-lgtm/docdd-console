@@ -123,7 +123,8 @@ export function buildInventory(input: {
  * экранов приложение не знает (карта путей описывает экраны, а не URL), поэтому
  * подставлены заготовки.
  */
-export function captureScript(inventory: DesignScreens): string {
+/** `darkThemes` — добавленные темы на базе `dark`: им, как и самой `dark`, нужен и класс `.dark`, и тёмная схема браузера. */
+export function captureScript(inventory: DesignScreens, darkThemes: readonly string[] = []): string {
   const routes = inventory.screens.map((screen) => `  '${screen.slug}': '/', // ${screen.title}: подставьте адрес экрана`);
   return [
     '// Снятие экранов для проверки дизайна (docs/16-design-system.md). Веб: браузер без окна.',
@@ -134,6 +135,7 @@ export function captureScript(inventory: DesignScreens): string {
     "const base = process.argv[2] ?? 'http://localhost:3000';",
     `const widths = [${inventory.widths.join(', ')}];`,
     `const themes = [${inventory.themes.map((theme) => `'${theme}'`).join(', ')}];`,
+    `const dark = new Set(['dark', ${darkThemes.map((theme) => `'${theme}'`).join(', ')}]);`,
     `const dir = '${inventory.screensDir}';`,
     'const routes = {',
     ...routes,
@@ -144,10 +146,14 @@ export function captureScript(inventory: DesignScreens): string {
     '  mkdirSync(`${dir}/${slug}`, { recursive: true });',
     '  for (const width of widths) {',
     '    for (const theme of themes) {',
-    "      const page = await browser.newPage({ viewport: { width, height: 900 }, colorScheme: theme === 'dark' ? 'dark' : 'light' });",
+    "      const page = await browser.newPage({ viewport: { width, height: 900 }, colorScheme: dark.has(theme) ? 'dark' : 'light' });",
     '      await page.goto(base + route, { waitUntil: "networkidle" });',
     "      // Тема включается классом на корне: `.dark` и `.theme-<имя>` из выгрузки токенов.",
-    "      await page.evaluate((name) => name !== 'light' && document.documentElement.classList.add(name === 'dark' ? 'dark' : `theme-${name}`), theme);",
+    '      await page.evaluate(([name, isDark]) => {',
+    "        const root = document.documentElement;",
+    "        if (isDark) root.classList.add('dark');",
+    "        if (name !== 'light' && name !== 'dark') root.classList.add(`theme-${name}`);",
+    '      }, [theme, dark.has(theme)]);',
     '      await page.screenshot({ path: `${dir}/${slug}/${width}-${theme}.png`, fullPage: true });',
     '      await page.close();',
     '    }',

@@ -2,7 +2,7 @@
 id: T-0062
 type: task
 title: 'Эталон PRAXIS — первая запись docdd-design в общем источнике'
-status: in_review
+status: done
 change: feature
 links:
   implements: [R-0030]
@@ -10,7 +10,7 @@ links:
   depends_on: [T-0061]
   affects: [M-0030]
 created: 2026-10-11
-updated: 2026-10-11
+updated: 2026-10-20
 ---
 
 # Эталон PRAXIS — первая запись docdd-design в общем источнике
@@ -23,3 +23,4 @@ updated: 2026-10-11
 - 2026-10-11 · готова к работе · architect
 - 2026-10-11 · в разработку · architect
 - 2026-10-11 · на проверку · architect
+- 2026-10-20 · закрыта · agent-review

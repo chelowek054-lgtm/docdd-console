@@ -2,7 +2,7 @@
 id: T-0107
 type: task
 title: Кнопка «Запрос на проверку» и запрос review-batch
-status: in_review
+status: done
 change: feature
 created: 2026-10-20
 updated: 2026-10-20
@@ -21,3 +21,4 @@ links:
 - 2026-10-20 · готова к работе · architect
 - 2026-10-20 · в разработку · architect
 - 2026-10-20 · на проверку · architect
+- 2026-10-20 · закрыта · agent-review

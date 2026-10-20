@@ -1156,6 +1156,13 @@ export function overviewAt(
 
   const waiting = waitingOn(capabilities, relations);
   const drawn = drawableRelations(relations, capabilities).drawn.filter((r) => isRelationType(r.type));
+  // Группа, чьи потомки все ушли в другие узлы, остаётся пустой записью самой себя:
+  // рядом с её детьми это лишний узел. Оставляем, только если у неё есть свои связи.
+  const touched = new Set(drawn.flatMap((r) => [visible(r.from), visible(r.to)]));
+  for (let i = nodes.length - 1; i >= 0; i--) {
+    const node = nodes[i] as OverviewNode;
+    if (node.expandable && node.size === 1 && !touched.has(node.id)) nodes.splice(i, 1);
+  }
   const folded = foldEdges(
     drawn.map((r) => ({ from: r.from, to: r.to, kind: r.type })),
     visible
