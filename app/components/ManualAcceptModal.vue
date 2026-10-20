@@ -12,7 +12,7 @@ const props = defineProps<{
   projectId: string;
   /** Задачи, которые надо закрыть; их проверки окно находит само. */
   taskIds?: string[];
-  /** Режим одной проверки (флажок «Проверено»): задачи не переводятся, только отметка. */
+  /** Режим проверки (флажок «Проверено»): отметка, а задачи её требований — по флажкам. */
   verificationIds?: string[];
   roles: { id: string; name: string }[];
 }>();
@@ -46,7 +46,8 @@ const manual = pending;
 
 /**
  * Проверка относится к требованию, а не к задаче: отметка снимет блокировку и с других задач
- * этого требования. Называем их, а закрывать — только по явному флажку.
+ * этого требования. Закрыть можно только те, что «на проверке» (в done ведёт лишь in_review);
+ * остальные называем, чтобы было видно: требование реализовано не полностью.
  */
 const sharedTasks = computed<IndexRecord[]>(() => {
   const own = new Set(props.taskIds ?? []);
@@ -57,7 +58,11 @@ const sharedTasks = computed<IndexRecord[]>(() => {
     && !['done', 'dropped'].includes(record.status)
     && (record.links.implements ?? []).some((target) => targets.has(target)));
 });
-const alsoClose = ref<string[]>([]);
+const closable = computed(() => sharedTasks.value.filter((record) => record.status === 'in_review'));
+const notReady = computed(() => sharedTasks.value.filter((record) => record.status !== 'in_review'));
+/** Храним снятые флажки, а не поставленные: задачи на проверке закрываются по умолчанию. */
+const skipped = ref<string[]>([]);
+const alsoClose = computed(() => closable.value.filter((record) => !skipped.value.includes(record.id)));
 
 const actor = ref(props.roles[0]?.id ?? '');
 const by = ref('');
@@ -97,7 +102,7 @@ async function accept() {
       const problem = reason(response);
       lines.push({ id: check.id, ok: !problem, text: problem ?? 'отмечена вручную' });
     }
-    for (const task of [...tasks.value, ...sharedTasks.value.filter((item) => alsoClose.value.includes(item.id))]) {
+    for (const task of [...tasks.value, ...alsoClose.value]) {
       const response = await $fetch<unknown>(`/api/projects/${props.projectId}/records/${task.id}/status`, {
         method: 'POST',
         body: { status: 'done', actor: actor.value },
@@ -118,7 +123,7 @@ async function accept() {
 watch(open, (value) => {
   if (!value) return;
   outcome.value = null;
-  alsoClose.value = [];
+  skipped.value = [];
   confirmed.value = false;
   by.value = '';
   note.value = '';
@@ -151,15 +156,29 @@ watch(open, (value) => {
           </ul>
         </div>
 
-        <div v-if="manual.length && sharedTasks.length && !verificationIds?.length && outcome === null" class="rounded border border-default p-2">
-          <p class="mb-1 text-muted">Проверка общая: отметка касается и этих задач — блокировка с них тоже снимется.</p>
-          <UCheckbox
-            v-for="task in sharedTasks"
-            :key="task.id"
-            :model-value="alsoClose.includes(task.id)"
-            :label="`Закрыть и ${task.id} — ${task.title}`"
-            @update:model-value="(value) => (alsoClose = value === true ? [...alsoClose, task.id] : alsoClose.filter((id) => id !== task.id))"
-          />
+        <div v-if="manual.length && sharedTasks.length && outcome === null" class="space-y-2 rounded border border-default p-2">
+          <div v-if="closable.length">
+            <p class="mb-1 text-muted">Проверка общая: эти задачи тоже на проверке — закроются тем же приёмом.</p>
+            <UCheckbox
+              v-for="task in closable"
+              :key="task.id"
+              :model-value="!skipped.includes(task.id)"
+              :label="`Закрыть и ${task.id} — ${task.title}`"
+              @update:model-value="(value) => (skipped = value === true ? skipped.filter((id) => id !== task.id) : [...skipped, task.id])"
+            />
+          </div>
+          <div v-if="notReady.length">
+            <p class="mb-1 text-warning">
+              Требование реализовано не полностью: эти задачи не переводятся, а когда дойдут до «на проверке»,
+              пройденная проверка их уже не задержит.
+            </p>
+            <ul class="space-y-0.5">
+              <li v-for="task in notReady" :key="task.id">
+                <span class="font-mono text-xs">{{ task.id }}</span> {{ task.title }}
+                <span class="text-xs text-muted">· {{ statusLabel(task.status) }}</span>
+              </li>
+            </ul>
+          </div>
         </div>
 
         <template v-if="manual.length && outcome === null">
