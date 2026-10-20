@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ApiFailure } from '~/composables/useProjectIndex';
+import { reviewerOf } from '~~/server/lib/reviewer';
 import type { IndexRecord } from '~~/server/lib/types';
 
 /**
@@ -124,6 +125,10 @@ watch(open, (value) => {
   if (!value) return;
   outcome.value = null;
   skipped.value = [];
+  // «Кто принял» — ревьюер задачи (adr/0030), если такая роль есть; иначе прежний выбор.
+  const first = tasks.value[0] ?? closable.value[0];
+  const role = first ? reviewerOf(first, index.value?.records ?? [], props.roles)?.role : undefined;
+  if (role && props.roles.some((item) => item.id === role)) actor.value = role;
   confirmed.value = false;
   by.value = '';
   note.value = '';
@@ -182,7 +187,7 @@ watch(open, (value) => {
         </div>
 
         <template v-if="manual.length && outcome === null">
-          <UFormField v-if="props.roles.length" label="Кто принял" help="Роль из манифеста: действует как исполнитель записи.">
+          <UFormField v-if="props.roles.length" label="Кто принял" help="Роль из манифеста; по умолчанию — ревьюер задачи.">
             <USelect
               v-model="actor"
               class="w-full"

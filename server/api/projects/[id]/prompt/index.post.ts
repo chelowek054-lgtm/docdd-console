@@ -39,6 +39,7 @@ import { plainTokens } from '../../../../lib/design';
 import { designPrompt } from '../../../../lib/prompt';
 import { projectDesign } from '../../../../utils/design-service';
 import { projectScreens } from '../../../../utils/design-screens-service';
+import { reviewerOf, roleName } from '../../../../lib/reviewer';
 
 /**
  * Сборка запроса к модели по шаблону из репозитория. Приложение подставляет
@@ -312,6 +313,10 @@ export default defineEventHandler(async (event) => {
 
       const index = loadIndex(project.root);
       const byId = new Map(index.records.map((record) => [record.id, record]));
+      const reviewerPick = (task: (typeof index.records)[number]) => {
+        const pick = reviewerOf(task, index.records, index.project.roles);
+        return pick ? { role: pick.role, name: roleName(pick.role, index.project.roles), why: pick.why } : null;
+      };
       const tasks: ReviewBatchTask[] = index.records
         .filter((record) => record.type === 'task' && record.status === 'in_review')
         .filter((record) => picked === null || picked.size === 0 || picked.has(record.id))
@@ -337,7 +342,8 @@ export default defineEventHandler(async (event) => {
                   at: outcome?.at ?? null
                 };
               }),
-            maps: (task.links.affects ?? []).map((id) => ({ id, title: byId.get(id)?.title ?? 'не найдено' }))
+            maps: (task.links.affects ?? []).map((id) => ({ id, title: byId.get(id)?.title ?? 'не найдено' })),
+            reviewer: reviewerPick(task)
           };
         });
       if (tasks.length === 0) {

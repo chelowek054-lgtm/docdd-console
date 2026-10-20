@@ -638,17 +638,20 @@ export interface ReviewBatchTask {
   requirements: readonly { id: string; title: string }[];
   verifications: readonly { id: string; title: string; kind: string | null; result: string | null; at: string | null }[];
   maps: readonly { id: string; title: string }[];
+  /** Кто принимает задачу (adr/0030): роль, её название и почему она. */
+  reviewer?: { role: string; name: string; why: string } | null;
 }
 
 function reviewTaskLines(task: ReviewBatchTask): string {
-  const lines = [`### ${task.id} — ${task.title}`, `Файл: \`${task.path}\``, `Фаза: ${task.phase ?? 'нет'}`];
+  const lines = [`### ${task.id} — ${task.title}`, `Файл: \`${task.path}\``, `Фаза: ${task.phase ?? 'нет'}`,
+    task.reviewer ? `Ревьюер: ${task.reviewer.name} (\`${task.reviewer.role}\`) — ${task.reviewer.why}` : 'Ревьюер: не определён — назови в отчёте, кому отдать'];
   lines.push(task.requirements.length
     ? `Требования:${LF}${task.requirements.map((req) => `- ${req.id} — ${req.title}`).join(LF)}`
     : 'Требования: нет — задача ни на что не опирается, это тоже находка');
   lines.push(task.verifications.length
     ? `Проверки:${LF}${task.verifications.map((check) =>
       `- ${check.id} — ${check.title} (${check.kind ?? 'вид не указан'}; последний прогон: ${check.result ? `${check.result}, ${check.at ?? 'время неизвестно'}` : 'не запускалась'})`).join(LF)}`
-    : 'Проверки: нет');
+    : 'Проверки: нет — закрыть нельзя (`task_no_verification`); предложи черновик проверки');
   lines.push(task.maps.length
     ? `Карты: ${task.maps.map((map) => `${map.id} — ${map.title}`).join('; ')}`
     : 'Карты: не указаны');

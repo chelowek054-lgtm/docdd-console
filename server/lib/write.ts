@@ -29,6 +29,8 @@ export interface FrontMatterChanges {
   rank?: number | null;
   updated?: string;
   owner?: string | null;
+  /** Роль, которая принимает задачу (adr/0030); `null` возвращает правило. */
+  reviewer?: string | null;
   phase?: string | null;
   tags?: string[];
   links?: Partial<Record<LinkKind, string[]>>;
@@ -70,6 +72,7 @@ export function applyFrontMatter(file: RecordFile, changes: FrontMatterChanges):
   if (changes.rank !== undefined) lines = setScalar(lines, 'rank', changes.rank === null ? null : String(changes.rank));
   if (changes.updated !== undefined) lines = setScalar(lines, 'updated', changes.updated);
   if (changes.owner !== undefined) lines = setScalar(lines, 'owner', changes.owner === null ? null : yamlSafe(changes.owner));
+  if (changes.reviewer !== undefined) lines = setScalar(lines, 'reviewer', changes.reviewer === null ? null : yamlSafe(changes.reviewer));
   if (changes.phase !== undefined) lines = setScalar(lines, 'phase', changes.phase);
   if (changes.tags !== undefined) lines = setScalar(lines, 'tags', flowList(changes.tags));
   if (changes.links !== undefined) lines = setLinks(lines, changes.links, eol);

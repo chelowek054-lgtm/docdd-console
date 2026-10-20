@@ -252,7 +252,7 @@
 
 ### `PATCH /api/projects/:id/records/:recordId`
 
-Правка полей front matter: `owner`, `phase`, `tags`, `links`, `change`. Тело
+Правка полей front matter: `owner`, `reviewer`, `phase`, `tags`, `links`, `change`, `reuse`. Тело
 документа не принимается вовсе — этого маршрута для него нет намеренно.
 
 `change` правится здесь же, а не только руками в файле: от него зависит, нужна
@@ -1067,7 +1067,7 @@ matter. **Текст документа не меняется** — ни стр�
 
 ### Запрос `review-batch`
 
-`POST /api/projects/:id/prompt` с `{ "kind": "review-batch", "agents": 3, "perAgent": 4, "minutes": 10, "branch": "review/2026-10-20", "taskIds": ["T-0001"] }` → `{ prompt, count }`. Задачи — в статусе `in_review` (`taskIds` сужает список; пусто — все), к каждой подставляются требования (`implements`), их проверки (`verifies`) с последним результатом, карты (`affects`) и фаза. Числа ограничены: агентов 1–10, задач на агента 1–20, минут 1–60. Задач на проверке нет — `422 no_review_tasks`.
+`POST /api/projects/:id/prompt` с `{ "kind": "review-batch", "agents": 3, "perAgent": 4, "minutes": 10, "branch": "review/2026-10-20", "taskIds": ["T-0001"] }` → `{ prompt, count }`. Задачи — в статусе `in_review` (`taskIds` сужает список; пусто — все), к каждой подставляются требования (`implements`), их проверки (`verifies`) с последним результатом, карты (`affects`), фаза и ревьюер (поле `reviewer` или правило [adr/0030](adr/0030-task-reviewer.md)) с причиной выбора. Числа ограничены: агентов 1–10, задач на агента 1–20, минут 1–60. Задач на проверке нет — `422 no_review_tasks`.
 
 
 ### Отметка «Проверено»: кто проверил

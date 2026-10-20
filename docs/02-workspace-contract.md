@@ -231,6 +231,8 @@ tags: [client, bite-model]
 
 ## Что за изменение
 
+У задачи может быть поле `reviewer` — роль из `roles`, которая принимает задачу; без него ревьюер выводится по правилу ([adr/0030-task-reviewer.md](adr/0030-task-reviewer.md)).
+
 У задачи `feature` ещё и поле `reuse: none` — «заглянул в индекс справочника, подходящего нет»; без него и без связи `reuses` задача получает предупреждение `task_reuse_unchecked` ([13-reference.md](13-reference.md)).
 
 У задачи есть поле `change` со значениями `feature`, `fix`, `rename`, `format`.
