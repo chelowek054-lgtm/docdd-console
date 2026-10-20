@@ -33,7 +33,7 @@ async function choose(value: string) {
   try {
     const response = await $fetch(`/api/projects/${props.projectId}/records/${props.task.id}`, {
       method: 'PATCH',
-      body: { reviewer: value === RULE ? null : value },
+      body: { reviewer: value === RULE ? null : value, version: props.task.version },
       ignoreResponseError: true
     });
     const problem = failureOf(response);

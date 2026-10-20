@@ -106,7 +106,7 @@ async function accept() {
     for (const task of [...tasks.value, ...alsoClose.value]) {
       const response = await $fetch<unknown>(`/api/projects/${props.projectId}/records/${task.id}/status`, {
         method: 'POST',
-        body: { status: 'done', actor: actor.value },
+        body: { status: 'done', actor: actor.value, version: task.version },
         ignoreResponseError: true
       });
       const problem = reason(response);

@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody<Record<string, unknown>>(event);
-  const unknown = Object.keys(body ?? {}).filter((key) => !['owner', 'reviewer', 'phase', 'tags', 'links', 'change', 'reuse'].includes(key));
+  const unknown = Object.keys(body ?? {}).filter((key) => !['owner', 'reviewer', 'phase', 'tags', 'links', 'change', 'reuse', 'version'].includes(key));
   if (unknown.length > 0) {
     return fail(
       event,
@@ -46,6 +46,9 @@ export default defineEventHandler(async (event) => {
       return fail(event, 404, 'record_not_found', `Записи \`${recordId}\` в проекте нет`);
     }
 
+    if (versionConflict(context.record, body?.['version'])) {
+      return fail(event, 409, 'record_changed_since_load', 'Запись изменили с тех пор, как вы её открыли: перечитайте и повторите правку');
+    }
     // Ревьюер — роль манифеста (adr/0030): незнакомую роль принять некому.
     const roles = context.workspace.manifest.roles ?? [];
     if (fields.reviewer && roles.length > 0 && !roles.some((role) => role.id === fields.reviewer)) {
@@ -96,3 +99,4 @@ function asLinks(value: unknown): Partial<Record<LinkKind, string[]>> {
   }
   return links;
 }
+import { versionConflict } from '../../../../lib/version';

@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
     return fail(event, 404, 'project_not_found', `Проект \`${id}\` не найден в списке`);
   }
 
-  const body = await readBody<{ phases?: unknown; actor?: unknown }>(event);
+  const body = await readBody<{ phases?: unknown; actor?: unknown; versions?: unknown }>(event);
   if (!Array.isArray(body?.phases) || body.phases.length === 0) {
     return fail(event, 400, 'phases_required', 'Нечего записывать: порядок пуст');
   }
@@ -31,6 +31,10 @@ export default defineEventHandler(async (event) => {
       return { id: typeof value?.id === 'string' ? value.id : '', why: typeof value?.why === 'string' ? value.why : '' };
     })
   }));
+  const stale = staleVersions(project.root, body?.versions);
+  if (stale.length > 0) {
+    return fail(event, 409, 'record_changed_since_load', `Фазы изменили с тех пор, как вы открыли порядок: ${stale.join(', ')}. Перечитайте и повторите`);
+  }
   const plan: PriorityPlan = { phases };
   const actor = typeof body?.actor === 'string' && body.actor ? body.actor : 'приложение';
 
@@ -47,3 +51,4 @@ export default defineEventHandler(async (event) => {
     return fail(event, 500, 'priority_failed', 'Не удалось записать порядок', String(error));
   }
 });
+import { staleVersions } from '../../../../utils/record-write';

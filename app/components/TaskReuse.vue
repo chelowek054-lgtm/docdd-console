@@ -35,7 +35,7 @@ async function save(body: Record<string, unknown>, key: string) {
   try {
     const response = await $fetch(`/api/projects/${props.projectId}/records/${props.task.id}`, {
       method: 'PATCH',
-      body,
+      body: { ...body, version: props.task.version },
       ignoreResponseError: true
     });
     const problem = failureOf(response);

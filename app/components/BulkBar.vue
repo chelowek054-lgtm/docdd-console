@@ -121,7 +121,7 @@ async function run(direction: string) {
       `/api/projects/${props.projectId}/records/bulk/status`,
       {
         method: 'POST',
-        body: { ids: props.selected.map((record) => record.id), direction, actor: actor.value },
+        body: { ids: props.selected.map((record) => record.id), direction, actor: actor.value, versions: Object.fromEntries(props.selected.map((record) => [record.id, record.version])) },
         // Отказ приходит телом ответа: причину показываем как есть.
         ignoreResponseError: true
       }

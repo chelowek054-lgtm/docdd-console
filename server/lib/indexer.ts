@@ -127,7 +127,7 @@ function toIndexRecord(record: WorkRecord, graph: Parameters<typeof incomingEdge
     section: record.source.section ?? null,
     links,
     backlinks,
-    extra
+    extra, version: versionOf(record)
   };
 }
 
@@ -153,3 +153,5 @@ function cachedWorkState(root: string): ReturnType<typeof workState> {
   workStates.set(key, { at: Date.now(), state });
   return state;
 }
+
+import { versionOf } from './version';

@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
     return fail(event, 404, 'project_not_found', `Проект \`${id}\` не найден в списке`);
   }
 
-  const body = await readBody<{ ids?: unknown; direction?: unknown; actor?: unknown }>(event);
+  const body = await readBody<{ ids?: unknown; direction?: unknown; actor?: unknown; versions?: unknown }>(event);
   const ids = Array.isArray(body?.ids) ? body.ids : [];
   if (ids.length === 0 || !ids.every((item): item is string => typeof item === 'string' && item !== '')) {
     return fail(event, 400, 'ids_required', 'Не названы записи: нужен непустой список номеров');
@@ -32,6 +32,10 @@ export default defineEventHandler(async (event) => {
     return fail(event, 400, 'direction_invalid', 'Направление — `forward`, `back` или `approve`');
   }
   const actor = typeof body?.actor === 'string' ? body.actor : '';
+  const stale = staleVersions(project.root, body?.versions);
+  if (stale.length > 0) {
+    return fail(event, 409, 'record_changed_since_load', `Записи изменили с тех пор, как вы их открыли: ${stale.join(', ')}. Перечитайте и повторите`);
+  }
 
   try {
     return bulkStatus(project.root, ids as string[], direction as BulkDirection, actor);
@@ -45,3 +49,4 @@ export default defineEventHandler(async (event) => {
     return fail(event, 500, 'write_failed', 'Не удалось записать изменения', String(error));
   }
 });
+import { staleVersions } from '../../../../../utils/record-write';
