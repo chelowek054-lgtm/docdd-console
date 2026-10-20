@@ -4,10 +4,10 @@ type: phase
 title: Фаза 32 — переезд из Jira и Confluence
 status: planned
 created: 2026-10-10
-updated: 2026-10-10
+updated: 2026-10-20
 links:
   covers: [T-0047, T-0048]
-rank: 9
+rank: 18
 ---
 
 # Фаза 32 — переезд из Jira и Confluence
@@ -18,3 +18,4 @@ rank: 9
 
 - 2026-10-10 · заведена: план «Платформа команды вместо Jira и Confluence» (docs/15-team-platform.md) · модель
 - 2026-10-10 · порядок по важности обновлён · модель
+- 2026-10-20 · порядок по важности обновлён · architect
