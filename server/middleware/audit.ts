@@ -37,7 +37,7 @@ export default defineEventHandler(async (event) => {
       mkdirSync(dirname(AUDIT_FILE), { recursive: true });
       const line = {
         at: startedAt,
-        actor: actor || 'local',
+        actor: signedName(event) || actor || 'local',
         method,
         path: url.pathname,
         project: projectMatch ? decodeURIComponent(projectMatch[1] ?? '') : null,
@@ -49,3 +49,9 @@ export default defineEventHandler(async (event) => {
     }
   });
 });
+
+/** Имя вошедшего: слой входа (auth.ts) идёт после этого middleware, поэтому читаем по окончании ответа, а не на входе. */
+function signedName(event: { context: unknown }): string {
+  const user = (event.context as { user?: { name?: unknown } }).user;
+  return typeof user?.name === 'string' ? user.name : '';
+}

@@ -11,8 +11,8 @@ import { fail } from '../utils/http';
  * смотреть может только администратор; без входа (локальный режим) открыто.
  */
 export default defineEventHandler((event) => {
-  const user = (event.context as { user?: { role?: unknown } }).user;
-  if (user && user.role !== 'admin') {
+  const user = (event.context as { user?: { admin?: unknown } }).user;
+  if (user && user.admin !== true) {
     return fail(event, 403, 'forbidden', 'Журнал доступа виден только администратору');
   }
   const query = getQuery(event);
