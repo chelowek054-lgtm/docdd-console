@@ -12,6 +12,8 @@ const projectId = computed(() => String(route.params['id'] ?? ''));
 const { data } = useFetch<{ tree: KnowledgeNode[] }>(() => `/api/projects/${projectId.value}/knowledge`, { key: () => `knowledge:${projectId.value}`, default: () => ({ tree: [] }) });
 const tree = computed(() => data.value.tree);
 const selected = ref('');
+// Дерево заметок вложенное (T-0048): в меню оно разворачивается в строки с отступом.
+const flat = (nodes: KnowledgeNode[], depth = 0): { node: KnowledgeNode; depth: number }[] => nodes.flatMap((node) => [{ node, depth }, ...flat(node.children, depth + 1)]);
 const crumbs = computed(() => breadcrumbs(tree.value, selected.value));
 const current = computed(() => crumbs.value[1] ?? null);
 const { index } = useProjectIndex(projectId);
@@ -24,7 +26,7 @@ const { detail, refresh } = useRecord(projectId, computed(() => (current.value?.
       <div v-for="group in tree" :key="group.key">
         <h2 class="text-xs font-semibold uppercase text-muted">{{ group.title }}</h2>
         <ul class="mt-1 space-y-0.5 text-sm">
-          <li v-for="page in group.children" :key="page.key">
+          <li v-for="{ node: page, depth } in flat(group.children)" :key="page.key" :style="{ paddingLeft: `${depth * 12}px` }">
             <button class="w-full truncate text-left hover:underline" :class="{ 'font-semibold': selected === page.key }" @click="selected = page.key">{{ page.title }}</button>
           </li>
         </ul>

@@ -40,6 +40,7 @@ policy:
   require_verification_before_done: true
   stale_in_progress_days: 14
   map_portion_files: 40
+  require_capability_owner: false   # необязательно: must/now без владельца — предупреждение capability_no_owner
 architecture:
   entries: { python: [__init__.py], typescript: [index.ts, index.tsx] }
   shared: [learningBack/platform, learningFront/src/shared]

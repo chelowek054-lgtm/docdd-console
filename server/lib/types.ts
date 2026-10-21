@@ -115,6 +115,7 @@ export type ViolationCode =
   | 'capability_ahead'
   | 'capability_behind'
   | 'capability_verification_failed'
+  | 'capability_no_owner'
   // архитектура (docs/05-validation.md, «Архитектура»)
   | 'arch_entry_bypassed'
   | 'arch_parent_import'
@@ -219,6 +220,7 @@ export const VIOLATION_LEVELS: Readonly<Record<ViolationCode, Severity>> = {
   capability_ahead: 'warning',
   capability_behind: 'warning',
   capability_verification_failed: 'warning',
+  capability_no_owner: 'warning',
   arch_entry_bypassed: 'warning',
   arch_parent_import: 'warning',
   arch_sibling_import: 'warning',
@@ -325,6 +327,8 @@ export interface Policy {
   map_portion_files?: number;
   /** Через сколько дней справка считается устаревшей (docs/13-reference.md); по умолчанию 180. */
   reference_stale_days?: number;
+  /** Требовать владельца у возможностей must/now (T-0044); по умолчанию выключено. */
+  require_capability_owner?: boolean;
 }
 
 /**
