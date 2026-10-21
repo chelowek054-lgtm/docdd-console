@@ -14,7 +14,7 @@ const status = useStatusFilter(statuses);
 const phase = ref<string>('');
 const owner = ref<string>('');
 const tag = ref<string>('');
-const reviewers = useTaskReviewers(tasks, index);
+const reviewers = useTaskReviewers(tasks, index); const { t } = useT();
 // «Мои задачи»: без входа имя вводится вручную и помнится в браузере (T-0016).
 const me = ref('');
 const mineOnly = ref(false);
@@ -73,8 +73,8 @@ function reset() {
 
     <template v-else>
       <div class="flex flex-wrap items-center gap-3">
-        <h2 class="text-lg font-semibold">Задачи</h2>
-        <p class="text-sm text-muted">{{ shown.length }} из {{ tasks.length }}</p>
+        <h2 class="text-lg font-semibold">{{ t('tp.title') }}</h2>
+        <p class="text-sm text-muted">{{ t('tp.count', { shown: shown.length, total: tasks.length }) }}</p>
         <ReviewBatchPrompt v-if="status === 'in_review'" class="ml-auto" :project-id="projectId" :visible-ids="shown.map((task) => task.id)" :total="tasks.filter((task) => task.status === 'in_review').length" />
         <NewRecord :class="status === 'in_review' ? '' : 'ml-auto'" :project-id="projectId" type="task" :records="records" @created="refresh" />
       </div>
@@ -86,13 +86,13 @@ function reset() {
 
       <div class="flex flex-wrap gap-2">
         <!-- Пустое значение USelect запрещает: «ничего не выбрано» — подсказка, снимается «Сбросить». -->
-        <USelect v-model="phase" placeholder="Любая фаза" :items="phases.map((p) => ({ label: p, value: p }))" class="w-40" />
-        <USelect v-model="owner" placeholder="Любой исполнитель" :items="owners.map((o) => ({ label: o, value: o }))" class="w-48" />
-        <USelect v-model="reviewers.reviewer.value" placeholder="Любой ревьюер" :items="reviewers.reviewers.value" class="w-44" />
-        <USelect v-model="tag" placeholder="Любой тег" :items="tags.map((t) => ({ label: t, value: t }))" class="w-40" />
-        <UInput v-model="me" placeholder="Моё имя" class="w-36" />
-        <UCheckbox v-model="mineOnly" label="Мои задачи" />
-        <UButton variant="ghost" color="neutral" @click="reset">Сбросить</UButton>
+        <USelect v-model="phase" :placeholder="t('tp.anyPhase')" :items="phases.map((p) => ({ label: p, value: p }))" class="w-40" />
+        <USelect v-model="owner" :placeholder="t('tp.anyOwner')" :items="owners.map((o) => ({ label: o, value: o }))" class="w-48" />
+        <USelect v-model="reviewers.reviewer.value" :placeholder="t('tp.anyReviewer')" :items="reviewers.reviewers.value" class="w-44" />
+        <USelect v-model="tag" :placeholder="t('tp.anyTag')" :items="tags.map((t) => ({ label: t, value: t }))" class="w-40" />
+        <UInput v-model="me" :placeholder="t('tp.myName')" class="w-36" />
+        <UCheckbox v-model="mineOnly" :label="t('tp.mine')" />
+        <UButton variant="ghost" color="neutral" @click="reset">{{ t('tp.reset') }}</UButton>
       </div>
 
       <!-- Отмечено — разбиваются отмеченные, не отмечено ничего — все, что ещё ни в какой фазе (docs/04-ui.md, «Разбить на фазы»). -->
@@ -103,7 +103,7 @@ function reset() {
         @changed="refresh"
       />
 
-      <UAlert v-if="waiting.length" color="info" variant="subtle" icon="i-lucide-info" :title="`У ${waiting.length} задач из очереди опора ещё не подтверждена`" description="Сначала подтвердите требования и документы, на которые они опираются, — иначе «Вперёд» эти задачи пропустит и назовёт причину." />
+      <UAlert v-if="waiting.length" color="info" variant="subtle" icon="i-lucide-info" :title="t('tp.waitTitle', { n: waiting.length })" :description="t('tp.waitText')" />
 
       <BulkBar
         :project-id="projectId"
@@ -115,14 +115,14 @@ function reset() {
       />
 
       <div v-if="shown.length === 0" class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted">
-        Под фильтры не попала ни одна задача. Снимите фильтры или заведите задачу в проекте — приложение записей не создаёт.
+        {{ t('tp.empty') }}
       </div>
 
       <div v-else class="rounded-lg border border-default">
         <div class="border-b border-default px-4 py-2">
           <UCheckbox
             :model-value="selection.state.value"
-            label="Выбрать всё"
+            :label="t('tp.selectAll')"
             @update:model-value="selection.toggleAll()"
           />
         </div>
@@ -132,7 +132,7 @@ function reset() {
           <UCheckbox
             class="pt-0.5"
             :model-value="selection.has(task.id)"
-            :aria-label="`Отметить ${task.id}`"
+            :aria-label="t('tp.mark', { id: task.id })"
             @update:model-value="selection.set(task.id, $event)"
           />
           <div class="min-w-0 flex-1">
@@ -149,7 +149,7 @@ function reset() {
 
           <div class="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted">
             <span v-if="task.links.implements?.length">
-              выполняет:
+              {{ t('tp.implements') }}
               <NuxtLink
                 v-for="id in task.links.implements"
                 :key="id"
@@ -159,10 +159,10 @@ function reset() {
             </span>
             <!-- Задача без требования помечена: это и есть работа, которая
                  никому не понадобилась (docs/04-ui.md). -->
-            <LightBadge v-else color="warning" variant="subtle">без требования</LightBadge>
+            <LightBadge v-else color="warning" variant="subtle">{{ t('tp.noReq') }}</LightBadge>
 
             <span v-if="task.links.verified_by?.length">
-              проверяется:
+              {{ t('tp.verifiedBy') }}
               <template v-for="id in task.links.verified_by" :key="id">
                 <NuxtLink :to="`/projects/${projectId}/records/${id}`" class="ml-1 font-mono hover:underline">{{ id }}</NuxtLink>
                 <LightBadge
@@ -171,17 +171,17 @@ function reset() {
                   variant="subtle"
                   class="ml-1"
                 >{{ resultLabel(results[id]!.state) }}</LightBadge>
-                <LightBadge v-else color="neutral" variant="subtle" class="ml-1">не запускалась</LightBadge>
+                <LightBadge v-else color="neutral" variant="subtle" class="ml-1">{{ t('tp.neverRan') }}</LightBadge>
               </template>
             </span>
-            <span v-else>без проверки</span>
-            <span v-if="reviewers.label(task)">ревьюер: <span class="text-default">{{ reviewers.label(task) }}</span></span>
+            <span v-else>{{ t('tp.noCheck') }}</span>
+            <span v-if="reviewers.label(task)">{{ t('tp.reviewer') }}: <span class="text-default">{{ reviewers.label(task) }}</span></span>
           </div>
           </div>
         </li>
         </ul>
         <div v-if="chunk.rest.value > 0" class="border-t border-default p-3 text-center">
-          <UButton variant="ghost" color="neutral" @click="chunk.more()">Показать ещё {{ Math.min(chunk.step, chunk.rest.value) }}</UButton>
+          <UButton variant="ghost" color="neutral" @click="chunk.more()">{{ t('tp.more') }} {{ Math.min(chunk.step, chunk.rest.value) }}</UButton>
         </div>
       </div>
     </template>

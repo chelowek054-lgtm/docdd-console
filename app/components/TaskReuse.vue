@@ -8,7 +8,7 @@ import type { IndexRecord } from '~~/server/lib/types';
  * работе, а справочник не просмотрен — выбрать справку, которую она
  * переиспользует, или записать «подходящего нет». Напоминание, не запрет.
  */
-const props = defineProps<{ projectId: string; task: IndexRecord; records: IndexRecord[] }>();
+const props = defineProps<{ projectId: string; task: IndexRecord; records: IndexRecord[] }>(); const { t } = useT();
 const emit = defineEmits<{ changed: [] }>();
 
 const { data } = useLazyFetch<{ enabled: boolean } | { error: ApiFailure }>(
@@ -53,23 +53,23 @@ const none = () => save({ reuse: 'none' }, 'none');
 <template>
   <UCard v-if="unchecked">
     <template #header>
-      <h2 class="font-medium">Что уже есть: справочник</h2>
+      <h2 class="font-medium">{{ t('ru.title') }}</h2>
     </template>
     <div class="space-y-3">
       <p class="text-sm text-muted">
-        Задача на новый функционал не смотрела справочник. Загляните в индекс: если что-то подходит — привяжите справку, и задача её переиспользует; нет — запишите «подходящего нет».
+        {{ t('ru.text') }}
       </p>
-      <UInput v-model="query" size="sm" class="w-full" placeholder="Найти справку по номеру или названию" />
-      <p v-if="choices.length === 0" class="text-sm text-muted">Подходящих справок нет.</p>
+      <UInput v-model="query" size="sm" class="w-full" :placeholder="t('ru.find')" />
+      <p v-if="choices.length === 0" class="text-sm text-muted">{{ t('ru.noneFit') }}</p>
       <ul v-else class="space-y-1">
         <li v-for="item in choices" :key="item.id" class="flex flex-wrap items-center gap-3 text-sm">
           <span class="font-mono text-xs text-muted">{{ item.id }}</span>
           <span class="min-w-0 flex-1">{{ item.title }}<span v-if="item.summary" class="text-muted"> — {{ item.summary }}</span></span>
-          <UButton size="xs" variant="soft" :loading="busy === item.id" :disabled="busy !== ''" @click="reuse(item.id)">Переиспользует</UButton>
+          <UButton size="xs" variant="soft" :loading="busy === item.id" :disabled="busy !== ''" @click="reuse(item.id)">{{ t('ru.reuses') }}</UButton>
         </li>
       </ul>
       <UButton size="sm" variant="outline" color="neutral" :loading="busy === 'none'" :disabled="busy !== ''" @click="none">
-        Подходящего нет
+        {{ t('ru.nothing') }}
       </UButton>
       <UAlert v-if="failure" color="error" variant="subtle" icon="i-lucide-triangle-alert" :title="failure.message" :description="failure.detail" />
     </div>
