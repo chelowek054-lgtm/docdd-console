@@ -1126,3 +1126,9 @@ matter. **Текст документа не меняется** — ни стр�
 ### GET /api/projects/:id/design/record-diff?record=ID
 
 Разница токенов записи дизайна (R-0073): `{ palette: [{ theme, rows: [{ role, before, after, state }] }], contrast: [{ theme, pair, before, after, okBefore, okAfter, min, regressed }], stacks: [{ id, label, files: [{ key, defaultPath, state, diff }] }] }`. «Было» — подтверждённые записи без этой, «станет» — вместе с ней. Логика — `server/lib/design-diff.ts`.
+
+### GET и PUT /api/notifications/channel
+
+Внешний канал уведомлений (R-0059), только администратор. `GET` → `{ hasUrl, fromEnv }`: адрес наружу не отдаётся. `PUT { url }` сохраняет адрес webhook в `.data/notifications.json` (пустая строка отключает); переменная `DOCDD_NOTIFY_WEBHOOK` главнее файла. Канал подключается лениво при первом уведомлении: `POST` JSON `{text}` (совместимо со Slack/Mattermost), таймаут 5 с, отказ запись не отменяет.
+
+Событие `violation_in_zone`: после записи и пересчёта нарушений новое нарушение по записи, связанной (`covers`/`implements`/`affects`) с возможностью или стоящей в фазе, где человек владелец (`owner` — логин или роль), уходит владельцу. Отпечатки отправленного лежат в `.data/notifications/<проект>-seen.json`: повтор не дублируется, первый пересчёт проекта лишь запоминает текущее, не больше 20 за пересчёт.

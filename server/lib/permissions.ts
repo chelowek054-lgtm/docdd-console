@@ -72,6 +72,7 @@ export function actionFor(method: string, path: string): Action {
   if (/^\/api\/projects\/?$/.test(path) || /^\/api\/projects\/init\/?$/.test(path) || /^\/api\/projects\/[^/]+\/?$/.test(path)) {
     return 'admin';
   }
+  if (/^\/api\/notifications\/channel\/?$/.test(path)) return 'admin';
   if (/\/shared\/?$/.test(path)) return 'team';
   if (/\/work\/?$/.test(path) || /\/fix(\/work)?\/?$/.test(path)) return 'work';
   if (/^\/api\/llm\//.test(path) || /\/prompt\/?$/.test(path)) return 'model';

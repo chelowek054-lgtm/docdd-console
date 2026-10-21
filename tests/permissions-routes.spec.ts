@@ -23,6 +23,7 @@ const EXPECTED: Record<string, Action> = {
   // Новые маршруты волны 2: право выбрано сознательно. alert — вебхук Grafana, закрыт токеном, права роли ему не нужны.
   'POST /api/llm/models/check': 'model',
   'PUT /api/llm/models': 'model',
+  'PUT /api/notifications/channel': 'admin',
   'POST /api/projects/x/analyst': 'edit_draft',
   'POST /api/projects/x/context': 'edit_draft',
   'POST /api/projects/x/inbox/alert': 'edit_draft',
