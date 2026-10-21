@@ -176,7 +176,7 @@ onUnmounted(() => document.removeEventListener('fullscreenchange', onFullscreenC
   <div>
     <div
       ref="wrapper"
-      class="relative overflow-hidden rounded border border-default"
+      class="relative overflow-hidden ds-card"
       :class="fullscreen ? (fullscreenTarget ? 'h-[85vh]' : 'h-screen w-screen bg-default') : ''"
     >
       <div class="absolute right-2 top-2 z-10 flex gap-1">

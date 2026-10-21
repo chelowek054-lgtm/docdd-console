@@ -34,7 +34,7 @@ watch(
 </script>
 
 <template>
-  <div v-if="props.lines.length" class="rounded border border-default">
+  <div v-if="props.lines.length" class="ds-card">
     <button
       type="button"
       class="flex w-full flex-wrap items-center gap-2 px-3 py-2 text-left text-sm"

@@ -159,7 +159,7 @@ const problemText: Record<string, string> = {
         <label
           v-for="role in roles"
           :key="role"
-          class="flex min-h-11 items-center gap-3 rounded border border-default px-3 py-2"
+          class="flex min-h-11 items-center gap-3 ds-card px-3 py-2"
           :class="overrides[role] ? 'border-primary' : ''"
         >
           <input

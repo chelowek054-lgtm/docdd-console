@@ -355,7 +355,7 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
             Группы зависят друг от друга по кругу — это уровень выше модулей, где такой цикл не виден.
           </p>
           <ul class="space-y-2">
-            <li v-for="item in selection.imports" :key="`${item.from}>${item.to}`" class="rounded border border-default p-2">
+            <li v-for="item in selection.imports" :key="`${item.from}>${item.to}`" class="ds-card p-2">
               <p class="font-mono text-xs">{{ item.from }} → {{ item.to }}</p>
               <p class="mt-1 font-mono text-xs text-muted">{{ item.evidence.path }}:{{ item.evidence.line }}</p>
               <pre class="mt-1 overflow-x-auto rounded bg-elevated p-1.5 text-xs">{{ item.evidence.fragment }}</pre>
@@ -510,7 +510,7 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
         <template v-if="nodeApi.length">
           <h3 class="font-medium">Интерфейс</h3>
           <ul class="space-y-2">
-            <li v-for="item in nodeApi" :key="item.name" class="rounded border border-default p-2">
+            <li v-for="item in nodeApi" :key="item.name" class="ds-card p-2">
               <div class="flex flex-wrap items-baseline gap-2">
                 <code class="text-xs font-semibold">{{ item.name }}</code>
                 <UBadge v-if="item.kind" size="xs" color="neutral" variant="subtle">{{ item.kind }}</UBadge>
@@ -549,7 +549,7 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
           />
           <div
             v-else-if="file"
-            class="overflow-auto rounded border border-default"
+            class="overflow-auto ds-card"
             :class="wide ? 'max-h-[calc(100vh-16rem)]' : 'max-h-[70vh]'"
           >
             <pre class="text-xs leading-5"><div

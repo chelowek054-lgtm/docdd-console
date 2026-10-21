@@ -187,7 +187,7 @@ watch(open, (value) => {
           </ul>
         </div>
 
-        <div v-if="manual.length && sharedTasks.length && outcome === null" class="space-y-2 rounded border border-default p-2">
+        <div v-if="manual.length && sharedTasks.length && outcome === null" class="space-y-2 ds-card p-2">
           <div v-if="closable.length">
             <p class="mb-1 text-muted">Проверка общая: эти задачи тоже на проверке — закроются тем же приёмом.</p>
             <UCheckbox
