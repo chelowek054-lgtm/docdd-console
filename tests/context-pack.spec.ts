@@ -1,0 +1,54 @@
+// V-0011 unit (npm run test -- tests/context-pack.spec.ts); написан по тексту R-0011 при проверке T-0027, T-0028.
+import { describe, expect, it } from 'vitest';
+
+import { buildContextPack, renderContextPack, type ContextNeeds } from '../server/lib/context-pack';
+import { rec } from './helpers';
+
+const LF = String.fromCharCode(10);
+const big = (n: number) => 'x'.repeat(n);
+
+const records = () => [
+  rec('R-1', 'requirement', 'approved', { body: '# R-1' + LF + big(100), links: {} }),
+  rec('T-1', 'task', 'ready', { body: '# T-1' + LF + big(100), links: { implements: ['R-1'] } }),
+  rec('T-2', 'task', 'ready', { body: '# T-2' + LF + big(100), links: { depends_on: ['T-1'] } }),
+  rec('D-1', 'decision', 'approved', { body: '# D-1' + LF + big(100), links: { affects: ['T-1'] }, extra: { tags: ['confidential'] } })
+];
+const needs: ContextNeeds = { kinds: ['record', 'links'], depth: 1, budget: 10_000 };
+
+describe('R-0011: пакет контекста', () => {
+  it('детерминирован: порядок записей на входе не меняет пакет', () => {
+    const a = buildContextPack({ records: records(), centerId: 'T-1', needs });
+    const b = buildContextPack({ records: records().reverse(), centerId: 'T-1', needs });
+    expect(b).toEqual(a);
+    expect(a.chunks[0]!.key).toBe('record:T-1');
+  });
+
+  it('режет по бюджету целыми кусками и перечисляет отрезанное', () => {
+    const full = buildContextPack({ records: records(), centerId: 'T-1', needs });
+    const small = buildContextPack({ records: records(), centerId: 'T-1', needs: { ...needs, budget: full.chunks[0]!.size + 5 } });
+    expect(small.chunks.map((c) => c.key)).toEqual(['record:T-1']);
+    expect(small.cut.length).toBe(full.chunks.length - 1);
+    for (const chunk of small.chunks) expect(chunk.text.length).toBe(chunk.size);
+    expect(small.cut.every((c) => c.size > 0)).toBe(true);
+    expect(renderContextPack(small)).toContain('Не вошло в контекст');
+  });
+
+  it('глубина 0 не тянет связи; чего шаблон не просит, того нет', () => {
+    const pack = buildContextPack({ records: records(), centerId: 'T-1', needs: { kinds: ['record'], depth: 0, budget: 9999 } });
+    expect(pack.chunks.map((c) => c.key)).toEqual(['record:T-1']);
+  });
+
+  it('confidential не уходит без допуска, с допуском уходит', () => {
+    const pack = buildContextPack({ records: records(), centerId: 'T-1', needs });
+    expect(pack.chunks.find((c) => c.key === 'record:D-1')?.confidential).toBe(true);
+    expect(renderContextPack(pack)).not.toContain('D-1');
+    expect(renderContextPack(pack, { allowConfidential: true })).toContain('D-1');
+  });
+
+  it('исключённый в предпросмотре кусок не попадает в prompt', () => {
+    const pack = buildContextPack({ records: records(), centerId: 'T-1', needs });
+    const text = renderContextPack(pack, { exclude: new Set(['record:R-1']) });
+    expect(text).not.toContain('R-1:');
+    expect(text).toContain('T-2');
+  });
+});
