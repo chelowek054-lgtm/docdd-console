@@ -1,6 +1,7 @@
 import { defineEventHandler, getQuery, getRouterParam } from 'h3';
 
 import { OutsideRootError } from '../../../../lib/paths';
+import type { IndexRecord } from '../../../../lib/types';
 import { WorkspaceError } from '../../../../lib/workspace';
 import { fail } from '../../../../utils/http';
 import { loadIndex } from '../../../../utils/index-service';
@@ -23,7 +24,7 @@ export default defineEventHandler(async (event) => {
     const index = loadIndex(project.root, refresh);
     await touchProject(id);
     // issues=0: нарушения (~26 КБ) уезжают отдельным запросом и не попадают в HTML.
-    if (getQuery(event)['issues'] === '0') return { ...index, issues: [], records: index.records.map((record) => ({ ...record, backlinks: {}, extra: record.type === 'task' ? record.extra : {}, ...(getQuery(event)['light'] === '1' ? { tags: [], created: null, updated: null, owner: null, phase: null, path: '' } : {}) })) }; // лёгкий индекс: backlinks уезжают в /backlinks, extra нужен только задачам
+    if (getQuery(event)['issues'] === '0') return { ...index, issues: [], records: index.records.map((record) => leanRecord(record, getQuery(event)['light'])) }; // лёгкий индекс: backlinks уезжают в /backlinks, extra нужен только задачам; light=2 — список задач (leanRecord)
     return index;
   } catch (error) {
     if (error instanceof WorkspaceError) {
@@ -36,3 +37,20 @@ export default defineEventHandler(async (event) => {
     return fail(event, 500, 'read_failed', 'Не удалось собрать индекс проекта', String(error));
   }
 });
+
+/**
+ * Лёгкая запись для HTML. light=1 обнуляет то, что тяжёлым страницам не нужно;
+ * light=2 (список задач) вовсе не отдаёт ключи, которых строка не рисует, —
+ * в payload каждый ключ повторяется на каждую запись, и null стоит столько же.
+ */
+function leanRecord(record: IndexRecord, light: unknown): IndexRecord {
+  const base = { ...record, backlinks: {}, extra: record.type === 'task' ? record.extra : {} };
+  if (light === '2') {
+    const { created: _c, updated: _u, path: _p, section: _s, backlinks: _b, ...rest } = base;
+    const extra: Record<string, unknown> = {};
+    // Только то, что рисует строка задачи; остальное подкачивается карточкой записи.
+    if (record.type === 'task') for (const key of ['change', 'reuse', 'assignee', 'reviewer']) if (key in record.extra) extra[key] = record.extra[key];
+    return { ...rest, extra } as IndexRecord;
+  }
+  return light === '1' ? { ...base, tags: [], created: null, updated: null, owner: null, phase: null, path: '' } : base;
+}

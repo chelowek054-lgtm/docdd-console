@@ -90,13 +90,13 @@ const roots = computed(() => visible.value.filter(
 ));
 
 /** Раскрыто по умолчанию — первые два уровня; глубже читатель разворачивает сам. */
-const expanded = ref<Set<string>>(new Set());
+const expanded = ref<Set<string>>(new Set()); const deepOpen = ref(false); onMounted(() => { deepOpen.value = true; }); // в HTML — только первый уровень, второй раскрывается после показа
 // Смотрим на состав, а не на сам список: отметка состояния пересобирает массив,
 // и раскрытые ветки не должны схлопываться от каждого клика.
-watch(() => props.capabilities.map((item) => `${item.id}>${item.parent ?? ''}`).join('|'), () => {
+watch(() => props.capabilities.map((item) => `${item.id}>${item.parent ?? ''}`).join('|') + deepOpen.value, () => {
   const next = new Set<string>();
   for (const item of props.capabilities) {
-    if (depthOf(item) < 2) next.add(item.id);
+    if (depthOf(item) < (deepOpen.value ? 2 : 1)) next.add(item.id);
   }
   expanded.value = next;
 }, { immediate: true });

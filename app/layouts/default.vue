@@ -9,7 +9,7 @@ const projectId = computed(() => (typeof route.params['id'] === 'string' ? route
 
 // Тот же ключ кэша, что у страниц: индекс не перечитывается лишний раз, счётчики
 // в шапке и на самой вкладке всегда об одном и том же (docs/03-server-api.md).
-useState<boolean>('index-light', () => false).value = /\/(maps|records\/[^/]+)$/.test(route.path); const { records, index, errors, warnings } = useProjectIndex(projectId); // лёгкий индекс — только на тяжёлых страницах; режим общий через useState
+const indexModes = { light: useState<boolean>('index-light', () => false), tasks: useState<boolean>('index-tasks', () => false), lazy: useState<boolean>('index-lazy', () => false) }; watchEffect(() => { indexModes.light.value = /\/(maps|records\/[^/]+)$/.test(route.path); indexModes.tasks.value = /\/work$/.test(route.path) && route.query['tab'] !== 'phases'; indexModes.lazy.value = /\/(maps|records\/[^/]+)$/.test(route.path); }); /* список задач — лёгкий индекс (light=2); на картах индекс второстепенный и не встраивается в HTML */ const { records, index, errors, warnings } = useProjectIndex(projectId); // лёгкий индекс — только на тяжёлых страницах; режим общий через useState
 
 /** Неподтверждённых записей типа — черновик или на подтверждении: одна мера для всех документов. */
 function unconfirmed(type: string): number {
