@@ -69,3 +69,17 @@ describe('R-0006: actionFor()', () => {
     expect(can(user('ivan'), team(['viewer']), actionFor('POST', '/api/projects/p/progress-question')).allowed).toBe(true);
   });
 });
+
+describe('R-0006: merge', () => {
+  it('accept в work требует merge, остальное — work', () => {
+    expect(actionFor('POST', '/api/projects/x/records/x/work', { action: 'accept' })).toBe('merge');
+    expect(actionFor('POST', '/api/projects/x/records/x/work', { action: 'handover' })).toBe('work');
+    expect(actionFor('POST', '/api/projects/x/records/x/work')).toBe('work');
+  });
+  it('deny: [merge] отнимает слияние, но не работу', () => {
+    const t = team(['developer'], ['merge']);
+    expect(can(user('ivan'), t, 'merge').allowed).toBe(false);
+    expect(can(user('ivan'), t, 'work').allowed).toBe(true);
+    expect(can(user('ivan'), team(['pm']), 'merge').allowed).toBe(false);
+  });
+});

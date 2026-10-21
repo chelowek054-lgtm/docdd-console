@@ -28,7 +28,9 @@ export default defineEventHandler(async (event) => {
   if (!user) return deny(401, 'unauthorized', 'Нужно войти');
 
   const isUsers = path.startsWith('/api/auth/users');
-  const action = isUsers ? 'admin' : actionFor(event.method, path);
+  // h3 кэширует тело, поэтому раннее чтение не мешает маршруту; нужно, чтобы отличить accept (merge) от прочей работы.
+  const early = ['POST', 'PATCH', 'PUT'].includes(event.method) && !isUsers ? await readBody<Record<string, unknown>>(event).catch(() => null) : null;
+  const action = isUsers ? 'admin' : actionFor(event.method, path, early);
 
   let team: TeamMember[] | undefined;
   const projectId = /^\/api\/projects\/([^/]+)\//.exec(path)?.[1];

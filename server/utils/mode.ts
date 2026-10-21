@@ -14,12 +14,14 @@ export function isSharedMode(): boolean {
 }
 
 /**
- * Отказ 403 `server_mode_shared` для маршрутов, которые без прав (фаза 26) на общем
+ * Отказ 403 `server_mode_shared` для маршрутов, которые без входа (права, фаза 26) на общем
  * сервере открывать нельзя: свободный запрос к модели, полный доступ, слияние.
  */
 export function sharedDenied(event: H3Event, what: string) {
   if (!isSharedMode()) return null;
-  return fail(event, 403, 'server_mode_shared', `${what}: на общем сервере выключено, пока нет прав (DOCDD_MODE=shared)`);
+  // Право проверяет middleware/auth.ts (work/merge/model); без входа прав нет — отказ.
+  if (process.env['DOCDD_AUTH'] === 'on') return null;
+  return fail(event, 403, 'server_mode_shared', `${what}: на общем сервере выключено без входа (DOCDD_MODE=shared, нужен DOCDD_AUTH=on)`);
 }
 
 /** Разрешённые каталоги проектов из `DOCDD_PROJECT_ROOTS` (разделитель — как у PATH). */
@@ -47,6 +49,8 @@ export function rootAllowed(root: string): boolean {
   if (roots.length === 0) return !isSharedMode();
   return roots.some((base) => {
     const rel = relative(base, root);
-    return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel) && !rel.startsWith(sep));
+    // Сегмент `..` — выход наружу; каталог `..foo` законен, поэтому сравниваем сегменты, а не префикс.
+    const first = rel.split(sep)[0];
+    return rel === '' || (first !== '..' && !isAbsolute(rel));
   });
 }
