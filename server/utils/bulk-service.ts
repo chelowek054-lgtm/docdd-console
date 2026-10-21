@@ -6,6 +6,7 @@ import { bulkPath, type BulkDirection } from '../lib/transitions';
 import { loadIndex } from './index-service';
 import { markDescribed } from './inventory-service';
 import { openRecord, today, writeRecord } from './record-write';
+import { wasViewed } from './record-diff-service';
 
 /**
  * Массовая смена статуса (docs/03-server-api.md, `records/bulk/status`).
@@ -94,7 +95,7 @@ function moveRecord(root: string, id: string, direction: BulkDirection, actor: s
       };
     }
 
-    const outcome = applyStatusChange(context.original, { status, actor, today: stamp });
+    const outcome = applyStatusChange(context.original, { status, actor, today: stamp, ...(status === 'approved' && wasViewed(root, id, context.record.source.path) ? { action: 'подтверждено после просмотра разницы' } : {}) });
     const written = writeRecord(context, outcome, root);
     if (!written.ok) {
       return {

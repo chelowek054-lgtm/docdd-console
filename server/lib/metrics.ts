@@ -70,3 +70,12 @@ export function prometheusValue(payload: unknown): number | null {
 export function passesThreshold(value: number, threshold: number, operator: unknown): boolean {
   return operator === 'gte' ? value >= threshold : value <= threshold;
 }
+
+/** Расход на модели за месяц (R-0065): запросы и оценка стоимости из журнала использования. */
+export function llmMetrics(usage: { month: string; total: { requests: number; costUsd: number } }, project: string): string {
+  const p = `project="${project.split(String.fromCharCode(92)).join(String.fromCharCode(92, 92)).split('"').join(String.fromCharCode(92) + '"')}",month="${usage.month}"`;
+  return [
+    '# HELP docdd_llm_requests Запросы к модели за месяц.', '# TYPE docdd_llm_requests gauge', `docdd_llm_requests{${p}} ${usage.total.requests}`,
+    '# HELP docdd_llm_cost_usd Оценка расхода на модели за месяц, USD.', '# TYPE docdd_llm_cost_usd gauge', `docdd_llm_cost_usd{${p}} ${usage.total.costUsd}`
+  ].join('\n') + '\n';
+}

@@ -1,6 +1,8 @@
 import { defineEventHandler, getRouterParam, setHeader } from 'h3';
 
-import { prometheusMetrics } from '../../../lib/metrics';
+import { llmMetrics, prometheusMetrics } from '../../../lib/metrics';
+import { summarize } from '../../../lib/llm-usage';
+import { readUsage } from '../../../utils/llm-usage-store';
 import { fail } from '../../../utils/http';
 import { loadIndex } from '../../../utils/index-service';
 import { findProject } from '../../../utils/projects';
@@ -12,7 +14,7 @@ export default defineEventHandler(async (event) => {
   if (!project) return fail(event, 404, 'project_not_found', `Проект \`${id}\` не найден в списке`);
   try {
     setHeader(event, 'content-type', 'text/plain; version=0.0.4; charset=utf-8');
-    return prometheusMetrics(loadIndex(project.root), project.id);
+    return prometheusMetrics(loadIndex(project.root), project.id) + llmMetrics(summarize(readUsage(), new Date().toISOString().slice(0, 7), project.id), project.id);
   } catch (error) {
     return fail(event, 500, 'read_failed', 'Не удалось собрать метрики', String(error));
   }
