@@ -8,9 +8,11 @@ const router = useRouter(); const { t } = useT();
 
 const TABS = computed(() => [
   { label: t('nav.inbox'), value: 'inbox' },
-  { label: t('nav.import'), value: 'import' }
+  { label: t('nav.import'), value: 'import' },
+  { label: 'Jira', value: 'jira' },
+  { label: 'Confluence', value: 'confluence' }
 ]);
-const KNOWN = ['inbox', 'import'];
+const KNOWN = ['inbox', 'import', 'jira', 'confluence'];
 
 const tab = computed({
   get: () => {
@@ -27,6 +29,7 @@ const tab = computed({
     <h1 class="text-xl font-semibold">{{ t('nav.fill') }}</h1>
     <UTabs v-model="tab" :items="TABS" :content="false" />
     <InboxPanel v-if="tab === 'inbox'" />
+    <ExternalImportPanel v-else-if="tab === 'jira' || tab === 'confluence'" :key="tab" :source="tab" />
     <ImportPanel v-else />
   </div>
 </template>
