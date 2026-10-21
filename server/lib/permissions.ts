@@ -26,7 +26,7 @@ export const ROLE_ACTIONS: Readonly<Record<string, readonly Action[]>> = {
   pm: ['read', 'edit_draft', 'reorder', 'team'],
   analyst: ['read', 'edit_draft', 'approve', 'model'],
   domain: ['read', 'edit_draft'],
-  viewer: ['read']
+  viewer: ['read'], designer: ['read', 'edit_draft', 'approve', 'model'], qa: ['read', 'edit_draft', 'approve', 'work', 'model'], devops: ['read', 'edit_draft', 'work', 'model', 'merge'], support: ['read', 'edit_draft']
 };
 
 export interface TeamMember {
