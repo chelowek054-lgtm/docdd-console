@@ -77,10 +77,19 @@ async function decide(action: 'accept' | 'reject') {
     busy.value = '';
   }
 }
+import { fixDiff } from '~~/server/lib/fix-diff';
+
+/** «Было → станет» по плану модели: что закроется, что останется (docs/04-ui.md, «Починка»). */
+const preview = computed(() => fixDiff(props.issues, props.plan));
 </script>
 
 <template>
   <div class="mt-4 space-y-3 border-t border-default pt-4">
+    <div v-if="preview.rows.length" class="space-y-1">
+      <p class="text-xs text-muted">По плану закроется: {{ preview.closes.length }}, останется: {{ preview.stays.length }}</p>
+      <OrderDiff :before="preview.before" :after="preview.after" :titles="preview.titles" />
+    </div>
+
     <div class="flex flex-wrap items-center gap-3">
       <UButton v-can="'work'" v-if="!running" icon="i-lucide-check" @click="apply">
         {{ state?.started ? 'Починить заново' : 'Принять ответ' }}
