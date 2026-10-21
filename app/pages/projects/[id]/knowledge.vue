@@ -7,7 +7,7 @@ import { breadcrumbs } from '~~/server/lib/knowledge';
  * документ в дереве → правка на месте: два клика. Текст правит BodyEditor
  * (docs/adr/0011-body-editing.md), подтверждённое он не пускает.
  */
-const route = useRoute();
+const route = useRoute(); const { t } = useT();
 const projectId = computed(() => String(route.params['id'] ?? ''));
 const { data } = useFetch<{ tree: KnowledgeNode[] }>(() => `/api/projects/${projectId.value}/knowledge`, { key: () => `knowledge:${projectId.value}`, default: () => ({ tree: [] }) });
 const tree = computed(() => data.value.tree);
@@ -31,10 +31,10 @@ const { detail, refresh } = useRecord(projectId, computed(() => (current.value?.
           </li>
         </ul>
       </div>
-      <p v-if="tree.length === 0" class="text-sm text-muted">Документов для пространства знаний пока нет</p>
+      <p v-if="tree.length === 0" class="text-sm text-muted">{{ t('kn.none') }}</p>
     </nav>
     <section class="lg:col-span-3">
-      <p v-if="!current" class="text-sm text-muted">Выберите страницу в дереве</p>
+      <p v-if="!current" class="text-sm text-muted">{{ t('kn.pick') }}</p>
       <template v-else>
         <p class="mb-2 text-xs text-muted">{{ crumbs.map((c) => c.title).join(' / ') }}</p>
         <template v-if="current.kind === 'record' && detail && detail.record.id === current.recordId">

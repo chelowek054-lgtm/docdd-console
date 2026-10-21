@@ -4,7 +4,7 @@
  * Данные — записи типа `release` из индекса; версия и окружения лежат в
  * незнакомых полях front matter (`extra`), задачи — по связи `ships`.
  */
-const route = useRoute();
+const route = useRoute(); const { t } = useT();
 const projectId = computed(() => String(route.params['id'] ?? ''));
 const { records, refresh } = useProjectIndex(projectId);
 
@@ -39,7 +39,7 @@ async function create() {
     taskIds.value = [];
     await refresh();
   } catch {
-    failure.value = 'Релиз не заведён';
+    failure.value = t('rel.failed');
   } finally {
     saving.value = false;
   }
@@ -48,20 +48,20 @@ async function create() {
 
 <template>
   <div class="space-y-4">
-    <h1 class="text-xl font-semibold">Релизы</h1>
+    <h1 class="text-xl font-semibold">{{ t('rel.title') }}</h1>
 
     <form class="flex flex-wrap items-end gap-2" @submit.prevent="create">
-      <UInput v-model="title" placeholder="Название релиза" />
-      <UInput v-model="version" placeholder="Версия" />
-      <UInput v-model="environments" placeholder="Окружения через запятую" />
+      <UInput v-model="title" :placeholder="t('rel.name')" />
+      <UInput v-model="version" :placeholder="t('rel.version')" />
+      <UInput v-model="environments" :placeholder="t('rel.envs')" />
       <select v-model="taskIds" multiple class="rounded border border-default bg-default px-2 py-1 text-sm">
         <option v-for="task in doneTasks" :key="task.id" :value="task.id">{{ task.id }} · {{ task.title }}</option>
       </select>
-      <UButton type="submit" :disabled="!title.trim() || !version.trim() || saving">Завести релиз</UButton>
+      <UButton type="submit" :disabled="!title.trim() || !version.trim() || saving">{{ t('rel.create') }}</UButton>
     </form>
     <p v-if="failure" class="text-sm text-error">{{ failure }}</p>
 
-    <p v-if="releases.length === 0" class="text-sm text-muted">Релизов нет.</p>
+    <p v-if="releases.length === 0" class="text-sm text-muted">{{ t('rel.none') }}</p>
     <UCard v-for="release in releases" :key="release.id">
       <div class="flex flex-wrap items-center gap-2">
         <NuxtLink :to="`/projects/${projectId}/records/${release.id}`" class="font-medium">{{ release.id }} · {{ release.title }}</NuxtLink>

@@ -3,6 +3,7 @@
 // сюда не приходит — только факт, что он найден; вписанный новый уходит на сервер.
 interface Setting { id: string; label?: string; type: 'openai' | 'anthropic'; baseUrl?: string; model: string; apiKeyEnv?: string; apiKey?: string; closedData?: boolean; enabled?: boolean; hasKey?: boolean }
 interface Loaded { routes?: Record<string, { providerId: string; model?: string }>; providers: Setting[]; registry: Array<{ id: string; label: string; kind: string; available: boolean; reason?: string }> }
+const { t } = useT();
 const { data, refresh } = await useFetch<Loaded | { error: { message: string } }>('/api/llm/models', { ignoreResponseError: true });
 const error = computed(() => (data.value && 'error' in data.value ? data.value.error.message : ''));
 const providers = ref<Setting[]>([]);
@@ -34,63 +35,63 @@ function add() {
 }
 async function save() {
   const result = await $fetch<{ ok?: boolean }>('/api/llm/models', { method: 'PUT', body: { providers: providers.value, routes: routesBody() }, ignoreResponseError: true } as never).catch(() => null);
-  saved.value = result?.ok ? 'Сохранено' : 'Не сохранено: проверьте поля';
+  saved.value = result?.ok ? t('mod.saved') : t('mod.notSaved');
   await refresh();
 }
 async function check(id: string) {
-  checks.value[id] = 'проверяю…';
+  checks.value[id] = t('mod.checking');
   const result = await $fetch<{ ok: boolean; ms?: number; failure?: { message: string } }>('/api/llm/models/check', { method: 'POST', body: { id } }).catch(() => null);
-  checks.value[id] = result?.ok ? `связь есть, ${result.ms} мс` : (result?.failure?.message ?? 'нет связи');
+  checks.value[id] = result?.ok ? t('mod.linkOk', { ms: result.ms ?? 0 }) : (result?.failure?.message ?? t('mod.noLink'));
 }
 </script>
 
 <template>
   <UContainer class="space-y-4 py-6">
-    <h1 class="text-xl font-semibold">Модели</h1>
-    <p class="text-sm text-muted">Ключ называйте переменной окружения; значение, вписанное сюда, хранится в .data/llm.json на сервере и в браузер не возвращается.</p>
+    <h1 class="text-xl font-semibold">{{ t('mod.title') }}</h1>
+    <p class="text-sm text-muted">{{ t('mod.keyHint') }}</p>
     <p v-if="error" class="text-error">{{ error }}</p>
     <template v-else>
       <ul class="text-sm">
-        <li v-for="item in registry" :key="item.id">{{ item.label }} ({{ item.kind === 'agent' ? 'агент' : 'чат' }}) — {{ item.available ? 'доступен' : (item.reason ?? 'недоступен') }}</li>
+        <li v-for="item in registry" :key="item.id">{{ item.label }} ({{ item.kind === 'agent' ? t('mod.agent') : t('mod.chat') }}) — {{ item.available ? t('mod.available') : (item.reason ?? t('mod.unavailable')) }}</li>
       </ul>
       <div v-for="(p, at) in providers" :key="at" class="grid grid-cols-2 gap-2 border-t border-default py-3">
-        <UInput v-model="p.id" placeholder="Имя (id)" />
+        <UInput v-model="p.id" :placeholder="t('mod.id')" />
         <USelect v-model="p.type" :items="['openai', 'anthropic']" />
-        <UInput v-model="p.baseUrl" placeholder="Базовый адрес (для OpenAI-совместимых)" />
-        <UInput v-model="p.model" placeholder="Модель" />
-        <UInput v-model="p.apiKeyEnv" placeholder="Переменная окружения с ключом" />
-        <UInput v-model="p.apiKey" type="password" :placeholder="p.hasKey ? 'ключ найден — пусто, чтобы не менять' : 'ключ (необязательно)'" />
-        <UCheckbox v-model="p.closedData" label="Допущен к закрытым данным" />
+        <UInput v-model="p.baseUrl" :placeholder="t('mod.baseUrl')" />
+        <UInput v-model="p.model" :placeholder="t('mod.model')" />
+        <UInput v-model="p.apiKeyEnv" :placeholder="t('mod.keyEnv')" />
+        <UInput v-model="p.apiKey" type="password" :placeholder="p.hasKey ? t('mod.keyFound') : t('mod.keyOptional')" />
+        <UCheckbox v-model="p.closedData" :label="t('mod.closed')" />
         <div class="flex items-center gap-2">
-          <UButton variant="ghost" color="neutral" @click="check(p.id)">Проверить связь</UButton>
+          <UButton variant="ghost" color="neutral" @click="check(p.id)">{{ t('mod.check') }}</UButton>
           <span class="text-sm text-muted">{{ checks[p.id] }}</span>
-          <UButton variant="ghost" color="error" @click="providers.splice(at, 1)">Убрать</UButton>
+          <UButton variant="ghost" color="error" @click="providers.splice(at, 1)">{{ t('mod.remove') }}</UButton>
         </div>
       </div>
-      <h2 class="pt-3 font-medium">Вид запроса → модель</h2>
+      <h2 class="pt-3 font-medium">{{ t('mod.routes') }}</h2>
       <div v-for="(r, at) in routes" :key="'r' + at" class="flex items-center gap-2">
-        <UInput v-model="r.kind" placeholder="Вид (ask, task, ...)" />
+        <UInput v-model="r.kind" :placeholder="t('mod.kind')" />
         <USelect v-model="r.providerId" :items="providerIds" />
-        <UInput v-model="r.model" placeholder="Модель (необязательно)" />
-        <UButton variant="ghost" color="error" @click="routes.splice(at, 1)">Убрать</UButton>
+        <UInput v-model="r.model" :placeholder="t('mod.modelOptional')" />
+        <UButton variant="ghost" color="error" @click="routes.splice(at, 1)">{{ t('mod.remove') }}</UButton>
       </div>
-      <UButton variant="ghost" color="neutral" @click="addRoute">Добавить вид запроса</UButton>
+      <UButton variant="ghost" color="neutral" @click="addRoute">{{ t('mod.addRoute') }}</UButton>
       <div class="flex items-center gap-2">
-        <UButton variant="ghost" color="neutral" @click="add">Добавить провайдера</UButton>
-        <UButton @click="save">Сохранить</UButton>
+        <UButton variant="ghost" color="neutral" @click="add">{{ t('mod.addProvider') }}</UButton>
+        <UButton @click="save">{{ t('mod.save') }}</UButton>
         <span class="text-sm text-muted">{{ saved }}</span>
       </div>
-      <h2 class="pt-3 font-medium">Расход за {{ usage?.month }} (оценка по символам; цены — поле prices в llm.json)</h2>
-      <p v-if="usage" class="text-sm">Запросов: {{ usage.total.requests }}, ≈ ${{ usage.total.costUsd.toFixed(3) }}</p>
+      <h2 class="pt-3 font-medium">{{ t('mod.spend', { month: usage?.month ?? '' }) }}</h2>
+      <p v-if="usage" class="text-sm">{{ t('mod.requests') }}: {{ usage.total.requests }}, ≈ ${{ usage.total.costUsd.toFixed(3) }}</p>
       <ul v-if="usage" class="text-sm text-muted">
-        <li v-for="(t, who) in usage.byUser" :key="'u' + who">{{ who }}: {{ t.requests }} зап., ≈ ${{ t.costUsd.toFixed(3) }}</li>
-        <li v-for="(t, model) in usage.byModel" :key="'m' + model">{{ model }}: {{ t.requests }} зап., ≈ ${{ t.costUsd.toFixed(3) }}</li>
+        <li v-for="(tot, who) in usage.byUser" :key="'u' + who">{{ who }}: {{ tot.requests }} {{ t('mod.req') }}, ≈ ${{ tot.costUsd.toFixed(3) }}</li>
+        <li v-for="(tot, model) in usage.byModel" :key="'m' + model">{{ model }}: {{ tot.requests }} {{ t('mod.req') }}, ≈ ${{ tot.costUsd.toFixed(3) }}</li>
       </ul>
-      <h2 class="pt-3 font-medium">Очередь запросов</h2>
+      <h2 class="pt-3 font-medium">{{ t('mod.queue') }}</h2>
       <USelect v-model="queueProject" :items="projectOptions.map((p) => ({ label: p.name ?? p.id, value: p.id }))" @update:model-value="loadQueue" />
       <ul class="text-sm">
         <li v-for="job in jobs" :key="job.id">{{ job.kind }} · {{ job.user }} · {{ job.state }}{{ job.note ? ' — ' + job.note : '' }}
-          <UButton v-if="job.state === 'queued' || job.state === 'running'" size="xs" variant="ghost" color="error" @click="cancelJob(job.id)">Отменить</UButton>
+          <UButton v-if="job.state === 'queued' || job.state === 'running'" size="xs" variant="ghost" color="error" @click="cancelJob(job.id)">{{ t('mod.cancel') }}</UButton>
         </li>
       </ul>
     </template>
