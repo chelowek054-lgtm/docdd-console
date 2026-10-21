@@ -3,6 +3,7 @@ import { delimiter, join } from 'node:path';
 import { env, platform } from 'node:process';
 
 import { childEnvironment, looksLikeRefusal, spawnClaude, type Access, type AskOptions, type LlmResult } from './llm';
+import type { Provider, ProviderRequest, ProviderResult } from '../lib/llm-provider';
 
 /**
  * Агентные провайдеры помимо Claude Code: Codex CLI и Gemini CLI (ADR-0019).
@@ -92,3 +93,24 @@ export class GeminiCliProvider extends CliAgent {
     return [...mode, '-p', prompt];
   }
 }
+
+/** Адаптер к реестру: CLI-агент как Provider. Модель задаётся самим CLI, поле `model` запроса игнорируется. */
+export function cliAgentProvider(agent: CliAgent, label: string): Provider {
+  return {
+    id: agent.id, label, kind: 'agent',
+    availability: () => (agent.command() ? { available: true } : { available: false, reason: `${agent.binary} не найден; путь — в ${agent.pathVariable}` }),
+    async ask(request: ProviderRequest): Promise<ProviderResult> {
+      const prompt = request.system ? `${request.system}\n\n${request.prompt}` : request.prompt;
+      return agent.ask(prompt, {
+        ...(request.timeoutMs !== undefined ? { timeoutMs: request.timeoutMs } : {}),
+        ...(request.maxBytes !== undefined ? { maxBytes: request.maxBytes } : {}),
+        ...(request.cwd ? { cwd: request.cwd } : {}),
+        ...(request.signal ? { signal: request.signal } : {}),
+        ...(request.access ? { access: request.access } : {})
+      });
+    }
+  };
+}
+
+export const codexProvider = (): Provider => cliAgentProvider(new CodexCliProvider(), 'Codex CLI');
+export const geminiProvider = (): Provider => cliAgentProvider(new GeminiCliProvider(), 'Gemini CLI');

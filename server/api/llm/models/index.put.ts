@@ -1,5 +1,6 @@
 import { defineEventHandler, readBody } from 'h3';
 
+import { parseRoutingTable } from '../../../lib/llm-routing';
 import { fail } from '../../../utils/http';
 import { syncProviders } from '../../../utils/llm-providers';
 import { loadLlmSettings, saveLlmSettings, type ProviderSetting } from '../../../utils/llm-settings';
@@ -24,7 +25,7 @@ export default defineEventHandler(async (event) => {
     const { hasKey: _derived, ...rest } = item;
     providers.push({ ...(rest as ProviderSetting), ...(apiKey ? { apiKey } : {}) });
   }
-  await saveLlmSettings({ ...current, providers });
+  await saveLlmSettings({ ...current, providers, ...((body as { routes?: unknown }).routes !== undefined ? { routes: parseRoutingTable((body as { routes?: unknown }).routes) } : {}) });
   await syncProviders();
   return { ok: true };
 });
