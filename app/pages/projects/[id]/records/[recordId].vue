@@ -4,7 +4,7 @@ import type { IndexRecord } from '~~/server/lib/types';
 
 const route = useRoute();
 const projectId = computed(() => String(route.params['id'] ?? ''));
-const recordId = computed(() => String(route.params['recordId'] ?? '')); const { t } = useT();
+const recordId = computed(() => String(route.params['recordId'] ?? '')); const { t, locale } = useT();
 
 const { detail, failure, refresh } = useRecord(projectId, recordId);
 const { byId, index, patchRecord } = useProjectIndex(projectId);
@@ -15,34 +15,34 @@ async function reload(record?: IndexRecord) {
   await refresh();
 }
 
-const LINK_LABELS: Record<LinkKind, string> = {
-  implements: 'выполняет требование',
-  refines: 'уточняет',
-  decided_by: 'опирается на решение',
-  supersedes: 'заменяет',
-  depends_on: 'зависит от',
-  verified_by: 'проверяется',
-  verifies: 'проверяет',
-  documents: 'правит документ',
-  covers: 'состав',
-  reuses: 'переиспользует справку'
-};
+const LINK_LABELS = computed<Record<LinkKind, string>>(() => ({
+  implements: t('rec.lnk.implements'),
+  refines: t('rec.lnk.refines'),
+  decided_by: t('rec.lnk.decided_by'),
+  supersedes: t('rec.lnk.supersedes'),
+  depends_on: t('rec.lnk.depends_on'),
+  verified_by: t('rec.lnk.verified_by'),
+  verifies: t('rec.lnk.verifies'),
+  documents: t('rec.lnk.documents'),
+  covers: t('rec.lnk.covers'),
+  reuses: t('rec.lnk.reuses')
+}));
 
-const BACKLINK_LABELS: Record<LinkKind, string> = {
-  implements: 'выполняется задачами',
-  refines: 'уточняется',
-  decided_by: 'на решение опираются',
-  supersedes: 'заменено записью',
-  depends_on: 'от него зависят',
-  verified_by: 'проверяет',
-  verifies: 'проверяется',
-  documents: 'правится задачами',
-  covers: 'входит в фазу',
-  reuses: 'переиспользуется задачами'
-};
+const BACKLINK_LABELS = computed<Record<LinkKind, string>>(() => ({
+  implements: t('rec.blnk.implements'),
+  refines: t('rec.blnk.refines'),
+  decided_by: t('rec.blnk.decided_by'),
+  supersedes: t('rec.blnk.supersedes'),
+  depends_on: t('rec.blnk.depends_on'),
+  verified_by: t('rec.blnk.verified_by'),
+  verifies: t('rec.blnk.verifies'),
+  documents: t('rec.blnk.documents'),
+  covers: t('rec.blnk.covers'),
+  reuses: t('rec.blnk.reuses')
+}));
 
-const links = computed(() => entries(detail.value?.record.links ?? {}, LINK_LABELS));
-const backlinks = computed(() => entries(detail.value?.record.backlinks ?? {}, BACKLINK_LABELS));
+const links = computed(() => entries(detail.value?.record.links ?? {}, LINK_LABELS.value));
+const backlinks = computed(() => entries(detail.value?.record.backlinks ?? {}, BACKLINK_LABELS.value));
 
 /** Журнал — часть тела документа; приложение его читает, но не переписывает. */
 const journal = computed(() => {
@@ -58,13 +58,13 @@ const journal = computed(() => {
 
 const extraFields = computed(() => Object.entries(detail.value?.record.extra ?? {}));
 
-const VERDICTS: Record<string, { label: string; color: BadgeColor }> = {
-  ok: { label: 'сошлось', color: 'success' },
-  pending: { label: 'сверять рано', color: 'neutral' },
-  missing: { label: 'файла нет', color: 'error' },
-  stale: { label: 'строки нет', color: 'error' },
-  still_present: { label: 'на месте', color: 'error' }
-};
+const VERDICTS = computed<Record<string, { label: string; color: BadgeColor }>>(() => ({
+  ok: { label: t('rec.verdict.ok'), color: 'success' },
+  pending: { label: t('rec.verdict.pending'), color: 'neutral' },
+  missing: { label: t('rec.verdict.missing'), color: 'error' },
+  stale: { label: t('rec.verdict.stale'), color: 'error' },
+  still_present: { label: t('rec.verdict.still_present'), color: 'error' }
+}));
 
 /** Блоки из текста рисует сам текст; отдельной карточкой — только файлы `.mmd`. */
 const fileDiagrams = computed(() => (detail.value?.diagrams ?? []).filter((diagram) => diagram.kind === 'file'));
@@ -180,8 +180,8 @@ function entries(
         />
 
         <p v-if="detail.map.claims.length === 0" class="text-sm text-muted">
-          Утверждений со свидетельствами нет. Карта без свидетельств — мнение:
-          сверять в ней нечего.
+          {{ t('rec.noClaims') }}
+
         </p>
 
         <ul v-else class="divide-y divide-default">
@@ -231,8 +231,8 @@ function entries(
               <h2 class="font-medium">{{ t('rec.diagrams') }}</h2>
             </template>
             <p class="mb-3 text-sm text-muted">
-              Диаграммы из отдельных файлов <code>.mmd</code>: блоки внутри текста
-              нарисованы там же, где стоят.
+              {{ t('rec.diagFiles') }} <code>.mmd</code>{{ t('rec.diagFiles2') }}
+
             </p>
             <div v-for="(diagram, at) in fileDiagrams" :key="at" class="mb-3">
               <p class="text-xs text-muted">
@@ -257,7 +257,7 @@ function entries(
             </template>
 
             <p v-if="links.length === 0 && backlinks.length === 0" class="text-sm text-muted">
-              Запись ни с чем не связана. В графе это висящий узел.
+              {{ t('rec.noLinks') }}
             </p>
 
             <div v-for="group in links" :key="`out:${group.kind}`" class="mb-3">
@@ -289,7 +289,7 @@ function entries(
             <ul class="space-y-2 text-sm">
               <li v-for="(outcome, id) in detail.verifications" :key="id" class="flex items-center justify-between gap-2">
                 <span class="font-mono text-xs">{{ id }}</span>
-                <span class="text-muted">{{ new Date(outcome.at).toLocaleDateString('ru-RU') }} · {{ outcome.runner }}</span>
+                <span class="text-muted">{{ new Date(outcome.at).toLocaleDateString(locale === 'en' ? 'en-GB' : 'ru-RU') }} · {{ outcome.runner }}</span>
                 <UBadge :color="statusColor(outcome.state)" variant="subtle" size="sm">
                   {{ resultLabel(outcome.state) }}
                 </UBadge>
@@ -311,7 +311,7 @@ function entries(
               <h2 class="font-medium">{{ t('rec.projectFields') }}</h2>
             </template>
             <p class="mb-2 text-xs text-muted">
-              Приложение их не понимает, но обязано вернуть и сохранить.
+              {{ t('rec.extraHint') }}
             </p>
             <dl class="space-y-1 text-sm">
               <div v-for="[key, value] in extraFields" :key="key" class="flex gap-2">

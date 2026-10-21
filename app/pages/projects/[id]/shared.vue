@@ -43,7 +43,7 @@ function togglePreview(path: string) {
  * подтверждения человеком.
  */
 const { running: verifying, elapsed: verifyElapsed, outcome: verifyOutcome, log: verifyLog, stream: verifyStream, cancel: cancelVerify } = useModelRequest(() => `${projectId.value}:verify`, {
-  label: 'Сверка кода с практиками',
+  label: t('shared.verifyLabel'),
   onRecovered: (answer) => afterVerify(answer as { answer: string })
 });
 const verifyTrouble = ref<ApiFailure | null>(null);
@@ -189,12 +189,12 @@ async function toggleTag(source: SharedSourceView, tag: string) {
             variant="subtle"
             icon="i-lucide-triangle-alert"
             :title="t('shared.oddTitle')"
-            :description="`В источнике есть записи типа ${source.narrowDomain.join(', ')} — decision и design всё равно подключены ниже, но остальное из источника не подтягивается никогда. Проверьте, тот ли это путь.`"
+            :description="t('shared.oddText', { types: source.narrowDomain.join(', ') })"
           />
 
           <p v-if="source.availableTags.length === 0" class="mt-3 text-sm text-muted">
-            В источнике нет ни одного подтверждённого decision или design с тегом —
-            подключать пока нечем.
+            {{ t('shared.noTagged') }}
+
           </p>
           <template v-else>
             <!-- Галочки — не список записей источника: тег может подключать
@@ -219,8 +219,8 @@ async function toggleTag(source: SharedSourceView, tag: string) {
             </div>
 
             <p v-if="source.tags.length === 0" class="mt-3 text-sm text-muted">
-              Ничего не отмечено — ничего и не подключено: подключение выбором тегов, а не
-              «взять всё» по умолчанию.
+              {{ t('shared.noneChecked') }}
+
             </p>
             <template v-else>
               <p v-if="source.records.length === 0" class="mt-3 text-sm text-muted">
@@ -241,9 +241,9 @@ async function toggleTag(source: SharedSourceView, tag: string) {
                   </li>
                 </ul>
                 <p v-if="!source.registeredProjectId" class="mt-2 text-xs text-muted">
-                  Источник не открыт в приложении своим проектом — прочитать запись целиком
-                  можно, добавив <span class="font-mono">{{ source.path }}</span> на
-                  <NuxtLink to="/" class="hover:underline">экране проектов</NuxtLink>.
+                  {{ t('shared.notRegistered') }}
+                  <span class="font-mono">{{ source.path }}</span> {{ t('shared.notRegisteredOn') }}
+                  <NuxtLink to="/" class="hover:underline">{{ t('shared.projectsScreen') }}</NuxtLink>.
                 </p>
 
                 <UButton
@@ -273,8 +273,8 @@ async function toggleTag(source: SharedSourceView, tag: string) {
         <div class="flex flex-wrap items-center gap-3">
           <UButton v-if="!verifying" icon="i-lucide-search-check" @click="verify">{{ t('shared.verify') }}</UButton>
           <p v-if="!verifying" class="text-sm text-muted">
-            Разовая проверка: модель читает код проекта и подключённые практики, отвечает
-            списком расхождений. Ничего в коде не меняет.
+            {{ t('shared.verifyHint') }}
+
           </p>
         </div>
 
