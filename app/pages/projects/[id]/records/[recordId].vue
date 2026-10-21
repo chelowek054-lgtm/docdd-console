@@ -4,7 +4,7 @@ import type { IndexRecord } from '~~/server/lib/types';
 
 const route = useRoute();
 const projectId = computed(() => String(route.params['id'] ?? ''));
-const recordId = computed(() => String(route.params['recordId'] ?? ''));
+const recordId = computed(() => String(route.params['recordId'] ?? '')); const { t } = useT();
 
 const { detail, failure, refresh } = useRecord(projectId, recordId);
 const { byId, index, patchRecord } = useProjectIndex(projectId);
@@ -92,8 +92,8 @@ function entries(
       </div>
 
       <p class="text-sm text-muted">
-        Файл <span class="font-mono">{{ detail.record.path }}</span>
-        <template v-if="detail.record.updated"> · изменён {{ detail.record.updated }}</template>
+        {{ t('rec.file') }} <span class="font-mono">{{ detail.record.path }}</span>
+        <template v-if="detail.record.updated"> · {{ t('rec.changed') }} {{ detail.record.updated }}</template>
         <template v-if="detail.record.owner"> · {{ detail.record.owner }}</template>
       </p>
 
@@ -146,7 +146,7 @@ function entries(
       <!-- Ручная проверка: флажок «Проверено» фиксирует прогон (docs/04-ui.md). -->
       <UCard v-if="detail.record.type === 'verification'">
         <template #header>
-          <h2 class="font-medium">Проверено ли</h2>
+          <h2 class="font-medium">{{ t('rec.checked') }}</h2>
         </template>
         <VerifiedCheck
           :project-id="projectId"
@@ -161,9 +161,9 @@ function entries(
       <UCard v-if="detail.map">
         <template #header>
           <div class="flex flex-wrap items-center gap-3">
-            <h2 class="font-medium">Что меняется в устройстве</h2>
+            <h2 class="font-medium">{{ t('rec.structChange') }}</h2>
             <p class="text-sm text-muted">
-              {{ detail.map.structures.length ? detail.map.structures.join(', ') : 'структуры не описаны' }}
+              {{ detail.map.structures.length ? detail.map.structures.join(', ') : t('rec.noStructures') }}
             </p>
           </div>
         </template>
@@ -175,7 +175,7 @@ function entries(
           color="error"
           variant="subtle"
           icon="i-lucide-triangle-alert"
-          title="Карта не разбирается"
+          :title="t('rec.mapUnparsed')"
           :description="problem.message"
         />
 
@@ -187,7 +187,7 @@ function entries(
         <ul v-else class="divide-y divide-default">
           <li v-for="(claim, at) in detail.map.claims" :key="at" class="flex flex-wrap items-center gap-3 py-2">
             <UBadge :color="claim.side === 'added' ? 'primary' : 'neutral'" variant="subtle" size="sm">
-              {{ claim.side === 'added' ? 'добавлено' : 'убрано' }}
+              {{ claim.side === 'added' ? t('rec.added') : t('rec.removed') }}
             </UBadge>
             <span class="font-mono text-xs">{{ claim.label }}</span>
             <span class="text-xs text-muted">{{ claim.path }}:{{ claim.line }}</span>
@@ -211,7 +211,7 @@ function entries(
       />
 
       <div v-if="detail.issues.length" class="space-y-2">
-        <h2 class="font-medium">Что не так с этой записью</h2>
+        <h2 class="font-medium">{{ t('rec.problems') }}</h2>
         <IssueList :project-id="projectId" :issues="detail.issues" />
       </div>
 
@@ -228,7 +228,7 @@ function entries(
 
           <UCard v-if="fileDiagrams.length">
             <template #header>
-              <h2 class="font-medium">Диаграммы</h2>
+              <h2 class="font-medium">{{ t('rec.diagrams') }}</h2>
             </template>
             <p class="mb-3 text-sm text-muted">
               Диаграммы из отдельных файлов <code>.mmd</code>: блоки внутри текста
@@ -243,7 +243,7 @@ function entries(
                 color="warning"
                 variant="subtle"
                 :title="diagram.error"
-                description="Ошибка диаграммы не мешает читать документ."
+                :description="t('rec.diagramErr')"
               />
               <MermaidDiagram v-else :source="diagram.source" :id="`file-${at}`" />
             </div>
@@ -253,7 +253,7 @@ function entries(
         <div class="space-y-4">
           <UCard>
             <template #header>
-              <h2 class="font-medium">Связи</h2>
+              <h2 class="font-medium">{{ t('rec.links') }}</h2>
             </template>
 
             <p v-if="links.length === 0 && backlinks.length === 0" class="text-sm text-muted">
@@ -270,7 +270,7 @@ function entries(
             </div>
 
             <div v-if="backlinks.length" class="border-t border-default pt-3">
-              <p class="mb-2 text-xs text-muted">Обратные связи строит приложение — в файле их нет.</p>
+              <p class="mb-2 text-xs text-muted">{{ t('rec.backlinks') }}</p>
               <div v-for="group in backlinks" :key="`in:${group.kind}`" class="mb-3">
                 <p class="text-xs uppercase tracking-wide text-muted">{{ group.label }}</p>
                 <ul class="mt-1 space-y-1">
@@ -284,7 +284,7 @@ function entries(
 
           <UCard v-if="Object.keys(detail.verifications).length">
             <template #header>
-              <h2 class="font-medium">Прогоны</h2>
+              <h2 class="font-medium">{{ t('rec.runs') }}</h2>
             </template>
             <ul class="space-y-2 text-sm">
               <li v-for="(outcome, id) in detail.verifications" :key="id" class="flex items-center justify-between gap-2">
@@ -299,7 +299,7 @@ function entries(
 
           <UCard v-if="journal.length">
             <template #header>
-              <h2 class="font-medium">Журнал</h2>
+              <h2 class="font-medium">{{ t('rec.journal') }}</h2>
             </template>
             <ul class="space-y-1 text-sm text-muted">
               <li v-for="(line, at) in journal" :key="at">{{ line }}</li>
@@ -308,7 +308,7 @@ function entries(
 
           <UCard v-if="extraFields.length">
             <template #header>
-              <h2 class="font-medium">Поля проекта</h2>
+              <h2 class="font-medium">{{ t('rec.projectFields') }}</h2>
             </template>
             <p class="mb-2 text-xs text-muted">
               Приложение их не понимает, но обязано вернуть и сохранить.
@@ -319,7 +319,7 @@ function entries(
                 <dd class="min-w-0 break-words">{{ value }}</dd>
               </div>
             </dl>
-          </UCard><UCard v-if="detail.record.type === 'task' && detail.record.status === 'done' && (detail.record.backlinks.ships?.length ?? 0) > 0"><template #header><h2 class="font-medium">Релиз</h2></template><p v-for="id in detail.record.backlinks.ships" :key="id" class="text-sm"><RecordLink :project-id="projectId" :record-id="id" :record="byId.get(id) ?? null" /></p></UCard>
+          </UCard><UCard v-if="detail.record.type === 'task' && detail.record.status === 'done' && (detail.record.backlinks.ships?.length ?? 0) > 0"><template #header><h2 class="font-medium">{{ t('rec.release') }}</h2></template><p v-for="id in detail.record.backlinks.ships" :key="id" class="text-sm"><RecordLink :project-id="projectId" :record-id="id" :record="byId.get(id) ?? null" /></p></UCard>
         </div>
       </div>
     </template>

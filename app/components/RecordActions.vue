@@ -10,7 +10,7 @@ const props = defineProps<{
   roles: { id: string; name: string }[];
 }>();
 
-const emit = defineEmits<{ changed: [record?: IndexRecord] }>();
+const emit = defineEmits<{ changed: [record?: IndexRecord] }>(); const { t } = useT();
 
 const actor = ref(props.roles[0]?.id ?? '');
 const busy = ref('');
@@ -56,7 +56,7 @@ const denied = computed(() => allowed('approve'));
   <UCard>
     <template #header>
       <div class="flex flex-wrap items-center gap-3">
-        <h2 class="font-medium">Действия</h2>
+        <h2 class="font-medium">{{ t('rec.actions') }}</h2>
         <USelect
           v-if="props.roles.length && !me.required"
           v-model="actor"
@@ -68,7 +68,7 @@ const denied = computed(() => allowed('approve'));
     </template>
 
     <p v-if="props.actions.length === 0" class="text-sm text-muted">
-      Из этого статуса переходов нет.
+      {{ t('rec.noTransitions') }}
     </p>
 
     <ul v-else class="space-y-3">
@@ -99,7 +99,7 @@ const denied = computed(() => allowed('approve'));
             icon="i-lucide-hand-helping"
             @click="acceptOpen = true"
           >
-            Принять вручную…
+            {{ t('rec.acceptManual') }}
           </UButton>
         </div>
       </li>
@@ -121,8 +121,8 @@ const denied = computed(() => allowed('approve'));
       color="success"
       variant="subtle"
       icon="i-lucide-check"
-      title="Статус изменён"
-      :description="`В журнал добавлено: ${done}`"
+      :title="t('rec.statusChanged')"
+      :description="`${t('rec.journalAdded')} ${done}`"
     />
     <UButton
       v-if="failure && (failure.code === 'task_done_unverified' || unverified(failure.blockers))"
@@ -132,7 +132,7 @@ const denied = computed(() => allowed('approve'));
       icon="i-lucide-hand-helping"
       @click="acceptOpen = true"
     >
-      Принять вручную…
+      {{ t('rec.acceptManual') }}
     </UButton>
 
     <ManualAcceptModal

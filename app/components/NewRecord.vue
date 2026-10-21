@@ -3,7 +3,7 @@ import type { ApiFailure } from '~/composables/useProjectIndex';
 import type { IndexRecord } from '~~/server/lib/types';
 
 const props = defineProps<{ projectId: string; type: string; records: IndexRecord[] }>();
-const emit = defineEmits<{ created: [] }>();
+const emit = defineEmits<{ created: [] }>(); const { t } = useT();
 
 const open = ref(false);
 const title = ref('');
@@ -79,16 +79,16 @@ async function create() {
 <template>
   <div>
     <UButton v-can="'edit_draft'" size="sm" icon="i-lucide-plus" variant="soft" @click="open = !open">
-      Новая запись
+      {{ t('rec.newRecord') }}
     </UButton>
 
     <UCard v-if="open" class="mt-3">
       <div class="space-y-3">
-        <UInput v-model="title" placeholder="Заголовок записи" @keyup.enter="create" />
-        <UInput v-model="owner" placeholder="Исполнитель — необязательно" />
+        <UInput v-model="title" :placeholder="t('rec.titlePh')" @keyup.enter="create" />
+        <UInput v-model="owner" :placeholder="t('rec.ownerPh')" />
         <USelect v-if="props.type === 'task'" v-model="change" :items="CHANGES" />
         <template v-if="props.type === 'reference'">
-          <UInput v-model="summary" placeholder="Одна строка: что решает (попадёт в индекс)" />
+          <UInput v-model="summary" :placeholder="t('rec.summaryPh')" />
           <USelect v-model="kind" :items="KINDS" />
         </template>
         <USelectMenu
@@ -97,7 +97,7 @@ async function create() {
           multiple
           value-key="value"
           :items="requirements"
-          placeholder="Какое требование выполняет"
+          :placeholder="t('rec.implPh')"
         />
         <!-- Идентификатор выдаёт сервер: номера не переиспользуются, поэтому
              выбрать его вручную нельзя (docs/02-workspace-contract.md). -->
@@ -106,8 +106,8 @@ async function create() {
           статус меняется действиями на её экране.
         </p>
         <div class="flex gap-2">
-          <UButton v-can="'edit_draft'" :loading="busy" :disabled="!title.trim() || (props.type === 'reference' && !summary.trim())" @click="create">Создать</UButton>
-          <UButton variant="ghost" color="neutral" @click="open = false">Отмена</UButton>
+          <UButton v-can="'edit_draft'" :loading="busy" :disabled="!title.trim() || (props.type === 'reference' && !summary.trim())" @click="create">{{ t('rec.create') }}</UButton>
+          <UButton variant="ghost" color="neutral" @click="open = false">{{ t('rec.cancel') }}</UButton>
         </div>
 
         <UAlert
