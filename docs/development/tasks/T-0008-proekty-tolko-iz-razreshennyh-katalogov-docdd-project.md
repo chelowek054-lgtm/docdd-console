@@ -2,10 +2,10 @@
 id: T-0008
 type: task
 title: Проекты только из разрешённых каталогов DOCDD_PROJECT_ROOTS
-status: in_review
+status: done
 change: feature
 created: 2026-10-10
-updated: 2026-10-20
+updated: 2026-10-21
 owner: developer
 links:
   implements: [R-0003]
@@ -22,3 +22,4 @@ links:
 - 2026-10-20 · готова к работе · architect
 - 2026-10-20 · в разработку · architect
 - 2026-10-20 · на проверку · architect
+- 2026-10-21 · закрыта · architect

@@ -2,11 +2,11 @@
 id: T-0137
 type: task
 title: 'Разница токенов дизайна: палитра, контраст, файлы выгрузки'
-status: in_review
+status: done
 change: feature
 reuse: none
 created: 2026-10-20
-updated: 2026-10-20
+updated: 2026-10-21
 links:
   implements: [R-0073]
   affects: [M-0054]
@@ -24,3 +24,4 @@ links:
 - 2026-10-20 · готова к работе · architect
 - 2026-10-20 · в разработку · architect
 - 2026-10-20 · на проверку · architect
+- 2026-10-21 · закрыта · architect

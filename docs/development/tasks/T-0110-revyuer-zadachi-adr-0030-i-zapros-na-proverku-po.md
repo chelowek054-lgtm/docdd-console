@@ -2,10 +2,10 @@
 id: T-0110
 type: task
 title: Ревьюер задачи (ADR-0030) и запрос на проверку под ADR-0029
-status: in_review
+status: done
 change: feature
 created: 2026-10-20
-updated: 2026-10-20
+updated: 2026-10-21
 links:
   implements: [R-0046]
   affects: [M-0051]
@@ -21,3 +21,4 @@ links:
 - 2026-10-20 · готова к работе · architect
 - 2026-10-20 · в разработку · architect
 - 2026-10-20 · на проверку · architect
+- 2026-10-21 · закрыта · architect

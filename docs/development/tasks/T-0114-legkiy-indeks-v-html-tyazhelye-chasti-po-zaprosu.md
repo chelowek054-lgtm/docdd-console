@@ -2,10 +2,10 @@
 id: T-0114
 type: task
 title: Лёгкий индекс в HTML, тяжёлые части по запросу
-status: in_progress
+status: done
 change: feature
 created: 2026-10-20
-updated: 2026-10-20
+updated: 2026-10-21
 links:
   implements: [R-0050]
   affects: [M-0052]
@@ -21,3 +21,5 @@ useProjectIndex: лёгкий индекс при отрисовке на сер
 - 2026-10-20 · заведена из docs/inbox/skorost-otrisovki-indeks-proekta-vstraivaetsya-v.md · приложение
 - 2026-10-20 · готова к работе · architect
 - 2026-10-20 · в разработку · architect
+- 2026-10-21 · на проверку · architect
+- 2026-10-21 · закрыта · architect
