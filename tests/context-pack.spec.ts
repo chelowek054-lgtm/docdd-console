@@ -51,4 +51,36 @@ describe('R-0011: пакет контекста', () => {
     expect(text).not.toContain('R-1:');
     expect(text).toContain('T-2');
   });
+
+  // Снимок на синтетическом мини-проекте: порядок, ключи и размеры куска меняются только осознанно (T-0027).
+  it('снимок пакета для задачи мини-проекта', () => {
+    const mini = [
+      rec('R-9', 'requirement', 'approved', { body: '# R-9' + LF + 'Требование', links: {} }),
+      rec('T-9', 'task', 'ready', { body: '# T-9' + LF + 'Задача', links: { implements: ['R-9'], depends_on: ['T-8'] } }),
+      rec('T-8', 'task', 'done', { body: '# T-8' + LF + 'Прежняя', links: {} })
+    ];
+    const pack = buildContextPack({
+      records: mini, centerId: 'T-9',
+      needs: { kinds: ['record', 'links', 'capability', 'vision', 'reference'], depth: 1, budget: 5000 },
+      capabilities: [{ id: 'c-0', title: 'Корень' }, { id: 'c-1', title: 'Лист', parent: 'c-0' }],
+      capabilityIds: ['c-1'], vision: 'Контроль разработки', referenceIndex: '- модуль'
+    });
+    expect(pack.chunks.map((c) => `${c.rank} ${c.key} ${c.size} ${c.why}`)).toMatchInlineSnapshot(`
+      [
+        "0 record:T-9 12 центр запроса",
+        "3 vision 19 вектор проекта",
+        "5 capability:c-1 4 возможность записи",
+        "6 capability:c-0 6 родитель возможности",
+        "10 record:R-9 16 связь (implements: T-9 → R-9)",
+        "10 record:T-8 13 связь (depends_on: T-9 → T-8)",
+        "40 reference 8 что уже есть (DRY)",
+      ]
+    `);
+    expect({ size: pack.size, cut: pack.cut }).toMatchInlineSnapshot(`
+      {
+        "cut": [],
+        "size": 78,
+      }
+    `);
+  });
 });

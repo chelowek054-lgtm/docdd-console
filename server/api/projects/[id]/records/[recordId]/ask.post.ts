@@ -7,7 +7,7 @@ import { useStorage } from 'nitropack/runtime';
 import { renderContextPack } from '../../../../../lib/context-pack';
 import { resolveInside, toProjectPath } from '../../../../../lib/paths';
 import { readWorkspace } from '../../../../../lib/workspace';
-import { packFor } from '../../../../../utils/context-service';
+import { packFor, roleNeeds } from '../../../../../utils/context-service';
 import { fail } from '../../../../../utils/http';
 import { ask } from '../../../../../utils/llm';
 import { findProject } from '../../../../../utils/projects';
@@ -38,10 +38,10 @@ export default defineEventHandler(async (event) => {
   if (!inbox) return fail(event, 422, 'inbox_missing', 'Ответ некуда сложить: в манифесте нет `sources.inbox`');
 
   const exclude = new Set(Array.isArray(body?.exclude) ? body.exclude.filter((key): key is string => typeof key === 'string') : []);
-  const pack = packFor(project.root, recordId, 'ask');
-  if (pack.chunks.length === 0) return fail(event, 404, 'record_not_found', `Записи \`${recordId}\` в проекте нет`);
-
   const role = typeof body?.role === 'string' && ROLES.has(body.role) ? body.role : '';
+  // Глубина, issues и глоссарий — по нуждам роли из её шаблона, а не общим видом `ask`.
+  const pack = packFor(project.root, recordId, role ? roleNeeds(role) : 'ask', { role, requestText: question });
+  if (pack.chunks.length === 0) return fail(event, 404, 'record_not_found', `Записи \`${recordId}\` в проекте нет`);
   const raw = role ? await useStorage('assets:prompts').getItem(`roles:${role}.md`) : null;
   const text = typeof raw === 'string' ? raw : raw instanceof Uint8Array ? Buffer.from(raw).toString('utf8') : DEFAULT_TEMPLATE;
   const template = text.includes('\n---\n') || text.includes('\r\n---\r\n') ? text.slice(text.search(/\r?\n---\r?\n/) + 5).trimStart() : text;

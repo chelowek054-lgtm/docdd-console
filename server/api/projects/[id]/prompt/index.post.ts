@@ -82,7 +82,7 @@ export default defineEventHandler(async (event) => {
         if (picked.length === 0) {
           return fail(event, 422, 'issues_gone', 'Отмеченных нарушений больше нет: перечитайте список');
         }
-        return { prompt: fixPrompt(await template('fix-plan.md'), picked, packExtra(project.root, '', 'fix')), count: picked.length };
+        return { prompt: fixPrompt(await template('fix-plan.md'), picked, packExtra(project.root, '', 'fix', picked.map((issue) => issue.message).join(String.fromCharCode(10)))), count: picked.length };
       }
 
       const codes = Array.isArray(body?.codes)
@@ -96,7 +96,7 @@ export default defineEventHandler(async (event) => {
         // Ошибки первыми: запрос читается сверху, и чинить надо тоже сверху.
         .sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'error' ? -1 : 1));
 
-      return { prompt: fixPrompt(await template('fix-plan.md'), issues, packExtra(project.root, '', 'fix')), count: issues.length };
+      return { prompt: fixPrompt(await template('fix-plan.md'), issues, packExtra(project.root, '', 'fix', issues.map((issue) => issue.message).join(String.fromCharCode(10)))), count: issues.length };
     }
 
     if (kind === 'maps') {
@@ -156,7 +156,7 @@ export default defineEventHandler(async (event) => {
       const capabilities = buildProjectMap(project.root).functional.capabilities;
 
       return {
-        prompt: inboxPrompt(await template('inbox-plan.md'), notes, known, capabilities, referenceIndexText(project.root), packExtra(project.root, '', 'inbox')),
+        prompt: inboxPrompt(await template('inbox-plan.md'), notes, known, capabilities, referenceIndexText(project.root), packExtra(project.root, '', 'inbox', notes.map((note) => note.text).join(String.fromCharCode(10)))),
         count: notes.length
       };
     }
