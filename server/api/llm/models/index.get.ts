@@ -12,5 +12,5 @@ export default defineEventHandler(async (event) => {
   await syncProviders();
   const settings = await loadLlmSettings();
   const registry = await Promise.all(listProviders().map(async (p) => ({ id: p.id, label: p.label, kind: p.kind, ...(await p.availability()) })));
-  return { providers: settings.providers.map(toPublic), registry };
+  return { providers: settings.providers.map(toPublic), registry, routes: settings['routes'] ?? {} };
 });

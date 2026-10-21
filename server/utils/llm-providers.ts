@@ -3,6 +3,7 @@ import { listProviders, registerProvider, unregisterProvider } from '../lib/llm-
 import { anthropicProvider } from './llm-anthropic';
 import { claudeCodeProvider } from './llm-claude';
 import { openAiProvider } from './llm-openai';
+import { codexProvider, geminiProvider } from './llm-agents';
 import { loadLlmSettings } from './llm-settings';
 
 /**
@@ -17,6 +18,11 @@ export async function syncProviders(): Promise<void> {
     if (setting.enabled === false) continue;
     wanted.add(setting.id);
     registerProvider(setting.type === 'anthropic' ? anthropicProvider(setting) : openAiProvider(setting));
+  }
+  // Codex/Gemini подключаются, только если в llm.json названы: `"agents": ["codex-cli", "gemini-cli"]`.
+  const named = Array.isArray(settings['agents']) ? settings['agents'] : [];
+  for (const [id, make] of [['codex-cli', codexProvider], ['gemini-cli', geminiProvider]] as const) {
+    if (named.includes(id)) { wanted.add(id); registerProvider(make()); } else unregisterProvider(id);
   }
   // Агентов других задач не трогаем: снимаем только чат-провайдеров, которых больше нет в настройках.
   for (const provider of listProviders()) {

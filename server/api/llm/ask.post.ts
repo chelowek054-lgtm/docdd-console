@@ -1,7 +1,7 @@
 import { defineEventHandler, readBody } from 'h3';
 
 import { abortSignalOf } from '../../utils/abort';
-import { ask } from '../../utils/llm';
+import { ask } from '../../utils/llm'; import { askRouted } from '../../utils/llm-gateway';
 import { eventStream } from '../../utils/sse';
 import { fail } from '../../utils/http';
 import { findProject } from '../../utils/projects';
@@ -31,7 +31,7 @@ export default defineEventHandler(async (event) => {
   const stream = eventStream(event);
   const signal = abortSignalOf(event);
 
-  const result = await ask(prompt, {
+  const result: Awaited<ReturnType<typeof ask>> = await askRouted('ask', { projectId, user: ((event.context as { user?: { login?: string } }).user?.login) ?? 'local' }, prompt, {
     ...(project ? { cwd: project.root } : {}),
     signal,
     // Этот запрос спрашивает, а не чинит: до подтверждения человеком в

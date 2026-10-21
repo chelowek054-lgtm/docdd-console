@@ -21,7 +21,7 @@ import {
   worktreeRoot,
   type WorkChanges
 } from './git';
-import { ask } from './llm';
+import { askRouted } from './llm-gateway';
 import type { ModelEvent } from '../lib/stream-events';
 import { buildProjectMap } from './map-service';
 import { openRecord, saveRecord, today } from './record-write';
@@ -129,7 +129,7 @@ export async function handover(
   // Модель работает в дереве задачи, а не в вашем каталоге. Повторный заход
   // продолжает прошлый разговор: разбор кодовой базы не идёт заново.
   const resume = sessionOf(normalized, record.id);
-  const answer = await ask(prompt, {
+  const answer = await askRouted('task', { projectId: normalized, user: options.actor ?? 'local' }, prompt, {
     cwd: worktreeRoot(normalized, record.id),
     // Работа над задачей — это правки, тесты и сборка, и всё это в своём
     // рабочем дереве. Результат человек читает диффом.
