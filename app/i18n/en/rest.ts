@@ -5,7 +5,7 @@ export const rest: Record<string, string> = {
   "bulk.back": "Back",
   "bulk.backTitle": "Move every selected record one step back",
   "bulk.approve": "Approve",
-  "bulk.approveTitle": "Each to "approved", from draft via "pending approval"",
+  "bulk.approveTitle": "Each to \"approved\", from draft via \"pending approval\"",
   "bulk.selected": "Selected:",
   "bulk.of": "of",
   "bulk.markHint": "Tick the records first.",

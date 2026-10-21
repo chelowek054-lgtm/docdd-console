@@ -1,6 +1,7 @@
 import { env } from 'node:process';
 
-import { useStorage } from 'nitropack/runtime';
+// Среда Nitro подключается лениво: чистая логика и тесты вне сервера не должны тянуть её при импорте.
+const dataStorage = async () => (await import('nitropack/runtime')).useStorage('data');
 
 /**
  * Настройки моделей в `.data/llm.json` (ADR-0019, п. 4; T-0022).
@@ -32,13 +33,13 @@ export interface LlmSettings {
 const FILE = 'llm.json';
 
 export async function loadLlmSettings(): Promise<LlmSettings> {
-  const stored = await useStorage('data').getItem<LlmSettings>(FILE);
+  const stored = await (await dataStorage()).getItem<LlmSettings>(FILE);
   if (stored && typeof stored === 'object' && Array.isArray(stored.providers)) return stored;
   return { providers: [] };
 }
 
 export async function saveLlmSettings(settings: LlmSettings): Promise<void> {
-  await useStorage('data').setItem(FILE, settings);
+  await (await dataStorage()).setItem(FILE, settings);
 }
 
 /** Значение ключа: переменная окружения важнее записи в файле. */
