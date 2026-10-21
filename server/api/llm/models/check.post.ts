@@ -6,8 +6,8 @@ import { syncProviders } from '../../../utils/llm-providers';
 
 /** Проверка связи: короткий запрос выбранному провайдеру. */
 export default defineEventHandler(async (event) => {
-  const user = (event.context as { user?: { role?: unknown } }).user;
-  if (user && user.role !== 'admin') return fail(event, 403, 'forbidden', 'Модели настраивает только администратор');
+  const user = (event.context as { user?: { admin?: unknown } }).user;
+  if (user && user.admin !== true) return fail(event, 403, 'forbidden', 'Модели настраивает только администратор');
   const body = (await readBody(event)) as { id?: string } | null;
   await syncProviders();
   const provider = body?.id ? getProvider(body.id) : undefined;

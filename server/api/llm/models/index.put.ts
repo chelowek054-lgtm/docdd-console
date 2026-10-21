@@ -10,8 +10,8 @@ import { loadLlmSettings, saveLlmSettings, type ProviderSetting } from '../../..
  * ключа: браузер его не знает и не должен затирать.
  */
 export default defineEventHandler(async (event) => {
-  const user = (event.context as { user?: { role?: unknown } }).user;
-  if (user && user.role !== 'admin') return fail(event, 403, 'forbidden', 'Модели настраивает только администратор');
+  const user = (event.context as { user?: { admin?: unknown } }).user;
+  if (user && user.admin !== true) return fail(event, 403, 'forbidden', 'Модели настраивает только администратор');
   const body = (await readBody(event)) as { providers?: Array<Partial<ProviderSetting> & { hasKey?: boolean }> } | null;
   if (!body || !Array.isArray(body.providers)) return fail(event, 400, 'bad-request', 'Ожидался список providers');
   const current = await loadLlmSettings();
