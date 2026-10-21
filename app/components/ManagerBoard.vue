@@ -40,14 +40,14 @@ async function drop(status: string) {
       <select v-model="assignee" class="rounded border border-default bg-default p-1"><option value="">Все исполнители</option><option v-for="a in assignees" :key="a" :value="a">{{ a }}</option></select>
       <select v-model="capability" class="rounded border border-default bg-default p-1"><option value="">Все возможности</option><option v-for="c in capabilities" :key="c" :value="c">{{ c }}</option></select>
     </div>
-    <div v-if="failure" class="rounded border border-error p-3 text-sm text-error">
+    <div v-if="failure" class="ds-card ds-card--error p-3 text-sm text-error">
       <p>{{ failure.message }}</p>
       <ul v-if="failure.blockers?.length" class="list-disc pl-5"><li v-for="(b, at) in failure.blockers" :key="at">{{ b.message }}</li></ul>
     </div>
     <div class="grid gap-3 md:grid-cols-5">
-      <div v-for="status in BOARD_COLUMNS" :key="status" class="min-h-24 rounded border border-default p-2" @dragover.prevent @drop="drop(status)">
+      <div v-for="status in BOARD_COLUMNS" :key="status" class="min-h-24 ds-card ds-card--bordered p-2" @dragover.prevent @drop="drop(status)">
         <h2 class="mb-2 text-sm font-semibold">{{ STATUS_WORD[status] }} · {{ columns[status]?.length ?? 0 }}</h2>
-        <NuxtLink v-for="task in columns[status]" :key="task.id" :to="`/projects/${props.projectId}/records/${task.id}`" draggable="true" class="mb-2 block rounded border border-default p-2 text-xs" @dragstart="dragged = task.id">
+        <NuxtLink v-for="task in columns[status]" :key="task.id" :to="`/projects/${props.projectId}/records/${task.id}`" draggable="true" class="mb-2 block ds-card ds-card--bordered p-2 text-xs" @dragstart="dragged = task.id">
           <span class="font-mono">{{ task.id }}</span> {{ task.title }}
         </NuxtLink>
       </div>

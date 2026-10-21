@@ -411,7 +411,7 @@ function hidePanel(event?: FocusEvent) {
     <div v-if="markCount > 0 || relationCount > 0" class="sticky top-0 z-10 mb-3 space-y-2">
       <div
         v-if="markCount > 0"
-        class="flex flex-wrap items-center gap-3 rounded border border-warning bg-default p-2 text-sm"
+        class="flex flex-wrap items-center gap-3 ds-card ds-card--warn p-2 text-sm"
       >
         <span>Отметок: {{ markCount }} — пока не сохранены</span>
         <UButton size="xs" :loading="saving" @click="saveMarks">Сохранить отметки</UButton>
@@ -419,7 +419,7 @@ function hidePanel(event?: FocusEvent) {
       </div>
       <div
         v-if="relationCount > 0"
-        class="flex flex-wrap items-center gap-3 rounded border border-warning bg-default p-2 text-sm"
+        class="flex flex-wrap items-center gap-3 ds-card ds-card--warn p-2 text-sm"
       >
         <span>Связей: +{{ relationMarks.add.length }} −{{ relationMarks.remove.length }} — пока не сохранены</span>
         <UButton size="xs" :loading="saving" @click="saveRelations">Сохранить связи</UButton>
@@ -515,7 +515,7 @@ function hidePanel(event?: FocusEvent) {
       Карта ещё не подтверждена, поэтому всё на ней помечено как план.
     </p>
 
-    <p v-if="roots.length === 0" v-show="!treeHidden" class="rounded border border-dashed border-default p-6 text-center text-sm text-muted">
+    <p v-if="roots.length === 0" v-show="!treeHidden" class="ds-card ds-card--dashed p-6 text-center text-sm text-muted">
       {{ capabilities.length === 0 ? 'Возможностей пока нет — добавьте первую.' : 'Под этот фильтр ничего не подошло.' }}
     </p>
     <div v-else v-show="!treeHidden" ref="wrapRef" class="relative" @mouseleave="hidePanel()" @focusout="hidePanel">

@@ -49,7 +49,7 @@ async function reply(threadId: string) {
     </template>
     <div class="space-y-3">
       <p v-if="!data.threads.length" class="text-sm text-muted">Замечаний пока нет.</p>
-      <div v-for="thread in data.threads" :key="thread.id" class="rounded border border-default p-2 text-sm" :class="thread.closed ? 'opacity-60' : ''">
+      <div v-for="thread in data.threads" :key="thread.id" class="ds-card ds-card--bordered p-2 text-sm" :class="thread.closed ? 'opacity-60' : ''">
         <p><span class="font-medium">{{ thread.author }}</span> · {{ thread.at.slice(0, 10) }}<span v-if="thread.closed"> · закрыто</span></p>
         <p class="whitespace-pre-wrap">{{ thread.text }}</p>
         <p v-for="item in thread.replies" :key="item.id" class="ml-4 mt-1 whitespace-pre-wrap">

@@ -23,6 +23,6 @@ function download() {
 <template>
   <div class="space-y-3">
     <UButton @click="download">Выгрузить в Markdown</UButton>
-    <pre class="whitespace-pre-wrap rounded border border-default p-3 text-sm">{{ markdown }}</pre>
+    <pre class="whitespace-pre-wrap ds-card ds-card--bordered p-3 text-sm">{{ markdown }}</pre>
   </div>
 </template>

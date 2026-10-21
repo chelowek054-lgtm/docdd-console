@@ -92,7 +92,7 @@ const consistency = computed(() => (view.value?.flags ?? []).filter((flag) => fl
 // Меню состояния создаём только после нажатия: на сотнях строк оно не нужно.
 const menuOn = ref(false);
 const SOFT = { success: 'bg-success/10 text-success', warning: 'bg-warning/10 text-warning', error: 'bg-error/10 text-error', neutral: 'bg-elevated text-default' } as const;
-const statusBtn = computed(() => `inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium ${SOFT[BADGE_COLOR[key.value]]}`);
+const statusBtn = computed(() => `ds-hit inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium ${SOFT[BADGE_COLOR[key.value]]}`);
 const statusTitle = computed(() => 'Состояние: ' + IMPL_LABEL[key.value] + '. Нажмите, чтобы отметить');
 
 function onRow(event: Event) {
@@ -112,7 +112,7 @@ function onRow(event: Event) {
       <button
         v-if="children.length > 0"
         type="button"
-        class="inline-flex size-6 shrink-0 items-center justify-center rounded text-default hover:bg-elevated"
+        class="ds-hit inline-flex size-6 shrink-0 items-center justify-center rounded text-default hover:bg-elevated"
         :aria-label="isOpen ? 'Свернуть' : 'Развернуть'"
         @click="emit('toggle', item.id)"
       >
