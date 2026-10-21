@@ -4,7 +4,7 @@ import { applyJournalNote } from '../lib/actions';
 import { branchName, commitMessage, worktreePath } from '../lib/branch';
 import { parseMapRecord } from '../lib/maps';
 import { normalizeRoot } from '../lib/paths';
-import { taskPrompt, type TaskContext } from '../lib/prompt';
+import { taskPrompt, type TaskContext } from '../lib/prompt'; import { packExtra } from './context-service';
 import type { IndexRecord, ProjectIndex } from '../lib/types';
 import { withoutJournal } from '../lib/write';
 import { readWorkspace } from '../lib/workspace';
@@ -268,7 +268,7 @@ export function taskContext(
     documents: [...(record.links.documents ?? []), ...(record.links.refines ?? [])].map(linked),
     map: mapId ? mapChange(root, index, mapId) : '',
     // Сжатая карта: где что лежит — вместо обхода всех файлов проекта.
-    modules: buildProjectMap(root).codemap.modules,
+    modules: [] as ReturnType<typeof buildProjectMap>['codemap']['modules'], pack: packExtra(root, record.id, 'task'), /* карта кода едет куском пакета */
     // Что уже есть (docs/13-reference.md): индекс целиком, справки задачи — текстом.
     referenceIndex: referenceIndexText(root),
     reused: (record.links.reuses ?? []).map(linked),

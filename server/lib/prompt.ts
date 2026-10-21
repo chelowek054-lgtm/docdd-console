@@ -35,7 +35,7 @@ function withoutFrontNote(template: string): string {
   return match ? template.slice(match.index + match[0].length).trimStart() : template;
 }
 
-export function fixPrompt(template: string, issues: readonly IssueDto[]): string {
+export function fixPrompt(template: string, issues: readonly IssueDto[], context = ''): string {
   const body = withoutFrontNote(template);
 
   const list = issues.length === 0
@@ -49,7 +49,7 @@ export function fixPrompt(template: string, issues: readonly IssueDto[]): string
       issue.message
     ].join(LF)).join(LF + LF);
 
-  return body.replace(ISSUES_MARKER, list).replace(CONTRACT_MARKER, contractDigest());
+  return body.replace(ISSUES_MARKER, list).replace(CONTRACT_MARKER, contractDigest()) + (context.trim() ? LF + LF + context.trim() + LF : '');
 }
 
 export interface MapsState {
@@ -89,7 +89,7 @@ export function inboxPrompt(
   notes: readonly { path: string; title: string; text: string }[],
   known: readonly { id: string; type: string; title: string }[],
   capabilities: readonly { id: string; title?: string; parent?: string }[] = [],
-  referenceIndex: string | null = null
+  referenceIndex: string | null = null, context = ''
 ): string {
   const said = notes.length
     ? notes.map((note) => [`### ${note.title}`, '', `Файл: \`${note.path}\``, '', note.text.trim()].join(LF)).join(LF + LF)
@@ -109,7 +109,7 @@ export function inboxPrompt(
     .replace(NOTES_MARKER, said)
     .replace(KNOWN_MARKER, already)
     .replace(CAPABILITIES_MARKER, map)
-    .replace(REFERENCE_MARKER, () => referenceIndexBlock(referenceIndex));
+    .replace(REFERENCE_MARKER, () => referenceIndexBlock(referenceIndex)) + (context.trim() ? LF + LF + context.trim() + LF : '');
 }
 
 /** Места, куда подставляется прошлый ответ и претензии схемы к нему. */
@@ -292,7 +292,7 @@ export interface TaskContext {
   practices: { label: string; id: string; title: string; body: string }[];
   /** Что человек сказал по прошлому заходу. Пусто — заход первый. */
   rework: string;
-  round: number;
+  round: number; pack?: string /* дополнение из пакета контекста */;
 }
 
 /**
@@ -329,7 +329,7 @@ export function taskPrompt(template: string, task: TaskContext): string {
 
   lines.push(...referenceSection(task.referenceIndex, task.reused ?? []));
 
-  lines.push(...practicesSection(task.practices));
+  lines.push(...practicesSection(task.practices)); if (task.pack?.trim()) lines.push(task.pack.trim(), '');
 
   if (task.rework.trim()) {
     lines.push(

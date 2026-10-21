@@ -99,7 +99,7 @@ const entries = computed<NavEntry[]>(() => {
       ]
     },
     { kind: 'link', label: t('nav.practices'), to: `${base}/shared` }, /* знания */ ...[{ label: t('nav.knowledge'), to: `${base}/knowledge` }, { label: t('nav.search'), to: `${base}/search` }, { label: t('nav.glossary'), to: `${base}/glossary` }, { label: t('nav.analyst'), to: `${base}/analyst` }].map((link) => ({ kind: 'link' as const, ...link })),
-    { kind: 'link', label: t('nav.design'), to: `${base}/design` }, { kind: 'link', label: t('nav.manager'), to: `${base}/manager` }
+    { kind: 'link', label: t('nav.design'), to: `${base}/design` }, { kind: 'link', label: t('nav.manager'), to: `${base}/manager` }, { kind: 'link', label: t('nav.releases'), to: `${base}/releases` }
   ];
 });
 
@@ -215,7 +215,7 @@ function isActive(to: string): boolean {
 
         <div class="ml-auto flex shrink-0 items-center gap-1">
           <!-- Доступно всегда: инструкция нужна раньше, чем выбран проект. -->
-          <ModelJobsBar /><NotificationsBell />
+          <ModelJobsBar /><NotificationsBell /><UButton to="/portfolio" :variant="route.path === '/portfolio' ? 'soft' : 'ghost'" color="neutral" size="sm">{{ t('nav.portfolio') }}</UButton>
           <UButton
             to="/usage"
             :variant="route.path === '/usage' ? 'soft' : 'ghost'"
