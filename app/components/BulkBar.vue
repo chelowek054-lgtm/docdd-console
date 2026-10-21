@@ -80,7 +80,7 @@ async function linkMap(ids: string[]) {
   }
 }
 
-/** «Принять вручную…»: задачи, которых держит только непройденная ручная проверка. */
+/** «{{ t('bulk.acceptManual') }}»: задачи, которых держит только непройденная ручная проверка. */
 const acceptOpen = ref(false);
 const acceptIds = ref<string[]>([]);
 function openAccept(ids: string[]) {
@@ -103,10 +103,10 @@ const groups = computed(() => {
 });
 
 const ACTIONS = computed(() => [
-  { direction: 'forward', label: 'Вперёд', icon: 'i-lucide-arrow-right', title: 'Каждую отмеченную запись — на один шаг вперёд' },
-  { direction: 'back', label: 'Назад', icon: 'i-lucide-arrow-left', title: 'Каждую отмеченную запись — на один шаг назад' },
+  { direction: 'forward', label: t('bulk.forward'), icon: 'i-lucide-arrow-right', title: t('bulk.forwardTitle') },
+  { direction: 'back', label: t('bulk.back'), icon: 'i-lucide-arrow-left', title: t('bulk.backTitle') },
   ...(props.kind === 'document'
-    ? [{ direction: 'approve', label: 'Подтвердить', icon: 'i-lucide-check-check', title: 'Каждую — до «подтверждён», из черновика через «на подтверждение»' }]
+    ? [{ direction: 'approve', label: t('bulk.approve'), icon: 'i-lucide-check-check', title: t('bulk.approveTitle') }]
     : [])
 ]);
 
@@ -138,13 +138,15 @@ async function run(direction: string) {
     busy.value = '';
   }
 }
+
+const { t } = useT();
 </script>
 
 <template>
   <div class="space-y-3">
     <div class="flex flex-wrap items-center gap-3 rounded-lg border border-default bg-elevated/40 px-3 py-2">
       <p class="text-sm">
-        Выбрано: <span class="font-medium">{{ props.selected.length }}</span> из {{ props.total }}
+        {{ t('bulk.selected') }} <span class="font-medium">{{ props.selected.length }}</span> {{ t('bulk.of') }} {{ props.total }}
       </p>
 
       <UButton v-can="'approve'"
@@ -162,7 +164,7 @@ async function run(direction: string) {
       </UButton>
 
       <!-- Неактивная кнопка обязана назвать причину (docs/04-ui.md). -->
-      <p v-if="empty" class="min-w-0 flex-1 text-sm text-muted">Отметьте записи флажками.</p>
+      <p v-if="empty" class="min-w-0 flex-1 text-sm text-muted">{{ t('bulk.markHint') }}</p>
       <p v-else-if="mixed" class="min-w-0 flex-1 text-sm text-warning">
         Отмечены записи в разных статусах ({{ statuses.map(statusLabel).join(', ') }}) —
         откройте вкладку одного статуса или снимите отметку с лишнего.
@@ -177,7 +179,7 @@ async function run(direction: string) {
         size="sm"
         class="ml-auto w-48"
         :items="props.roles.map((role) => ({ label: role.name, value: role.id }))"
-      /><span v-if="me.required && me.user" class="text-sm text-muted">Вошли: {{ me.user.name }}</span>
+      /><span v-if="me.required && me.user" class="text-sm text-muted">{{ t('bulk.signedIn') }} {{ me.user.name }}</span>
     </div>
 
     <UAlert
@@ -199,7 +201,7 @@ async function run(direction: string) {
       @update:open="report = null"
     >
       <template v-if="skipped.length" #description>
-        <p class="mb-1">Пропущено {{ skipped.length }}:</p>
+        <p class="mb-1">{{ t('bulk.skipped') }} {{ skipped.length }}:</p>
         <ul class="space-y-2">
           <li v-for="group in groups" :key="group.code">
             <p><span class="font-medium">{{ group.items.length }} — <code>{{ group.code }}</code></span></p>
@@ -220,7 +222,7 @@ async function run(direction: string) {
               icon="i-lucide-hand-helping"
               @click="openAccept(group.items.map((item) => item.id))"
             >
-              Принять вручную…
+              {{ t('bulk.acceptManual') }}
             </UButton>
             <!-- Нет карты вовсе — заводится одна общая на пачку; подтверждает её человек. -->
             <div v-if="group.unmapped.length && !linked" class="mt-2">
@@ -267,10 +269,10 @@ async function run(direction: string) {
       :color="report.newIssues.length ? 'error' : 'success'"
       variant="subtle"
       :icon="report.newIssues.length ? 'i-lucide-octagon-alert' : 'i-lucide-shield-check'"
-      :title="report.newIssues.length ? `Появилось нарушений: ${report.newIssues.length}` : 'Новых нарушений нет'"
+      :title="report.newIssues.length ? `Появилось нарушений: ${report.newIssues.length}` : t('bulk.noNewIssues')"
     >
       <template v-if="report.newIssues.length" #description>
-        <p class="mb-1">Откат — обратная кнопка по тем же записям.</p>
+        <p class="mb-1">{{ t('bulk.rollback') }}</p>
         <ul class="space-y-1">
           <li v-for="(issue, at) in report.newIssues" :key="at">
             <NuxtLink
