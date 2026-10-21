@@ -38,7 +38,7 @@ import { findProject } from '../../../../utils/projects';
 import { plainTokens } from '../../../../lib/design';
 import { designPrompt } from '../../../../lib/prompt';
 import { projectDesign } from '../../../../utils/design-service';
-import { projectScreens } from '../../../../utils/design-screens-service'; import { projectStoryPairs } from '../../../../utils/design-catalog-service'; import { withStoryPairs } from '../../../../lib/design-port';
+import { projectScreens } from '../../../../utils/design-screens-service'; import { projectStoryPairs } from '../../../../utils/design-catalog-service'; import { withStoryPairs } from '../../../../lib/design-port'; import { packExtra } from '../../../../utils/context-service';
 import { reviewerOf, roleName } from '../../../../lib/reviewer';
 
 /**
@@ -82,7 +82,7 @@ export default defineEventHandler(async (event) => {
         if (picked.length === 0) {
           return fail(event, 422, 'issues_gone', 'Отмеченных нарушений больше нет: перечитайте список');
         }
-        return { prompt: fixPrompt(await template('fix-plan.md'), picked), count: picked.length };
+        return { prompt: fixPrompt(await template('fix-plan.md'), picked, packExtra(project.root, '', 'fix')), count: picked.length };
       }
 
       const codes = Array.isArray(body?.codes)
@@ -96,7 +96,7 @@ export default defineEventHandler(async (event) => {
         // Ошибки первыми: запрос читается сверху, и чинить надо тоже сверху.
         .sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'error' ? -1 : 1));
 
-      return { prompt: fixPrompt(await template('fix-plan.md'), issues), count: issues.length };
+      return { prompt: fixPrompt(await template('fix-plan.md'), issues, packExtra(project.root, '', 'fix')), count: issues.length };
     }
 
     if (kind === 'maps') {
@@ -156,7 +156,7 @@ export default defineEventHandler(async (event) => {
       const capabilities = buildProjectMap(project.root).functional.capabilities;
 
       return {
-        prompt: inboxPrompt(await template('inbox-plan.md'), notes, known, capabilities, referenceIndexText(project.root)),
+        prompt: inboxPrompt(await template('inbox-plan.md'), notes, known, capabilities, referenceIndexText(project.root), packExtra(project.root, '', 'inbox')),
         count: notes.length
       };
     }
