@@ -333,7 +333,7 @@ export default defineEventHandler(async (event) => {
             requirements: requirements.map((id) => ({ id, title: byId.get(id)?.title ?? 'не найдено' })),
             verifications: index.records
               .filter((record) => record.type === 'verification'
-                && (record.links.verifies ?? []).some((id) => requirements.includes(id)))
+                && ((record.links.verifies ?? []).some((id) => requirements.includes(id)) || requirements.some((id) => (byId.get(id)?.links.verified_by ?? []).includes(record.id))))
               .map((record) => {
                 const outcome = index.verificationResults[record.id];
                 const recordKind = record.extra['kind'];
