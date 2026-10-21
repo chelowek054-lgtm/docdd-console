@@ -29,14 +29,17 @@ export function useProjects() {
   });
 }
 
-export function useProjectIndex(projectId: MaybeRefOrGetter<string>) {
+export function useProjectIndex(projectId: MaybeRefOrGetter<string>, light: MaybeRefOrGetter<boolean> | null = null) {
+  // Режим по умолчанию задаёт раскладка (useState): все потребители страницы делят один ключ кэша.
+  const shared = useState<boolean>('index-light', () => false);
+  const isLight = (): boolean => (light === null ? shared.value : toValue(light));
   const id = computed(() => toValue(projectId));
   // Нарушения не встраиваем в HTML: индекс идёт с issues=0, а они — отдельным
   // ленивым запросом на клиенте (пока грузятся — пусто, как у покрытия).
   const state = useFetch<ProjectIndex | { error: ApiFailure }>(() => `/api/projects/${id.value}/index`, {
-    key: () => `index:${id.value}`,
-    query: { issues: 0 },
-    watch: [id]
+    key: () => `index:${id.value}${isLight() ? ':light' : ''}`,
+    query: computed(() => (isLight() ? { issues: 0, light: 1 } : { issues: 0 })), // light: без tags, дат, owner, phase и path для тяжёлых страниц
+    watch: [id, isLight]
   });
   const issuesState = useFetch<{ issues: IssueDto[] } | { error: ApiFailure }>(() => `/api/projects/${id.value}/issues`, {
     key: () => `issues:${id.value}`,

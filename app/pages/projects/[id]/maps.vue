@@ -1343,7 +1343,7 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
           <span class="text-muted">{{ group.label }}:</span>
           <RecordLink
             v-for="record in group.records"
-            :key="record.path"
+            :key="record.id"
             :project-id="projectId"
             :record-id="record.id"
             :record="record"
