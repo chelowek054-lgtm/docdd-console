@@ -30,7 +30,7 @@ export const shell: Record<string, string> = {
   'nav.knowledge': 'Knowledge',
   'nav.search': 'Search',
   'nav.glossary': 'Glossary',
-  'nav.analyst': 'Analyst assistant',
+  'nav.analyst': 'Analyst assistant', 'nav.releases': 'Releases',
   'nav.design': 'Design',
   'nav.usage': 'How to use',
   'nav.allProjects': 'All projects',

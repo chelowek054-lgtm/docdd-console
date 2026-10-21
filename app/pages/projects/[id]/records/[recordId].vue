@@ -319,7 +319,7 @@ function entries(
                 <dd class="min-w-0 break-words">{{ value }}</dd>
               </div>
             </dl>
-          </UCard>
+          </UCard><UCard v-if="detail.record.type === 'task' && detail.record.status === 'done' && (detail.record.backlinks.ships?.length ?? 0) > 0"><template #header><h2 class="font-medium">Релиз</h2></template><p v-for="id in detail.record.backlinks.ships" :key="id" class="text-sm"><RecordLink :project-id="projectId" :record-id="id" :record="byId.get(id) ?? null" /></p></UCard>
         </div>
       </div>
     </template>

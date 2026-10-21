@@ -29,7 +29,7 @@ export const shell: Record<string, string> = {
   'nav.knowledge': 'Знания',
   'nav.search': 'Поиск',
   'nav.glossary': 'Глоссарий',
-  'nav.analyst': 'Помощник аналитика',
+  'nav.analyst': 'Помощник аналитика', 'nav.releases': 'Релизы',
   'nav.design': 'Дизайн',
   'nav.usage': 'Как пользоваться',
   'nav.allProjects': 'Все проекты',
