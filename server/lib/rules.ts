@@ -3,6 +3,7 @@ import { checkArchitecture } from './architecture';
 import { buildReferenceIndex, sameIndex, type ReferenceEntry } from './reference';
 import type { RulesResolution } from './practice-rules';
 import { capabilityFindings } from './coverage';
+import { effectiveHorizon, effectiveOwner, effectivePriority } from './functional';
 import { approvedMaps, checkEvidence, evidenceClaims, foldMaps, parseMapRecord, type MapChange } from './maps';
 import { firstHeading } from './parse';
 import {
@@ -230,7 +231,8 @@ export function checkAll(ctx: RuleContext): Violation[] {
     ...docChangedAfterTask(ctx),
     ...taskStale(ctx),
     ...verificationNeverRun(ctx),
-    ...taskNoVerification(ctx)
+    ...taskNoVerification(ctx),
+    ...capabilityNoOwner(ctx)
   ];
 }
 
@@ -1149,4 +1151,25 @@ export function designCatalogRules(ctx: RuleContext): Violation[] {
   if (sources.length === 0) return [];
   const components = design.tokens.components.map((item) => item.value);
   return buildCatalogReport(components, sources).findings.map((finding) => violation(finding.code, null, '', finding.message));
+}
+
+/**
+ * Возможность must/now без владельца при включённой политике
+ * `require_capability_owner` (T-0044). Только нижние возможности: владелец
+ * родителя наследуется, а спрашивать с группы незачем. Политика выключена —
+ * проверки нет, старые проекты не получают новых предупреждений.
+ */
+export function capabilityNoOwner(ctx: RuleContext): Violation[] {
+  if (!ctx.policy.require_capability_owner) return [];
+  const picture = foldMaps(approvedMaps(ctx.records).map((record) => ({ id: record.id, change: parseMapRecord(record.body).change })));
+  const capabilities: (typeof picture.functional.capabilities[number] & { declaredBy?: string | undefined })[] = picture.functional.capabilities;
+  const byId = new Map(capabilities.map((item) => [item.id, item]));
+  const parents = new Set(capabilities.map((item) => item.parent).filter(Boolean));
+  const pathOf = new Map(ctx.records.map((record) => [record.id, record.source.path]));
+  return capabilities
+    .filter((item) => item.declaredBy && !parents.has(item.id))
+    .filter((item) => effectivePriority(item, byId)?.value === 'must' || effectiveHorizon(item, byId)?.value === 'now')
+    .filter((item) => effectiveOwner(item, byId) === null)
+    .map((item) => violation('capability_no_owner', item.declaredBy as string, pathOf.get(item.declaredBy as string) ?? '',
+      `У возможности «${item.title ?? item.id}» (\`${item.id}\`) приоритет must или горизонт now, а владельца нет ни у неё, ни у родителей: укажите \`owner\` новой картой.`));
 }

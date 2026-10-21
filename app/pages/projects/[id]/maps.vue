@@ -34,7 +34,7 @@ import { layerOf } from '~~/server/lib/layers';
 import type { ProjectMap } from '~~/server/lib/maps';
 import { emptyProjectMap } from '~~/server/lib/maps';
 const route = useRoute();
-const projectId = computed(() => String(route.params['id'] ?? ''));
+const projectId = computed(() => String(route.params['id'] ?? '')); const { me: currentUser } = useMe(projectId);
 
 type MapResponse = ProjectMap & { unverified: number }; type MapKindName = 'functional' | 'codebase' | 'flows' | 'journeys'; const firstKind: MapKindName = route.query['fgroup'] || route.query['fkind'] || route.query['fview'] ? 'flows' : route.query['group'] || route.query['view'] ? 'codebase' : 'functional';
 
@@ -594,7 +594,7 @@ const capModeModel = computed<FunctionalMode>({
 const hiddenKinds = ref<string[]>([]);
 const planPriority = ref<Priority | 'none' | null>(null);
 const planHorizon = ref<Horizon | 'none' | null>(null);
-const onlyRisks = ref(false);
+const onlyRisks = ref(false); const myZone = ref(false); // «Моя зона» (T-0044): только возможности, где владелец — вошедший
 /** Выбранная возможность: от неё — соседи-призраки и влияние. */
 const capFocus = ref<string | null>(null);
 const impactOn = ref(false);
@@ -1079,11 +1079,11 @@ const functionalDepth = computed<DepthOutput | null>(() => {
   const views = capabilityViews(all, allRelations, coverage.value);
   const plan = planPredicate(all, { priority: planPriority.value, horizon: planHorizon.value });
   const filter = statusFilter.value;
-  const keepLeaf = filter || plan || onlyRisks.value
+  const keepLeaf = filter || plan || onlyRisks.value || myZone.value
     ? (leaf: (typeof all)[number]) => {
       if (filter && !(filter === 'unrated' ? !isImplStatus(leaf.status) : leaf.status === filter)) return false;
       if (plan && !plan(leaf)) return false;
-      if (onlyRisks.value && (views.get(leaf.id)?.flags.length ?? 0) === 0) return false;
+      if (onlyRisks.value && (views.get(leaf.id)?.flags.length ?? 0) === 0) return false; if (myZone.value && views.get(leaf.id)?.owner?.value !== currentUser.value.user?.login) return false;
       return true;
     }
     : null;
@@ -1778,6 +1778,7 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
                   @show-all="showCapAll"
                 />
                 <FunctionalLegendBar v-if="current.legend" :legend="current.legend" />
+                <UCheckbox v-if="currentUser.user && map.functional.capabilities.length" v-model="myZone" label="Моя зона" />
                 <p v-if="!current.text" class="text-sm text-muted">
                   {{ map.functional.capabilities.length ? 'Под эти фильтры ничего не подошло.' : 'В подтверждённых картах эта структура не описана.' }}
                 </p>
