@@ -17,8 +17,9 @@ const emit = defineEmits<{ changed: [] }>();
 
 const RULE = '__rule__';
 const pick = computed(() => reviewerOf(props.task, props.records, props.roles));
-const unknownRole = computed(() => !!pick.value?.explicit && props.roles.length > 0 const { t } = useT();
+const unknownRole = computed(() => !!pick.value?.explicit && props.roles.length > 0
   && !props.roles.some((role) => role.id === pick.value?.role));
+const { t } = useT();
 const items = computed(() => [
   { label: t('rv.rule'), value: RULE },
   ...props.roles.map((role) => ({ label: role.name, value: role.id }))

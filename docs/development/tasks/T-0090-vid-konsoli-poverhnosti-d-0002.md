@@ -2,10 +2,10 @@
 id: T-0090
 type: task
 title: Вид консоли по токенам D-0002 — подложка, карточки, плашки, таблицы, зоны нажатия
-status: in_progress
+status: in_review
 change: feature
 created: 2026-10-12
-updated: 2026-10-20
+updated: 2026-10-21
 links:
   implements: [R-0030]
   affects: [M-0030]
@@ -21,3 +21,4 @@ reuse: none
 - 2026-10-12 · заведена; код и тесты `tests/design-surface.spec.ts` написаны, проверки зелёные; статус не двигала — это за человеком · claude
 - 2026-10-20 · готова к работе · architect
 - 2026-10-20 · в разработку · architect
+- 2026-10-21 · на проверку · architect

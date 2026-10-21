@@ -5,7 +5,7 @@ const route = useRoute();
 const router = useRouter();
 const projectId = computed(() => String(route.params['id'] ?? ''));
 
-const { index, failure, records, byId, refresh, patchStatuses } = useProjectIndex(projectId); const backlinksOf = useBacklinks(projectId); const { t } = useT(); const { t } = useT();
+const { index, failure, records, byId, refresh, patchStatuses } = useProjectIndex(projectId); const backlinksOf = useBacklinks(projectId); const { t } = useT();
 
 /**
  * Проектные документы, решения и контракты — один экран, а не три: вопрос к
