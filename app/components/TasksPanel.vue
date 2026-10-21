@@ -33,7 +33,7 @@ const shown = computed(() => tasks.value.filter((task) =>
   && (!mineOnly.value || !me.value || task.extra['assignee'] === me.value)));
 
 const selection = useSelection(shown);
-const chunk = useChunked(shown, 40);
+const chunk = useChunked(shown, 25);
 const onBulkDone = (results?: BulkMoved[]) => { selection.clear(); if (results) patchStatuses(results); else void refresh(); };
 
 /** Результаты проверок нужны, чтобы не выдавать объявленное за подтверждённое. */
@@ -128,7 +128,7 @@ function reset() {
         </div>
 
         <ul class="divide-y divide-default">
-        <li v-for="task in chunk.visible.value" :key="task.path" class="flex gap-3 p-4">
+        <li v-for="task in chunk.visible.value" :key="task.id" class="flex gap-3 p-4">
           <UCheckbox
             class="pt-0.5"
             :model-value="selection.has(task.id)"
