@@ -2,7 +2,7 @@
 id: T-0026
 type: task
 title: Очередь запросов к модели на сервере
-status: in_review
+status: done
 change: feature
 created: 2026-10-10
 updated: 2026-10-21
@@ -23,3 +23,4 @@ links:
 - 2026-10-20 · готова к работе · architect
 - 2026-10-20 · в разработку · architect
 - 2026-10-21 · на проверку · architect
+- 2026-10-21 · закрыта · architect

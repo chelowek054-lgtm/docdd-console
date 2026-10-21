@@ -2,7 +2,7 @@
 id: T-0048
 type: task
 title: Импорт страниц Confluence во входящее и базу знаний
-status: in_review
+status: done
 change: feature
 created: 2026-10-10
 updated: 2026-10-21
@@ -22,3 +22,4 @@ links:
 - 2026-10-20 · готова к работе · architect
 - 2026-10-20 · в разработку · architect
 - 2026-10-21 · на проверку · architect
+- 2026-10-21 · закрыта · architect

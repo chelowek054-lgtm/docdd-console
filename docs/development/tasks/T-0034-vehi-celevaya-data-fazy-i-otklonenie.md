@@ -2,10 +2,10 @@
 id: T-0034
 type: task
 title: 'Вехи: целевая дата фазы и отклонение'
-status: in_review
+status: done
 change: feature
 created: 2026-10-10
-updated: 2026-10-20
+updated: 2026-10-21
 owner: pm
 links:
   implements: [R-0013]
@@ -23,3 +23,4 @@ links:
 - 2026-10-20 · готова к работе · architect
 - 2026-10-20 · в разработку · architect
 - 2026-10-20 · на проверку · architect
+- 2026-10-21 · закрыта · architect

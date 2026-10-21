@@ -2,10 +2,10 @@
 id: T-0021
 type: task
 title: Провайдер Anthropic API
-status: in_review
+status: done
 change: feature
 created: 2026-10-10
-updated: 2026-10-20
+updated: 2026-10-21
 owner: developer
 links:
   implements: [R-0008]
@@ -23,3 +23,4 @@ links:
 - 2026-10-20 · готова к работе · architect
 - 2026-10-20 · в разработку · architect
 - 2026-10-20 · на проверку · architect
+- 2026-10-21 · закрыта · architect

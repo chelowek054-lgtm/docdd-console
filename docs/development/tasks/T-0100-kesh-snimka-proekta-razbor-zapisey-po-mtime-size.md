@@ -2,10 +2,10 @@
 id: T-0100
 type: task
 title: 'Кэш снимка проекта: разбор записей по mtime/size, обход кода и ветки работы с коротким TTL, один снимок на смену статуса'
-status: in_review
+status: done
 change: fix
 created: 2026-10-19
-updated: 2026-10-20
+updated: 2026-10-21
 links:
   implements: [R-0041]
   affects: [M-0047]
@@ -21,3 +21,4 @@ links:
 - 2026-10-19 · готова к работе · architect
 - 2026-10-19 · в разработку · architect
 - 2026-10-20 · на проверку · architect
+- 2026-10-21 · закрыта · architect
