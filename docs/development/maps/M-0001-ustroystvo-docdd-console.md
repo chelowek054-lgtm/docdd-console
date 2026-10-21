@@ -198,7 +198,7 @@ updated: 2026-10-11
         {"from":"cli/check.ts","to":"server/lib/indexer.ts","evidence":{"path":"cli/check.ts","line":3,"fragment":"import { buildIndex } from '../server/lib/indexer';"}},
         {"from":"cli/check.ts","to":"server/lib/workspace.ts","evidence":{"path":"cli/check.ts","line":4,"fragment":"import { WorkspaceError } from '../server/lib/workspace';"}},
         {"from":"cli/report.ts","to":"server/lib/types.ts","evidence":{"path":"cli/report.ts","line":1,"fragment":"import type { IssueDto, ProjectIndex } from '../server/lib/t"}},
-        {"from":"server/api/llm/ask.post.ts","to":"server/utils/abort.ts","evidence":{"path":"server/api/llm/ask.post.ts","line":3,"fragment":"import { abortSignalOf } from '../../utils/abort';"}},
+        {"from":"server/api/llm/ask.post.ts","to":"server/utils/llm-gateway.ts","evidence":{"path":"server/api/llm/ask.post.ts","line":3,"fragment":"import { askRouted } from '../../utils/llm-gateway';"}},
         {"from":"server/api/llm/ask.post.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/llm/ask.post.ts","line":6,"fragment":"import { fail } from '../../utils/http';"}},
         {"from":"server/api/llm/ask.post.ts","to":"server/utils/llm.ts","evidence":{"path":"server/api/llm/ask.post.ts","line":4,"fragment":"import { ask } from '../../utils/llm';"}},
         {"from":"server/api/llm/ask.post.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/llm/ask.post.ts","line":7,"fragment":"import { findProject } from '../../utils/projects';"}},

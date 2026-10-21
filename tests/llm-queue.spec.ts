@@ -1,7 +1,12 @@
 // V-0010 (R-0010): очередь запросов на сервере — предел параллельности, отмена, отказы.
 import { describe, expect, it } from 'vitest';
 
-import { LlmQueue } from '../server/lib/llm-queue';
+import { mkdtempSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import { LlmQueue, markInterrupted, trimJobs } from '../server/lib/llm-queue';
+import { jobsFile, loadJobs, saveJob } from '../server/utils/llm-jobs-store';
 
 const gate = () => { let open!: () => void; const p = new Promise<void>((r) => { open = r; }); return { p, open }; };
 const meta = { projectId: 'p', user: 'u', kind: 'k' };
@@ -59,5 +64,35 @@ describe('очередь запросов к модели', () => {
     for (let i = 0; i < 5; i += 1) q.enqueue(meta, async () => ({ ok: true }));
     await tick(); await tick();
     expect(q.list().length).toBeLessThanOrEqual(3);
+  });
+
+  it('результат задания (ответ, время, ошибка) хранится в журнале и переживает очередь', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'llm-jobs-'));
+    const q = new LlmQueue(1, 200, (job) => saveJob(job, dir), 'boot-1');
+    const ok = q.enqueue(meta, async () => ({ ok: true, answer: 'ответ', ms: 7 }));
+    const bad = q.enqueue(meta, async () => ({ ok: false, note: 'нет связи', error: { code: 'network', message: 'нет связи' } }));
+    await tick(); await tick();
+    const stored = loadJobs('p', dir, 'boot-1');
+    expect(stored.find((j) => j.id === ok.id)).toMatchObject({ state: 'done', answer: 'ответ', ms: 7 });
+    expect(stored.find((j) => j.id === bad.id)).toMatchObject({ state: 'failed', error: { code: 'network' } });
+    expect(JSON.parse(readFileSync(jobsFile('p', dir), 'utf8'))).toHaveLength(2);
+  });
+
+  it('незавершённое при перезапуске сервера помечается «прервано перезапуском»', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'llm-jobs-'));
+    saveJob({ id: 'a', projectId: 'p', user: 'u', kind: 'k', state: 'running', createdAt: 1, boot: 'old' }, dir);
+    saveJob({ id: 'b', projectId: 'p', user: 'u', kind: 'k', state: 'done', createdAt: 2, boot: 'old', answer: 'x' }, dir);
+    const loaded = loadJobs('p', dir, 'new');
+    expect(loaded[0]).toMatchObject({ id: 'a', state: 'failed', note: 'прервано перезапуском' });
+    expect(loaded[1]).toMatchObject({ id: 'b', state: 'done', answer: 'x' });
+    expect(loadJobs('p', dir, 'new')[0]!.state).toBe('failed');
+    expect(markInterrupted([{ id: 'c', projectId: 'p', user: 'u', kind: 'k', state: 'running', createdAt: 3, boot: 'new' }], 'new')[0]!.state).toBe('running');
+  });
+
+  it('журнал обрезается до последних 200', () => {
+    const many = Array.from({ length: 250 }, (_, i) => ({ createdAt: i }));
+    const kept = trimJobs(many);
+    expect(kept).toHaveLength(200);
+    expect(kept[0]!.createdAt).toBe(50);
   });
 });

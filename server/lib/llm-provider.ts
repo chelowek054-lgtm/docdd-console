@@ -77,3 +77,14 @@ export function getProvider(id: string): Provider | undefined {
 export function listProviders(): Provider[] {
   return [...registry.values()];
 }
+
+/** Первый повторяющийся id в списке настроек (PUT /api/llm/models отвечает 400 provider_duplicate). */
+export function duplicateId(items: ReadonlyArray<{ id?: unknown }>): string | undefined {
+  const seen = new Set<string>();
+  for (const item of items) {
+    if (typeof item.id !== 'string') continue;
+    if (seen.has(item.id)) return item.id;
+    seen.add(item.id);
+  }
+  return undefined;
+}
