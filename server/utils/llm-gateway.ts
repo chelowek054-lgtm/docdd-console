@@ -1,10 +1,11 @@
 import { getProvider } from '../lib/llm-provider';
-import { LlmQueue } from '../lib/llm-queue';
+import { LlmQueue, type JobOutcome } from '../lib/llm-queue';
 import { parseRoutingTable, resolveRoute, type RoutingTable } from '../lib/llm-routing';
 import { estimateCost, type PriceTable } from '../lib/llm-usage';
 
 import { ask, type AskOptions, type LlmResult } from './llm';
 import { syncProviders } from './llm-providers';
+import { BOOT_ID, saveJob } from './llm-jobs-store';
 import { loadLlmSettings } from './llm-settings';
 import { recordUsage } from './llm-usage-store';
 
@@ -14,10 +15,10 @@ import { recordUsage } from './llm-usage-store';
  * напрямую, и таблица маршрутов, очередь и учёт лежали отдельно от реального пути.
  */
 
-export interface RouteContext { projectId: string; user: string }
+export interface RouteContext { projectId: string; user: string; /** Идентификатор задания: по нему клиент найдёт ответ после обновления страницы. */ onJob?: (id: string) => void }
 
 /** Одна очередь на сервер: лимиты модели общие у всей команды. Предел — DOCDD_LLM_PARALLEL, по умолчанию 2. */
-export const llmQueue = new LlmQueue(Math.max(1, Number(process.env.DOCDD_LLM_PARALLEL) || 2));
+export const llmQueue = new LlmQueue(Math.max(1, Number(process.env.DOCDD_LLM_PARALLEL) || 2), 200, (job) => saveJob(job), BOOT_ID);
 
 /** Таблица цен лежит в llm.json рядом с маршрутами: `prices: { "модель": [вход, выход] }` USD за млн токенов. */
 function parsePrices(raw: unknown): PriceTable {
@@ -47,12 +48,9 @@ export async function askRouted(kind: string, ctx: RouteContext, prompt: string,
   const started = new Date().toISOString();
   let result = { ok: false, failure: { code: 'cancelled', message: 'Запрос отменён до запуска' } } as LlmResult;
   await new Promise<void>((resolve) => {
-    llmQueue.enqueue({ projectId: ctx.projectId, user: ctx.user, kind }, async (queueSignal) => {
-      // Сигнал очереди и сигнал вызывающего (обрыв браузера) — оба отменяют запрос.
-      const merged = new AbortController();
-      const stop = () => merged.abort();
-      queueSignal.addEventListener('abort', stop);
-      options.signal?.addEventListener('abort', stop);
+    const queued = llmQueue.enqueue({ projectId: ctx.projectId, user: ctx.user, kind }, async (queueSignal) => {
+      // Только сигнал очереди (явная отмена через DELETE): закрытие соединения браузера запрос не обрывает.
+      const merged = { signal: queueSignal };
       try {
         // Claude Code по умолчанию идёт прежним путём ask(): лента событий и сессии не меняются.
         result = providerId === 'claude-code' && !model
@@ -67,13 +65,15 @@ export async function askRouted(kind: string, ctx: RouteContext, prompt: string,
             ...(options.effort ? { effort: options.effort } : {}),
             ...(options.onEvent ? { onEvent: options.onEvent } : {})
           });
-        return { ok: result.ok, ...(result.ok ? {} : { note: result.failure.message }) };
+        const outcome: JobOutcome = result.ok
+          ? { ok: true, answer: result.answer, ms: result.ms }
+          : { ok: false, note: result.failure.message, error: { code: result.failure.code, message: result.failure.message } };
+        return outcome;
       } finally {
-        queueSignal.removeEventListener('abort', stop);
-        options.signal?.removeEventListener('abort', stop);
         resolve();
       }
     });
+    ctx.onJob?.(queued.id);
   });
 
   const modelName = model ?? providerId;

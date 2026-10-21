@@ -1,7 +1,7 @@
 // V-0008 (R-0008): реестр провайдеров, адаптеры по сети (fetch подменён), ключ не уходит клиенту.
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { getProvider, listProviders, registerProvider, unregisterProvider, type Provider } from '../server/lib/llm-provider';
+import { duplicateId, getProvider, listProviders, registerProvider, unregisterProvider, type Provider } from '../server/lib/llm-provider';
 import { anthropicProvider } from '../server/utils/llm-anthropic';
 import { openAiProvider } from '../server/utils/llm-openai';
 import { resolveKey, toPublic } from '../server/utils/llm-settings';
@@ -96,5 +96,12 @@ describe('адаптеры по сети', () => {
     expect(JSON.parse(String(init!.body)).system[0].cache_control).toEqual({ type: 'ephemeral' });
     expect(String(init!.body)).not.toContain('ak-1');
     expect((init!.headers as Record<string, string>)['x-api-key']).toBe('ak-1');
+  });
+});
+
+describe('настройки провайдеров', () => {
+  it('повторяющийся id находится (PUT отвечает 400 provider_duplicate)', () => {
+    expect(duplicateId([{ id: 'a' }, { id: 'b' }])).toBeUndefined();
+    expect(duplicateId([{ id: 'a' }, { id: 'b' }, { id: 'a' }])).toBe('a');
   });
 });

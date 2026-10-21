@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { computed, reactive } from 'vue';
+import { computed, reactive, ref } from 'vue';
 
 // Относительные пути, а не алиас Nuxt: хранилище проверяется тестом без Nuxt.
 import type { BatchRun } from '../utils/batch-describe';
@@ -70,6 +70,12 @@ export interface BatchState {
   stop: boolean;
 }
 
+/** Задание в журнале сервера: ответ, ошибка, время, итог. */
+export interface ServerJob {
+  id: string; kind: string; user: string; state: string; note?: string; answer?: string; ms?: number;
+  error?: { code: string; message: string };
+}
+
 export interface JobMeta {
   label: string;
   to: string;
@@ -81,6 +87,17 @@ const handles = new Map<string, { controller: AbortController; ticker: ReturnTyp
 export const useModelJobs = defineStore('modelJobs', () => {
   const jobs = reactive<Record<string, ModelJob>>({});
   const batches = reactive<Record<string, BatchState>>({});
+  /** Завершённые задания с сервера (журнал .data/llm-jobs): ответ находится и после обновления страницы. */
+  const serverJobs = ref<ServerJob[]>([]);
+
+  async function loadServerJobs(projectId: string): Promise<ServerJob[]> {
+    try {
+      const response = await fetch(`/api/projects/${encodeURIComponent(projectId)}/llm/queue`);
+      const payload = (await response.json()) as { jobs?: ServerJob[] };
+      serverJobs.value = (payload.jobs ?? []).filter((job) => job.state !== 'queued' && job.state !== 'running');
+    } catch { /* нет связи — остаётся прежнее */ }
+    return serverJobs.value;
+  }
 
   function batchOf(key: string): BatchState {
     // Возвращаем то, что лежит в реактивном объекте, а не только что созданное: иначе правки мимо реактивности.
@@ -233,5 +250,5 @@ export const useModelJobs = defineStore('modelJobs', () => {
     for (const key of [...handles.keys()]) cancel(key);
   }
 
-  return { jobs, batches, batchOf, visible, runningCount, stream, run, cancel, cancelAll, orphan, acknowledge, drop };
+  return { jobs, serverJobs, loadServerJobs, batches, batchOf, visible, runningCount, stream, run, cancel, cancelAll, orphan, acknowledge, drop };
 });

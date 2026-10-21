@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Экран администратора «Модели»: провайдеры и ключи (T-0022). Значение ключа
 // сюда не приходит — только факт, что он найден; вписанный новый уходит на сервер.
-interface Setting { id: string; label?: string; type: 'openai' | 'anthropic'; baseUrl?: string; model: string; apiKeyEnv?: string; apiKey?: string; closedData?: boolean; enabled?: boolean; hasKey?: boolean }
+interface Setting { clearKey?: boolean; id: string; label?: string; type: 'openai' | 'anthropic'; baseUrl?: string; model: string; apiKeyEnv?: string; apiKey?: string; closedData?: boolean; enabled?: boolean; hasKey?: boolean }
 interface Loaded { routes?: Record<string, { providerId: string; model?: string }>; providers: Setting[]; registry: Array<{ id: string; label: string; kind: string; available: boolean; reason?: string }> }
 const { data, refresh } = await useFetch<Loaded | { error: { message: string } }>('/api/llm/models', { ignoreResponseError: true });
 const error = computed(() => (data.value && 'error' in data.value ? data.value.error.message : ''));
@@ -23,7 +23,7 @@ const { data: projectList } = await useFetch<{ projects?: Array<{ id: string; na
 const projectOptions = computed(() => { const v = projectList.value; return Array.isArray(v) ? v : (v?.projects ?? []); });
 const queueProject = ref('');
 watchEffect(() => { if (!queueProject.value && projectOptions.value[0]) queueProject.value = projectOptions.value[0].id; });
-interface Job { id: string; user: string; kind: string; state: string; note?: string }
+interface Job { id: string; user: string; kind: string; state: string; note?: string; answer?: string; ms?: number }
 const jobs = ref<Job[]>([]);
 async function loadQueue() { if (queueProject.value) jobs.value = (await $fetch<{ jobs: Job[] }>(`/api/projects/${encodeURIComponent(queueProject.value)}/llm/queue`).catch(() => ({ jobs: [] }))).jobs; }
 async function cancelJob(id: string) { await $fetch(`/api/projects/${encodeURIComponent(queueProject.value)}/llm/queue/${id}`, { method: 'DELETE' }).catch(() => null); await loadQueue(); }
@@ -60,6 +60,8 @@ async function check(id: string) {
         <UInput v-model="p.model" placeholder="Модель" />
         <UInput v-model="p.apiKeyEnv" placeholder="Переменная окружения с ключом" />
         <UInput v-model="p.apiKey" type="password" :placeholder="p.hasKey ? 'ключ найден — пусто, чтобы не менять' : 'ключ (необязательно)'" />
+        <UButton v-if="p.hasKey" size="xs" variant="ghost" color="error" @click="p.clearKey = true; p.apiKey = ''; p.hasKey = false">Стереть ключ</UButton>
+        <span v-if="p.clearKey" class="text-xs text-muted">ключ будет стёрт после «Сохранить»</span>
         <UCheckbox v-model="p.closedData" label="Допущен к закрытым данным" />
         <div class="flex items-center gap-2">
           <UButton variant="ghost" color="neutral" @click="check(p.id)">Проверить связь</UButton>
@@ -91,6 +93,7 @@ async function check(id: string) {
       <ul class="text-sm">
         <li v-for="job in jobs" :key="job.id">{{ job.kind }} · {{ job.user }} · {{ job.state }}{{ job.note ? ' — ' + job.note : '' }}
           <UButton v-if="job.state === 'queued' || job.state === 'running'" size="xs" variant="ghost" color="error" @click="cancelJob(job.id)">Отменить</UButton>
+          <details v-if="job.answer"><summary>Ответ{{ job.ms ? `, ${job.ms} мс` : '' }}</summary><pre class="whitespace-pre-wrap">{{ job.answer }}</pre></details>
         </li>
       </ul>
     </template>

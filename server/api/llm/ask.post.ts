@@ -1,7 +1,7 @@
 import { defineEventHandler, readBody } from 'h3';
 
-import { abortSignalOf } from '../../utils/abort';
-import { ask } from '../../utils/llm'; import { askRouted } from '../../utils/llm-gateway';
+import { askRouted } from '../../utils/llm-gateway';
+import { ask } from '../../utils/llm';
 import { eventStream } from '../../utils/sse';
 import { fail } from '../../utils/http';
 import { findProject } from '../../utils/projects';
@@ -29,11 +29,10 @@ export default defineEventHandler(async (event) => {
   // не тот код. Путь берётся из списка проектов, а не из запроса браузера.
   const project = await findProject(projectId);
   const stream = eventStream(event);
-  const signal = abortSignalOf(event);
 
-  const result: Awaited<ReturnType<typeof ask>> = await askRouted('ask', { projectId, user: ((event.context as { user?: { login?: string } }).user?.login) ?? 'local' }, prompt, {
+  const result: Awaited<ReturnType<typeof ask>> = await askRouted('ask', { projectId, user: ((event.context as { user?: { login?: string } }).user?.login) ?? 'local', onJob: (id) => stream.send('job', { id }) }, prompt, {
     ...(project ? { cwd: project.root } : {}),
-    signal,
+    // Сигнал соединения не передаём: обновление страницы не отменяет задание, отмена — DELETE очереди.
     // Этот запрос спрашивает, а не чинит: до подтверждения человеком в
     // проекте не должно измениться ничего (adr/0010).
     // Запрос, которому всё нужное уже подставлено (порядок по важности), идёт без инструментов.

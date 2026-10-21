@@ -1126,3 +1126,11 @@ matter. **Текст документа не меняется** — ни стр�
 ### GET /api/projects/:id/design/record-diff?record=ID
 
 Разница токенов записи дизайна (R-0073): `{ palette: [{ theme, rows: [{ role, before, after, state }] }], contrast: [{ theme, pair, before, after, okBefore, okAfter, min, regressed }], stacks: [{ id, label, files: [{ key, defaultPath, state, diff }] }] }`. «Было» — подтверждённые записи без этой, «станет» — вместе с ней. Логика — `server/lib/design-diff.ts`.
+
+### Задания к модели: журнал, очередь, модели, расходы (R-0010, R-0008, R-0009)
+
+- `POST /api/llm/ask` не привязан к соединению браузера: обновление страницы задание не отменяет, отменить можно только `DELETE /api/projects/:id/llm/queue/:jobId`. Первым событием ленты идёт `job` с `{ id }`.
+- Результат задания (`answer`, `error`, `ms`, `state`) хранится в `.data/llm-jobs/<проект>.json`, журнал обрезается до последних 200. Задание, незавершённое на момент перезапуска сервера, при загрузке получает `failed` с пометкой «прервано перезапуском».
+- `GET /api/projects/:id/llm/queue` — живые и недавно завершённые задания (с ответом); `GET /api/projects/:id/llm/queue/:jobId` — `{ job }` или 404 `not_found`.
+- `PUT /api/llm/models`: повторяющиеся `id` провайдеров — 400 `provider_duplicate`. Пустой `apiKey` оставляет прежний ключ; `clearKey: true` у провайдера стирает его.
+- `GET /api/llm/usage`: при включённом входе — только администратору или роли с правом `team` (pm, architect) в проекте из `?projectId=`, иначе 403 `forbidden`; без входа открыто.
