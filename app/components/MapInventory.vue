@@ -18,7 +18,7 @@ interface Inventory {
 }
 
 const { data, refresh } = useFetch<Inventory>(() => `/api/projects/${props.projectId}/map/inventory`, {
-  key: () => `inventory:${props.projectId}`
+  key: () => `inventory:${props.projectId}`, server: false, lazy: true // инвентарь нужен на клиенте, в HTML он не едет
 });
 
 const rebuilding = ref(false);

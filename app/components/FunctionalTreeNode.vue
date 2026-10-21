@@ -197,16 +197,9 @@ function onRow(event: Event) {
       <button v-else-if="!isParent" type="button" :class="statusBtn" :title="statusTitle" @click="menuOn = true">
         <UIcon :name="STATUS_STYLE[key].icon" class="size-4" />{{ IMPL_LABEL[key] }}
       </button>
-      <UBadge
-        v-else
-        size="md"
-        variant="subtle"
-        :color="BADGE_COLOR[key]"
-        :icon="STATUS_STYLE[key].icon"
-        :title="view ? statusText(view) : ''"
-      >
-        {{ view?.progress ? `${view.progress.implemented} из ${view.progress.total}` : IMPL_LABEL[key] }}
-      </UBadge>
+      <LightBadge v-else :color="BADGE_COLOR[key]" :title="view ? statusText(view) : ''">
+        <UIcon :name="STATUS_STYLE[key].icon" class="size-4" />{{ view?.progress ? `${view.progress.implemented} из ${view.progress.total}` : IMPL_LABEL[key] }}
+      </LightBadge>
     </div>
 
     <ul v-if="isOpen && children.length > 0" class="ml-3 border-l border-default pl-3">

@@ -9,7 +9,7 @@ const projectId = computed(() => (typeof route.params['id'] === 'string' ? route
 
 // Тот же ключ кэша, что у страниц: индекс не перечитывается лишний раз, счётчики
 // в шапке и на самой вкладке всегда об одном и том же (docs/03-server-api.md).
-const { records, index, errors, warnings } = useProjectIndex(projectId);
+useState<boolean>('index-light', () => false).value = /\/(maps|records\/[^/]+)$/.test(route.path); const { records, index, errors, warnings } = useProjectIndex(projectId); // лёгкий индекс — только на тяжёлых страницах; режим общий через useState
 
 /** Неподтверждённых записей типа — черновик или на подтверждении: одна мера для всех документов. */
 function unconfirmed(type: string): number {
