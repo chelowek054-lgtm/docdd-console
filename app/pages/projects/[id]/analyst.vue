@@ -2,7 +2,7 @@
 import type { AnalystMode } from '~~/server/lib/analyst';
 
 /** Помощник аналитика (T-0038): уточнение, противоречия, критерии. Ответ только читается — в документы ничего не пишется. */
-const route = useRoute();
+const route = useRoute(); const { t } = useT();
 const projectId = computed(() => String(route.params['id'] ?? ''));
 const { records } = useProjectIndex(projectId);
 const requirements = computed(() => records.value.filter((record) => record.type === 'requirement'));
@@ -10,7 +10,7 @@ const recordId = ref('');
 const mode = ref<AnalystMode>('contradictions');
 const answer = ref('');
 const failure = ref('');
-const { running, elapsed, outcome, stream, cancel } = useModelRequest(() => `${projectId.value}:analyst`, { label: 'Помощник аналитика' });
+const { running, elapsed, outcome, stream, cancel } = useModelRequest(() => `${projectId.value}:analyst`, { label: t('an.title') });
 
 async function ask() {
   failure.value = '';
@@ -20,25 +20,25 @@ async function ask() {
     const result = await stream<{ answer: string }>('/api/llm/ask', { prompt: built.prompt, projectId: projectId.value });
     if (result) answer.value = result.answer;
   } catch {
-    failure.value = 'Запрос не собран';
+    failure.value = t('an.failed');
   }
 }
 </script>
 
 <template>
   <div class="space-y-3">
-    <h1 class="text-xl font-semibold">Помощник аналитика</h1>
+    <h1 class="text-xl font-semibold">{{ t('an.title') }}</h1>
     <div class="flex flex-wrap items-center gap-2">
       <select v-model="recordId" class="rounded border border-default bg-default px-2 py-1 text-sm">
-        <option value="" disabled>Требование</option>
+        <option value="" disabled>{{ t('an.requirement') }}</option>
         <option v-for="item in requirements" :key="item.id" :value="item.id">{{ item.id }} · {{ item.title }}</option>
       </select>
       <select v-model="mode" class="rounded border border-default bg-default px-2 py-1 text-sm">
-        <option value="clarify">Уточнить</option>
-        <option value="contradictions">Найти противоречия</option>
-        <option value="criteria">Предложить критерии</option>
+        <option value="clarify">{{ t('an.clarify') }}</option>
+        <option value="contradictions">{{ t('an.contradictions') }}</option>
+        <option value="criteria">{{ t('an.criteria') }}</option>
       </select>
-      <UButton :disabled="!recordId || running" @click="ask">Спросить</UButton>
+      <UButton :disabled="!recordId || running" @click="ask">{{ t('an.ask') }}</UButton>
     </div>
     <ModelProgress :running="running" :elapsed="elapsed" :outcome="outcome" @cancel="cancel" />
     <p v-if="failure" class="text-sm text-error">{{ failure }}</p>

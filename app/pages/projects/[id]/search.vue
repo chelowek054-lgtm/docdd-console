@@ -2,7 +2,7 @@
 import type { SearchHit } from '~~/server/lib/search';
 
 /** Поиск по записям и знаниям проекта (T-0040). Запрос уходит на сервер с задержкой, чтобы не стрелять на каждую букву. */
-const route = useRoute();
+const route = useRoute(); const { t } = useT();
 const projectId = computed(() => String(route.params['id'] ?? ''));
 const q = ref('');
 const hits = ref<SearchHit[]>([]);
@@ -18,7 +18,7 @@ watch(q, (value) => {
 
 <template>
   <div class="space-y-3">
-    <UInput v-model="q" placeholder="Поиск по записям и знаниям" class="w-full" autofocus />
+    <UInput v-model="q" :placeholder="t('search.ph')" class="w-full" autofocus />
     <ul class="space-y-2 text-sm">
       <li v-for="hit in hits" :key="hit.id">
         <NuxtLink v-if="hit.type !== 'note'" :to="`/projects/${projectId}/records/${hit.id}`" class="font-medium hover:underline">{{ hit.id }} · {{ hit.title }}</NuxtLink>
@@ -26,6 +26,6 @@ watch(q, (value) => {
         <p class="text-xs text-muted">{{ hit.snippet }}</p>
       </li>
     </ul>
-    <p v-if="q && hits.length === 0" class="text-sm text-muted">Ничего не найдено</p>
+    <p v-if="q && hits.length === 0" class="text-sm text-muted">{{ t('search.none') }}</p>
   </div>
 </template>
