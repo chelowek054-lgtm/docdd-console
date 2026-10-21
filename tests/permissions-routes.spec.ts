@@ -67,7 +67,7 @@ const EXPECTED: Record<string, Action> = {
   'POST /api/projects/x/records/x/discussion': 'edit_draft',
   'POST /api/projects/x/records/x/status': 'approve',
   'POST /api/projects/x/records/x/verified': 'approve',
-  'POST /api/projects/x/records/x/work': 'work',
+  'POST /api/projects/x/records/x/work': 'work', // accept в теле — 'merge', см. отдельный тест
   'PATCH /api/projects/x/records/x': 'edit_draft',
   'POST /api/projects/x/reference/rebuild': 'edit_draft',
   'POST /api/projects/x/runs': 'edit_draft',

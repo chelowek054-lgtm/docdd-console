@@ -12,10 +12,19 @@ describe('sharedJailFailure', () => {
   });
   it('shared: инструменты без cwd или с cwd вне разрешённых — отказ', () => {
     for (const access of ['read', 'edits', 'full'] as const) {
-      expect(sharedJailFailure({ access }, true, inside)?.code).toBe('unauthorized');
-      expect(sharedJailFailure({ access, cwd: '/etc' }, true, inside)?.code).toBe('unauthorized');
-      expect(sharedJailFailure({ access, cwd: '/srv/projects/a' }, true, inside)).toBeNull();
+      expect(sharedJailFailure({ access }, true, inside, true)?.code).toBe('unauthorized');
+      expect(sharedJailFailure({ access, cwd: '/etc' }, true, inside, true)?.code).toBe('unauthorized');
+      expect(sharedJailFailure({ access, cwd: '/srv/projects/a' }, true, inside, true)).toBeNull();
     }
+  });
+});
+
+describe('full на shared', () => {
+  it('без DOCDD_ALLOW_FULL_ACCESS=1 — отказ, с ним — только в корне проекта', () => {
+    const inside = (root: string) => root.startsWith('/srv/projects/');
+    expect(sharedJailFailure({ access: 'full', cwd: '/srv/projects/a' }, true, inside, false)?.message).toContain('DOCDD_ALLOW_FULL_ACCESS');
+    expect(sharedJailFailure({ access: 'full', cwd: '/srv/projects/a' }, true, inside, true)).toBeNull();
+    expect(sharedJailFailure({ access: 'full', cwd: '/etc' }, true, inside, true)?.code).toBe('unauthorized');
   });
 });
 

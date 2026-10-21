@@ -64,7 +64,7 @@ export function can(
  * Какое право нужно маршруту. Таблица одна на все пишущие маршруты: маршрут без
  * особой записи требует `edit_draft`, а не пропускается.
  */
-export function actionFor(method: string, path: string): Action {
+export function actionFor(method: string, path: string, body?: unknown): Action {
   const verb = method.toUpperCase();
   if (verb === 'GET' || verb === 'HEAD' || verb === 'OPTIONS') return 'read';
   // Предпросмотр ничего не пишет.
@@ -73,6 +73,8 @@ export function actionFor(method: string, path: string): Action {
     return 'admin';
   }
   if (/\/shared\/?$/.test(path)) return 'team';
+  // Слияние (accept) — отдельное право `merge`: его можно отнять манифестом, не отнимая работу.
+  if (/\/records\/[^/]+\/work\/?$/.test(path) && (body as { action?: unknown } | null | undefined)?.action === 'accept') return 'merge';
   if (/\/work\/?$/.test(path) || /\/fix(\/work)?\/?$/.test(path)) return 'work';
   if (/^\/api\/llm\//.test(path) || /\/prompt\/?$/.test(path)) return 'model';
   if (/\/(status|verified)\/?$/.test(path) || /\/bulk\/status\/?$/.test(path)) return 'approve';

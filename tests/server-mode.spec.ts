@@ -35,6 +35,28 @@ describe('sharedDenied', () => {
   });
 });
 
+describe('sharedDenied со входом', () => {
+  it('shared + DOCDD_AUTH=on — право проверяет middleware; без входа отказ', () => {
+    process.env.DOCDD_MODE = 'shared';
+    process.env.DOCDD_AUTH = 'on';
+    expect(sharedDenied(fakeEvent(), 'x')).toBeNull();
+    delete process.env.DOCDD_AUTH;
+    expect(sharedDenied(fakeEvent(), 'x')?.error.code).toBe('server_mode_shared');
+  });
+});
+
+describe('rootAllowed: сегменты', () => {
+  it('каталог ..foo внутри корня допустим, настоящий .. — нет', () => {
+    const base = mkdtempSync(join(tmpdir(), 'docdd-seg-'));
+    mkdirSync(join(base, '..foo'));
+    process.env.DOCDD_MODE = 'shared';
+    process.env.DOCDD_PROJECT_ROOTS = base;
+    expect(rootAllowed(join(base, '..foo'))).toBe(true);
+    expect(rootAllowed(join(base, '..'))).toBe(false);
+    rmSync(base, { recursive: true, force: true });
+  });
+});
+
 describe('rootAllowed', () => {
   const dirs: string[] = [];
   const tmp = () => { const d = mkdtempSync(join(tmpdir(), 'docdd-mode-')); dirs.push(d); return d; };

@@ -564,8 +564,11 @@ export const SHARED_DENY: readonly string[] = [
  * На общем сервере модель с инструментами запускается только в корне проекта из
  * списка разрешённых: без `cwd` или с `cwd` вне корней ей нечем ограничить чтение, значит отказ.
  */
-export function sharedJailFailure(options: { access?: Access; cwd?: string }, shared = process.env.DOCDD_MODE === 'shared', allowed: (root: string) => boolean = rootAllowed): LlmFailure | null {
+export function sharedJailFailure(options: { access?: Access; cwd?: string }, shared = process.env.DOCDD_MODE === 'shared', allowed: (root: string) => boolean = rootAllowed, allowFull = process.env['DOCDD_ALLOW_FULL_ACCESS'] === '1'): LlmFailure | null {
   if (!shared || !options.access || options.access === 'none') return null;
+  // `full` (bypassPermissions) не сужается белым списком: на общем сервере только по явному решению администратора.
+  // Остаётся на системном пользователе: чтение вне корня и сеть/команды Bash; Deny закрывает лишь .data и .env*.
+  if (options.access === 'full' && !allowFull) return { code: 'unauthorized', message: 'На общем сервере полный доступ модели выключен; администратор включает его DOCDD_ALLOW_FULL_ACCESS=1' };
   if (options.cwd && allowed(options.cwd)) return null;
   return { code: 'unauthorized', message: 'На общем сервере модель с инструментами работает только в корне проекта' };
 }
