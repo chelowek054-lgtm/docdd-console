@@ -76,6 +76,8 @@ export function saveRecord(context: RecordContext, outcome: WriteOutcome, root: 
   if (!written.ok) return written;
 
   const index = loadIndex(root, true);
+  // Динамически: хранилище уведомлений тянет рантайм Nitro, которого нет в чистых тестах разбора.
+  void import('./notify-events').then((events) => events.notifyViolations(root, index)).catch(() => undefined);
   const record = index.records.find((item) => item.id === context.record.id);
   return record ? { ok: true, record } : { ok: false, problems: ['Запись не найдена после сохранения.'] };
 }

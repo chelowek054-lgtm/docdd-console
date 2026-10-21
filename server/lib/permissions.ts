@@ -72,6 +72,7 @@ export function actionFor(method: string, path: string, body?: unknown): Action 
   if (/^\/api\/projects\/?$/.test(path) || /^\/api\/projects\/init\/?$/.test(path) || /^\/api\/projects\/[^/]+\/?$/.test(path)) {
     return 'admin';
   }
+  if (/^\/api\/notifications\/channel\/?$/.test(path)) return 'admin';
   if (/\/shared\/?$/.test(path)) return 'team';
   // Слияние (accept) — отдельное право `merge`: его можно отнять манифестом, не отнимая работу.
   if (/\/records\/[^/]+\/work\/?$/.test(path) && (body as { action?: unknown } | null | undefined)?.action === 'accept') return 'merge';

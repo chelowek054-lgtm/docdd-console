@@ -1,4 +1,7 @@
-import { notify } from './notification-service';
+import type { ZoneCapability } from '../lib/notifications';
+import type { ProjectIndex } from '../lib/types';
+import { buildProjectMap } from './map-service';
+import { notify, notifyZoneViolations } from './notification-service';
 
 /**
  * Места событий процесса → уведомления (R-0059). Адресат — логин из самой записи
@@ -29,4 +32,16 @@ export function notifyStatus(projectId: string, recordId: string, type: string, 
   if (type === 'task' && status === 'in_review') {
     send(projectId, 'awaiting_acceptance', text(data['reviewer']), recordId, `Задача ${recordId} ждёт приёмки`);
   }
+}
+
+/**
+ * После пересчёта нарушений: новое в зоне владельца — ему. Вызывается из
+ * `saveRecord`; сбой (в том числе нет хранилища вне сервера) запись не отменяет.
+ */
+export function notifyViolations(root: string, index: ProjectIndex): void {
+  try {
+    let capabilities: ZoneCapability[] = [];
+    try { capabilities = buildProjectMap(root).functional.capabilities as ZoneCapability[]; } catch { /* карта необязательна */ }
+    void notifyZoneViolations(index.project.id, index.issues, index.records, capabilities, index.project.team ?? []).catch(() => undefined);
+  } catch { /* уведомления необязательны */ }
 }
