@@ -12,7 +12,7 @@ const props = defineProps<{ diff: MapDiff }>();
 const onlyChanged = ref(false);
 const level = ref<Record<string, number>>({});
 
-const LABEL: Record<string, string> = { codemap: 'Кодовая база', dataflow: 'Потоки данных', userflow: 'Пользовательские пути', functional: 'Функциональная карта', custom: 'Своя карта' };
+const KNOWN = ['codemap', 'dataflow', 'userflow', 'functional', 'custom']; const { t } = useT();
 const MARK_CLASS: Record<DiffMark, string> = {
   added: 'border-success text-success bg-success/10',
   removed: 'border-error text-error border-dashed bg-error/5 line-through',
@@ -42,14 +42,14 @@ const fieldsOf = (structure: StructureDiff, id: string) => structure.nodes.find(
   <div class="space-y-4">
     <label class="flex items-center gap-2 text-sm">
       <input v-model="onlyChanged" type="checkbox">
-      Только изменённое с соседями
+      {{ t('md.onlyChanged') }}
     </label>
     <section v-for="structure in diff.structures" :key="structure.structure" class="ds-card space-y-2 p-3">
       <header class="flex flex-wrap items-center gap-3">
-        <h4 class="text-sm font-medium">{{ LABEL[structure.structure] ?? structure.structure }}</h4>
+        <h4 class="text-sm font-medium">{{ KNOWN.includes(structure.structure) ? t(`md.${structure.structure}`) : structure.structure }}</h4>
         <span class="font-mono text-xs">{{ countsText(diffCounts(structure)) }}</span>
         <label v-if="depthMax(structure) > 0" class="ml-auto flex items-center gap-2 text-xs text-muted">
-          Глубина
+          {{ t('md.depth') }}
           <input type="range" min="0" :max="depthMax(structure)" :value="level[structure.structure] ?? depthMax(structure)" @input="level[structure.structure] = Number(($event.target as HTMLInputElement).value)">
         </label>
       </header>
@@ -57,7 +57,7 @@ const fieldsOf = (structure: StructureDiff, id: string) => structure.nodes.find(
         <li v-for="node in view(structure).nodes" :key="node.id" :style="{ paddingLeft: `${node.depth * 16}px` }">
           <span class="inline-block rounded border px-2 py-0.5 text-sm" :class="MARK_CLASS[node.mark]">
             <span class="font-mono text-xs">{{ node.id }}</span> {{ node.title }}
-            <span v-if="node.inside > 0 && (level[structure.structure] ?? depthMax(structure)) <= node.depth" class="text-xs"> · внутри: {{ node.inside }}</span>
+            <span v-if="node.inside > 0 && (level[structure.structure] ?? depthMax(structure)) <= node.depth" class="text-xs"> · {{ t('md.inside') }}: {{ node.inside }}</span>
             <span v-if="node.mark === 'changed' && fieldsOf(structure, node.id)" class="text-xs"> ({{ fieldsOf(structure, node.id) }})</span>
           </span>
         </li>
@@ -68,6 +68,6 @@ const fieldsOf = (structure: StructureDiff, id: string) => structure.nodes.find(
         </li>
       </ul>
     </section>
-    <p v-if="!diff.structures.length" class="text-sm text-muted">Запись ничего не меняет в картине.</p>
+    <p v-if="!diff.structures.length" class="text-sm text-muted">{{ t('md.noChange') }}</p>
   </div>
 </template>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { BulkMoved } from '~/composables/useProjectIndex';
 // Вкладка «Проверки» экрана «Сверка»: проверки, результат, нарушения и граф на одном экране (docs/04-ui.md, «Навигация»).
-const route = useRoute();
+const route = useRoute(); const { t } = useT();
 const projectId = computed(() => String(route.params['id'] ?? ''));
 
 const { index, failure, records, refresh, patchStatuses } = useProjectIndex(projectId); const backlinksOf = useBacklinks(projectId);
@@ -29,8 +29,8 @@ function verifiesOf(check: (typeof checks.value)[number]): string[] {
 
     <template v-else>
       <div class="flex flex-wrap items-center gap-3">
-        <h2 class="text-lg font-semibold">Проверки</h2>
-        <p class="text-sm text-muted">{{ checks.length }}<template v-if="status"> из {{ listed.length }}</template></p>
+        <h2 class="text-lg font-semibold">{{ t('cp.title') }}</h2>
+        <p class="text-sm text-muted">{{ checks.length }}<template v-if="status"> {{ t('cp.of') }} {{ listed.length }}</template></p>
         <NewRecord class="ml-auto" :project-id="projectId" type="verification" :records="records" @created="refresh" />
       </div>
 
@@ -46,7 +46,7 @@ function verifiesOf(check: (typeof checks.value)[number]): string[] {
       />
 
       <div v-if="listed.length === 0" class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted">
-        Проверок в проекте нет. Заводятся они в файлах — приложение записей не создаёт.
+        {{ t('cp.none') }}
       </div>
 
       <div v-else class="ds-card overflow-x-auto">
@@ -56,14 +56,14 @@ function verifiesOf(check: (typeof checks.value)[number]): string[] {
               <th class="w-10 p-3">
                 <UCheckbox
                   :model-value="selection.state.value"
-                  aria-label="Выбрать всё"
+                  :aria-label="t('tp.selectAll')"
                   @update:model-value="selection.toggleAll()"
                 />
               </th>
-              <th class="p-3 font-medium">Проверка</th>
-              <th class="p-3 font-medium">Решение</th>
-              <th class="p-3 font-medium">Что проверяет</th>
-              <th class="p-3 font-medium">Факт: последний прогон</th>
+              <th class="p-3 font-medium">{{ t('cp.colCheck') }}</th>
+              <th class="p-3 font-medium">{{ t('cp.colDecision') }}</th>
+              <th class="p-3 font-medium">{{ t('cp.colWhat') }}</th>
+              <th class="p-3 font-medium">{{ t('cp.colFact') }}</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-default">
@@ -71,7 +71,7 @@ function verifiesOf(check: (typeof checks.value)[number]): string[] {
               <td class="p-3">
                 <UCheckbox
                   :model-value="selection.has(check.id)"
-                  :aria-label="`Отметить ${check.id}`"
+                  :aria-label="t('tp.mark', { id: check.id })"
                   @update:model-value="selection.set(check.id, $event)"
                 />
               </td>
@@ -90,7 +90,7 @@ function verifiesOf(check: (typeof checks.value)[number]): string[] {
                     class="mr-2 font-mono text-xs hover:underline"
                   >{{ id }}</NuxtLink>
                 </template>
-                <span v-else class="text-muted">ничего</span>
+                <span v-else class="text-muted">{{ t('cp.nothing') }}</span>
               </td>
               <td class="p-3">
                 <LightBadge
@@ -99,7 +99,7 @@ function verifiesOf(check: (typeof checks.value)[number]): string[] {
                   variant="subtle"
                  
                 >{{ resultLabel(results[check.id]!.state) }} · {{ results[check.id]!.at.slice(0, 10) }}</LightBadge>
-                <LightBadge v-else color="neutral" variant="subtle">не запускалась</LightBadge>
+                <LightBadge v-else color="neutral" variant="subtle">{{ t('tp.neverRan') }}</LightBadge>
                 <!-- Результат засчитывается как есть, но под ним — неподтверждённый способ. -->
                 <LightBadge
                   v-if="checkNote(check.status, !!results[check.id])"
@@ -123,7 +123,7 @@ function verifiesOf(check: (typeof checks.value)[number]): string[] {
           </tbody>
         </table>
         <div v-if="chunk.rest.value > 0" class="border-t border-default p-3 text-center">
-          <UButton variant="ghost" color="neutral" @click="chunk.more()">Показать ещё {{ Math.min(chunk.step, chunk.rest.value) }}</UButton>
+          <UButton variant="ghost" color="neutral" @click="chunk.more()">{{ t('tp.more') }} {{ Math.min(chunk.step, chunk.rest.value) }}</UButton>
         </div>
       </div>
     </template>

@@ -6,7 +6,7 @@ import type { IndexRecord } from '~~/server/lib/types';
  * Исполнитель задачи (T-0016). Без входа это свободное имя; когда появится
  * команда, список подсказок берётся из неё. Смена пишет строку в журнал.
  */
-const props = defineProps<{ projectId: string; task: IndexRecord; people?: string[] }>();
+const props = defineProps<{ projectId: string; task: IndexRecord; people?: string[] }>(); const { t } = useT();
 const emit = defineEmits<{ changed: [] }>();
 
 const current = computed(() => (typeof props.task.extra['assignee'] === 'string' ? props.task.extra['assignee'] : ''));
@@ -36,12 +36,12 @@ async function save() {
 <template>
   <UCard>
     <template #header>
-      <h2 class="font-medium">Исполнитель</h2>
+      <h2 class="font-medium">{{ t('as.title') }}</h2>
     </template>
     <div class="flex flex-wrap items-center gap-3 text-sm">
-      <UInput v-model="draft" list="assignee-people" placeholder="Кто делает задачу" class="w-64" @keyup.enter="save" />
+      <UInput v-model="draft" list="assignee-people" :placeholder="t('as.who')" class="w-64" @keyup.enter="save" />
       <datalist id="assignee-people"><option v-for="person in people ?? []" :key="person" :value="person" /></datalist>
-      <UButton :loading="busy" :disabled="draft.trim() === current" @click="save">Назначить</UButton>
+      <UButton :loading="busy" :disabled="draft.trim() === current" @click="save">{{ t('as.assign') }}</UButton>
       <p v-if="failure" class="text-error">{{ failure.message }}</p>
     </div>
   </UCard>

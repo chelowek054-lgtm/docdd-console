@@ -14,7 +14,7 @@ const props = defineProps<{
   total: number;
 }>();
 
-const open = ref(false);
+const open = ref(false); const { t } = useT();
 // По умолчанию — столько, чтобы одна волна взяла все задачи (в пределах 20 на агента).
 const onlyFiltered = ref(false);
 /** Сколько задач берётся в проверку: все «на проверке» или только видимые под фильтрами. */
@@ -77,7 +77,7 @@ async function build() {
     prompt.value = response.prompt;
     count.value = response.count;
   } catch (error) {
-    failure.value = { code: 'network', message: 'Не удалось собрать запрос', detail: String(error) };
+    failure.value = { code: 'network', message: t('rb.buildFailed'), detail: String(error) };
   } finally {
     building.value = false;
   }
@@ -89,7 +89,7 @@ async function copy() {
     copied.value = true;
     setTimeout(() => { copied.value = false; }, 2000);
   } catch (error) {
-    failure.value = { code: 'clipboard', message: 'Не удалось скопировать: выделите текст и скопируйте вручную', detail: String(error) };
+    failure.value = { code: 'clipboard', message: t('rb.copyFailed'), detail: String(error) };
   }
 }
 </script>
@@ -101,41 +101,41 @@ async function copy() {
     icon="i-lucide-bot"
     variant="soft"
     :disabled="total === 0"
-    :title="total === 0 ? 'Задач на проверке нет' : undefined"
+    :title="total === 0 ? t('rb.noTasks') : undefined"
     @click="open = true"
   >
-    Запрос на проверку
+    {{ t('rb.title') }}
   </UButton>
 
-  <UModal v-model:open="open" title="Запрос на проверку" :description="`Задач на проверке: ${total}. Текст вставляется в основную сессию Claude Code в корне проекта.`" :ui="{ content: 'max-w-3xl' }">
+  <UModal v-model:open="open" :title="t('rb.title')" :description="t('rb.desc', { total })" :ui="{ content: 'max-w-3xl' }">
     <template #body>
       <form class="space-y-4" @submit.prevent="build">
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <UFormField label="Агентов">
+          <UFormField :label="t('rb.agents')">
             <div class="flex items-center gap-2">
               <UInput v-model.number="agents" type="number" :min="1" :max="10" class="w-full" />
-              <UButton v-if="agentsManual !== null" size="xs" variant="ghost" color="neutral" label="авто" title="Считать от числа задач на проверке" @click="agentsManual = null" />
+              <UButton v-if="agentsManual !== null" size="xs" variant="ghost" color="neutral" :label="t('rb.auto')" :title="t('rb.autoTitle')" @click="agentsManual = null" />
             </div>
           </UFormField>
-          <UFormField label="Задач на агента">
+          <UFormField :label="t('rb.perAgent')">
             <div class="flex items-center gap-2">
               <UInput v-model.number="perAgent" type="number" :min="1" :max="20" class="w-full" />
-              <UButton v-if="perAgentManual !== null" size="xs" variant="ghost" color="neutral" label="авто" title="Считать от числа задач на проверке" @click="perAgentManual = null" />
+              <UButton v-if="perAgentManual !== null" size="xs" variant="ghost" color="neutral" :label="t('rb.auto')" :title="t('rb.autoTitle')" @click="perAgentManual = null" />
             </div>
           </UFormField>
-          <UFormField label="Минут на задачу">
+          <UFormField :label="t('rb.minutes')">
             <UInput v-model.number="minutes" type="number" :min="1" :max="60" class="w-full" />
           </UFormField>
         </div>
         <p class="text-sm text-muted">
-          Проверяются все {{ taskCount }} задач «на проверке»: {{ agents }} агентов по {{ perAgent }}, за волну — {{ agents * perAgent }}, волн — {{ waves }}.
-          <template v-if="agentsManual === null && perAgentManual === null">Считается от числа задач: до 5 на агента.</template>
+          {{ t('rb.plan', { tasks: taskCount, agents, per: perAgent, wave: agents * perAgent, waves }) }}
+          <template v-if="agentsManual === null && perAgentManual === null">{{ t('rb.auto5') }}</template>
         </p>
-        <UFormField label="Ветка проверки" hint="латиница, цифры и ._/-">
+        <UFormField :label="t('rb.branch')" :hint="t('rb.branchHint')">
           <UInput v-model="branch" class="w-full font-mono" />
         </UFormField>
-        <UCheckbox v-model="onlyFiltered" :label="`Только отфильтрованные (${visibleIds.length})`" />
-        <UButton type="submit" icon="i-lucide-wand-sparkles" :loading="building">Собрать</UButton>
+        <UCheckbox v-model="onlyFiltered" :label="t('rb.onlyFiltered', { n: visibleIds.length })" />
+        <UButton type="submit" icon="i-lucide-wand-sparkles" :loading="building">{{ t('rb.build') }}</UButton>
       </form>
 
       <UAlert
@@ -150,9 +150,9 @@ async function copy() {
 
       <div v-if="prompt" class="mt-4 space-y-2">
         <div class="flex items-center gap-3">
-          <p class="text-sm text-muted">Задач в запросе: {{ count }}</p>
+          <p class="text-sm text-muted">{{ t('rb.count', { n: count }) }}</p>
           <UButton class="ml-auto" size="sm" variant="soft" icon="i-lucide-copy" @click="copy">
-            {{ copied ? 'Скопировано' : 'Скопировать' }}
+            {{ copied ? t('rb.copied') : t('rb.copy') }}
           </UButton>
         </div>
         <textarea

@@ -16,7 +16,7 @@ const props = defineProps<{
   roles: { id: string; name: string }[];
 }>();
 
-const emit = defineEmits<{ changed: [] }>();
+const emit = defineEmits<{ changed: [] }>(); const { t } = useT();
 
 /** Текст человека без раздела «Журнал» — то, что показывается и правится. */
 function proseOf(body: string): string {
@@ -89,25 +89,23 @@ async function save() {
   <UCard>
     <template #header>
       <div class="flex flex-wrap items-center gap-3">
-        <h2 class="font-medium">Текст документа</h2>
+        <h2 class="font-medium">{{ t('be.title') }}</h2>
         <USelect
           v-if="(editing && roles.length) && !me.required"
           v-model="actor"
           size="sm"
           class="ml-auto w-48"
           :items="roles.map((role) => ({ label: role.name, value: role.id }))"
-        /><span v-if="me.required && me.user" class="text-sm text-muted">Вошли: {{ me.user.name }}</span>
+        /><span v-if="me.required && me.user" class="text-sm text-muted">{{ t('tw.signedIn') }}: {{ me.user.name }}</span>
         <UButton v-can="'edit_draft'" v-if="!editing && !locked" size="sm" variant="ghost" class="ml-auto" @click="startEdit">
-          Редактировать
+          {{ t('be.edit') }}
         </UButton>
       </div>
     </template>
 
     <!-- Пустая недоступная правка без причины бесполезна: см. кнопки статуса (docs/04-ui.md). -->
     <p v-if="locked" class="mb-3 text-sm text-muted">
-      Запись в статусе «{{ statusLabel(status) }}»: содержание подтверждено, правка текста в
-      обход этого факта запрещена. Нужна другая формулировка — заведите запись-преемника,
-      сославшись на неё через <code>supersedes</code>.
+      {{ t('be.locked', { status: statusLabel(status) }) }}
     </p>
 
     <template v-if="editing">
@@ -117,13 +115,13 @@ async function save() {
         color="warning"
         variant="subtle"
         icon="i-lucide-triangle-alert"
-        title="Запись обновилась, пока вы её редактировали"
-        description="Другим действием на этой же странице — например, сменой статуса. Сохранить эту правку не выйдет: перенесите текст, отмените и откройте редактор заново."
+        :title="t('be.staleTitle')"
+        :description="t('be.staleText')"
       />
       <UTextarea v-model="draft" :rows="16" autoresize class="w-full font-mono text-sm" />
       <div class="mt-3 flex items-center gap-2">
-        <UButton v-can="'edit_draft'" :loading="busy" :disabled="stale" @click="save">Сохранить</UButton>
-        <UButton variant="ghost" color="neutral" :disabled="busy" @click="cancel">Отменить</UButton>
+        <UButton v-can="'edit_draft'" :loading="busy" :disabled="stale" @click="save">{{ t('be.save') }}</UButton>
+        <UButton variant="ghost" color="neutral" :disabled="busy" @click="cancel">{{ t('be.cancel') }}</UButton>
       </div>
     </template>
     <DocumentText v-else :body="prose" />
@@ -143,8 +141,8 @@ async function save() {
       color="success"
       variant="subtle"
       icon="i-lucide-check"
-      title="Текст сохранён"
-      :description="`В журнал добавлено: ${done}`"
+      :title="t('be.saved')"
+      :description="t('be.journal', { done })"
     />
   </UCard>
 </template>

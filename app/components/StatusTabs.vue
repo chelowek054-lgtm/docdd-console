@@ -10,7 +10,7 @@ const props = defineProps<{
   order: string[];
 }>();
 
-const model = defineModel<string>({ required: true });
+const model = defineModel<string>({ required: true }); const { t } = useT();
 
 const items = computed(() => {
   const counts = new Map<string, number>();
@@ -23,7 +23,7 @@ const items = computed(() => {
   const present = [...counts.keys()].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
 
   return [
-    { label: `Все · ${props.statuses.length}`, value: 'all' },
+    { label: `${t('tabs.all')} · ${props.statuses.length}`, value: 'all' },
     ...present.map((status) => ({ label: `${statusLabel(status)} · ${counts.get(status)}`, value: status }))
   ];
 });
