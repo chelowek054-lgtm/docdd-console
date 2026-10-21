@@ -29,7 +29,7 @@ export const RECORD_TYPES: readonly RecordType[] = [
   'verification',
   'map',
   'reference',
-  'defect'
+  'defect', 'release'
 ];
 
 /**
@@ -84,7 +84,7 @@ export const LINK_KINDS: readonly LinkKind[] = [
   'reuses',
   'found_by',
   'fixed_by',
-  'breaks'
+  'breaks', 'ships'
 ];
 
 export type Severity = 'error' | 'warning';
