@@ -91,8 +91,8 @@ const taskId = ref('');
 /** Ответ, поправленный моделью: заменяет прошлый, пока его не сохранили. */
 const fixed = ref('');
 
-const { running: fixing, elapsed, outcome, log, stream, cancel } = useModelRequest(() => `${projectId.value}:map-fix`, {
-  label: 'Поправить ответ по картам',
+const { t } = useT(); const { running: fixing, elapsed, outcome, log, stream, cancel } = useModelRequest(() => `${projectId.value}:map-fix`, {
+  label: t('maps.fixLabel'),
   onRecovered: (answer) => acceptFix(answer as { answer: string })
 });
 
@@ -217,9 +217,9 @@ const mapRecords = computed(() => {
     .sort((a, b) => a.id.localeCompare(b.id));
   const waiting = (status: string) => status === 'draft' || status === 'review';
   return [
-    { label: 'Подтверждены', records: all.filter((record) => record.status === 'approved') },
-    { label: 'Ждут подтверждения', records: all.filter((record) => waiting(record.status)) },
-    { label: 'Вне суммы', records: all.filter((record) => record.status !== 'approved' && !waiting(record.status)) }
+    { label: t('maps.grp.approved'), records: all.filter((record) => record.status === 'approved') },
+    { label: t('maps.grp.waiting'), records: all.filter((record) => waiting(record.status)) },
+    { label: t('maps.grp.out'), records: all.filter((record) => record.status !== 'approved' && !waiting(record.status)) }
   ].filter((group) => group.records.length > 0);
 });
 
@@ -515,9 +515,9 @@ const hasGroupSwitch = computed(() => {
 const allShown = computed(() => (shown.value === 'dataflow' ? flowMode.value === 'all' : codemapMode.value === 'all'));
 const flowKindLabel = computed(() => {
   const labels: Record<string, string> = {
-    file: 'файлы', http: 'http', db: 'базы данных', queue: 'очереди', env: 'переменные окружения', memory: 'память процесса'
+    file: t('maps.fk.file'), http: 'http', db: t('maps.fk.db'), queue: t('maps.fk.queue'), env: t('maps.fk.env'), memory: t('maps.fk.memory')
   };
-  return labels[flowKindId.value] ?? (flowKindId.value === 'unknown' ? 'не опознаны' : flowKindId.value);
+  return labels[flowKindId.value] ?? (flowKindId.value === 'unknown' ? t('maps.fk.unknown') : flowKindId.value);
 });
 
 /** Узлы-призраки: полупрозрачные (0.65), а не 0.5 — это другое, чем «карта не устоялась». */
@@ -658,30 +658,30 @@ const views = computed(() => {
   const all = [
     {
       key: 'codemap',
-      title: 'Кодовая база',
-      question: 'Из чего состоит проект и что на что опирается',
-      count: `${value.codemap.modules.length} модулей, ${value.codemap.imports.length} связей`,
+      title: t('maps.v.codemap'),
+      question: t('maps.q.codemap'),
+      count: t('maps.c.codemap', { a: value.codemap.modules.length, b: value.codemap.imports.length }),
       ...(codemapDepth.value ?? codemapView.value ?? codemapMermaid(value))
     },
     {
       key: 'dataflow',
-      title: 'Потоки данных',
-      question: 'Откуда данные приходят, где лежат и куда уходят',
-      count: `${value.dataflow.sources.length} источников, ${value.dataflow.flows.length} потоков`,
+      title: t('maps.v.dataflow'),
+      question: t('maps.q.dataflow'),
+      count: t('maps.c.dataflow', { a: value.dataflow.sources.length, b: value.dataflow.flows.length }),
       ...(dataflowDepth.value ?? dataflowView.value ?? dataflowMermaid(value))
     },
     {
       key: 'userflow',
-      title: 'Пользовательские пути',
-      question: 'Какие экраны есть, как между ними ходят и что каждый дёргает',
-      count: `${value.userflow.screens.length} экранов, ${value.userflow.calls.length} вызовов`,
+      title: t('maps.v.userflow'),
+      question: t('maps.q.userflow'),
+      count: t('maps.c.userflow', { a: value.userflow.screens.length, b: value.userflow.calls.length }),
       ...userflowMermaid(value)
     },
     {
       key: 'functional',
-      title: 'Функциональная карта',
-      question: 'Что система умеет на языке предметной области, не кода',
-      count: `${value.functional.capabilities.length} возможностей`,
+      title: t('maps.v.functional'),
+      question: t('maps.q.functional'),
+      count: t('maps.c.functional', { a: value.functional.capabilities.length }),
       ...(functionalDepth.value ?? functionalMermaid({ ...value, functional: functionalEffective.value }, statusFilter.value, {
         mode: capMode.value,
         level: capLevel.value,
@@ -1310,12 +1310,12 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
 
     <template v-else>
       <div class="flex flex-wrap items-center gap-3">
-        <h1 class="text-xl font-semibold">Карты проекта</h1>
+        <h1 class="text-xl font-semibold">{{ t('maps.title') }}</h1>
         <p v-if="map" class="text-sm text-muted">
           сложено из {{ plural(map.from.length, 'карты', 'карт', 'карт') }}
         </p>
         <UBadge v-if="map && map.unverified > 0" color="error" variant="subtle" class="ml-auto">
-          {{ map.unverified }} утверждений не прошли сверку
+          {{ t('maps.unverified', { n: map.unverified }) }}
         </UBadge>
         <UButton
           :class="map && map.unverified > 0 ? '' : 'ml-auto'"
@@ -1326,7 +1326,7 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
           :loading="status === 'pending'"
           @click="refresh()"
         >
-          Перечитать
+          {{ t('maps.reload') }}
         </UButton>
       </div>
 
@@ -1356,14 +1356,14 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
       <PromptPanel
         :project-id="projectId"
         kind="maps"
-        label="Обновить карты"
-        hint="Ответ сохраняется черновиком и требует подтверждения"
+        :label="t('maps.updateLabel')"
+        :hint="t('maps.draftHint')"
         @answered="onAnswer"
       >
         <template #answer="{ answer }">
           <div class="mb-3 flex flex-wrap items-center gap-3">
             <UButton size="sm" :loading="saving" @click="saveDraft(fixed || answer)">
-              Сохранить черновиком
+              {{ t('maps.saveDraft') }}
             </UButton>
 
             <!-- Разбор сорока файлов не выбрасывается из-за лишнего ключа. -->
@@ -1374,13 +1374,13 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
               icon="i-lucide-wand-sparkles"
               @click="askToFix(fixed || answer)"
             >
-              Попросить поправить
+              {{ t('maps.askFix') }}
             </UButton>
             <NuxtLink
               v-if="draftId"
               :to="`/projects/${projectId}/records/${draftId}`"
               class="text-sm hover:underline"
-            >Черновик {{ draftId }} создан — открыть</NuxtLink>
+            >{{ t('maps.draftCreated', { id: draftId }) }}</NuxtLink>
             <UButton
               v-if="draftId && !taskId"
               size="sm"
@@ -1389,13 +1389,13 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
               :loading="creatingTask"
               @click="createImplementingTask"
             >
-              Завести задачу-реализацию
+              {{ t('maps.makeTask') }}
             </UButton>
             <NuxtLink
               v-if="taskId"
               :to="`/projects/${projectId}/records/${taskId}`"
               class="text-sm hover:underline"
-            >Задача {{ taskId }} заведена — открыть</NuxtLink>
+            >{{ t('maps.taskCreated', { id: taskId }) }}</NuxtLink>
             <UAlert
               v-if="draftFailure"
               color="error"
@@ -1415,7 +1415,7 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
           <ModelLog class="mb-3" :lines="log" :running="fixing" />
 
           <div v-if="fixed" class="mb-3">
-            <p class="mb-2 text-sm text-muted">Модель поправила форму. Ниже — исправленный ответ:</p>
+            <p class="mb-2 text-sm text-muted">{{ t('maps.fixed') }}</p>
             <pre class="max-h-72 overflow-auto rounded bg-elevated p-3 text-xs whitespace-pre-wrap">{{ fixed }}</pre>
           </div>
         </template>
@@ -1447,7 +1447,7 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
           :ui="{ root: 'w-auto shrink-0', list: 'w-auto' }"
           @update:model-value="(value) => (customShown = String(value) || null)"
         />
-        <UButton class="shrink-0" icon="i-lucide-plus" size="sm" variant="soft" label="Новая карта" @click="customFormOpen = true" />
+        <UButton class="shrink-0" icon="i-lucide-plus" size="sm" variant="soft" :label="t('maps.newMap')" @click="customFormOpen = true" />
       </div>
       <p v-for="problem in customMaps.problems" :key="problem" class="text-sm text-warning">{{ problem }}</p>
       <CustomMapForm v-model:open="customFormOpen" :project-id="projectId" @created="onCustomCreated" />
@@ -1509,7 +1509,7 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
                   v-model="functionalView"
                   class="ml-auto w-40"
                   size="xs"
-                  :items="[{ label: 'Дерево', value: 'tree' }, { label: 'Граф', value: 'graph' }]"
+                  :items="[{ label: t('maps.tree'), value: 'tree' }, { label: t('maps.graph'), value: 'graph' }]"
                 />
                 <template v-else>
                   <!-- Группы или все модули разом — у кодовой базы (docs/04-ui.md, «Группы кодовой карты»). -->
@@ -1521,7 +1521,7 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
                       icon="i-lucide-boxes"
                       @click="current.key === 'dataflow' ? showFlowGroups() : showGroups()"
                     >
-                      Группы
+                      {{ t('maps.groups') }}
                     </UButton>
                     <UButton
                       size="xs"
@@ -1530,7 +1530,7 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
                       icon="i-lucide-network"
                       @click="current.key === 'dataflow' ? showAllFlows() : showAllModules()"
                     >
-                      {{ current.key === 'dataflow' ? 'Все потоки' : 'Все модули' }}
+                      {{ current.key === 'dataflow' ? t('maps.allFlows') : t('maps.allModules') }}
                     </UButton>
                   </div>
                   <UTabs
@@ -1549,7 +1549,7 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
                   icon="i-lucide-copy"
                   @click="copySource"
                 >
-                  {{ copied ? 'Скопировано' : 'Скопировать mermaid' }}
+                  {{ copied ? t('maps.copied') : t('maps.copyMermaid') }}
                 </UButton>
               </div>
             </template>
@@ -1565,12 +1565,12 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
               <div class="mb-3 space-y-1 text-sm">
                 <p class="flex flex-wrap items-center gap-1">
                   <UButton size="xs" variant="link" color="neutral" icon="i-lucide-chevron-left" @click="showFlowGroups">
-                    Все группы
+                    {{ t('maps.allGroups') }}
                   </UButton>
                   <span class="text-muted">›</span>
                   <span class="font-medium">{{ flowMode === 'code' ? flowGroupTitle : flowKindLabel }}</span>
                   <span class="text-muted">
-                    · {{ flowMode === 'code' ? 'группа кода' : 'вид источников' }},
+                    · {{ flowMode === 'code' ? t('maps.codeGroup') : t('maps.sourceKind') }},
                     {{ plural(flowScopeValue?.sources.length ?? 0, 'источник', 'источника', 'источников') }}
                   </span>
                 </p>
@@ -1591,16 +1591,16 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
               <div class="mb-3 space-y-1 text-sm">
                 <p class="flex flex-wrap items-center gap-1">
                   <UButton size="xs" variant="link" color="neutral" icon="i-lucide-chevron-left" @click="showGroups">
-                    Все группы
+                    {{ t('maps.allGroups') }}
                   </UButton>
                   <span class="text-muted">›</span>
                   <span class="font-medium">{{ openGroupInfo.title }}</span>
-                  <UBadge v-if="openGroupInfo.auto" size="xs" color="neutral" variant="subtle">авто</UBadge>
+                  <UBadge v-if="openGroupInfo.auto" size="xs" color="neutral" variant="subtle">{{ t('maps.auto') }}</UBadge>
                   <span class="text-muted">· {{ plural(openGroupInfo.moduleCount, 'модуль', 'модуля', 'модулей') }}</span>
                 </p>
                 <p v-if="openGroupInfo.dependsOn.length || openGroupInfo.usedBy.length" class="flex flex-wrap items-center gap-x-1 text-xs text-muted">
                   <template v-if="openGroupInfo.dependsOn.length">
-                    Зависит от:
+                    {{ t('maps.dependsOn') }}
                     <button
                       v-for="item in openGroupInfo.dependsOn"
                       :key="item.groupId"
@@ -1610,7 +1610,7 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
                     >{{ item.title }}</button>
                   </template>
                   <template v-if="openGroupInfo.usedBy.length">
-                    · Используют:
+                    · {{ t('maps.usedBy') }}
                     <button
                       v-for="item in openGroupInfo.usedBy"
                       :key="item.groupId"
@@ -1638,8 +1638,8 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
               class="mb-3"
               :project-id="projectId"
               kind="architecture"
-              label="Аудит архитектуры"
-              hint="Ответ — таблица замечаний: ничего не пишется, в задачи их превращаете вы"
+              :label="t('maps.audit')"
+              :hint="t('maps.auditHint')"
             >
               <template #answer="{ answer }">
                 <ArchitectureAudit :project-id="projectId" :answer="answer" />
@@ -1652,18 +1652,18 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
               class="mb-3"
               :project-id="projectId"
               kind="groups"
-              label="Сгруппировать модули"
-              hint="Ответ сохраняется черновиком карты и требует подтверждения"
+              :label="t('maps.groupModules')"
+              :hint="t('maps.mapDraftHint')"
               @answered="onAnswer"
             >
               <template #answer="{ answer }">
                 <div class="mb-3 flex flex-wrap items-center gap-3">
-                  <UButton size="sm" :loading="saving" @click="saveDraft(answer, 'Группы модулей')">Сохранить черновиком</UButton>
+                  <UButton size="sm" :loading="saving" @click="saveDraft(answer, t('maps.moduleGroups'))">{{ t('maps.saveDraft') }}</UButton>
                   <NuxtLink
                     v-if="draftId"
                     :to="`/projects/${projectId}/records/${draftId}`"
                     class="text-sm hover:underline"
-                  >Черновик {{ draftId }} создан — подтвердите его, и группы вступят в силу</NuxtLink>
+                  >{{ t('maps.draftGroups', { id: draftId }) }}</NuxtLink>
                   <UAlert
                     v-if="draftFailure"
                     color="error"
@@ -1678,7 +1678,7 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
             <!-- Слои — только у кодовой базы: у остальных видов узел не несёт слоя. На обзоре групп их нет. -->
             <template v-if="shown === 'codemap' && codemapMode !== 'groups' && allLayers.length > 1">
               <p v-if="isLargeCodemap && hiddenLayers.size > 0" class="mb-2 text-sm text-muted">
-                {{ codemapMode === 'group' ? 'Крупная группа' : 'Крупная кодовая база' }} ({{ scopeCodemap?.modules.length }} модулей) — чтобы не перегружать диаграмму,
+                {{ codemapMode === 'group' ? t('maps.bigGroup') : t('maps.bigCodebase') }} ({{ scopeCodemap?.modules.length }} модулей) — чтобы не перегружать диаграмму,
                 сначала показан один слой. Выберите другой чипом; чтобы увидеть все разом, кликните по выбранному ещё раз.
               </p>
               <div class="mb-3 flex flex-wrap gap-1">
@@ -1700,8 +1700,8 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
                 class="mb-3"
                 :project-id="projectId"
                 kind="functional-check"
-                label="Проверить по коду"
-                hint="Модель сама читает код и предлагает состояние — это её мнение, подтверждает человек"
+                :label="t('maps.checkCode')"
+                :hint="t('maps.checkHint')"
               >
                 <template #answer="{ answer }">
                   <FunctionalCheck
@@ -1716,10 +1716,10 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
                 class="mb-3"
                 :project-id="projectId"
                 kind="relations"
-                label="Предложить связи"
-                hint="Модель читает дерево и код и предлагает связи — это её мнение, подтверждает человек"
+                :label="t('maps.suggestLinks')"
+                :hint="t('maps.linksHint')"
                 :disabled="map.functional.capabilities.length < 2"
-                disabled-reason="Связывать нечего: в карте меньше двух возможностей."
+                :disabled-reason="t('maps.nothingToLink')"
               >
                 <template #answer="{ answer }">
                   <FunctionalRelations
@@ -1778,9 +1778,9 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
                   @show-all="showCapAll"
                 />
                 <FunctionalLegendBar v-if="current.legend" :legend="current.legend" />
-                <UCheckbox v-if="currentUser.user && map.functional.capabilities.length" v-model="myZone" label="Моя зона" />
+                <UCheckbox v-if="currentUser.user && map.functional.capabilities.length" v-model="myZone" :label="t('maps.myZone')" />
                 <p v-if="!current.text" class="text-sm text-muted">
-                  {{ map.functional.capabilities.length ? 'Под эти фильтры ничего не подошло.' : 'В подтверждённых картах эта структура не описана.' }}
+                  {{ map.functional.capabilities.length ? t('maps.noMatch') : t('maps.notDescribed') }}
                 </p>
                 <template v-else>
                   <!-- Легенда — полоса над схемой (FunctionalLegendBar), вне холста. -->
@@ -1811,7 +1811,7 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
               <MapDepthBar v-if="shown !== 'userflow'" :kind="shown === 'dataflow' ? 'dataflow' : 'codemap'" :modules="map.codemap.modules" :imports="map.codemap.imports" :groups="map.codemap.groups" /><ArchitectureNote v-if="shown === 'codemap'":project-id="projectId" :report="architecture" />
               <MapLegendBar v-if="current.mapLegend" :items="current.mapLegend" />
               <p v-if="!current.text" class="text-sm text-muted">
-                В подтверждённых картах эта структура не описана.
+                {{ t('maps.notDescribed') }}
               </p>
               <MermaidDiagram3D
                 v-else-if="viewMode === '3d'"
