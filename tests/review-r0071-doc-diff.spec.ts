@@ -4,12 +4,15 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { diffRecordTexts } from '../server/lib/record-diff';
 import { recordDiff } from '../server/utils/record-diff-service';
 
 /** R-0071: поля «поле · было · стало», текст построчно, связи «+/−»; «было» — последний approved-коммит, иначе предыдущий. */
+
+// Тесты запускают git во временном репозитории: под нагрузкой полного прогона 5 с по умолчанию не хватает.
+vi.setConfig({ testTimeout: 30000 });
 
 const LF = String.fromCharCode(10);
 const doc = (front: string[], body: string) => ['---', 'id: R-0001', 'type: requirement', ...front, '---', '', body, ''].join(LF);

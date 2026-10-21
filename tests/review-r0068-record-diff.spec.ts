@@ -4,11 +4,14 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { applyStatusChange } from '../server/lib/actions';
 import { diffRecordTexts, lineDiff } from '../server/lib/record-diff';
 import { markViewed, recordDiff, unviewedReview, wasViewed } from '../server/utils/record-diff-service';
+
+// Тесты запускают git во временном репозитории: под нагрузкой полного прогона 5 с не хватает.
+vi.setConfig({ testTimeout: 30000 });
 
 /** R-0068: «было» из git на последнем approved-коммите, отметка просмотра по хэшу файла, слова журнала. Временный git-репозиторий. */
 
