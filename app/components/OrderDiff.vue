@@ -10,12 +10,12 @@ const props = defineProps<{ before: OrderGroup[]; after: OrderGroup[]; titles?: 
 
 const result = computed(() => orderDiff(props.before, props.after));
 const title = (id: string) => props.titles?.[id] ?? '';
-const place = (value: number | null) => (value === null ? 'новое' : `№${value}`);
+const place = (value: number | null) => (value === null ? t('od.new') : `№${value}`); const { t } = useT();
 </script>
 
 <template>
   <div class="space-y-2">
-    <p class="text-xs text-muted">Переехало фаз: {{ result.movedGroups }}, задач: {{ result.movedItems }}</p>
+    <p class="text-xs text-muted">{{ t('od.moved', { groups: result.movedGroups, items: result.movedItems }) }}</p>
     <ol class="space-y-2">
       <li v-for="group in result.groups" :key="group.id" class="ds-card p-3">
         <p class="text-sm font-medium">
@@ -27,11 +27,11 @@ const place = (value: number | null) => (value === null ? 'новое' : `№${v
             <span class="font-mono text-xs">{{ row.id }}</span>
             <span class="min-w-0 flex-1">{{ title(row.id) }}</span>
             <span class="font-mono text-xs" :class="row.moved ? 'text-warning' : ''">
-              {{ place(row.from) }} → №{{ row.to }}<template v-if="row.fromGroup"> (из {{ row.fromGroup }})</template>
+              {{ place(row.from) }} → №{{ row.to }}<template v-if="row.fromGroup"> ({{ t('od.from') }} {{ row.fromGroup }})</template>
             </span>
           </li>
           <li v-for="id in group.left" :key="`left-${id}`" class="flex gap-2 text-error line-through">
-            <span class="font-mono text-xs">{{ id }}</span><span class="text-xs no-underline">ушла из фазы</span>
+            <span class="font-mono text-xs">{{ id }}</span><span class="text-xs no-underline">{{ t('od.left') }}</span>
           </li>
         </ul>
       </li>
