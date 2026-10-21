@@ -36,7 +36,7 @@ async function ask(question: AssistantQuestion) {
     <p v-if="outcome && !running && !answer" class="text-sm text-error">{{ typeof outcome === 'string' ? outcome : 'Модель не ответила.' }}</p>
     <div v-if="answer" class="space-y-1">
       <p class="text-xs text-muted">Черновик модели: проверьте, прежде чем применять.</p>
-      <pre class="whitespace-pre-wrap rounded border border-default p-3 text-sm">{{ answer }}</pre>
+      <pre class="whitespace-pre-wrap ds-card ds-card--bordered p-3 text-sm">{{ answer }}</pre>
     </div>
   </div>
 </template>

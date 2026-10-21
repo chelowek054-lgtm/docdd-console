@@ -26,7 +26,7 @@ async function setTarget(id: string, value: string) {
   <div class="space-y-3">
     <p v-if="failure" class="text-sm text-error">{{ failure.message }}</p>
     <p v-if="phases.length === 0" class="text-muted">Фаз пока нет.</p>
-    <div v-for="phase in phases" :key="phase.id" class="rounded border border-default p-3">
+    <div v-for="phase in phases" :key="phase.id" class="ds-card ds-card--bordered p-3">
       <div class="flex flex-wrap items-baseline gap-2">
         <span class="font-mono text-xs text-muted">{{ phase.rank ?? '—' }}</span>
         <strong>{{ phase.id }} · {{ phase.title }}</strong>

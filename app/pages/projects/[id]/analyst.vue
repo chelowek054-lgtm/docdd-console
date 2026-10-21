@@ -42,6 +42,6 @@ async function ask() {
     </div>
     <ModelProgress :running="running" :elapsed="elapsed" :outcome="outcome" @cancel="cancel" />
     <p v-if="failure" class="text-sm text-error">{{ failure }}</p>
-    <pre v-if="answer" class="whitespace-pre-wrap rounded border border-default p-3 text-sm">{{ answer }}</pre>
+    <pre v-if="answer" class="whitespace-pre-wrap ds-card ds-card--bordered p-3 text-sm">{{ answer }}</pre>
   </div>
 </template>

@@ -50,7 +50,7 @@ function verifiesOf(check: (typeof checks.value)[number]): string[] {
       </div>
 
       <div v-else class="ds-card overflow-x-auto">
-        <table class="w-full text-sm">
+        <table class="ds-table w-full text-sm">
           <thead class="border-b border-default text-left text-muted">
             <tr>
               <th class="w-10 p-3">

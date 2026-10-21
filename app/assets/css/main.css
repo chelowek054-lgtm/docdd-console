@@ -484,3 +484,26 @@ tbody tr:first-child td, tbody tr:first-child th { border-top: 0; }
   background-color: var(--ds-color-surface);
   box-shadow: var(--ds-shadow-card);
 }
+
+/* Модификаторы карточки: перенос с «rounded border» не меняет вида — рамка и отступ задаются явно, по токенам. */
+.ds-card--bordered { border: var(--ds-border-thin) solid var(--ui-border); }
+.ds-card--warn { border: var(--ds-border-thin) solid var(--ui-warning); }
+.ds-card--error { border: var(--ds-border-thin) solid var(--ui-error); }
+.ds-card--dashed { border: var(--ds-border-thin) dashed var(--ui-border); }
+.ds-card--pad { padding: var(--ds-space-md); }
+
+/* Таблица проекта: те же правила, что у голого table, но применимы к конкретной таблице. */
+.ds-table { border-collapse: collapse; width: 100%; }
+.ds-table thead th {
+  font-size: var(--ds-font-kicker);
+  letter-spacing: var(--ds-tracking-kicker);
+  text-transform: uppercase;
+  color: var(--ds-color-muted);
+  border-bottom: var(--ds-border-thick) solid var(--ds-color-line);
+}
+.ds-table tbody td, .ds-table tbody th { border-top: var(--ds-border-thin) solid var(--ds-color-surface-alt); }
+
+/* Зона нажатия не меньше 44x44 на узких экранах (кнопки-иконки строк). */
+@media (max-width: 47.99rem) {
+  .ds-hit { min-width: 2.75rem; min-height: 2.75rem; display: inline-flex; align-items: center; justify-content: center; }
+}
