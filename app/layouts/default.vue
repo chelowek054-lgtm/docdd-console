@@ -109,7 +109,7 @@ const allEntries = computed<NavEntry[]>(() => {
       kind: 'group',
       label: t('nav.verify'),
       links: [
-        { key: 'checks', label: t('nav.checks'), to: `${base}/verify?tab=checks`, count: openChecks.value },
+        { key: 'checks', label: t('nav.checks'), to: `${base}/verify?tab=checks`, count: openChecks.value }, { key: 'run', label: t('nav.run'), to: `${base}/verify?tab=run` },
         { key: 'results', label: t('nav.results'), to: `${base}/verify?tab=results` },
         { key: 'issues', label: t('nav.issues'), to: `${base}/verify?tab=issues`, count: openIssues.value },
         { key: 'graph', label: t('nav.graph'), to: `${base}/verify?tab=graph` }

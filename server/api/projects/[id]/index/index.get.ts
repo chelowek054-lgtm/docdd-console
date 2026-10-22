@@ -38,13 +38,22 @@ export default defineEventHandler(async (event) => {
   }
 });
 
+/** Что рисуют списки кроме задач: вид проверки на «Сверке», версия и окружения на «Релизах». */
+const LEAN_EXTRA: Record<string, readonly string[]> = { verification: ['kind'], release: ['version', 'environments'] };
+
+function pick(extra: Record<string, unknown>, keys: readonly string[]): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const key of keys) if (key in extra) out[key] = extra[key];
+  return out;
+}
+
 /**
  * Лёгкая запись для HTML. light=1 обнуляет то, что тяжёлым страницам не нужно;
  * light=2 (список задач) вовсе не отдаёт ключи, которых строка не рисует, —
  * в payload каждый ключ повторяется на каждую запись, и null стоит столько же.
  */
 function leanRecord(record: IndexRecord, light: unknown): IndexRecord {
-  const base = { ...record, backlinks: {}, extra: record.type === 'task' ? record.extra : {} };
+  const base = { ...record, backlinks: {}, extra: record.type === 'task' ? record.extra : pick(record.extra, LEAN_EXTRA[record.type] ?? []) };
   if (light === '2') {
     const { created: _c, updated: _u, path: _p, section: _s, backlinks: _b, ...rest } = base;
     const extra: Record<string, unknown> = {};

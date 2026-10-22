@@ -8,10 +8,10 @@ const router = useRouter(); const { t } = useT();
 
 const TABS = computed(() => [
   { label: t('nav.checks'), value: 'checks' },
+  { label: t('nav.run'), value: 'run' },
   { label: t('nav.results'), value: 'results' },
   { label: t('nav.issues'), value: 'issues' },
-  { label: t('nav.graph'), value: 'graph' },
-  { label: 'Прогон', value: 'run' }
+  { label: t('nav.graph'), value: 'graph' }
 ]);
 const KNOWN = ['checks', 'results', 'issues', 'graph', 'run'];
 

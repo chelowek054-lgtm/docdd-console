@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { BulkMoved } from '~/composables/useProjectIndex';
+import { FACTS, factCounts, factOf, kindOf, uncoveredRequirements, type Fact } from '~~/server/lib/verify-desk';
 // Вкладка «Проверки» экрана «Сверка»: проверки, результат, нарушения и граф на одном экране (docs/04-ui.md, «Навигация»).
 const route = useRoute(); const { t } = useT();
 const projectId = computed(() => String(route.params['id'] ?? ''));
@@ -9,8 +10,25 @@ const { index, failure, records, refresh, patchStatuses } = useProjectIndex(proj
 const listed = computed(() => records.value.filter((record) => record.type === 'verification'));
 const statuses = computed(() => listed.value.map((record) => record.status));
 const status = useStatusFilter(statuses);
-const checks = computed(() => (status.value ? listed.value.filter((record) => record.status === status.value) : listed.value));
 const results = computed(() => index.value?.verificationResults ?? {});
+
+/** Факт и вид — то, по чему тестировщик ищет работу (docs/04-ui.md, «Сверка — рабочее место тестировщика»). */
+const fact = ref<Fact | ''>('');
+const ALL_KINDS = 'all';
+const kind = ref(ALL_KINDS);
+const kindItems = computed(() => [
+  { label: t('vd.allKinds'), value: ALL_KINDS },
+  ...[...new Set(listed.value.map(kindOf).filter(Boolean))].sort().map((value) => ({ label: value, value }))
+]);
+const byKind = computed(() => (kind.value === ALL_KINDS ? listed.value : listed.value.filter((record) => kindOf(record) === kind.value)));
+const counts = computed(() => factCounts(byKind.value, results.value));
+const FACT_COLOR: Record<Fact, 'error' | 'warning' | 'neutral' | 'success'> = { failed: 'error', awaiting: 'warning', never: 'neutral', passed: 'success' };
+const uncovered = computed(() => uncoveredRequirements(records.value));
+const showUncovered = ref(false);
+
+const checks = computed(() => byKind.value.filter((record) =>
+  (!status.value || record.status === status.value)
+  && (!fact.value || factOf(record, results.value[record.id]?.state) === fact.value)));
 const selection = useSelection(checks);
 // Порциями: сотни проверок разом тормозят отрисовку.
 const chunk = useChunked(checks);
@@ -33,6 +51,40 @@ function verifiesOf(check: (typeof checks.value)[number]): string[] {
         <p class="text-sm text-muted">{{ checks.length }}<template v-if="status"> {{ t('cp.of') }} {{ listed.length }}</template></p>
         <NewRecord class="ml-auto" :project-id="projectId" type="verification" :records="records" @created="refresh" />
       </div>
+
+      <!-- Факты — они же фильтр: что сломано, что ждёт рук, что ещё не гоняли. -->
+      <div class="flex flex-wrap items-center gap-2">
+        <UButton
+          size="sm"
+          :variant="fact === '' ? 'solid' : 'soft'"
+          color="neutral"
+          @click="fact = ''"
+        >{{ t('vd.all') }} · {{ byKind.length }}</UButton>
+        <UButton
+          v-for="item in FACTS"
+          :key="item"
+          size="sm"
+          :variant="fact === item ? 'solid' : 'soft'"
+          :color="FACT_COLOR[item]"
+          :disabled="counts[item] === 0 && fact !== item"
+          @click="fact = fact === item ? '' : item"
+        >{{ t(`vd.fact.${item}`) }} · {{ counts[item] }}</UButton>
+        <USelect v-model="kind" :items="kindItems" size="sm" class="ml-auto w-44" :aria-label="t('vd.kind')" />
+      </div>
+
+      <!-- Пробелы покрытия: тестировщик закрывает их первыми. -->
+      <UCard v-if="uncovered.length" :ui="{ body: 'p-3 sm:p-3' }">
+        <div class="flex flex-wrap items-center gap-2">
+          <UIcon name="i-lucide-shield-alert" class="size-5 text-warning" />
+          <p class="min-w-0 flex-1 text-sm"><span class="font-medium">{{ t('vd.uncovered', { n: uncovered.length }) }}</span> <span class="text-muted">{{ t('vd.uncoveredHint') }}</span></p>
+          <UButton size="xs" variant="ghost" color="neutral" :trailing-icon="showUncovered ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'" @click="showUncovered = !showUncovered">
+            {{ showUncovered ? t('rel.hide') : t('rel.show') }}
+          </UButton>
+        </div>
+        <ul v-if="showUncovered" class="mt-2 space-y-1 text-sm">
+          <li v-for="requirement in uncovered" :key="requirement.id"><RecordLink :project-id="projectId" :record-id="requirement.id" :record="requirement" /></li>
+        </ul>
+      </UCard>
 
       <StatusTabs v-model="status" :statuses="statuses" :order="DOCUMENT_STATUS_ORDER" />
 

@@ -1,0 +1,25 @@
+// Сверка — рабочее место тестировщика (docs/04-ui.md).
+export const verify: Record<string, string> = {
+  'vd.all': 'Все',
+  'vd.fact.failed': 'Провалены',
+  'vd.fact.awaiting': 'Ждут ручной приёмки',
+  'vd.fact.never': 'Не запускались',
+  'vd.fact.passed': 'Пройдены',
+  'vd.kind': 'Вид проверки',
+  'vd.allKinds': 'Все виды',
+  'vd.uncovered': 'Требования без проверок: {n}.',
+  'vd.uncoveredHint': 'Подтверждённые требования, которые ничем не проверяются.',
+  'run.title': 'Прогон на сборку',
+  'run.build': 'Версия сборки или релиза',
+  'run.submit': 'Записать прогон',
+  'run.summary': 'В прогоне {n}, провалено {failed}',
+  'run.none': 'не в прогоне',
+  'run.passed': 'прошла',
+  'run.failed': 'провалена',
+  'run.skipped': 'пропущена',
+  'run.saved': 'Отчёт записан: {report}',
+  'run.markPassed': 'Отметить видимые: прошли',
+  'run.reset': 'Сбросить',
+  'run.empty': 'Подтверждённых проверок этого вида нет.',
+  'nav.run': 'Прогон'
+};

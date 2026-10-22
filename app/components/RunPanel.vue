@@ -1,6 +1,8 @@
 <script setup lang="ts">
-// Вкладка «Прогон» экрана «Сверка» (R-0062): набор проверок, сборка, итог по каждой и общий.
-const route = useRoute();
+import { factOf, kindOf, type Fact } from '~~/server/lib/verify-desk';
+
+// Вкладка «Прогон» экрана «Сверка» (R-0062; docs/04-ui.md, «Сверка — рабочее место тестировщика»): набор проверок, сборка, итог по каждой и общий.
+const route = useRoute(); const { t } = useT();
 const projectId = computed(() => String(route.params['id'] ?? ''));
 const { index, records, refresh } = useProjectIndex(projectId);
 
@@ -9,14 +11,27 @@ const checks = computed(() => records.value.filter((record) => record.type === '
 const build = ref('');
 const chosen = ref<Record<string, State>>({});
 const message = ref('');
-const items = [
-  { label: 'не в прогоне', value: 'none' },
-  { label: 'прошла', value: 'passed' },
-  { label: 'провалена', value: 'failed' },
-  { label: 'пропущена', value: 'skipped' }
-];
+const saving = ref(false);
+const items = computed(() => [
+  { label: t('run.none'), value: 'none' },
+  { label: t('run.passed'), value: 'passed' },
+  { label: t('run.failed'), value: 'failed' },
+  { label: t('run.skipped'), value: 'skipped' }
+]);
+
+const ALL_KINDS = 'all';
+const kind = ref(ALL_KINDS);
+const kindItems = computed(() => [
+  { label: t('vd.allKinds'), value: ALL_KINDS },
+  ...[...new Set(checks.value.map(kindOf).filter(Boolean))].sort().map((value) => ({ label: value, value }))
+]);
+const visible = computed(() => (kind.value === ALL_KINDS ? checks.value : checks.value.filter((record) => kindOf(record) === kind.value)));
+
 const picked = computed(() => Object.entries(chosen.value));
 const failed = computed(() => picked.value.filter(([, state]) => state === 'failed').length);
+
+const FACT_COLOR: Record<Fact, 'error' | 'warning' | 'neutral' | 'success'> = { failed: 'error', awaiting: 'warning', never: 'neutral', passed: 'success' };
+const factFor = (id: string, record: (typeof checks.value)[number]) => factOf(record, index.value?.verificationResults?.[id]?.state);
 
 function choose(id: string, value: string) {
   const next = { ...chosen.value };
@@ -24,32 +39,55 @@ function choose(id: string, value: string) {
   chosen.value = next;
 }
 
+/** Сто строк по одной не щёлкают: видимые отмечаются разом, провалы потом правятся точечно. */
+function markVisiblePassed() {
+  const next = { ...chosen.value };
+  for (const check of visible.value) next[check.id] = 'passed';
+  chosen.value = next;
+}
+
 async function submit() {
-  const response = await $fetch<{ error?: { message: string }; report?: string }>(`/api/projects/${projectId.value}/runs`, {
-    method: 'POST',
-    body: { build: build.value, results: chosen.value },
-    ignoreResponseError: true
-  });
-  message.value = response.error ? response.error.message : `Отчёт записан: ${response.report}`;
-  if (!response.error) { chosen.value = {}; await refresh(); }
+  saving.value = true;
+  try {
+    const response = await $fetch<{ error?: { message: string }; report?: string }>(`/api/projects/${projectId.value}/runs`, {
+      method: 'POST',
+      body: { build: build.value, results: chosen.value },
+      ignoreResponseError: true
+    });
+    message.value = response.error ? response.error.message : t('run.saved', { report: response.report ?? '' });
+    if (!response.error) { chosen.value = {}; await refresh(); }
+  } finally {
+    saving.value = false;
+  }
 }
 </script>
 
 <template>
   <div class="space-y-4">
-    <div class="flex flex-wrap items-center gap-3">
-      <h2 class="text-lg font-semibold">Прогон на сборку</h2>
-      <UInput v-model="build" placeholder="Версия сборки или релиза" class="w-64" />
-      <UButton :disabled="!build.trim() || picked.length === 0" @click="submit">Записать прогон</UButton>
-      <p class="text-sm text-muted">В прогоне {{ picked.length }}, провалено {{ failed }}</p>
+    <UCard>
+      <div class="flex flex-wrap items-center gap-3">
+        <h2 class="text-lg font-semibold">{{ t('run.title') }}</h2>
+        <UInput v-model="build" :placeholder="t('run.build')" class="w-full sm:w-64" />
+        <UButton icon="i-lucide-save" :loading="saving" :disabled="!build.trim() || picked.length === 0" @click="submit">{{ t('run.submit') }}</UButton>
+        <p class="text-sm text-muted">{{ t('run.summary', { n: picked.length, failed }) }}</p>
+      </div>
+      <p v-if="message" class="mt-2 text-sm">{{ message }}</p>
+    </UCard>
+
+    <div class="flex flex-wrap items-center gap-2">
+      <USelect v-model="kind" :items="kindItems" size="sm" class="w-44" :aria-label="t('vd.kind')" />
+      <UButton size="sm" variant="soft" icon="i-lucide-check-check" :disabled="visible.length === 0" @click="markVisiblePassed">{{ t('run.markPassed') }}</UButton>
+      <UButton v-if="picked.length" size="sm" variant="ghost" color="neutral" @click="chosen = {}">{{ t('run.reset') }}</UButton>
     </div>
-    <p v-if="message" class="text-sm">{{ message }}</p>
-    <ul class="space-y-1">
-      <li v-for="check in checks" :key="check.id" class="flex items-center gap-3">
-        <span class="font-mono text-xs">{{ check.id }}</span>
-        <span class="flex-1 text-sm">{{ check.title }}</span>
-        <span class="text-xs text-muted">{{ index?.verificationResults?.[check.id]?.state ?? 'не запускалась' }}</span>
-        <USelect :model-value="chosen[check.id] ?? 'none'" :items="items" class="w-40" @update:model-value="(v) => choose(check.id, String(v))" />
+
+    <p v-if="visible.length === 0" class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted">{{ t('run.empty') }}</p>
+    <ul v-else class="divide-y divide-default rounded-lg border border-default">
+      <li v-for="check in visible" :key="check.id" class="flex flex-wrap items-center gap-3 px-3 py-2">
+        <NuxtLink :to="`/projects/${projectId}/records/${check.id}`" class="font-mono text-xs text-muted hover:underline">{{ check.id }}</NuxtLink>
+        <span class="min-w-0 flex-1 text-sm">{{ check.title }}</span>
+        <UBadge v-if="kindOf(check)" color="neutral" variant="outline" size="sm">{{ kindOf(check) }}</UBadge>
+        <UBadge :color="FACT_COLOR[factFor(check.id, check)]" variant="subtle" size="sm">{{ t(`vd.fact.${factFor(check.id, check)}`) }}</UBadge>
+        <USelect :model-value="chosen[check.id] ?? 'none'" :items="items" size="sm" class="w-40" @update:model-value="(v) => choose(check.id, String(v))" />
       </li>
     </ul>
   </div>

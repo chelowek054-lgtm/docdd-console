@@ -1,0 +1,25 @@
+// Сверка — рабочее место тестировщика (docs/04-ui.md).
+export const verify: Record<string, string> = {
+  'vd.all': 'All',
+  'vd.fact.failed': 'Failed',
+  'vd.fact.awaiting': 'Awaiting manual acceptance',
+  'vd.fact.never': 'Never ran',
+  'vd.fact.passed': 'Passed',
+  'vd.kind': 'Check kind',
+  'vd.allKinds': 'All kinds',
+  'vd.uncovered': 'Requirements without checks: {n}.',
+  'vd.uncoveredHint': 'Approved requirements nothing verifies.',
+  'run.title': 'Run against a build',
+  'run.build': 'Build or release version',
+  'run.submit': 'Record run',
+  'run.summary': 'In run {n}, failed {failed}',
+  'run.none': 'not in run',
+  'run.passed': 'passed',
+  'run.failed': 'failed',
+  'run.skipped': 'skipped',
+  'run.saved': 'Report written: {report}',
+  'run.markPassed': 'Mark visible as passed',
+  'run.reset': 'Reset',
+  'run.empty': 'No approved checks of this kind.',
+  'nav.run': 'Run'
+};
