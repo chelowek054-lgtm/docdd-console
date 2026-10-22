@@ -1142,3 +1142,11 @@ matter. **Текст документа не меняется** — ни стр�
 - `GET /api/projects/:id/llm/queue` — живые и недавно завершённые задания (с ответом); `GET /api/projects/:id/llm/queue/:jobId` — `{ job }` или 404 `not_found`.
 - `PUT /api/llm/models`: повторяющиеся `id` провайдеров — 400 `provider_duplicate`. Пустой `apiKey` оставляет прежний ключ; `clearKey: true` у провайдера стирает его.
 - `GET /api/llm/usage`: при включённом входе — только администратору или роли с правом `team` (pm, architect) в проекте из `?projectId=`, иначе 403 `forbidden`; без входа открыто.
+
+### `GET /api/projects/:id/search/semantic?q=…&limit=10`
+
+Смысловой поиск ([adr/0031-semantic-search.md](adr/0031-semantic-search.md)). Пустой `q` — `{ hits: [] }`, без работы.
+Перед поиском индекс `.docdd/embeddings.jsonl` досчитывается для изменившихся блоков. Ответ:
+`{ hits: [{ key, recordId, type, title, heading, snippet, score, to }], model, blocks }`; `score` —
+косинусное сходство (скалярное произведение нормализованных векторов), `to` — адрес записи с якорем раздела.
+`limit` — от 1 до 50.

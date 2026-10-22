@@ -15,6 +15,7 @@
     "check": "tsx cli/check.ts",
     "add-user": "tsx cli/add-user.ts",
     "perf": "tsx cli/perf.ts",
+    "embeddings": "tsx cli/embeddings.ts",
     "typecheck": "tsc --noEmit && nuxt typecheck",
     "test": "vitest run",
     "lint": "eslint ."

@@ -294,15 +294,7 @@ function isActive(to: string): boolean {
               <span class="hidden truncate xl:inline">{{ roleLabel }}</span>
             </UButton>
           </UDropdownMenu>
-          <UButton
-            v-if="projectId"
-            :to="`/projects/${projectId}/search`"
-            icon="i-lucide-search"
-            :aria-label="t('nav.searchAria')"
-            :variant="route.path.endsWith('/search') ? 'soft' : 'ghost'"
-            color="neutral"
-            size="sm"
-          />
+          <GlobalSearch v-if="projectId" :project-id="projectId" />
           <ModelJobsBar /><NotificationsBell />
 
           <!-- Без проекта: общие экраны консоли. С проектом к ним ведёт логотип — список проектов. -->
