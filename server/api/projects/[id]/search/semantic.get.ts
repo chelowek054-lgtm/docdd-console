@@ -20,7 +20,11 @@ export default defineEventHandler(async (event) => {
       ...result,
       hits: result.hits.map((hit) => ({
         ...hit,
-        to: hit.type === 'note' ? `${base}/fill?tab=inbox` : `${base}/records/${hit.recordId}${hit.anchor ? `#${hit.anchor}` : ''}`
+        // Источник определяет, куда вести (ADR-0031): запись — к разделу, документ — к просмотру файла.
+        to: hit.type === 'note' ? `${base}/fill?tab=inbox`
+          : hit.type === 'glossary' ? `${base}/glossary`
+            : hit.type === 'doc' ? `${base}/file?path=${encodeURIComponent(hit.recordId)}${hit.anchor ? `#${hit.anchor}` : ''}`
+              : `${base}/records/${hit.recordId}${hit.anchor ? `#${hit.anchor}` : ''}`
       }))
     };
   } catch (error) {

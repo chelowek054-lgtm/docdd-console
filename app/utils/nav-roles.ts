@@ -41,3 +41,32 @@ export function navVisible(key: NavKey, role: NavRoleChoice): boolean {
 export function isNavRole(value: unknown): value is NavRole {
   return typeof value === 'string' && (NAV_ROLES as readonly string[]).includes(value);
 }
+
+/**
+ * Слова, по которым глобальный поиск находит пункт меню, если человек потерялся
+ * (docs/04-ui.md, «Поиск»): синонимы и то, что на экране делают, а не только подпись.
+ */
+export const NAV_HINTS: Record<NavKey, string> = {
+  overview: 'обзор главная сводка дашборд прогресс overview dashboard',
+  requirements: 'требования требование фичи что должно быть requirements',
+  designDocs: 'проектные документы дизайн документ архитектура design docs',
+  decisions: 'решения adr решение почему decisions',
+  contracts: 'контракты api openapi схема формат contracts',
+  reference: 'справочник справки библиотеки зависимости переиспользование reference',
+  knowledge: 'знания вики confluence страницы база знаний knowledge wiki',
+  glossary: 'глоссарий термины словарь glossary terms',
+  tasks: 'задачи тикеты задача jira бэклог tasks backlog',
+  phases: 'фазы этапы спринты план порядок phases sprints',
+  manager: 'менеджер доска канбан дорожная карта вехи сводка заказчику board roadmap',
+  releases: 'релизы версии выкладка окружения прод деплой releases deploy',
+  checks: 'проверки тесты приёмка тестирование checks tests qa',
+  results: 'результаты прогоны отчёты тестов results runs',
+  issues: 'нарушения ошибки предупреждения проблемы баги issues errors',
+  graph: 'граф связи зависимости graph',
+  maps: 'карты карта кода модули потоки пути функциональная карта maps architecture',
+  inbox: 'входящее заметки идеи сырые inbox notes',
+  import: 'импорт документации перенос jira confluence import',
+  design: 'дизайн токены палитра темы компоненты storybook design tokens',
+  analyst: 'помощник аналитика критерии противоречия analyst',
+  practices: 'практики общие правила другие проекты practices'
+};

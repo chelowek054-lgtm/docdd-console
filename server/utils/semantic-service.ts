@@ -1,12 +1,13 @@
-import { createReadStream, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 
 import { onCacheDropped } from '../lib/cache';
 import { normalizeRoot, resolveInside } from '../lib/paths';
-import { hashEmbed, LOCAL_MODEL, normalize, recordBlocks, snippetOf, TopHits, type Block, type Entry, type Hit } from '../lib/semantic';
+import { hashEmbed, LOCAL_MODEL, normalize, recordBlocks, snippetOf, textHash, TopHits, type Block, type Entry, type Hit } from '../lib/semantic';
 import { readWorkspace } from '../lib/workspace';
-import { inboxNotes } from './inbox-service';
+import { discussionPath, parseDiscussion } from '../lib/discussion';
+import { archivedNotes, inboxNotes } from './inbox-service';
 import { loadIndex } from './index-service';
 
 /**
@@ -36,9 +37,10 @@ async function embedder(): Promise<Embedder> {
   try {
     const { loadLlmSettings, resolveKey } = await import('./llm-settings');
     const settings = await loadLlmSettings();
-    const chosen = (settings['embeddings'] as { provider?: string } | undefined)?.provider;
+    const chosenSetting = settings['embeddings'] as { provider?: string; model?: string } | undefined;
+    const chosen = chosenSetting?.provider;
     const provider = settings.providers.find((item) => item.id === chosen && item.enabled !== false);
-    const model = (provider as { embeddingModel?: string } | undefined)?.embeddingModel;
+    const model = chosenSetting?.model || (provider as { embeddingModel?: string } | undefined)?.embeddingModel;
     if (!provider || provider.type !== 'openai' || !provider.baseUrl || !model) return localEmbedder;
     const key = resolveKey(provider);
     return {
@@ -62,16 +64,68 @@ async function embedder(): Promise<Embedder> {
   }
 }
 
-/** Блоки проекта: записи по разделам и входящие заметки. */
+const DOC_FILES_MAX = 500;
+const DOC_BYTES_MAX = 512 * 1024;
+const SKIP_DIRS = new Set(['node_modules', '.git', '.docdd', '.nuxt', '.output', 'dist']);
+
+/** Markdown-файлы папки рекурсивно, без служебных каталогов и без исключённых путей. */
+function markdownFiles(root: string, folder: string, exclude: readonly string[], out: string[]): void {
+  const absolute = join(root, folder);
+  if (!existsSync(absolute) || out.length >= DOC_FILES_MAX) return;
+  for (const entry of readdirSync(absolute, { withFileTypes: true })) {
+    if (out.length >= DOC_FILES_MAX) return;
+    const path = join(folder, entry.name).replace(/\\/g, '/');
+    if (exclude.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))) continue;
+    if (entry.isDirectory()) {
+      if (!SKIP_DIRS.has(entry.name)) markdownFiles(root, path, exclude, out);
+    } else if (entry.name.toLowerCase().endsWith('.md') && statSync(join(root, path)).size <= DOC_BYTES_MAX) {
+      out.push(path);
+    }
+  }
+}
+
+/**
+ * Блоки проекта (ADR-0031, «Источники индекса»): записи по разделам, заметки
+ * входящего (и разобранные), глоссарий, обсуждения у записей, документация
+ * проекта вне docs/development.
+ */
 function projectBlocks(root: string, allowsClosed: boolean): Block[] {
   const blocks: Block[] = [];
-  for (const record of loadIndex(root).records) {
+  const workspace = readWorkspace(root);
+  const records = loadIndex(root).records;
+  for (const record of records) {
     if (!allowsClosed && record.tags.includes('confidential')) continue;
     let source = '';
     try { source = readFileSync(resolveInside(root, record.path), 'utf8'); } catch { continue; }
     blocks.push(...recordBlocks(record, source));
+    // Обсуждение: замечание с ответами — один блок, ссылка на саму запись.
+    try {
+      const discussion = parseDiscussion(readFileSync(resolveInside(root, discussionPath(record.path)), 'utf8'));
+      discussion.threads.forEach((thread, n) => {
+        const text = [record.title, 'Обсуждение', thread.text, ...thread.replies.map((reply) => reply.text)].join('\n');
+        blocks.push({ key: `${record.id}#discussion-${n + 1}`, recordId: record.id, type: 'discussion', title: record.title, heading: 'Обсуждение', anchor: 'discussion', text, hash: textHash(text) });
+      });
+    } catch { /* обсуждения нет — обычное дело */ }
   }
   for (const note of inboxNotes(root)) blocks.push(...recordBlocks({ id: note.path, type: 'note', title: note.title }, note.text));
+  for (const note of archivedNotes(root)) blocks.push(...recordBlocks({ id: note.path, type: 'note', title: note.title }, note.text));
+
+  const glossary = join(root, 'docs', 'development', 'glossary.md');
+  if (existsSync(glossary)) blocks.push(...recordBlocks({ id: 'glossary', type: 'glossary', title: 'Глоссарий' }, readFileSync(glossary, 'utf8')));
+
+  // Документация проекта: README, docs/** вне записей и входящего, папки sources.docs.
+  const inbox = (workspace.manifest.sources?.inbox ?? []).map((folder) => folder.replace(/\\/g, '/').replace(/\/+$/, ''));
+  const exclude = ['docs/development', ...inbox];
+  const files: string[] = [];
+  if (existsSync(join(root, 'README.md'))) files.push('README.md');
+  markdownFiles(root, 'docs', exclude, files);
+  for (const folder of workspace.manifest.sources?.docs ?? []) markdownFiles(root, folder.replace(/\/+$/, ''), exclude, files);
+  for (const path of [...new Set(files)]) {
+    let text = '';
+    try { text = readFileSync(resolveInside(root, path), 'utf8'); } catch { continue; }
+    const title = /^#\s+(.+)$/m.exec(text)?.[1]?.trim() ?? path;
+    blocks.push(...recordBlocks({ id: path, type: 'doc', title }, text));
+  }
   return blocks;
 }
 
@@ -136,6 +190,13 @@ export async function ensureIndex(root: string): Promise<{ model: string; blocks
   } finally {
     building.delete(normalized);
   }
+}
+
+/** Выбросить кэш индекса: следующая сборка встроит все блоки заново. */
+export function resetIndex(root: string): void {
+  const normalized = normalizeRoot(root);
+  fresh.delete(normalized);
+  rmSync(fileOf(normalized), { force: true });
 }
 
 export async function semanticSearch(root: string, query: string, limit: number): Promise<{ hits: Hit[]; model: string; blocks: number }> {

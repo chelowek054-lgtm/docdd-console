@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { designTokens } from '~/design-tokens';
+// Явный импорт: окна шапки нужны на каждой странице, автоимпорт новых компонентов в dev их терял.
+import GlobalSearch from '~/components/GlobalSearch.vue';
+import SettingsDialog from '~/components/SettingsDialog.vue';
 
 const route = useRoute();
 const { t, locale, setLocale, locales } = useT();
@@ -138,6 +141,19 @@ const entries = computed<NavEntry[]>(() => allEntries.value.flatMap((entry): Nav
   const links = entry.links.filter((link) => navVisible(link.key, role.value));
   return links.length ? [{ ...entry, links }] : [];
 }));
+
+/**
+ * Пункты меню для глобального поиска — если человек потерялся (docs/04-ui.md, «Поиск»):
+ * видимые роли пункты проекта и общие экраны консоли.
+ */
+const searchLinks = computed(() => [
+  ...entries.value.flatMap((entry) => (entry.kind === 'link'
+    ? [{ label: entry.label, group: '', to: entry.to, hints: NAV_HINTS[entry.key] }]
+    : entry.links.map((link) => ({ label: link.label, group: entry.label, to: link.to, hints: NAV_HINTS[link.key] })))),
+  { label: t('nav.portfolio'), group: '', to: '/portfolio', hints: 'портфель все проекты portfolio' },
+  { label: t('nav.usage'), group: '', to: '/usage', hints: 'как пользоваться помощь инструкция справка help' },
+  { label: t('nav.allProjects'), group: '', to: '/', hints: 'проекты список выбрать проект projects' }
+]);
 
 /** Все пункты одним меню — для узкой ширины, где группы не помещаются в строку. */
 const compactItems = computed(() => entries.value.map((entry) => (entry.kind === 'link'
@@ -294,7 +310,7 @@ function isActive(to: string): boolean {
               <span class="hidden truncate xl:inline">{{ roleLabel }}</span>
             </UButton>
           </UDropdownMenu>
-          <GlobalSearch v-if="projectId" :project-id="projectId" />
+          <GlobalSearch v-if="projectId" :project-id="projectId" :links="searchLinks" /><SettingsDialog :project-id="projectId" />
           <ModelJobsBar /><NotificationsBell />
 
           <!-- Без проекта: общие экраны консоли. С проектом к ним ведёт логотип — список проектов. -->
