@@ -10,7 +10,7 @@ import {
   queueRelationRemove,
   relationMarkCount,
   withMarks,
-  withRelationMarks, crossLevelRelations, mapLinkBacklinks,
+  withRelationMarks, crossLevelRelations, mapLinkBacklinks, inputsNotReady,
   type CapabilityCoverage,
   type Horizon,
   type ImplStatus,
@@ -569,6 +569,14 @@ const functionalEffective = computed(() => {
 /** Связи между картами (R-0086): ссылки возможностей и обратная сторона для узлов других карт. */
 const mapBacklinks = computed(() => Object.fromEntries(mapLinkBacklinks(functionalEffective.value.capabilities)));
 const capabilityMapLinks = computed(() => Object.fromEntries(functionalEffective.value.capabilities.filter((item) => item.mapLinks?.length).map((item) => [item.id, [...(item.mapLinks ?? [])]])));
+/** Контракт блока (R-0088): входы и выходы возможностей, у входов-записей — готовы ли они. */
+const capabilityContracts = computed(() => {
+  const status = new Map((index.value?.records ?? []).map((record) => [record.id, record.status]));
+  return Object.fromEntries(functionalEffective.value.capabilities.filter((item) => item.inputs?.length || item.outputs?.length).map((item) => [item.id, {
+    inputs: [...(item.inputs ?? [])], outputs: [...(item.outputs ?? [])],
+    notReady: inputsNotReady(item, (id) => status.get(id) ?? null).map((entry) => entry.input)
+  }]));
+});
 const crossLevel = computed(() => crossLevelRelations(functionalEffective.value.capabilities, functionalEffective.value.relations));
 const functionalProgress = computed(() => overallProgress(functionalEffective.value.capabilities));
 
@@ -1865,6 +1873,7 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
             :cross-level="crossLevel"
             :map-backlinks="mapBacklinks"
             :capability-map-links="capabilityMapLinks"
+            :capability-contracts="capabilityContracts"
             :impact-on="impactOn"
             :to="staged ? stage : null"
             @impact="impactOn = !impactOn"

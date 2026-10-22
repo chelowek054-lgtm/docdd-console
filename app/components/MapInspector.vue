@@ -35,6 +35,8 @@ const props = defineProps<{
   /** Связи между картами (R-0086): `вид:узел` → возможности, что на него ссылаются; и ссылки самих возможностей. */
   mapBacklinks?: Record<string, string[]>;
   capabilityMapLinks?: Record<string, string[]>;
+  /** Контракт блока (R-0088): входы, выходы и входы, что ещё не готовы. */
+  capabilityContracts?: Record<string, { inputs: string[]; outputs: string[]; notReady: string[] }>;
 }>();
 const emit = defineEmits<{
   close: [];
@@ -177,6 +179,7 @@ const inLinks = computed(() => {
   if (sel?.kind !== 'node' || sel.capability) return [];
   return ['codemap', 'dataflow', 'userflow'].flatMap((kind) => props.mapBacklinks?.[`${kind}:${sel.id}`] ?? []);
 });
+const contract = computed(() => (props.selection?.kind === 'node' && props.selection.capability ? props.capabilityContracts?.[props.selection.id] : undefined));
 const xray = computed(() => (props.selection?.kind === 'node' ? crossLinksOf(props.selection.id, props.crossLevel ?? []) : []));
 const capGroupOf = computed(() => (props.selection?.kind === 'node' ? props.selection.capabilityGroup : undefined));
 const coverage = computed(() => capView.value?.coverage);
@@ -429,6 +432,13 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
           <p v-if="capView.replacedBy.length" class="text-xs text-warning">
             Заменяется на: {{ capView.replacedBy.map(titleOf).join(', ') }} — работа не должна уходить в то, что уходит.
           </p>
+          <div v-if="contract" class="space-y-1">
+            <p v-if="contract.inputs.length" class="text-xs">
+              <span class="font-medium">Входы:</span>
+              <template v-for="input in contract.inputs" :key="input"> <span :class="contract.notReady.includes(input) ? 'text-warning' : ''">{{ input }}<template v-if="contract.notReady.includes(input)"> — не готов</template></span>;</template>
+            </p>
+            <p v-if="contract.outputs.length" class="text-xs"><span class="font-medium">Выходы:</span> {{ contract.outputs.join('; ') }}</p>
+          </div>
           <div v-if="outLinks.length" class="space-y-1">
             <p class="text-xs font-medium">Ссылки на карты</p>
             <p v-for="link in outLinks" :key="link" class="font-mono text-xs">{{ link }}</p>

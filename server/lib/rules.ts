@@ -3,7 +3,7 @@ import { checkArchitecture } from './architecture';
 import { buildReferenceIndex, sameIndex, type ReferenceEntry } from './reference';
 import type { RulesResolution } from './practice-rules';
 import { capabilityFindings } from './coverage';
-import { brokenMapLinks, effectiveHorizon, effectiveOwner, effectivePriority } from './functional';
+import { brokenMapLinks, inputsNotReady, effectiveHorizon, effectiveOwner, effectivePriority } from './functional';
 import { approvedMaps, checkEvidence, evidenceClaims, foldMaps, parseMapRecord, type MapChange } from './maps';
 import { firstHeading } from './parse';
 import {
@@ -233,7 +233,7 @@ export function checkAll(ctx: RuleContext): Violation[] {
     ...verificationNeverRun(ctx),
     ...taskNoVerification(ctx),
     ...capabilityNoOwner(ctx),
-    ...mapLinksBroken(ctx)
+    ...mapLinksBroken(ctx), ...blockInputsNotReady(ctx)
   ];
 }
 
@@ -1195,4 +1195,29 @@ export function mapLinksBroken(ctx: RuleContext): Violation[] {
     found.reason === 'format'
       ? `У возможности \`${found.capability}\` ссылка «${found.link}» записана не по форме \`вид:узел\`.`
       : `У возможности \`${found.capability}\` ссылка «${found.link}» ведёт на узел, которого нет ни в одной подтверждённой карте.`));
+}
+
+/**
+ * Контракт блока (R-0088): задача в работе затрагивает возможность, чей вход —
+ * запись, не подтверждённая статусом. «Документ ведёт код» на уровне блока.
+ */
+export function blockInputsNotReady(ctx: RuleContext): Violation[] {
+  const picture = foldMaps(approvedMaps(ctx.records).map((record) => ({ id: record.id, change: parseMapRecord(record.body).change })));
+  const capabilities: (typeof picture.functional.capabilities[number] & { declaredBy?: string | undefined })[] = picture.functional.capabilities;
+  const withInputs = capabilities.filter((item) => item.inputs?.length);
+  if (withInputs.length === 0) return [];
+  const status = new Map(ctx.records.map((record) => [record.id, record.status]));
+  const found: Violation[] = [];
+  for (const task of ctx.records) {
+    if (task.type !== 'task' || (task.status !== 'in_progress' && task.status !== 'in_review')) continue;
+    const touched = new Set(task.links.affects ?? []);
+    for (const item of withInputs) {
+      if (!item.declaredBy || !touched.has(item.declaredBy)) continue;
+      const notReady = inputsNotReady(item, (id) => status.get(id) ?? null);
+      if (notReady.length === 0) continue;
+      found.push(violation('block_inputs_not_ready', task.id, task.source.path,
+        `Задача ${task.id} в работе, а у возможности \`${item.id}\` входы не готовы: ${notReady.map((entry) => entry.why === 'missing' ? `${entry.input} (записи нет)` : `${entry.input} (${entry.status})`).join(', ')}.`));
+    }
+  }
+  return found;
 }

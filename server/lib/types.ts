@@ -115,7 +115,7 @@ export type ViolationCode =
   | 'capability_ahead'
   | 'capability_behind'
   | 'capability_verification_failed'
-  | 'capability_no_owner' | 'map_link_broken'
+  | 'capability_no_owner' | 'map_link_broken' | 'block_inputs_not_ready'
   // архитектура (docs/05-validation.md, «Архитектура»)
   | 'arch_entry_bypassed'
   | 'arch_parent_import'
@@ -220,7 +220,7 @@ export const VIOLATION_LEVELS: Readonly<Record<ViolationCode, Severity>> = {
   capability_ahead: 'warning',
   capability_behind: 'warning',
   capability_verification_failed: 'warning',
-  capability_no_owner: 'warning', map_link_broken: 'warning',
+  capability_no_owner: 'warning', map_link_broken: 'warning', block_inputs_not_ready: 'warning',
   arch_entry_bypassed: 'warning',
   arch_parent_import: 'warning',
   arch_sibling_import: 'warning',

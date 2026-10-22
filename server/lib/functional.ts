@@ -75,7 +75,7 @@ export interface CapabilityLike {
   status?: string | undefined;
   note?: string | undefined;
   priority?: string | undefined;
-  horizon?: string | undefined; owner?: string | undefined; /* зона ответственности (T-0044) */ dashboards?: readonly string[] | undefined; /** Ссылки на узлы других карт, `вид:узел` (R-0086). */ mapLinks?: readonly string[] | undefined;
+  horizon?: string | undefined; owner?: string | undefined; /* зона ответственности (T-0044) */ dashboards?: readonly string[] | undefined; /** Ссылки на узлы других карт, `вид:узел` (R-0086). */ mapLinks?: readonly string[] | undefined; /** Контракт блока: что принимает и что выдаёт (R-0088). */ inputs?: readonly string[] | undefined; outputs?: readonly string[] | undefined;
 }
 
 export interface RelationLike {
@@ -805,7 +805,7 @@ export interface StatusItem {
 export interface StatusDeclarations {
   declarations: {
     id: string; title?: string; parent?: string; summary?: string;
-    status?: ImplStatus; note?: string; priority?: Priority; horizon?: Horizon; owner?: string; dashboards?: string[]; mapLinks?: string[];
+    status?: ImplStatus; note?: string; priority?: Priority; horizon?: Horizon; owner?: string; dashboards?: string[]; mapLinks?: string[]; inputs?: string[]; outputs?: string[];
   }[];
   /** id, которых нет в картине: ничего не записывается, пока они есть. */
   unknown: string[];
@@ -844,7 +844,7 @@ export function statusDeclarations(
       ...(item.status ? { status: item.status } : {}),
       ...(note ? { note } : {}),
       ...(isPriority(current.priority) ? { priority: current.priority } : {}),
-      ...(isHorizon(current.horizon) ? { horizon: current.horizon } : {}), ...(current.owner ? { owner: current.owner } : {}), ...(current.dashboards?.length ? { dashboards: [...current.dashboards] } : {}), ...(current.mapLinks?.length ? { mapLinks: [...current.mapLinks] } : {})
+      ...(isHorizon(current.horizon) ? { horizon: current.horizon } : {}), ...(current.owner ? { owner: current.owner } : {}), ...(current.dashboards?.length ? { dashboards: [...current.dashboards] } : {}), ...(current.mapLinks?.length ? { mapLinks: [...current.mapLinks] } : {}), ...(current.inputs?.length ? { inputs: [...current.inputs] } : {}), ...(current.outputs?.length ? { outputs: [...current.outputs] } : {})
     });
   }
   return { declarations, unknown };
@@ -1303,4 +1303,36 @@ export function brokenMapLinks(capabilities: readonly MapLinkOwner[], known: Rea
     }
   }
   return broken;
+}
+
+// --- контракт блока: входы и выходы (R-0088, docs/07-maps.md) ---
+
+export interface BlockContractOwner {
+  id: string;
+  inputs?: readonly string[] | undefined;
+  outputs?: readonly string[] | undefined;
+}
+
+/** Вход, который указывает на запись процесса (`R-0001`, `D-0003`…): только такие можно проверить на готовность. */
+const RECORD_ID = /^[A-Z]{1,2}-\d{4}$/;
+
+/** Состояния записи, при которых вход считается подтверждённым. */
+const READY_STATUSES = new Set(['approved', 'done']);
+
+export interface NotReadyInput { input: string; why: 'missing' | 'unconfirmed'; status?: string }
+
+/**
+ * Входы блока, что ещё не готовы: запись-вход, которой нет или которая не
+ * подтверждена статусом. Вход, не похожий на номер записи (текст, имя
+ * возможности), не проверяется — это описание, а не ссылка.
+ */
+export function inputsNotReady(owner: BlockContractOwner, statusOf: (recordId: string) => string | null): NotReadyInput[] {
+  const found: NotReadyInput[] = [];
+  for (const input of owner.inputs ?? []) {
+    if (!RECORD_ID.test(input.trim())) continue;
+    const status = statusOf(input.trim());
+    if (status === null) found.push({ input, why: 'missing' });
+    else if (!READY_STATUSES.has(status)) found.push({ input, why: 'unconfirmed', status });
+  }
+  return found;
 }
