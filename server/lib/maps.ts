@@ -18,6 +18,8 @@ export interface Evidence {
   path: string;
   line: number;
   fragment: string;
+  /** Вид свидетельства; нет поля — текстовая строка. Заложено под другие виды (вектор: бинарные — не сейчас). */
+  kind?: 'text';
 }
 
 /**
