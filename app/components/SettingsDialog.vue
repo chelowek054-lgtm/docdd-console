@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AutoHeight from '~/components/AutoHeight.vue';
 import ModelsPage from '~/pages/models.vue';
 import PeoplePage from '~/pages/people.vue';
 import { ALL_ACTIONS, ROLE_ACTIONS } from '~~/server/lib/permissions';
@@ -78,7 +79,7 @@ watch(open, (value) => {
   <UModal v-model:open="open" :title="t('st.title')" :ui="{ content: 'sm:max-w-4xl' }">
     <template #body>
       <!-- Аккордеон: заголовки во всю ширину, пока раздел не выбран. -->
-      <Transition name="ds-fade" mode="out-in">
+      <AutoHeight><Transition name="ds-fade" mode="out-in">
       <ul v-if="!section" key="list" class="space-y-2">
         <li v-for="item in sections" :key="item.value">
           <button type="button" class="ds-card ds-card--bordered flex w-full items-center gap-3 p-4 text-left hover:bg-elevated" @click="section = item.value">
@@ -156,7 +157,7 @@ watch(open, (value) => {
           </div>
         </Transition>
       </div>
-      </Transition>
+      </Transition></AutoHeight>
     </template>
   </UModal>
 </template>
