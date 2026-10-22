@@ -1,5 +1,17 @@
 // Подключение проекта (R-0075).
 export const onboarding: Record<string, string> = {
+  'tc.title': 'Checks from existing tests',
+  'tc.coverage': 'requirements covered: {done} of {total} ({percent}%)',
+  'tc.summary': 'Test files: {found}, already named in checks: {already}. Matched to requirements: {matched}, without one: {rest}.',
+  'tc.proposed': 'Proposed checks',
+  'tc.create': 'Create checks',
+  'tc.draftNote': 'Drafts with a run command; you approve them.',
+  'tc.created': 'Draft checks created: {n}',
+  'tc.uncovered': 'Requirements without checks: {n}',
+  'tc.reportHead': 'Runner build report',
+  'tc.connect': 'Connect report',
+  'tc.found': 'Found:',
+  'tc.connected': 'Results recorded for checks: {n}; report files without a check: {rest}',
   'asis.title': 'Restore as-is',
   'asis.hint': 'For an existing codebase: what the system already does — capabilities and requirements with code evidence.',
   'asis.run': 'Propose capabilities and requirements',

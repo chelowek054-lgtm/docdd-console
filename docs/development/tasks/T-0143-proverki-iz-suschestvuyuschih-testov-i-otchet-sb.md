@@ -2,13 +2,14 @@
 id: T-0143
 type: task
 title: Проверки из существующих тестов и отчёт сборки
-status: ready
+status: in_review
 change: feature
 reuse: none
 created: 2026-10-22
 updated: 2026-10-22
 links:
   implements: [R-0079]
+  verified_by: [V-0105]
   affects: [M-0058]
 ---
 
@@ -20,3 +21,5 @@ server/lib/tests-import.ts: поиск тестов и сопоставлени�
 
 - 2026-10-22 · заведена из docs/inbox/podklyuchenie-proverki-iz-suschestvuyuschih-test.md · приложение
 - 2026-10-22 · готова к работе · architect
+- 2026-10-22 · в разработку · developer
+- 2026-10-22 · на проверку · developer
