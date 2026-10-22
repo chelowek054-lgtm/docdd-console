@@ -21,6 +21,17 @@ const capability = ref(ALL);
 const failure = ref<ApiFailure | null>(null);
 const dragged = ref('');
 const DONE_LIMIT = 10;
+/** Лимит незавершённой работы (канбан): переполненная колонка — работа застряла, брать новое рано. */
+const WIP_LIMIT: Record<string, number> = { in_progress: 5, in_review: 5 };
+const overLimit = (status: string) => (columns.value[status]?.length ?? 0) > (WIP_LIMIT[status] ?? Infinity);
+const { me } = useMe(() => props.projectId);
+const myLogin = computed(() => me.value?.user?.login ?? '');
+/** Сколько дней задача без движения — по дате последнего изменения файла. */
+function ageDays(task: IndexRecord): number {
+  const updated = typeof task.updated === 'string' ? task.updated : '';
+  if (!updated) return 0;
+  return Math.floor((Date.now() - Date.parse(updated)) / 86_400_000);
+}
 const showAllDone = ref(false);
 
 const phases = computed(() => props.records.filter((record) => record.type === 'phase'));
@@ -89,6 +100,9 @@ async function drop(status: string) {
       <USelect v-model="phase" :items="phaseItems" class="w-full sm:w-64" />
       <USelect v-model="assignee" :items="assigneeItems" class="w-full sm:w-52" />
       <USelect v-model="capability" :items="capabilityItems" class="w-full sm:w-52" />
+      <!-- Быстрые фильтры: один клик вместо выпадающего списка. -->
+      <UButton v-if="myLogin" size="sm" :variant="assignee === myLogin ? 'solid' : 'soft'" icon="i-lucide-user" @click="assignee = assignee === myLogin ? ALL : myLogin">{{ t('mb.mine') }}</UButton>
+      <UButton size="sm" color="warning" :variant="assignee === NO_ASSIGNEE ? 'solid' : 'soft'" icon="i-lucide-user-plus" @click="assignee = assignee === NO_ASSIGNEE ? ALL : NO_ASSIGNEE">{{ t('mb.noAssignee') }}</UButton>
     </div>
     <div v-if="failure" class="ds-card ds-card--error p-3 text-sm text-error">
       <p>{{ failure.message }}</p>
@@ -98,13 +112,14 @@ async function drop(status: string) {
       <section
         v-for="status in BOARD_COLUMNS"
         :key="status"
-        class="flex max-h-[70vh] min-h-24 flex-col rounded-lg border border-default bg-elevated/40 p-2"
+        class="flex max-h-[70vh] min-h-24 flex-col rounded-lg border bg-elevated/40 p-2"
+        :class="overLimit(status) ? 'border-error' : 'border-default'"
         @dragover.prevent
         @drop="drop(status)"
       >
         <h2 class="mb-2 flex items-center justify-between px-1 text-sm font-semibold">
           {{ STATUS_WORD[status] }}
-          <UBadge color="neutral" variant="soft" size="sm">{{ columns[status]?.length ?? 0 }}</UBadge>
+          <UBadge :color="overLimit(status) ? 'error' : 'neutral'" variant="soft" size="sm" :title="WIP_LIMIT[status] ? t('mb.wip', { n: WIP_LIMIT[status] }) : undefined">{{ columns[status]?.length ?? 0 }}<template v-if="WIP_LIMIT[status]"> / {{ WIP_LIMIT[status] }}</template></UBadge>
         </h2>
         <div class="min-h-0 flex-1 space-y-2 overflow-y-auto">
           <div
@@ -147,6 +162,7 @@ async function drop(status: string) {
                 </template>
               </UPopover>
               <UBadge v-if="phaseOf(task)" color="neutral" variant="outline" size="sm" :title="phaseTitle.get(phaseOf(task))">{{ phaseOf(task) }}</UBadge>
+              <UBadge v-if="(status === 'in_progress' || status === 'in_review') && ageDays(task) >= 3" :color="ageDays(task) >= 7 ? 'error' : 'warning'" variant="soft" size="sm" icon="i-lucide-clock">{{ t('mb.age', { n: ageDays(task) }) }}</UBadge>
               <UBadge v-if="status === 'in_review' && reviewer(task)" color="info" variant="soft" size="sm" icon="i-lucide-user-check">{{ reviewer(task) }}</UBadge>
             </span>
           </div>

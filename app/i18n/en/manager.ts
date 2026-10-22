@@ -1,5 +1,8 @@
 // Менеджер и Релизы (docs/04-ui.md, «Менеджер и Релизы»).
 export const manager: Record<string, string> = {
+  'mb.mine': 'Mine',
+  'mb.wip': 'Column limit: {n}',
+  'mb.age': '{n} d',
   'mb.assign': 'Assign {id}',
   'mb.assignShort': 'Assign',
   'mb.login': 'Login',
