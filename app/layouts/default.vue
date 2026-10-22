@@ -37,6 +37,7 @@ const openChecks = computed(() => {
 const openIssues = computed(() => errors.value.length + warnings.value.length);
 
 interface NavLink {
+  key: NavKey;
   label: string;
   to: string;
   count?: number;
@@ -45,67 +46,107 @@ interface NavLink {
 type NavEntry = ({ kind: 'link' } & NavLink) | { kind: 'group'; label: string; links: NavLink[] };
 
 /**
- * Шапка идёт по цепочке проекта — документ → работа → сверка
- * (docs/04-ui.md, «Навигация»), и у каждого типа записи из контракта есть
- * свой список, до которого из неё можно дойти. «Документы» — то, что человек
- * подтверждает до кода: у всех четырёх одна схема статусов. «Работа» — сам код.
- * «Сверка» — всё, что отвечает на «сходится ли». Карты, Наполнение, Практики и
- * Дизайн — после цепочки: не шаги, а опора.
- *
- * Подписи — ключи словаря (docs/16-design-system.md, «i18n»): в коде шапки ни
- * одной строки текста.
+ * Глобальная роль шапки (docs/04-ui.md, «Переключатель роли»): вид, а не право.
+ * Хранится в cookie, чтобы сервер и клиент рисовали одну шапку. Если вход включён
+ * и у человека в проекте одна роль, она выбрана, пока он не выбрал другую.
  */
-const entries = computed<NavEntry[]>(() => {
+const roleCookie = useCookie<string>('docdd-role', { default: () => '', maxAge: 60 * 60 * 24 * 365, sameSite: 'lax' });
+const { me } = useMe(projectId);
+const role = computed<NavRoleChoice>(() => {
+  if (isNavRole(roleCookie.value)) return roleCookie.value;
+  if (roleCookie.value === 'all') return '';
+  const mine = (me.value.roles ?? []).filter(isNavRole);
+  return mine.length === 1 ? mine[0]! : '';
+});
+const roleItems = computed(() => [
+  { value: '', label: t('role.all') },
+  ...NAV_ROLES.map((value) => ({ value, label: t(`role.${value}`) }))
+].map((item) => ({
+  label: item.label,
+  type: 'checkbox' as const,
+  checked: role.value === item.value,
+  onSelect: () => { roleCookie.value = item.value || 'all'; }
+})));
+const roleLabel = computed(() => (role.value ? t(`role.${role.value}`) : t('role.all')));
+
+/**
+ * Шапка идёт по цепочке проекта — документ → работа → сверка, затем опора:
+ * карты, наполнение, инструменты (docs/04-ui.md, «Навигация»). Пункт, не нужный
+ * выбранной роли, не показывается; группа без пунктов — тоже.
+ */
+const allEntries = computed<NavEntry[]>(() => {
   if (!projectId.value) return [];
   const base = `/projects/${projectId.value}`;
   return [
-    { kind: 'link', label: t('nav.overview'), to: base },
+    { kind: 'link', key: 'overview', label: t('nav.overview'), to: base },
     {
       kind: 'group',
       label: t('nav.documents'),
       links: [
-        { label: t('nav.requirements'), to: `${base}/documents?type=requirement`, count: unconfirmed('requirement') },
-        { label: t('nav.designDocs'), to: `${base}/documents?type=design`, count: unconfirmed('design') },
-        { label: t('nav.decisions'), to: `${base}/documents?type=decision`, count: unconfirmed('decision') },
-        { label: t('nav.contracts'), to: `${base}/documents?type=contract`, count: unconfirmed('contract') },
-        { label: t('nav.reference'), to: `${base}/reference`, count: unconfirmed('reference') }
+        { key: 'requirements', label: t('nav.requirements'), to: `${base}/documents?type=requirement`, count: unconfirmed('requirement') },
+        { key: 'designDocs', label: t('nav.designDocs'), to: `${base}/documents?type=design`, count: unconfirmed('design') },
+        { key: 'decisions', label: t('nav.decisions'), to: `${base}/documents?type=decision`, count: unconfirmed('decision') },
+        { key: 'contracts', label: t('nav.contracts'), to: `${base}/documents?type=contract`, count: unconfirmed('contract') },
+        { key: 'reference', label: t('nav.reference'), to: `${base}/reference`, count: unconfirmed('reference') },
+        { key: 'knowledge', label: t('nav.knowledge'), to: `${base}/knowledge` },
+        { key: 'glossary', label: t('nav.glossary'), to: `${base}/glossary` }
       ]
     },
     {
       kind: 'group',
       label: t('nav.work'),
       links: [
-        { label: t('nav.tasks'), to: `${base}/work?tab=tasks`, count: openTasks.value },
-        { label: t('nav.phases'), to: `${base}/work?tab=phases`, count: openPhases.value }
+        { key: 'tasks', label: t('nav.tasks'), to: `${base}/work?tab=tasks`, count: openTasks.value },
+        { key: 'phases', label: t('nav.phases'), to: `${base}/work?tab=phases`, count: openPhases.value },
+        { key: 'manager', label: t('nav.manager'), to: `${base}/manager` },
+        { key: 'releases', label: t('nav.releases'), to: `${base}/releases` }
       ]
     },
     {
       kind: 'group',
       label: t('nav.verify'),
       links: [
-        { label: t('nav.checks'), to: `${base}/verify?tab=checks`, count: openChecks.value },
-        { label: t('nav.results'), to: `${base}/verify?tab=results` },
-        { label: t('nav.issues'), to: `${base}/verify?tab=issues`, count: openIssues.value },
-        { label: t('nav.graph'), to: `${base}/verify?tab=graph` }
+        { key: 'checks', label: t('nav.checks'), to: `${base}/verify?tab=checks`, count: openChecks.value },
+        { key: 'results', label: t('nav.results'), to: `${base}/verify?tab=results` },
+        { key: 'issues', label: t('nav.issues'), to: `${base}/verify?tab=issues`, count: openIssues.value },
+        { key: 'graph', label: t('nav.graph'), to: `${base}/verify?tab=graph` }
       ]
     },
-    { kind: 'link', label: t('nav.maps'), to: `${base}/maps`, count: unconfirmed('map') },
+    { kind: 'link', key: 'maps', label: t('nav.maps'), to: `${base}/maps`, count: unconfirmed('map') },
     {
       kind: 'group',
       label: t('nav.fill'),
       links: [
-        { label: t('nav.inbox'), to: `${base}/fill?tab=inbox` },
-        { label: t('nav.import'), to: `${base}/fill?tab=import` }
+        { key: 'inbox', label: t('nav.inbox'), to: `${base}/fill?tab=inbox` },
+        { key: 'import', label: t('nav.import'), to: `${base}/fill?tab=import` }
       ]
     },
-    { kind: 'link', label: t('nav.practices'), to: `${base}/shared` }, /* знания */ ...[{ label: t('nav.knowledge'), to: `${base}/knowledge` }, { label: t('nav.search'), to: `${base}/search` }, { label: t('nav.glossary'), to: `${base}/glossary` }, { label: t('nav.analyst'), to: `${base}/analyst` }].map((link) => ({ kind: 'link' as const, ...link })),
-    { kind: 'link', label: t('nav.design'), to: `${base}/design` }, { kind: 'link', label: t('nav.manager'), to: `${base}/manager` }, { kind: 'link', label: t('nav.releases'), to: `${base}/releases` }
+    {
+      kind: 'group',
+      label: t('nav.tools'),
+      links: [
+        { key: 'design', label: t('nav.design'), to: `${base}/design` },
+        { key: 'analyst', label: t('nav.analyst'), to: `${base}/analyst` },
+        { key: 'practices', label: t('nav.practices'), to: `${base}/shared` }
+      ]
+    }
   ];
 });
 
-/** Подпись с числом рядом, если для пункта есть что считать (docs/04-ui.md). */
+const entries = computed<NavEntry[]>(() => allEntries.value.flatMap((entry): NavEntry[] => {
+  if (entry.kind === 'link') return navVisible(entry.key, role.value) ? [entry] : [];
+  const links = entry.links.filter((link) => navVisible(link.key, role.value));
+  return links.length ? [{ ...entry, links }] : [];
+}));
+
+/** Все пункты одним меню — для узкой ширины, где группы не помещаются в строку. */
+const compactItems = computed(() => entries.value.map((entry) => (entry.kind === 'link'
+  ? [{ label: withCount(entry), to: entry.to }]
+  : [{ label: entry.label, type: 'label' as const }, ...menuItems(entry.links)])));
+
+/** Подпись с числом рядом, только если есть что считать: «· 0» лишь занимает строку. */
 function withCount(link: NavLink): string {
-  return link.count === undefined ? link.label : `${link.label} · ${link.count}`;
+  return link.count ? `${link.label} · ${link.count}` : link.label;
 }
 
 function menuItems(links: NavLink[]) {
@@ -180,11 +221,16 @@ function isActive(to: string): boolean {
 <template>
   <div class="ds-page min-h-screen text-default">
     <header class="border-b border-default">
-      <!-- Контейнер общей сетки: ширина по точкам перелома, поле — gutter токенов. -->
-      <div class="ds-container flex flex-wrap items-center gap-4 py-3">
-        <NuxtLink to="/" class="font-semibold">{{ t('app.name') }}</NuxtLink>
+      <!-- Одна строка (docs/04-ui.md, «Шапка — одна строка»): группы не переносятся;
+           уже не помещаются — сворачиваются в «Меню». -->
+      <div class="ds-container flex flex-nowrap items-center gap-2 py-2">
+        <NuxtLink to="/" class="shrink-0 font-semibold whitespace-nowrap">{{ t('app.name') }}</NuxtLink>
 
-        <nav v-if="entries.length" class="flex flex-wrap items-center gap-1" :aria-label="t('app.name')">
+        <UDropdownMenu v-if="entries.length" :items="compactItems" :content="{ align: 'start' }" class="lg:hidden">
+          <UButton icon="i-lucide-menu" variant="ghost" color="neutral" size="sm" class="lg:hidden">{{ t('nav.menu') }}</UButton>
+        </UDropdownMenu>
+
+        <nav v-if="entries.length" class="hidden min-w-0 flex-nowrap items-center gap-0.5 lg:flex" :aria-label="t('app.name')">
           <template v-for="entry in entries" :key="entry.label">
             <UButton
               v-if="entry.kind === 'link'"
@@ -192,6 +238,7 @@ function isActive(to: string): boolean {
               :variant="isActive(entry.to) ? 'soft' : 'ghost'"
               color="neutral"
               size="sm"
+              class="whitespace-nowrap"
             >
               {{ withCount(entry) }}
             </UButton>
@@ -206,6 +253,7 @@ function isActive(to: string): boolean {
                 color="neutral"
                 size="sm"
                 trailing-icon="i-lucide-chevron-down"
+                class="whitespace-nowrap"
               >
                 {{ entry.label }}
               </UButton>
@@ -213,35 +261,38 @@ function isActive(to: string): boolean {
           </template>
         </nav>
 
-        <div class="ml-auto flex shrink-0 items-center gap-1">
-          <!-- Доступно всегда: инструкция нужна раньше, чем выбран проект. -->
-          <ModelJobsBar /><NotificationsBell /><UButton to="/portfolio" :variant="route.path === '/portfolio' ? 'soft' : 'ghost'" color="neutral" size="sm">{{ t('nav.portfolio') }}</UButton>
-          <UButton
-            to="/usage"
-            :variant="route.path === '/usage' ? 'soft' : 'ghost'"
-            color="neutral"
-            size="sm"
-          >
-            {{ t('nav.usage') }}
-          </UButton>
-          <!-- Глобальный экран токенов: на уровне консоли, поэтому доступен и без проекта. -->
-          <UButton
-            to="/design"
-            :variant="route.path === '/design' ? 'soft' : 'ghost'"
-            color="neutral"
-            size="sm"
-          >
-            {{ t('nav.design') }}
-          </UButton>
+        <div class="ml-auto flex shrink-0 flex-nowrap items-center gap-0.5">
+          <!-- Роль — только когда есть проект: она сужает его навигацию. -->
+          <UDropdownMenu v-if="projectId" :items="roleItems" :content="{ align: 'end' }">
+            <UButton
+              icon="i-lucide-user-round-cog"
+              :aria-label="t('role.aria', { name: roleLabel })"
+              variant="soft"
+              color="neutral"
+              size="sm"
+              class="max-w-40 whitespace-nowrap"
+            >
+              <span class="hidden truncate xl:inline">{{ roleLabel }}</span>
+            </UButton>
+          </UDropdownMenu>
           <UButton
             v-if="projectId"
-            to="/"
-            variant="ghost"
+            :to="`/projects/${projectId}/search`"
+            icon="i-lucide-search"
+            :aria-label="t('nav.searchAria')"
+            :variant="route.path.endsWith('/search') ? 'soft' : 'ghost'"
             color="neutral"
             size="sm"
-          >
-            {{ t('nav.allProjects') }}
-          </UButton>
+          />
+          <ModelJobsBar /><NotificationsBell />
+
+          <!-- Без проекта: общие экраны консоли. С проектом к ним ведёт логотип — список проектов. -->
+          <template v-if="!projectId">
+            <UButton to="/portfolio" :variant="route.path === '/portfolio' ? 'soft' : 'ghost'" color="neutral" size="sm" class="whitespace-nowrap">{{ t('nav.portfolio') }}</UButton>
+            <UButton to="/usage" :variant="route.path === '/usage' ? 'soft' : 'ghost'" color="neutral" size="sm" class="whitespace-nowrap">{{ t('nav.usage') }}</UButton>
+            <UButton to="/design" :variant="route.path === '/design' ? 'soft' : 'ghost'" color="neutral" size="sm" class="whitespace-nowrap">{{ t('nav.design') }}</UButton>
+            <UButton v-if="route.path !== '/'" to="/" variant="ghost" color="neutral" size="sm" class="whitespace-nowrap">{{ t('nav.allProjects') }}</UButton>
+          </template>
 
           <UDropdownMenu :items="localeItems" :content="{ align: 'end' }">
             <UButton

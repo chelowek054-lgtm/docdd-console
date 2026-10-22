@@ -12,8 +12,8 @@ import { screens as ruScreens } from './ru/screens';
  * исходнике: перевод идёт по группам, а не одним коммитом.
  */
 export const messages: Record<string, Record<string, string>> = {
-  ru: { ...ruShell, ...ruDesign, ...ruScreens, ...ruPages, ...ruRest, ...ruRecords, ...ruPages2, ...ruComponents },
-  en: { ...enShell, ...enDesign, ...enScreens, ...enPages, ...enRest, ...enRecords, ...enPages2, ...enComponents }
+  ru: { ...ruShell, ...ruDesign, ...ruScreens, ...ruPages, ...ruRest, ...ruRecords, ...ruPages2, ...ruComponents, ...ruNav },
+  en: { ...enShell, ...enDesign, ...enScreens, ...enPages, ...enRest, ...enRecords, ...enPages2, ...enComponents, ...enNav }
 };
 import { pages as enPages } from './en/pages';
 import { pages as ruPages } from './ru/pages';
@@ -25,3 +25,5 @@ import { pages2 as enPages2 } from './en/pages2';
 import { pages2 as ruPages2 } from './ru/pages2';
 import { components as enComponents } from './en/components';
 import { components as ruComponents } from './ru/components';
+import { nav as enNav } from './en/nav';
+import { nav as ruNav } from './ru/nav';

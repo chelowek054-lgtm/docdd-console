@@ -3,6 +3,8 @@ interface Me {
   required: boolean;
   user: { login: string; name: string; admin: boolean } | null;
   can: Record<string, Verdict> | null;
+  /** Роли вошедшего в команде проекта: по ним выбирается роль шапки по умолчанию. */
+  roles?: string[];
 }
 
 /**

@@ -32,6 +32,6 @@ export default defineEventHandler(async (event) => {
   return {
     required: true,
     user: { login: user.login, name: user.name, admin: user.admin },
-    can: typeof projectId === 'string' ? verdicts : null
+    can: typeof projectId === 'string' ? verdicts : null, roles: team?.find((member) => member.login === user.login)?.roles ?? []
   };
 });
