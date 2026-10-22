@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import { confluenceNotes, jiraNotes, parseJira } from '~~/server/lib/external-import';
+const { t } = useT();
 
 /**
  * Загрузка выгрузки Jira (CSV/JSON) или страниц Confluence (HTML/Markdown) во
@@ -43,7 +44,7 @@ async function onFiles(event: Event) {
   const texts = await Promise.all(files.map((file) => file.text()));
   if (isJira.value) {
     jiraText.value = texts[0] ?? '';
-    try { parseJira(jiraText.value); } catch (error) { problem.value = `Выгрузка не читается: ${String(error)}`; jiraText.value = ''; }
+    try { parseJira(jiraText.value); } catch (error) { problem.value = t('t83.m3.ext.bad', { error: String(error) }); jiraText.value = ''; }
   } else {
     pages.value = files.map((file, i) => ({ title: pageTitle(file.name, texts[i] ?? ''), parent: '', body: texts[i] ?? '' }));
   }
@@ -66,14 +67,14 @@ async function send() {
 <template>
   <div class="space-y-3">
     <p class="text-sm text-muted">
-      {{ isJira ? 'Выгрузка Jira (CSV или JSON): каждая задача станет заметкой во входящем, записи из них вы заведёте обычным разбором.' : 'Страницы Confluence (HTML или Markdown): заметки сохранят место в дереве страниц и появятся в пространстве знаний.' }}
+      {{ isJira ? t('t83.m3.ext.jira') : t('t83.m3.ext.conf') }}
     </p>
     <input type="file" :multiple="!isJira" :accept="isJira ? '.csv,.json' : '.html,.htm,.md,.markdown'" class="block text-sm" @change="onFiles">
-    <UInput v-if="!isJira" v-model="parent" placeholder="Родительская страница (необязательно)" class="max-w-sm" />
-    <p v-if="fileNames.length" class="text-sm">Файлов: {{ fileNames.length }} · заметок получится: <b>{{ preview }}</b></p>
+    <UInput v-if="!isJira" v-model="parent" :placeholder="t('t83.external-import-panel.1')" class="max-w-sm" />
+    <p v-if="fileNames.length" class="text-sm">{{ t('t83.external-import-panel.2', { length: fileNames.length }) }} <b>{{ preview }}</b></p>
     <p v-if="problem" class="text-sm text-error">{{ problem }}</p>
-    <UButton :loading="sending" :disabled="preview === 0" @click="send">Положить во входящее</UButton>
-    <p v-if="result !== null" class="text-sm">Заметок во входящем: {{ result }}. Разберите их на вкладке «Входящее».</p>
+    <UButton :loading="sending" :disabled="preview === 0" @click="send">{{ t('t83.external-import-panel.3') }}</UButton>
+    <p v-if="result !== null" class="text-sm">{{ t('t83.external-import-panel.4', { result: result }) }}</p>
     <p v-if="failure" class="text-sm text-error">{{ failure.message }}</p>
   </div>
 </template>

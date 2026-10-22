@@ -2,7 +2,7 @@
 // Вкладка «Входящее» экрана «Наполнение»: входящее и импорт на одном экране (docs/04-ui.md, «Навигация»).
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import type { CreatedRecord } from '~~/server/utils/inbox-service';
-import type { ProposedRecord } from '~~/server/lib/inbox';
+import type { ProposedRecord } from '~~/server/lib/inbox'; const { t } = useT();
 
 /**
  * Входящее: сырые заметки и заведение записей по ним (docs/10-inbox.md).
@@ -73,7 +73,7 @@ const trouble = ref<ApiFailure | null>(null);
 const saving = ref(false);
 
 const { running, elapsed, outcome, log, stream, cancel } = useModelRequest(() => `${projectId.value}:inbox`, {
-  label: 'Разбор входящего',
+  label: t('t83.m3.inbox.run'),
   onRecovered: (answer) => afterAnswer(answer as { answer: string })
 });
 
@@ -214,8 +214,8 @@ async function create() {
 
     <template v-else>
       <div class="flex flex-wrap items-center gap-3">
-        <h2 class="text-lg font-semibold">Входящее</h2>
-        <UBadge v-if="inbox?.notes.length" variant="subtle">{{ inbox.notes.length }} заметок</UBadge>
+        <h2 class="text-lg font-semibold">{{ t('t83.inbox-panel.1') }}</h2>
+        <UBadge v-if="inbox?.notes.length" variant="subtle">{{ t('t83.inbox-panel.2', { length: inbox.notes.length }) }}</UBadge>
       </div>
 
       <!-- Склад не назван — это состояние, и оно объясняется словами. -->
@@ -224,29 +224,29 @@ async function create() {
         color="neutral"
         variant="subtle"
         icon="i-lucide-inbox"
-        title="Склад сырых заметок не назван"
-        description="Впишите в манифест sources.inbox — например [docs/inbox]. Разбирать записи из папки, о которой приложение не знает, оно не станет."
+        :title="t('t83.inbox-panel.3')"
+        :description="t('t83.inbox-panel.4')"
       />
 
       <template v-else-if="inbox">
         <p class="text-sm text-muted">
-          Сырые заметки лежат в {{ inbox.folders.join(', ') }} — снаружи <code>docs/development</code>:
-          там схема, и сырой текст дал бы ошибку разбора. Разобранное переезжает в <code>принятое</code>.
+          {{ t('t83.inbox-panel.5', { p: inbox.folders.join(', ') }) }} <code>docs/development</code>{{ t('t83.inbox-panel.6') }}
+ <code>{{ t('t83.inbox-panel.7') }}</code>.
         </p>
 
         <UCard>
           <template #header>
-            <h2 class="font-medium">Записать наработку</h2>
+            <h2 class="font-medium">{{ t('t83.inbox-panel.8') }}</h2>
           </template>
           <p class="mb-3 text-sm text-muted">
-            Обычным текстом, без markdown и файлов — заголовок и суть. Приложение само
-            положит заметку на склад, дальше с ней работают так же, как с любой другой.
+            {{ t('t83.inbox-panel.9') }}
+
           </p>
           <div class="space-y-3">
-            <UInput v-model="noteTitle" placeholder="Заголовок" size="lg" class="w-full" />
-            <UTextarea v-model="noteBody" placeholder="Что заметили, что нужно, как должно работать…" :rows="4" autoresize class="w-full" />
+            <UInput v-model="noteTitle" :placeholder="t('t83.inbox-panel.10')" size="lg" class="w-full" />
+            <UTextarea v-model="noteBody" :placeholder="t('t83.inbox-panel.11')" :rows="4" autoresize class="w-full" />
             <UButton :loading="savingNote" :disabled="!noteTitle.trim() || !noteBody.trim()" @click="saveNote">
-              Сохранить заметку
+              {{ t('t83.inbox-panel.12') }}
             </UButton>
           </div>
           <UAlert
@@ -260,15 +260,15 @@ async function create() {
         </UCard>
 
         <div v-if="inbox.notes.length === 0" class="ds-card p-3 text-sm">
-          Заметок пока нет. Запишите наработку формой выше, или положите файл <code>.md</code>
-          руками — по одной теме на файл; запрос для модели лежит в <code>docs/prompts/inbox.md</code>.
+          {{ t('t83.inbox-panel.13') }} <code>.md</code>
+          {{ t('t83.inbox-panel.14') }} <code>docs/prompts/inbox.md</code>.
         </div>
 
         <template v-else>
           <UCheckbox
             class="px-2"
             :model-value="notesState"
-            label="Выбрать всё"
+            :label="t('t83.inbox-panel.15')"
             @update:model-value="toggleAllNotes"
           />
 
@@ -292,10 +292,10 @@ async function create() {
           </ul>
 
           <div class="flex flex-wrap items-center gap-3">
-            <UButton v-if="!running" icon="i-lucide-wand-sparkles" @click="analyse">Разобрать входящее</UButton>
+            <UButton v-if="!running" icon="i-lucide-wand-sparkles" @click="analyse">{{ t('t83.inbox-panel.16') }}</UButton>
             <p v-if="!running" class="text-sm text-muted">
-              {{ chosen.length ? `Выбрано заметок: ${chosen.length}` : 'Не выбрано ничего — разберём все' }}.
-              Модель предложит список; заводить будете вы.
+              {{ chosen.length ? t('t83.m3.inbox.chosen', { n: chosen.length }) : t('t83.m3.inbox.all') }}.
+              {{ t('t83.m3.inbox.suggest') }}
             </p>
           </div>
         </template>
@@ -314,28 +314,28 @@ async function create() {
 
         <!-- Модель вправе сказать, что заводить нечего: это ответ, а не сбой. -->
         <div v-if="said && !proposed.length && !running" class="ds-card p-3">
-          <p class="mb-2 text-sm font-medium">Модель не нашла, что заводить</p>
+          <p class="mb-2 text-sm font-medium">{{ t('t83.inbox-panel.17') }}</p>
           <DocumentText :body="said" />
           <!-- Модель назвала заметки, из которых заводить нечего: человек принимает их без записей. -->
           <div v-if="skipped.length" class="mt-3 space-y-2 border-t border-default pt-3">
-            <p class="text-sm font-medium">Заводить нечего:</p>
+            <p class="text-sm font-medium">{{ t('t83.inbox-panel.18') }}</p>
             <ul class="space-y-1 text-sm">
               <li v-for="item in skipped" :key="item.note"><span class="font-mono text-xs">{{ item.note }}</span> — {{ item.why }}</li>
             </ul>
-            <UButton size="sm" variant="soft" :loading="accepting" @click="acceptSkipped">Принять без записей</UButton>
-            <p class="text-xs text-muted">Заметки переедут в «принятое»; записей не появится.</p>
+            <UButton size="sm" variant="soft" :loading="accepting" @click="acceptSkipped">{{ t('t83.inbox-panel.19') }}</UButton>
+            <p class="text-xs text-muted">{{ t('t83.inbox-panel.20') }}</p>
           </div>
         </div>
 
         <template v-if="proposed.length">
           <div class="flex flex-wrap items-center gap-3">
-            <h2 class="font-medium">Предложено записей: {{ proposed.length }}</h2>
-            <UBadge v-if="dropped.length" color="neutral" variant="subtle">выключено {{ dropped.length }}</UBadge>
+            <h2 class="font-medium">{{ t('t83.inbox-panel.21', { length: proposed.length }) }}</h2>
+            <UBadge v-if="dropped.length" color="neutral" variant="subtle">{{ t('t83.inbox-panel.22', { length: dropped.length }) }}</UBadge>
           </div>
 
           <UCheckbox
             :model-value="recordsState"
-            label="Выбрать всё"
+            :label="t('t83.inbox-panel.15')"
             @update:model-value="toggleAllRecords"
           />
 
@@ -375,23 +375,23 @@ async function create() {
               </p>
 
               <p v-if="record.notes && record.notes.length" class="mt-2 font-mono text-xs text-muted">
-                из: {{ record.notes.join(', ') }}
+                {{ t('t83.inbox-panel.23', { p: record.notes.join(', ') }) }}
               </p>
             </li>
           </ul>
 
           <div class="flex flex-wrap items-center gap-3">
             <UButton color="primary" :loading="saving" :disabled="kept.length === 0" @click="create">
-              Завести записи: {{ kept.length }}
+              {{ t('t83.inbox-panel.24', { length: kept.length }) }}
             </UButton>
             <p class="text-sm text-muted">
-              Все заведённые — черновики. Подтверждать их всё равно вам, по одной.
+              {{ t('t83.inbox-panel.25') }}
             </p>
           </div>
         </template>
 
         <template v-if="created.length">
-          <h2 class="font-medium">Заведено</h2>
+          <h2 class="font-medium">{{ t('t83.inbox-panel.26') }}</h2>
           <ul class="space-y-1 text-sm">
             <li v-for="record in created" :key="record.id">
               <NuxtLink :to="`/projects/${projectId}/records/${record.id}`" class="hover:underline">
@@ -406,7 +406,7 @@ async function create() {
           color="warning"
           variant="subtle"
           icon="i-lucide-info"
-          title="Не всё сошлось"
+          :title="t('t83.inbox-panel.27')"
           :description="problems.join(' ')"
         />
 
@@ -421,7 +421,7 @@ async function create() {
             :icon="showArchived ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
             @click="showArchived = !showArchived"
           >
-            Разобранное: {{ inbox.archived.length }}
+            {{ t('t83.inbox-panel.28', { length: inbox.archived.length }) }}
           </UButton>
 
           <ul v-if="showArchived" class="mt-2 space-y-2">
@@ -432,7 +432,7 @@ async function create() {
               </div>
               <p class="mt-1 text-xs text-muted">
                 <template v-if="note.derived.length">
-                  выросло:
+                  {{ t('t83.inbox-panel.29') }}
                   <NuxtLink
                     v-for="id in note.derived"
                     :key="id"
@@ -440,7 +440,7 @@ async function create() {
                     class="ml-1 font-mono hover:underline"
                   >{{ id }}</NuxtLink>
                 </template>
-                <template v-else>ни одна запись явно не назвала эту заметку своим источником</template>
+                <template v-else>{{ t('t83.inbox-panel.30') }}</template>
               </p>
             </li>
           </ul>

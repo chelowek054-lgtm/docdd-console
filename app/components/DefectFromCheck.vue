@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { IndexRecord, VerificationOutcome } from '~~/server/lib/types';
+const { t } = useT();
 
 /**
  * «Завести дефект» из проваленной проверки (R-0063): заготовка получает связь
@@ -10,13 +11,13 @@ import type { IndexRecord, VerificationOutcome } from '~~/server/lib/types';
 const props = defineProps<{ projectId: string; record: IndexRecord; result?: VerificationOutcome | undefined; attachments?: string[] }>();
 
 const SEVERITIES = [
-  { label: 'Блокирующий', value: 'blocker' },
-  { label: 'Критичный', value: 'critical' },
-  { label: 'Значительный', value: 'major' },
-  { label: 'Незначительный', value: 'minor' },
-  { label: 'Косметический', value: 'trivial' }
+  { get label() { return t('t83.m3.sev.blocker'); }, value: 'blocker' },
+  { get label() { return t('t83.m3.sev.critical'); }, value: 'critical' },
+  { get label() { return t('t83.m3.sev.major'); }, value: 'major' },
+  { get label() { return t('t83.m3.sev.minor'); }, value: 'minor' },
+  { get label() { return t('t83.m3.sev.trivial'); }, value: 'trivial' }
 ];
-const title = ref(`Провалена проверка: ${props.record.title}`);
+const title = ref(t('t83.m3.def.title', { title: props.record.title }));
 const severity = ref('major');
 const environment = ref('');
 const build = ref('');
@@ -41,7 +42,7 @@ async function create() {
       },
       ignoreResponseError: true
     });
-    message.value = response.error ? response.error.message : `Заведён дефект ${response.record?.id ?? ''}`;
+    message.value = response.error ? response.error.message : t('t83.m3.def.made', { id: response.record?.id ?? '' });
     if (response.record) await navigateTo(`/projects/${props.projectId}/records/${response.record.id}`);
   } finally {
     busy.value = false;
@@ -51,13 +52,13 @@ async function create() {
 
 <template>
   <div v-if="result?.state === 'failed'" class="mt-4 space-y-2 border-t border-default pt-3 text-sm">
-    <p class="font-medium">Завести дефект</p>
-    <UInput v-model="title" class="w-full" placeholder="Заголовок" />
+    <p class="font-medium">{{ t('t83.defect-from-check.1') }}</p>
+    <UInput v-model="title" class="w-full" :placeholder="t('t83.inbox-panel.10')" />
     <USelect v-model="severity" class="w-full" :items="SEVERITIES" />
-    <UInput v-model="environment" class="w-full" placeholder="Окружение (ОС, браузер, конфигурация)" />
-    <UInput v-model="build" class="w-full" placeholder="Сборка или релиз" />
-    <UTextarea v-model="steps" class="w-full" :rows="3" placeholder="Шаги воспроизведения" />
-    <UButton :disabled="!title.trim() || busy" :loading="busy" @click="create">Завести дефект</UButton>
+    <UInput v-model="environment" class="w-full" :placeholder="t('t83.defect-from-check.2')" />
+    <UInput v-model="build" class="w-full" :placeholder="t('t83.defect-from-check.3')" />
+    <UTextarea v-model="steps" class="w-full" :rows="3" :placeholder="t('t83.defect-from-check.4')" />
+    <UButton :disabled="!title.trim() || busy" :loading="busy" @click="create">{{ t('t83.defect-from-check.1') }}</UButton>
     <p v-if="message" class="text-muted">{{ message }}</p>
   </div>
 </template>

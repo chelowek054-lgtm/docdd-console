@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ApiFailure } from '~/composables/useProjectIndex';
+const { t } = useT();
 
 /**
  * Предложенное моделью разбиение (docs/04-ui.md, «Разбить на фазы»): список,
@@ -122,10 +123,10 @@ watch(() => props.answer, load, { immediate: true });
       color="success"
       variant="subtle"
       icon="i-lucide-check"
-      :title="`Заведено фаз: ${created.length}`"
+      :title="t('t83.m3.ph.created', { n: created.length })"
     >
       <template #description>
-        <p class="mb-1">Фазы в статусе <code>planned</code>; задачи не менялись, состав задаёт <code>covers</code> у фазы.</p>
+        <p class="mb-1">{{ t('t83.phase-plan.1') }} <code>planned</code>{{ t('t83.phase-plan.2') }} <code>covers</code> {{ t('t83.phase-plan.3') }}</p>
         <ul>
           <li v-for="item in created" :key="item.id">
             <NuxtLink :to="`/projects/${props.projectId}/records/${item.id}`" class="font-mono hover:underline">{{ item.id }}</NuxtLink>
@@ -135,18 +136,18 @@ watch(() => props.answer, load, { immediate: true });
       </template>
     </UAlert>
 
-    <p v-if="loading" class="text-sm text-muted">Разбираю ответ…</p>
+    <p v-if="loading" class="text-sm text-muted">{{ t('t83.phase-plan.4') }}</p>
 
     <template v-else-if="rows.length">
       <div class="flex flex-wrap items-center gap-3">
-        <UCheckbox :model-value="allOn" label="Выбрать всё" @update:model-value="toggleAll" />
+        <UCheckbox :model-value="allOn" :label="t('t83.inbox-panel.15')" @update:model-value="toggleAll" />
         <UButton size="sm" :loading="creating" :disabled="chosen.length === 0" @click="create">
-          Создать фазы: {{ chosen.length }}
+          {{ t('t83.phase-plan.5', { length: chosen.length }) }}
         </UButton>
-        <p v-if="chosen.length === 0" class="text-sm text-muted">Все фазы выключены — заводить нечего.</p>
+        <p v-if="chosen.length === 0" class="text-sm text-muted">{{ t('t83.phase-plan.6') }}</p>
       </div>
 
-      <OrderDiff :before="[{ id: 'без фазы', items: props.tasks }]" :after="chosen.map((row) => ({ id: row.title.trim(), items: row.covers }))" />
+      <OrderDiff :before="[{ id: t('t83.m3.ph.none'), items: props.tasks }]" :after="chosen.map((row) => ({ id: row.title.trim(), items: row.covers }))" />
       <ul class="space-y-2">
         <li
           v-for="row in rows"
@@ -154,12 +155,12 @@ watch(() => props.answer, load, { immediate: true });
           class="flex gap-3 ds-card p-3"
           :class="row.include ? '' : 'opacity-50'"
         >
-          <UCheckbox v-model="row.include" class="pt-1" :aria-label="`Завести фазу ${row.title}`" />
+          <UCheckbox v-model="row.include" class="pt-1" :aria-label="t('t83.m3.ph.make', { title: row.title })" />
           <div class="min-w-0 flex-1 space-y-2">
             <UInput v-model="row.title" size="sm" class="w-full" :disabled="!row.include" />
             <p v-if="row.body" class="text-sm text-muted">{{ row.body }}</p>
             <p class="text-sm">
-              <span class="text-muted">Состав ({{ row.covers.length }}):</span>
+              <span class="text-muted">{{ t('t83.phase-plan.7', { length: row.covers.length }) }}</span>
               <NuxtLink
                 v-for="id in row.covers"
                 :key="id"
@@ -173,7 +174,7 @@ watch(() => props.answer, load, { immediate: true });
     </template>
 
     <p v-else-if="!created && !failure && !loading" class="text-sm text-muted">
-      Модель не предложила ни одной фазы — так тоже бывает; пояснение — в ответе выше.
+      {{ t('t83.phase-plan.8') }}
     </p>
 
     <!-- Потеря называется, а не замалчивается (docs/04-ui.md). -->
@@ -182,7 +183,7 @@ watch(() => props.answer, load, { immediate: true });
       color="warning"
       variant="subtle"
       icon="i-lucide-triangle-alert"
-      title="Не попали ни в одну фазу"
+      :title="t('t83.phase-plan.9')"
     >
       <template #description>
         <NuxtLink
@@ -195,7 +196,7 @@ watch(() => props.answer, load, { immediate: true });
     </UAlert>
 
     <div v-if="problems.length">
-      <p class="text-sm text-muted">Замечания к ответу:</p>
+      <p class="text-sm text-muted">{{ t('t83.phase-plan.10') }}</p>
       <ul class="list-disc pl-5 text-sm text-muted">
         <li v-for="(item, at) in problems" :key="at">{{ item }}</li>
       </ul>

@@ -14,10 +14,10 @@ const change = ref('fix');
 const summary = ref('');
 const kind = ref('component');
 const KINDS = [
-  { label: 'Компонент или библиотека', value: 'component' },
-  { label: 'Внешний сервис, API', value: 'api' },
-  { label: 'Приём (оптимизация, паттерн)', value: 'technique' },
-  { label: 'Данные', value: 'data' }
+  { get label() { return t('t83.m3.nr.component'); }, value: 'component' },
+  { get label() { return t('t83.m3.nr.api'); }, value: 'api' },
+  { get label() { return t('t83.m3.nr.technique'); }, value: 'technique' },
+  { get label() { return t('t83.m3.nr.data'); }, value: 'data' }
 ];
 
 /**
@@ -27,10 +27,10 @@ const KINDS = [
  * выполняют мимо него.
  */
 const CHANGES = [
-  { label: 'Починка дефекта', value: 'fix' },
-  { label: 'Новое поведение — потребует карты', value: 'feature' },
-  { label: 'Переименование внутреннего', value: 'rename' },
-  { label: 'Форматирование и опечатки', value: 'format' }
+  { get label() { return t('t83.m3.nr.fix'); }, value: 'fix' },
+  { get label() { return t('t83.m3.nr.feature'); }, value: 'feature' },
+  { get label() { return t('t83.m3.nr.rename'); }, value: 'rename' },
+  { get label() { return t('t83.m3.nr.format'); }, value: 'format' }
 ];
 const busy = ref(false);
 const failure = ref<ApiFailure | null>(null);
@@ -102,8 +102,8 @@ async function create() {
         <!-- Идентификатор выдаёт сервер: номера не переиспользуются, поэтому
              выбрать его вручную нельзя (docs/02-workspace-contract.md). -->
         <p class="text-xs text-muted">
-          Номер выдаст сервер — следующий свободный. Запись заводится черновиком:
-          статус меняется действиями на её экране.
+          {{ t('t83.new-record.1') }}
+
         </p>
         <div class="flex gap-2">
           <UButton v-can="'edit_draft'" :loading="busy" :disabled="!title.trim() || (props.type === 'reference' && !summary.trim())" @click="create">{{ t('rec.create') }}</UButton>

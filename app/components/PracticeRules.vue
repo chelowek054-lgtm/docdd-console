@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ApiFailure } from '~/composables/useProjectIndex';
+const { t } = useT();
 
 /**
  * Правила проверки в практиках (docs/04-ui.md, «Правила в практиках»;
@@ -39,11 +40,10 @@ const empty = computed(() => !!rules.value && rules.value.rules.length === 0 && 
 
 <template>
   <div v-if="rules" class="space-y-3">
-    <h2 class="font-medium">Правила проверки</h2>
+    <h2 class="font-medium">{{ t('t83.practice-rules.1') }}</h2>
 
     <p v-if="empty" class="text-sm text-muted">
-      Правил нет ни в общих практиках, ни в решениях этого проекта: сверх соглашений о входе по языкам ничего не проверяется.
-      Правило заводится блоком <code>docdd-rules</code> в подтверждённом <code>decision</code> или <code>design</code>.
+      {{ t('t83.practice-rules.2') }} <code>docdd-rules</code> {{ t('t83.practice-rules.3') }} <code>decision</code> {{ t('t83.practice-rules.4') }} <code>design</code>.
     </p>
 
     <!-- Переходный путь: секция манифеста читается, пока нет подтверждённого блока правил. -->
@@ -52,20 +52,20 @@ const empty = computed(() => !!rules.value && rules.value.rules.length === 0 && 
       color="warning"
       variant="subtle"
       icon="i-lucide-info"
-      title="Читается секция architecture манифеста"
-      description="Подтверждённых блоков правил в практиках нет. Перенесите правила в решение с блоком docdd-rules — тогда у них появится причина и источник."
+      :title="t('t83.practice-rules.5')"
+      :description="t('t83.practice-rules.6')"
     />
     <UAlert
       v-else-if="rules.manifest === 'ignored'"
       color="neutral"
       variant="subtle"
       icon="i-lucide-info"
-      title="Секция architecture манифеста больше не читается"
-      description="Правила идут из практик. Секцию в манифесте можно убрать."
+      :title="t('t83.practice-rules.7')"
+      :description="t('t83.practice-rules.8')"
     />
 
     <div v-if="local.length" class="text-sm">
-      <p class="font-medium">Этого проекта</p>
+      <p class="font-medium">{{ t('t83.practice-rules.9') }}</p>
       <ul class="mt-1 space-y-0.5">
         <li v-for="item in local" :key="item.id">
           <NuxtLink :to="`/projects/${projectId}/records/${item.id}`" class="font-mono hover:underline">{{ item.id }}</NuxtLink>
@@ -75,16 +75,16 @@ const empty = computed(() => !!rules.value && rules.value.rules.length === 0 && 
     </div>
 
     <div v-if="rules.rules.length" class="overflow-x-auto">
-      <p class="mb-1 text-sm font-medium">Действующие правила</p>
+      <p class="mb-1 text-sm font-medium">{{ t('t83.practice-rules.10') }}</p>
       <table class="w-full text-left text-xs">
         <thead class="text-muted">
-          <tr><th class="pr-3">Правило</th><th class="pr-3">Значение</th><th class="pr-3">Источник</th><th>Перекрыло</th></tr>
+          <tr><th class="pr-3">{{ t('t83.practice-rules.11') }}</th><th class="pr-3">{{ t('t83.practice-rules.12') }}</th><th class="pr-3">{{ t('t83.practice-rules.13') }}</th><th>{{ t('t83.practice-rules.14') }}</th></tr>
         </thead>
         <tbody>
           <tr v-for="row in rules.rules" :key="row.key" class="border-t border-default align-top">
             <td class="py-1 pr-3 font-mono">{{ row.key }}</td>
             <td class="py-1 pr-3 font-mono">{{ shown(row.value) }}</td>
-            <td class="py-1 pr-3">{{ row.source }} <span class="text-muted">· {{ row.level === 'local' ? 'локальное' : 'общее' }}</span></td>
+            <td class="py-1 pr-3">{{ row.source }} <span class="text-muted">· {{ row.level === 'local' ? t('t83.m3.pr.local') : t('t83.m3.pr.shared') }}</span></td>
             <td class="py-1 text-muted">{{ row.overrides.join(', ') }}</td>
           </tr>
         </tbody>
@@ -93,7 +93,7 @@ const empty = computed(() => !!rules.value && rules.value.rules.length === 0 && 
 
     <ul v-if="rules.conflicts.length || rules.problems.length" class="space-y-1 text-sm text-warning">
       <li v-for="conflict in rules.conflicts" :key="conflict.key">
-        Конфликт <code>rules_conflict</code>: записи {{ conflict.records.join(' и ') }} задают разное для <code>{{ conflict.key }}</code> — действует поздняя.
+        {{ t('t83.practice-rules.15') }} <code>rules_conflict</code>: {{ t('t83.m3.pr.conflict', { records: conflict.records.join(', ') }) }} <code>{{ conflict.key }}</code> {{ t('t83.practice-rules.16') }}
       </li>
       <li v-for="(problem, at) in rules.problems" :key="at">{{ problem.record }}: {{ problem.message }}</li>
     </ul>

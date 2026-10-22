@@ -139,7 +139,7 @@ async function run(direction: string) {
   }
 }
 
-const { t } = useT();
+const { t, tn } = useT();
 </script>
 
 <template>
@@ -166,11 +166,10 @@ const { t } = useT();
       <!-- Неактивная кнопка обязана назвать причину (docs/04-ui.md). -->
       <p v-if="empty" class="min-w-0 flex-1 text-sm text-muted">{{ t('bulk.markHint') }}</p>
       <p v-else-if="mixed" class="min-w-0 flex-1 text-sm text-warning">
-        Отмечены записи в разных статусах ({{ statuses.map(statusLabel).join(', ') }}) —
-        откройте вкладку одного статуса или снимите отметку с лишнего.
+        {{ t('t83.bulk-bar.1', { p: statuses.map(statusLabel).join(', ') }) }}
       </p>
       <p v-else class="min-w-0 flex-1 text-sm text-muted">
-        все {{ statusLabel(statuses[0] ?? '') }}
+        {{ t('t83.bulk-bar.2', { p: statusLabel(statuses[0] ?? '') }) }}
       </p>
 
       <USelect
@@ -196,7 +195,7 @@ const { t } = useT();
       :color="report.skipped ? 'warning' : 'success'"
       variant="subtle"
       :icon="report.skipped ? 'i-lucide-triangle-alert' : 'i-lucide-check'"
-      :title="`Переведено ${report.moved} из ${report.results.length}`"
+      :title="t('t83.m3.bb.moved', { moved: report.moved, total: report.results.length })"
       close
       @update:open="report = null"
     >
@@ -205,7 +204,7 @@ const { t } = useT();
         <ul class="space-y-2">
           <li v-for="group in groups" :key="group.code">
             <p><span class="font-medium">{{ group.items.length }} — <code>{{ group.code }}</code></span></p>
-            <p class="text-xs">{{ group.items.length > 1 ? 'Например: ' : '' }}{{ group.example }}</p>
+            <p class="text-xs">{{ group.items.length > 1 ? t('t83.m3.bb.example') : '' }}{{ group.example }}</p>
             <p class="mt-0.5">
               <NuxtLink
                 v-for="result in group.items"
@@ -233,7 +232,7 @@ const { t } = useT();
                 :loading="linking"
                 @click="linkMap(group.unmapped)"
               >
-                Завести карту и привязать {{ plural(group.unmapped.length, 'задачу', 'задачи', 'задач') }}
+                {{ tn('t83.m3.bb.link', group.unmapped.length) }}
               </UButton>
               <p v-if="linkFailure" class="mt-1 text-xs">{{ linkFailure.message }}</p>
             </div>
@@ -255,12 +254,11 @@ const { t } = useT();
       color="success"
       variant="subtle"
       icon="i-lucide-map-pin-check"
-      :title="`Заведена карта ${linked.map.id}, привязано задач: ${linked.linked.length}`"
+      :title="t('t83.m3.bb.map', { id: linked.map.id, n: linked.linked.length })"
     >
       <template #description>
-        Это черновик: карту подтверждает человек —
-        <NuxtLink :to="`/projects/${props.projectId}/records/${linked.map.id}`" class="font-mono hover:underline">{{ linked.map.id }}</NuxtLink>.
-        После подтверждения нажмите «Вперёд» на вкладке «В очереди».
+        {{ t('t83.bulk-bar.3') }}
+        <NuxtLink :to="`/projects/${props.projectId}/records/${linked.map.id}`" class="font-mono hover:underline">{{ linked.map.id }}</NuxtLink>{{ t('t83.bulk-bar.4') }}
       </template>
     </UAlert>
 
@@ -269,7 +267,7 @@ const { t } = useT();
       :color="report.newIssues.length ? 'error' : 'success'"
       variant="subtle"
       :icon="report.newIssues.length ? 'i-lucide-octagon-alert' : 'i-lucide-shield-check'"
-      :title="report.newIssues.length ? `Появилось нарушений: ${report.newIssues.length}` : t('bulk.noNewIssues')"
+      :title="report.newIssues.length ? t('t83.m3.bb.issues', { n: report.newIssues.length }) : t('bulk.noNewIssues')"
     >
       <template v-if="report.newIssues.length" #description>
         <p class="mb-1">{{ t('bulk.rollback') }}</p>

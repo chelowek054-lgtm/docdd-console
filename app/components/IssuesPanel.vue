@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const { t } = useT();
 // Вкладка «Нарушения» экрана «Сверка»: проверки, результат, нарушения и граф на одном экране (docs/04-ui.md, «Навигация»).
 const route = useRoute();
 const projectId = computed(() => String(route.params['id'] ?? ''));
@@ -36,9 +37,9 @@ const shown = computed(() => all.value
 
     <template v-else>
       <div class="flex flex-wrap items-center gap-3">
-        <h2 class="text-lg font-semibold">Нарушения</h2>
-        <UBadge color="error" variant="subtle">{{ errors.length }} ошибок</UBadge>
-        <UBadge color="warning" variant="subtle">{{ warnings.length }} предупреждений</UBadge>
+        <h2 class="text-lg font-semibold">{{ t('t83.issues-panel.1') }}</h2>
+        <UBadge color="error" variant="subtle">{{ t('t83.issues-panel.2', { length: errors.length }) }}</UBadge>
+        <UBadge color="warning" variant="subtle">{{ t('t83.issues-panel.3', { length: warnings.length }) }}</UBadge>
       </div>
 
       <div class="flex flex-wrap gap-2">
@@ -46,26 +47,26 @@ const shown = computed(() => all.value
           v-model="only"
           class="w-52"
           :items="[
-            { label: 'Всё', value: 'all' },
-            { label: 'Только ошибки', value: 'error' },
-            { label: 'Только предупреждения', value: 'warning' }
+            { label: t('t83.m3.iss.all'), value: 'all' },
+            { label: t('t83.m3.iss.err'), value: 'error' },
+            { label: t('t83.m3.iss.warn'), value: 'warning' }
           ]"
         />
         <USelect
           v-model="code"
           class="w-64"
-          placeholder="Любой код"
+          :placeholder="t('t83.issues-panel.4')"
           :items="codes.map((item) => ({ label: item, value: item }))"
         />
-        <UButton v-if="code" variant="ghost" color="neutral" @click="code = ''">Сбросить код</UButton>
+        <UButton v-if="code" variant="ghost" color="neutral" @click="code = ''">{{ t('t83.issues-panel.5') }}</UButton>
       </div>
 
       <div class="flex flex-wrap items-center gap-3">
         <UButton size="sm" variant="ghost" color="neutral" @click="chosen = shown.map(issueKey)">
-          Отметить всё на экране
+          {{ t('t83.issues-panel.6') }}
         </UButton>
         <UButton v-if="chosen.length" size="sm" variant="ghost" color="neutral" @click="chosen = []">
-          Снять отметки
+          {{ t('t83.issues-panel.7') }}
         </UButton>
       </div>
 
@@ -75,10 +76,10 @@ const shown = computed(() => all.value
         :project-id="projectId"
         kind="fix"
         :issues="picked"
-        :label="picked.length ? `Исправить: ${picked.length}` : 'Исправить'"
-        :hint="picked.length ? `отмечено: ${picked.length}` : 'отметьте нарушения флажками'"
+        :label="picked.length ? t('t83.m3.iss.fix', { n: picked.length }) : t('t83.m3.iss.fix0')"
+        :hint="picked.length ? t('t83.m3.iss.picked', { n: picked.length }) : t('t83.m3.iss.pick')"
         :disabled="picked.length === 0"
-        disabled-reason="Не отмечено ни одного нарушения. Чинить «всё сразу» приложение не предлагает: решать, за какое браться, — ваша работа."
+        :disabled-reason="t('t83.m3.iss.why')"
       >
         <!-- Починка начинается с подтверждения плана (adr/0010). -->
         <template #answer="{ answer }">
@@ -97,7 +98,7 @@ const shown = computed(() => all.value
         :issues="shown"
         :chosen="chosen"
         @pick="pick"
-        empty="Нарушений нет. Документы и код говорят одно и то же."
+        :empty="t('t83.m3.iss.empty')"
       />
     </template>
   </div>
