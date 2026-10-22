@@ -1,4 +1,5 @@
 import { registerStep } from './onboarding-steps';
+import { importContracts, importGlossary, importReferences } from './contracts-service';
 import { detectProjectSources } from './source-scan';
 import { createTestChecks, scanTests } from './test-checks-service';
 
@@ -34,3 +35,8 @@ registerStep('checks', (root) => {
       : report.found === 0 ? 'тестовых файлов не найдено' : `новых проверок нет${unmatched ? `; тестов без требования: ${unmatched}` : ''}`
   };
 });
+
+// Контракты, справки и глоссарий из кода и документации (R-0080): черновики с указанием источника.
+registerStep('contracts', (root) => importContracts(root));
+registerStep('references', (root) => importReferences(root));
+registerStep('glossary', (root) => importGlossary(root));

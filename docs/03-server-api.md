@@ -1245,3 +1245,8 @@ txt/log/json — `400 type_not_allowed`; больше 5 МБ — `400 too_large`
 `POST { files? }` — завести проверки-черновики по сопоставленным тестам (все или названные), уже названные в проверках не задваиваются; ответ `{ ok, created, ids }`.
 `POST { report: "путь" }` — подключить отчёт сборки: `{ ok, report, matched, unmatched, format }`; формат не распознан — `422 report_unknown`, файла нет — `404`, ни один файл не совпал с проверками —
 `422 report_no_match`. Право — `edit_draft`. Автошаг «Проверки из существующих тестов» на вкладке «Подключение» делает то же, что первый `POST`.
+
+### Шаги «contracts», «references», «glossary» (R-0080)
+
+Выполняются через `POST /api/projects/:id/onboarding/run` (`{ step }` или весь запуск). `contracts` — файлы OpenAPI/AsyncAPI, proto, GraphQL и JSON-схем вне `docs/development` → черновики `contract`; `references` — прямые зависимости из
+файла зависимостей → черновики `reference` (до 40 за заход); `glossary` — термины из README и папок `sources.docs` → `docs/development/glossary.md`. Файлы больше 512 КБ не читаются. Ответ шага — `{ step, ok, created, summary }`.
