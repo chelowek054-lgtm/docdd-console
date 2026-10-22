@@ -6,7 +6,8 @@ import type { IndexRecord, VerificationOutcome } from '~~/server/lib/types';
  * `found_by` на проверку и `breaks` на требования, которые та проверяет.
  * Показывается только при результате «провалена».
  */
-const props = defineProps<{ projectId: string; record: IndexRecord; result?: VerificationOutcome | undefined }>();
+/** `attachments` — вложения последнего прогона: их пути переходят в запись дефекта (R-0099). */
+const props = defineProps<{ projectId: string; record: IndexRecord; result?: VerificationOutcome | undefined; attachments?: string[] }>();
 
 const SEVERITIES = [
   { label: 'Блокирующий', value: 'blocker' },
@@ -35,7 +36,7 @@ async function create() {
         kind: severity.value,
         environment: environment.value.trim(),
         build: build.value.trim(),
-        body: `# ${title.value.trim()}\n\n## Шаги воспроизведения\n\n${steps.value.trim() || '1. …'}\n\n## Журнал\n`,
+        body: `# ${title.value.trim()}\n\n## Шаги воспроизведения\n\n${steps.value.trim() || '1. …'}\n${(props.attachments ?? []).length ? `\n## Вложения\n\n${(props.attachments ?? []).map((path) => `- ${path}`).join('\n')}\n` : ''}\n## Журнал\n`,
         links: { found_by: [props.record.id], breaks: requirements }
       },
       ignoreResponseError: true

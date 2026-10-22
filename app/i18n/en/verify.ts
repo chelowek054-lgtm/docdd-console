@@ -1,5 +1,7 @@
 // Сверка — рабочее место тестировщика (docs/04-ui.md).
 export const verify: Record<string, string> = {
+  'run.attach': 'Attach',
+  'run.uploadFailed': 'Upload failed',
   'vd.fact.blocked': 'Blocked',
   'run.blocked': 'blocked',
   'run.reason': 'What blocks it (required)',

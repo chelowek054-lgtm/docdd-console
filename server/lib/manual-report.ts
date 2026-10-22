@@ -119,7 +119,7 @@ export function runReportName(build: string, now: Date): string {
  */
 export type RunState = 'passed' | 'failed' | 'skipped' | 'blocked';
 
-export function runReportText(build: string, results: Record<string, RunState>, actor: string, now: Date, extra?: { by?: string; note?: string; login?: string; reasons?: Record<string, string> }): string {
+export function runReportText(build: string, results: Record<string, RunState>, actor: string, now: Date, extra?: { by?: string; note?: string; login?: string; reasons?: Record<string, string>; attachments?: Record<string, string[]> }): string {
   const states = Object.values(results);
   return JSON.stringify({
     contract: 'docdd.workspace/1',
@@ -131,6 +131,7 @@ export function runReportText(build: string, results: Record<string, RunState>, 
     ...(extra?.by?.trim() ? { checked_by: extra.by.trim() } : {}),
     ...(extra?.note?.trim() ? { note: extra.note.trim() } : {}),
     ...(extra?.reasons && Object.keys(extra.reasons).length ? { reasons: extra.reasons } : {}),
+    ...(extra?.attachments && Object.keys(extra.attachments).length ? { attachments: extra.attachments } : {}),
     verifications: results
   }, null, 2) + '\n';
 }

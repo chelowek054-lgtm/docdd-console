@@ -46,11 +46,11 @@ export function factCounts(checks: readonly IndexRecord[], results: Readonly<Rec
 /** Поля контракта проверки: их показывает карточка «Как проверить», а не «Поля проекта». */
 export const VERIFICATION_FIELDS: ReadonlySet<string> = new Set(['kind', 'runner', 'command', 'assignee']);
 
-export interface RunEntry { at: string; runner: string; state: string; note?: string; checkedBy?: string; reason?: string }
+export interface RunEntry { at: string; runner: string; state: string; note?: string; checkedBy?: string; reason?: string; attachments?: string[] }
 
 /** Отчёты, где встречается проверка, новые сверху: «когда её гоняли и что вышло». */
 export function runHistory(
-  reports: readonly { started_at: string; runner: string; verifications: Record<string, string>; note?: string; checked_by?: string; reasons?: Record<string, string> }[],
+  reports: readonly { started_at: string; runner: string; verifications: Record<string, string>; note?: string; checked_by?: string; reasons?: Record<string, string>; attachments?: Record<string, string[]> }[],
   id: string,
   limit = 10
 ): RunEntry[] {
@@ -62,7 +62,8 @@ export function runHistory(
       state: report.verifications[id] ?? '',
       ...(report.note ? { note: report.note } : {}),
       ...(report.checked_by ? { checkedBy: report.checked_by } : {}),
-      ...(report.reasons?.[id] ? { reason: report.reasons[id] } : {})
+      ...(report.reasons?.[id] ? { reason: report.reasons[id] } : {}),
+      ...(report.attachments?.[id]?.length ? { attachments: report.attachments[id] } : {})
     }))
     .sort((a, b) => b.at.localeCompare(a.at))
     .slice(0, limit);

@@ -95,7 +95,7 @@ export type RunOutcome =
   | { ok: false; status: number; code: string; message: string };
 
 /** Прогон набора проверок на сборке (R-0062): один отчёт с полем `build` на весь набор. */
-export function recordRun(root: string, build: string, results: Record<string, RunState>, actor: string, extra?: { by?: string; note?: string; login?: string; reasons?: Record<string, string> }): RunOutcome {
+export function recordRun(root: string, build: string, results: Record<string, RunState>, actor: string, extra?: { by?: string; note?: string; login?: string; reasons?: Record<string, string>; attachments?: Record<string, string[]> }): RunOutcome {
   if (!build.trim()) return { ok: false, status: 400, code: 'build_required', message: 'Не названа сборка или релиз' };
   // «Заблокирована» без причины — не факт, а жалоба: что мешает, называет тестировщик (R-0098).
   const noReason = Object.entries(results).filter(([id, state]) => state === 'blocked' && !extra?.reasons?.[id]?.trim()).map(([id]) => id);

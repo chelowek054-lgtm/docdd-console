@@ -1174,3 +1174,10 @@ matter. **Текст документа не меняется** — ни стр�
 `requirement_no_check`, `requirement_no_task`, `task_no_requirement`, `check_not_runnable`. Нет `capability` — `400`,
 нет возможности — `404`. При `policy.require_batch_check_before_ready: true` те же пробелы — ошибка `task_batch_gap`
 и блокируют переход задачи в `ready` ([05-validation.md](05-validation.md)).
+
+### POST /api/projects/:id/attachments и GET …/attachment (R-0099)
+
+`POST` — `{ name, data }` (`data` — base64): сохраняет файл в `<tests>/attachments/<дата>/` и возвращает `{ path, kind, size }`. Не картинка и не
+txt/log/json — `400 type_not_allowed`; больше 5 МБ — `400 too_large`; пустой — `400 empty`. Право — `edit_draft`. `GET …/attachment?path=` отдаёт
+файл только из папки `attachments/` внутри корня, с `nosniff` и закрытой политикой содержимого; чужой путь — `400 path_invalid`. `POST …/runs` принимает
+`attachments` (`V-номер → [пути]`); пути не из `attachments/` отбрасываются.

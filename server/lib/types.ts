@@ -318,6 +318,8 @@ export interface Report {
   build?: string;
   /** Причины итога `blocked`: V-номер → «что мешает» (R-0098). */
   reasons?: Record<string, string>;
+  /** Вложения к проверкам: V-номер → пути файлов в `attachments/` (R-0099). */
+  attachments?: Record<string, string[]>;
   verifications: Record<string, VerificationResult>;
 }
 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { IndexRecord, ProjectIndex } from '~~/server/lib/types';
+import { attachmentKind } from '~~/server/lib/attachments';
 import { assigneeOf, kindOf, runHistory } from '~~/server/lib/verify-desk';
 
 /**
@@ -100,7 +101,7 @@ const assigneeOf = (task: IndexRecord) => (typeof task.extra['assignee'] === 'st
       <section class="space-y-2">
         <p v-if="manual" class="text-sm font-medium">{{ t('vc.manual') }}</p>
         <VerifiedCheck :project-id="projectId" :record="record" :result="result" :roles="index?.project.roles ?? []" @changed="emit('changed')" />
-        <DefectFromCheck :project-id="projectId" :record="record" :result="result" />
+        <DefectFromCheck :project-id="projectId" :record="record" :result="result" :attachments="history[0]?.attachments ?? []" />
       </section>
 
       <!-- Что проверяет и кто это строит: задача на приёмке — есть что тестировать. -->
@@ -131,6 +132,12 @@ const assigneeOf = (task: IndexRecord) => (typeof task.extra['assignee'] === 'st
             <span class="font-mono text-xs">{{ run.at.replace('T', ' ').slice(0, 16) }}</span>
             <UBadge :color="statusColor(run.state)" variant="subtle" size="sm">{{ resultLabel(run.state) }}</UBadge>
             <span class="text-xs text-muted">{{ run.checkedBy ? `${run.runner} · ${run.checkedBy}` : run.runner }}</span>
+            <span v-if="run.attachments?.length" class="flex w-full flex-wrap items-center gap-2">
+              <a v-for="path in run.attachments" :key="path" :href="`/api/projects/${projectId}/attachment?path=${encodeURIComponent(path)}`" target="_blank" rel="noopener" class="text-xs">
+                <img v-if="attachmentKind(path) === 'image'" :src="`/api/projects/${projectId}/attachment?path=${encodeURIComponent(path)}`" :alt="path" class="h-16 rounded border border-default">
+                <span v-else class="inline-flex items-center gap-1 underline"><UIcon name="i-lucide-file-text" class="size-3.5" />{{ path.split('/').pop() }}</span>
+              </a>
+            </span>
             <span v-if="run.reason" class="w-full text-xs text-warning">{{ t('vc.blockedBy', { reason: run.reason }) }}</span>
             <span v-if="run.note" class="w-full text-xs text-muted">{{ run.note }}</span>
           </li>

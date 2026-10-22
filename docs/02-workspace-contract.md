@@ -447,3 +447,10 @@ stateDiagram-v2
 ### Проверка-метрика и Grafana (R-0065, R-0066)
 
 Проверка вида `metric` может нести `query` (запрос Prometheus), `threshold` (число) и `operator` (`lte` по умолчанию, `gte`). Прогон — `POST /api/projects/:id/records/:recordId/metric-run`: значение берётся из `DOCDD_PROMETHEUS_URL`, отчёт `passed`/`failed`; нет адреса или ответа — `skipped` с причиной в заметке. Метрики процесса: `GET /api/projects/:id/metrics` (формат Prometheus). Алерты Grafana: `POST /api/projects/:id/inbox/alert` с `Authorization: Bearer $DOCDD_ALERT_TOKEN` — заметка во входящем; без токена в окружении маршрут закрыт. У возможности функциональной карты — поле `dashboards` (ссылки на панели).
+
+### Вложения (R-0099)
+
+Скриншоты и логи к прогону и дефекту лежат файлами внутри корня проекта: `docs/development/<paths.tests>/attachments/<дата>/<имя>`.
+Допустимы картинки (`png`, `jpg`, `gif`, `webp`) и `txt`, `log`, `json`, до 5 МБ; имя очищается от путей. В отчёт прогона путь пишется в
+поле `attachments` (`V-номер → [пути]`); незнакомые инструменты поле сохраняют как есть. «Дефект из провала» переносит пути вложений
+последнего прогона в раздел `## Вложения` записи дефекта. Загрузка — `POST /api/projects/:id/attachments`, чтение — `GET …/attachment?path=`.
