@@ -1181,3 +1181,9 @@ matter. **Текст документа не меняется** — ни стр�
 txt/log/json — `400 type_not_allowed`; больше 5 МБ — `400 too_large`; пустой — `400 empty`. Право — `edit_draft`. `GET …/attachment?path=` отдаёт
 файл только из папки `attachments/` внутри корня, с `nosniff` и закрытой политикой содержимого; чужой путь — `400 path_invalid`. `POST …/runs` принимает
 `attachments` (`V-номер → [пути]`); пути не из `attachments/` отбрасываются.
+
+### GET /api/projects/git-status и POST /api/projects/git-init (R-0094)
+
+`GET …/git-status?root=<путь>` — `{ repo, branch }`: есть ли git-репозиторий в папке и текущая ветка. Папки нет — `404`, путь вне разрешённых корней — `403`.
+`POST …/git-init { root, consent: true }` — `git init -b main`; без `consent: true` — `400 consent_required`, репозиторий уже есть — `{ repo: true, created: false }`.
+Ничего сверх `git init` (ни коммитов, ни удалённых адресов). Право — `admin`, как у `POST /api/projects/init`.

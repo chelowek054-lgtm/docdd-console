@@ -35,6 +35,7 @@ const EXPECTED: Record<string, Action> = {
   'POST /api/projects/x/records/x/metric-run': 'edit_draft',
   'POST /api/projects/x/records/x/target': 'edit_draft',
   'POST /api/projects': 'admin',
+  'POST /api/projects/git-init': 'admin',
   'POST /api/projects/init': 'admin',
   'DELETE /api/projects/x': 'admin',
   'DELETE /api/projects/x/llm/queue/x': 'edit_draft',

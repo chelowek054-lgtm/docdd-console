@@ -230,3 +230,11 @@ export function hasChangesSync(root: string, id: string): boolean {
   if (!existsSync(tree)) return false;
   return gitSync(tree, ['status', '--porcelain']).trim() !== '';
 }
+
+/**
+ * Заведение репозитория с согласия человека (R-0094): `git init -b main`, и только. Ни коммитов, ни
+ * удалённых адресов. Вызывается лишь из маршрута, который требует явного подтверждения в теле запроса.
+ */
+export async function initRepository(root: string): Promise<GitResult> {
+  return git(root, ['init', '-b', 'main']);
+}

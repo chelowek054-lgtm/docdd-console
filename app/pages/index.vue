@@ -14,7 +14,7 @@ const offerInit = ref(false);
 const newId = ref('');
 const newName = ref('');
 const initFailure = ref<ApiFailure | null>(null);
-const initializing = ref(false); const template = ref('none'); /* шаблон проекта (R-0090): none — пустой формат */ const templateItems = computed(() => [{ label: t('home.templateNone'), value: 'none' }, { label: t('home.templateCore'), value: 'software-core' }]);
+const initializing = ref(false); const gitReady = ref(false); const template = ref('none'); /* шаблон проекта (R-0090): none — пустой формат */ const templateItems = computed(() => [{ label: t('home.templateNone'), value: 'none' }, { label: t('home.templateCore'), value: 'software-core' }]);
 
 function suggestFromPath(path: string) {
   // Путь приходит и с прямыми, и с обратными слешами: пользователь копирует его
@@ -123,11 +123,11 @@ function shortDate(iso: string): string {
       />
 
       <div v-if="offerInit" class="mt-4 space-y-3 ds-card p-4">
-        <p class="text-sm">{{ t('home.initQuestion', { root }) }}</p>
+        <p class="text-sm">{{ t('home.initQuestion', { root }) }}</p><GitGate v-model="gitReady" :root="root" />
         <div class="flex flex-col gap-3 sm:flex-row">
           <UInput v-model="newName" :placeholder="t('home.namePlaceholder')" class="flex-1" />
           <UInput v-model="newId" :placeholder="t('home.idPlaceholder')" class="flex-1" />
-          <UButton :loading="initializing" :disabled="!newId.trim() || !newName.trim()" @click="init">
+          <UButton :loading="initializing" :disabled="!newId.trim() || !newName.trim() || !gitReady" @click="init">
             {{ t('home.initButton') }}
           </UButton>
         </div>
