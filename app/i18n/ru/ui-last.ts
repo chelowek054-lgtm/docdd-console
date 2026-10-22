@@ -7,5 +7,7 @@ export const uiLast: Record<string, string> = {
   't83.m7.ds.label': 'Проверка экранов проекта',
   't83.m7.il.unpick': 'Снять {code}',
   't83.m7.il.pick': 'Отметить {code}',
-  't83.m7.tok': ' · {n} ток.'
+  't83.m7.tok': ' · {n} ток.',
+  't83.m7.stopped': 'остановлено вручную',
+  't83.m7.passReason': '{reason} (заход {n})'
 };

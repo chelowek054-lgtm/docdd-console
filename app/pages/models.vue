@@ -3,7 +3,7 @@
 // сюда не приходит — только факт, что он найден; вписанный новый уходит на сервер.
 interface Setting { clearKey?: boolean; id: string; label?: string; type: 'openai' | 'anthropic'; baseUrl?: string; model: string; apiKeyEnv?: string; apiKey?: string; closedData?: boolean; enabled?: boolean; hasKey?: boolean }
 interface Loaded { routes?: Record<string, { providerId: string; model?: string }>; providers: Setting[]; registry: Array<{ id: string; label: string; kind: string; available: boolean; reason?: string }> }
-const { t } = useT();
+const { t, locale } = useT();
 const { data, refresh } = await useFetch<Loaded | { error: { message: string } }>('/api/llm/models', { ignoreResponseError: true });
 const error = computed(() => (data.value && 'error' in data.value ? data.value.error.message : ''));
 const providers = ref<Setting[]>([]);
@@ -20,7 +20,7 @@ const routesBody = () => Object.fromEntries(routes.value.filter((r) => r.kind).m
 // Расходы за месяц (оценка по символам) и очередь запросов выбранного проекта (T-0024, T-0026).
 interface Total { requests: number; ms: number; chars: number; costUsd: number; tokens?: number; estimated?: number }
 /** «≈» — только когда в сумме есть оценка по символам (R-0093); по токенам провайдера — точно. */
-const money = (tot: Total) => `${tot.estimated ? '≈ ' : ''}$${tot.costUsd.toFixed(3)}${tot.tokens ? ` · ${tot.tokens.toLocaleString('ru-RU')} ток.` : ''}`;
+const money = (tot: Total) => `${tot.estimated ? '≈ ' : ''}$${tot.costUsd.toFixed(3)}${tot.tokens ? t('t83.m7.tok', { n: tot.tokens.toLocaleString(locale.value === 'ru' ? 'ru-RU' : 'en-US') }) : ''}`;
 const { data: usage } = await useFetch<{ month: string; total: Total; byUser: Record<string, Total>; byModel: Record<string, Total> }>('/api/llm/usage', { ignoreResponseError: true });
 const { data: projectList } = await useFetch<{ projects?: Array<{ id: string; name?: string }> } | Array<{ id: string; name?: string }>>('/api/projects', { ignoreResponseError: true });
 const projectOptions = computed(() => { const v = projectList.value; return Array.isArray(v) ? v : (v?.projects ?? []); });
