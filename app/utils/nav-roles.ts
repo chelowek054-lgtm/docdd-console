@@ -14,13 +14,13 @@ export type NavKey =
   | 'overview' | 'strategy' | 'requirements' | 'designDocs' | 'decisions' | 'contracts' | 'reference' | 'knowledge' | 'glossary'
   | 'tasks' | 'phases' | 'manager' | 'releases'
   | 'checks' | 'run' | 'results' | 'issues' | 'graph'
-  | 'maps' | 'inbox' | 'import'
+  | 'maps' | 'inbox' | 'import' | 'onboarding'
   | 'design' | 'analyst' | 'practices';
 
 const BY_ROLE: Record<NavRole, readonly NavKey[]> = {
-  architect: ['strategy', 'requirements', 'designDocs', 'decisions', 'contracts', 'reference', 'knowledge', 'glossary', 'tasks', 'phases', 'manager', 'checks', 'run', 'results', 'issues', 'graph', 'maps', 'import', 'design', 'practices'],
+  architect: ['strategy', 'requirements', 'designDocs', 'decisions', 'contracts', 'reference', 'knowledge', 'glossary', 'tasks', 'phases', 'manager', 'checks', 'run', 'results', 'issues', 'graph', 'maps', 'import', 'onboarding', 'design', 'practices'],
   developer: ['designDocs', 'decisions', 'contracts', 'reference', 'tasks', 'checks', 'run', 'results', 'issues', 'maps', 'design'],
-  pm: ['strategy', 'requirements', 'knowledge', 'tasks', 'phases', 'manager', 'releases', 'maps', 'inbox', 'import'],
+  pm: ['strategy', 'requirements', 'knowledge', 'tasks', 'phases', 'manager', 'releases', 'maps', 'inbox', 'import', 'onboarding'],
   analyst: ['strategy', 'requirements', 'knowledge', 'glossary', 'maps', 'inbox', 'import', 'analyst'],
   domain: ['requirements', 'knowledge', 'glossary', 'inbox'],
   designer: ['designDocs', 'knowledge', 'tasks', 'design'],
@@ -67,6 +67,7 @@ export const NAV_HINTS: Record<NavKey, string> = {
   graph: 'граф связи зависимости graph',
   maps: 'карты карта кода модули потоки пути функциональная карта maps architecture',
   inbox: 'входящее заметки идеи сырые inbox notes',
+  onboarding: 'подключение готовность чек-лист новый проект источники onboarding',
   import: 'импорт документации перенос jira confluence import',
   design: 'дизайн токены палитра темы компоненты storybook design tokens',
   analyst: 'помощник аналитика критерии противоречия analyst',

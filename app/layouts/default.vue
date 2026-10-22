@@ -121,7 +121,8 @@ const allEntries = computed<NavEntry[]>(() => {
       label: t('nav.fill'),
       links: [
         { key: 'inbox', label: t('nav.inbox'), to: `${base}/fill?tab=inbox` },
-        { key: 'import', label: t('nav.import'), to: `${base}/fill?tab=import` }
+        { key: 'import', label: t('nav.import'), to: `${base}/fill?tab=import` },
+        { key: 'onboarding', label: t('nav.onboarding'), to: `${base}/fill?tab=onboarding` }
       ]
     },
     {

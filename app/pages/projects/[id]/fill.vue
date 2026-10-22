@@ -9,10 +9,11 @@ const router = useRouter(); const { t } = useT();
 const TABS = computed(() => [
   { label: t('nav.inbox'), value: 'inbox' },
   { label: t('nav.import'), value: 'import' },
+  { label: t('nav.onboarding'), value: 'onboarding' },
   { label: 'Jira', value: 'jira' },
   { label: 'Confluence', value: 'confluence' }
 ]);
-const KNOWN = ['inbox', 'import', 'jira', 'confluence'];
+const KNOWN = ['inbox', 'import', 'onboarding', 'jira', 'confluence'];
 
 const tab = computed({
   get: () => {
@@ -29,6 +30,7 @@ const tab = computed({
     <h1 class="text-xl font-semibold">{{ t('nav.fill') }}</h1>
     <!-- Вкладки группы — строкой под шапкой (docs/04-ui.md, «Навигация»). -->
     <InboxPanel v-if="tab === 'inbox'" />
+    <OnboardingChecklist v-else-if="tab === 'onboarding'" :project-id="String(route.params['id'] ?? '')" />
     <ExternalImportPanel v-else-if="tab === 'jira' || tab === 'confluence'" :key="tab" :source="tab" />
     <ImportPanel v-else />
   </div>

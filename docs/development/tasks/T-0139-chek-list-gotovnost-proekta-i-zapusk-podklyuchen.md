@@ -2,13 +2,14 @@
 id: T-0139
 type: task
 title: Чек-лист «Готовность проекта» и запуск подключения
-status: ready
+status: in_review
 change: feature
 reuse: none
 created: 2026-10-22
 updated: 2026-10-22
 links:
   implements: [R-0075]
+  verified_by: [V-0101]
   affects: [M-0058]
 ---
 
@@ -20,3 +21,5 @@ server/lib/onboarding.ts — расчёт шагов готовности по �
 
 - 2026-10-22 · заведена из docs/inbox/podklyuchenie-proekta-chek-list-gotovnosti-i-odn.md · приложение
 - 2026-10-22 · готова к работе · architect
+- 2026-10-22 · в разработку · developer
+- 2026-10-22 · на проверку · developer

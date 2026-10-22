@@ -14,7 +14,7 @@ const offerInit = ref(false);
 const newId = ref('');
 const newName = ref('');
 const initFailure = ref<ApiFailure | null>(null);
-const initializing = ref(false); const gitReady = ref(false); const template = ref('none'); /* шаблон проекта (R-0090): none — пустой формат */ const templateItems = computed(() => [{ label: t('home.templateNone'), value: 'none' }, { label: t('home.templateCore'), value: 'software-core' }]);
+const initializing = ref(false); const gitReady = ref(false); const scenario = ref<'new' | 'existing'>('existing'); const template = ref('none'); /* шаблон проекта (R-0090): none — пустой формат */ const templateItems = computed(() => [{ label: t('home.templateNone'), value: 'none' }, { label: t('home.templateCore'), value: 'software-core' }]);
 
 function suggestFromPath(path: string) {
   // Путь приходит и с прямыми, и с обратными слешами: пользователь копирует его
@@ -40,8 +40,7 @@ async function init() {
     }
     offerInit.value = false;
     failure.value = null;
-    root.value = '';
-    await refresh();
+    root.value = ''; await refresh(); await navigateTo(`/projects/${(response as ProjectEntry).id}/fill?tab=onboarding&scenario=${scenario.value}`); // сценарий ведёт дальше (R-0075)
   } finally {
     initializing.value = false;
   }
@@ -131,7 +130,7 @@ function shortDate(iso: string): string {
             {{ t('home.initButton') }}
           </UButton>
         </div>
-        <UFormField :label="t('home.template')" :help="t('home.templateHelp')"><USelect v-model="template" :items="templateItems" class="w-full sm:w-80" /></UFormField>
+        <UFormField :label="t('home.scenario')"><URadioGroup v-model="scenario" :items="[{ label: t('home.scenarioNew'), value: 'new' }, { label: t('home.scenarioExisting'), value: 'existing' }]" /></UFormField><UFormField :label="t('home.template')" :help="t('home.templateHelp')"><USelect v-model="template" :items="templateItems" class="w-full sm:w-80" /></UFormField>
         <p class="text-xs text-muted">{{ t('home.initNote') }}</p>
         <UAlert
           v-if="initFailure"

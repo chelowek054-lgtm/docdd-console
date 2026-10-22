@@ -1207,3 +1207,11 @@ txt/log/json — `400 type_not_allowed`; больше 5 МБ — `400 too_large`
 - Сервер поверх прав роли отказывает агенту: `merge`, `team`, `admin` — `403 forbidden`; `…/records/:id/body` — `403 agent_text_edit`;
   перевод не-задачи в `approved` и массовая смена статуса с документами — `403 agent_document_approve`; закрыть свою задачу или
   «Проверено» по ней — `403 agent_own_acceptance`. Подпись в журнале — `Имя (роль) · агент`.
+
+### GET /api/projects/:id/onboarding и POST …/onboarding/run (R-0075)
+
+`GET` — `{ state, steps, readiness }`: состояние проекта (вектор, возможности, требования с проверками, глоссарий, источники, карты, контракты,
+справки, проверки из тестов), девять шагов со статусом `not_started`/`awaiting`/`done`, исполнителем `auto`/`model`/`human` и ссылкой, и готовность
+`{ done, total, percent, next }`. Ничего не пишет. `POST …/run { step?, force? }` — выполняет автоматические шаги, что ещё не готовы (`step` — один;
+`force` — и готовые, перезапуск); ответ — `{ ran, left, state, steps, readiness }`: что сделано словами и сколько создано, и шаги, оставшиеся модели или
+человеку. Право — `edit_draft`. Незнакомый шаг — `400 step_unknown`.
