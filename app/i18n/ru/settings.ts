@@ -25,5 +25,9 @@ export const settings: Record<string, string> = {
   'gs.type.note': 'заметка',
   'gs.type.doc': 'документ',
   'gs.type.glossary': 'глоссарий',
-  'file.notRead': 'Файл не прочитан'
+  'file.notRead': 'Файл не прочитан',
+  'st.searchShort': 'Чем считать эмбеддинги, пересборка индекса',
+  'st.modelsShort': 'Провайдеры, ключи, маршруты запросов, очередь и расходы',
+  'st.accessShort': 'Учётные записи, команда проекта и права ролей',
+  'st.rebuilt': 'Индекс пересобран: блоков {blocks}, {ms} мс'
 };

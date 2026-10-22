@@ -13,11 +13,16 @@ const props = defineProps<{ projectId: string }>();
 const { t } = useT();
 
 const open = ref(false);
-const tab = ref<'search' | 'models' | 'access'>('search');
-const tabs = computed(() => [
-  { label: t('st.search'), value: 'search', icon: 'i-lucide-search' },
-  { label: t('st.models'), value: 'models', icon: 'i-lucide-bot' },
-  { label: t('st.access'), value: 'access', icon: 'i-lucide-users' }
+/**
+ * Разделы — аккордеоном: сначала заголовки с описанием; выбран раздел — список
+ * уходит влево узкой колонкой, справа его настройки, переключаться можно оттуда же.
+ */
+type Section = 'search' | 'models' | 'access';
+const section = ref<Section | null>(null);
+const sections = computed(() => [
+  { value: 'search' as const, label: t('st.search'), hint: t('st.searchShort'), icon: 'i-lucide-search' },
+  { value: 'models' as const, label: t('st.models'), hint: t('st.modelsShort'), icon: 'i-lucide-bot' },
+  { value: 'access' as const, label: t('st.access'), hint: t('st.accessShort'), icon: 'i-lucide-users' }
 ]);
 
 interface EmbeddingsState { provider: string | null; model: string | null; local: string; candidates: { id: string; label: string; closedData: boolean }[] }
@@ -56,15 +61,15 @@ async function indexAction(rebuild: boolean) {
   busy.value = true;
   try {
     indexState.value = await $fetch<IndexState>(`/api/projects/${props.projectId}/search`, { method: 'POST', body: { rebuild } });
+    message.value = t('st.rebuilt', { blocks: indexState.value.blocks, ms: indexState.value.ms });
   } finally {
     busy.value = false;
   }
 }
 
 watch(open, (value) => {
-  if (!value) return;
+  if (!value) { section.value = null; return; }
   void refreshEmbeddings();
-  if (props.projectId) void indexAction(false);
 });
 </script>
 
@@ -72,57 +77,83 @@ watch(open, (value) => {
   <UButton icon="i-lucide-settings" :aria-label="t('st.aria')" variant="ghost" color="neutral" size="sm" @click="open = true" />
   <UModal v-model:open="open" :title="t('st.title')" :ui="{ content: 'sm:max-w-4xl' }">
     <template #body>
-      <UTabs v-model="tab" :items="tabs" :content="false" class="mb-4" />
+      <!-- Аккордеон: заголовки во всю ширину, пока раздел не выбран. -->
+      <ul v-if="!section" class="space-y-2">
+        <li v-for="item in sections" :key="item.value">
+          <button type="button" class="ds-card ds-card--bordered flex w-full items-center gap-3 p-4 text-left hover:bg-elevated" @click="section = item.value">
+            <UIcon :name="item.icon" class="size-5 shrink-0 text-primary" />
+            <span class="min-w-0 flex-1">
+              <span class="block font-medium">{{ item.label }}</span>
+              <span class="block text-sm text-muted">{{ item.hint }}</span>
+            </span>
+            <UIcon name="i-lucide-chevron-right" class="size-4 text-muted" />
+          </button>
+        </li>
+      </ul>
 
-      <div v-if="tab === 'search'" class="space-y-4 text-sm">
-        <p class="text-muted">{{ t('st.searchHint') }}</p>
-        <div class="grid gap-3 sm:grid-cols-2">
-          <UFormField :label="t('st.provider')">
-            <USelect v-model="provider" :items="providerItems" class="w-full" />
-          </UFormField>
-          <UFormField v-if="provider !== LOCAL" :label="t('st.model')" :help="t('st.modelHelp')">
-            <UInput v-model="model" placeholder="text-embedding-3-small" class="w-full" />
-          </UFormField>
-        </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <UButton :loading="busy" @click="saveEmbeddings">{{ t('st.save') }}</UButton>
-          <span v-if="message" class="text-muted">{{ message }}</span>
-        </div>
-        <div v-if="props.projectId" class="ds-card ds-card--bordered space-y-2 p-3">
-          <p class="font-medium">{{ t('st.index') }}</p>
-          <p v-if="indexState" class="text-muted">{{ t('st.indexState', { model: indexState.model, blocks: indexState.blocks, ms: indexState.ms }) }}</p>
-          <p class="text-xs text-muted">{{ t('st.indexFresh') }}</p>
-          <UButton size="sm" variant="soft" icon="i-lucide-refresh-cw" :loading="busy" @click="indexAction(true)">{{ t('st.rebuild') }}</UButton>
-        </div>
-      </div>
+      <!-- Раздел выбран: аккордеон — узкой колонкой слева, настройки — справа. -->
+      <div v-else class="grid gap-4 sm:grid-cols-[11rem_minmax(0,1fr)]">
+        <nav class="flex gap-1 sm:flex-col" :aria-label="t('st.title')">
+          <button
+            v-for="item in sections"
+            :key="item.value"
+            type="button"
+            class="flex items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm"
+            :class="section === item.value ? 'bg-primary/10 font-medium text-primary' : 'text-muted hover:bg-elevated hover:text-default'"
+            @click="section = item.value"
+          >
+            <UIcon :name="item.icon" class="size-4 shrink-0" />
+            <span class="truncate">{{ item.label }}</span>
+          </button>
+        </nav>
 
-      <ModelsPage v-else-if="tab === 'models'" />
-
-      <div v-else class="space-y-6">
-        <PeoplePage />
-        <TeamCard v-if="props.projectId" :project-id="props.projectId" />
-        <div>
-          <p class="mb-2 font-medium">{{ t('st.matrix') }}</p>
-          <div class="overflow-x-auto">
-            <table class="ds-table w-full text-sm">
-              <thead>
-                <tr>
-                  <th class="text-left">{{ t('st.role') }}</th>
-                  <th v-for="action in ALL_ACTIONS" :key="action" class="text-center">{{ action }}</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(actions, role) in ROLE_ACTIONS" :key="role">
-                  <td>{{ t(`role.${role}`) }}</td>
-                  <td v-for="action in ALL_ACTIONS" :key="action" class="text-center">
-                    <UIcon v-if="actions.includes(action)" name="i-lucide-check" class="size-4 text-success" />
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+        <Transition name="ds-fade" mode="out-in">
+          <div v-if="section === 'search'" key="search" class="min-w-0 space-y-4 text-sm">
+            <p class="text-muted">{{ t('st.searchHint') }}</p>
+            <div class="grid gap-3 sm:grid-cols-2">
+              <UFormField :label="t('st.provider')">
+                <USelect v-model="provider" :items="providerItems" class="w-full" />
+              </UFormField>
+              <UFormField v-if="provider !== LOCAL" :label="t('st.model')" :help="t('st.modelHelp')">
+                <UInput v-model="model" placeholder="text-embedding-3-small" class="w-full" />
+              </UFormField>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <UButton :loading="busy" @click="saveEmbeddings">{{ t('st.save') }}</UButton>
+              <UButton v-if="props.projectId" variant="soft" icon="i-lucide-refresh-cw" :loading="busy" @click="indexAction(true)">{{ t('st.rebuild') }}</UButton>
+              <span v-if="message" class="text-muted">{{ message }}</span>
+            </div>
           </div>
-          <p class="mt-1 text-xs text-muted">{{ t('st.matrixHint') }}</p>
-        </div>
+
+          <div v-else-if="section === 'models'" key="models" class="min-w-0"><ModelsPage /></div>
+
+          <div v-else key="access" class="min-w-0 space-y-6">
+            <PeoplePage />
+            <TeamCard v-if="props.projectId" :project-id="props.projectId" />
+            <div>
+              <p class="mb-2 font-medium">{{ t('st.matrix') }}</p>
+              <div class="overflow-x-auto">
+                <table class="ds-table w-full text-sm">
+                  <thead>
+                    <tr>
+                      <th class="text-left">{{ t('st.role') }}</th>
+                      <th v-for="action in ALL_ACTIONS" :key="action" class="text-center">{{ action }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(actions, role) in ROLE_ACTIONS" :key="role">
+                      <td>{{ t(`role.${role}`) }}</td>
+                      <td v-for="action in ALL_ACTIONS" :key="action" class="text-center">
+                        <UIcon v-if="actions.includes(action)" name="i-lucide-check" class="size-4 text-success" />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="mt-1 text-xs text-muted">{{ t('st.matrixHint') }}</p>
+            </div>
+          </div>
+        </Transition>
       </div>
     </template>
   </UModal>

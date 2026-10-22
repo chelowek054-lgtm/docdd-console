@@ -25,5 +25,9 @@ export const settings: Record<string, string> = {
   'gs.type.note': 'note',
   'gs.type.doc': 'document',
   'gs.type.glossary': 'glossary',
-  'file.notRead': 'File could not be read'
+  'file.notRead': 'File could not be read',
+  'st.searchShort': 'What computes embeddings, rebuild the index',
+  'st.modelsShort': 'Providers, keys, request routes, queue and spend',
+  'st.accessShort': 'Accounts, project team and role permissions',
+  'st.rebuilt': 'Index rebuilt: {blocks} blocks, {ms} ms'
 };
