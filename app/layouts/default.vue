@@ -347,7 +347,7 @@ function isActive(to: string): boolean {
 
     <!-- Вкладки группы: те же пункты, что в её меню, с учётом роли — у каждой группы одна строка. -->
     <nav v-if="activeGroup" class="border-b border-default" :aria-label="activeGroup.label">
-      <div class="ds-container ds-scroll flex flex-nowrap items-center gap-1 overflow-x-auto py-1.5">
+      <div class="ds-container flex flex-nowrap items-center gap-1 overflow-x-auto overflow-y-hidden py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <UButton
           v-for="link in activeGroup.links"
           :key="link.to"
