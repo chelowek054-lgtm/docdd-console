@@ -32,6 +32,9 @@ const props = defineProps<{
   impactOn?: boolean;
   /** Сквозные связи функциональной карты: показываются только для выбранного узла (режим «Рентген»). */
   crossLevel?: CrossLevelRelation[];
+  /** Связи между картами (R-0086): `вид:узел` → возможности, что на него ссылаются; и ссылки самих возможностей. */
+  mapBacklinks?: Record<string, string[]>;
+  capabilityMapLinks?: Record<string, string[]>;
 }>();
 const emit = defineEmits<{
   close: [];
@@ -167,6 +170,13 @@ function removeLink(link: CapabilityLink) {
     : { from: link.id, to: self, type: link.type });
 }
 const titleOf = (id: string) => props.capabilityTitles?.[id] ?? id;
+/** У возможности — её ссылки на узлы карт; у узла другой карты — «реализует возможность …». */
+const outLinks = computed(() => (props.selection?.kind === 'node' && props.selection.capability ? (props.capabilityMapLinks?.[props.selection.id] ?? []) : []));
+const inLinks = computed(() => {
+  const sel = props.selection;
+  if (sel?.kind !== 'node' || sel.capability) return [];
+  return ['codemap', 'dataflow', 'userflow'].flatMap((kind) => props.mapBacklinks?.[`${kind}:${sel.id}`] ?? []);
+});
 const xray = computed(() => (props.selection?.kind === 'node' ? crossLinksOf(props.selection.id, props.crossLevel ?? []) : []));
 const capGroupOf = computed(() => (props.selection?.kind === 'node' ? props.selection.capabilityGroup : undefined));
 const coverage = computed(() => capView.value?.coverage);
@@ -238,6 +248,7 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
       <div v-if="selection" class="space-y-4 text-sm">
         <div v-if="selection.kind === 'node'" class="space-y-1">
           <p class="font-mono text-xs text-muted">{{ selection.id }}</p>
+          <p v-if="inLinks.length" class="text-xs">Реализует возможность: <span class="font-medium">{{ inLinks.map(titleOf).join(', ') }}</span></p>
         </div>
 
         <div v-if="selection.kind === 'edge'" class="space-y-1">
@@ -418,6 +429,10 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
           <p v-if="capView.replacedBy.length" class="text-xs text-warning">
             Заменяется на: {{ capView.replacedBy.map(titleOf).join(', ') }} — работа не должна уходить в то, что уходит.
           </p>
+          <div v-if="outLinks.length" class="space-y-1">
+            <p class="text-xs font-medium">Ссылки на карты</p>
+            <p v-for="link in outLinks" :key="link" class="font-mono text-xs">{{ link }}</p>
+          </div>
           <!-- Рентген: связи, что минуют уровни, по умолчанию скрыты и видны только у выбранного узла. -->
           <div v-if="xray.length" class="space-y-1 border-l-2 border-dashed border-warning pl-2">
             <p class="text-xs font-medium text-warning">Сквозные связи</p>

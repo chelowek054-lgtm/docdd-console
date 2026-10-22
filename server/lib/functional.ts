@@ -75,7 +75,7 @@ export interface CapabilityLike {
   status?: string | undefined;
   note?: string | undefined;
   priority?: string | undefined;
-  horizon?: string | undefined; owner?: string | undefined; /* зона ответственности (T-0044) */ dashboards?: readonly string[] | undefined;
+  horizon?: string | undefined; owner?: string | undefined; /* зона ответственности (T-0044) */ dashboards?: readonly string[] | undefined; /** Ссылки на узлы других карт, `вид:узел` (R-0086). */ mapLinks?: readonly string[] | undefined;
 }
 
 export interface RelationLike {
@@ -805,7 +805,7 @@ export interface StatusItem {
 export interface StatusDeclarations {
   declarations: {
     id: string; title?: string; parent?: string; summary?: string;
-    status?: ImplStatus; note?: string; priority?: Priority; horizon?: Horizon; owner?: string; dashboards?: string[];
+    status?: ImplStatus; note?: string; priority?: Priority; horizon?: Horizon; owner?: string; dashboards?: string[]; mapLinks?: string[];
   }[];
   /** id, которых нет в картине: ничего не записывается, пока они есть. */
   unknown: string[];
@@ -844,7 +844,7 @@ export function statusDeclarations(
       ...(item.status ? { status: item.status } : {}),
       ...(note ? { note } : {}),
       ...(isPriority(current.priority) ? { priority: current.priority } : {}),
-      ...(isHorizon(current.horizon) ? { horizon: current.horizon } : {}), ...(current.owner ? { owner: current.owner } : {}), ...(current.dashboards?.length ? { dashboards: [...current.dashboards] } : {})
+      ...(isHorizon(current.horizon) ? { horizon: current.horizon } : {}), ...(current.owner ? { owner: current.owner } : {}), ...(current.dashboards?.length ? { dashboards: [...current.dashboards] } : {}), ...(current.mapLinks?.length ? { mapLinks: [...current.mapLinks] } : {})
     });
   }
   return { declarations, unknown };
@@ -1260,4 +1260,47 @@ export function crossLevelRelations(capabilities: readonly CapabilityLike[], rel
 /** Сквозные связи одного узла — с обеих сторон. */
 export function crossLinksOf(id: string, all: readonly CrossLevelRelation[]): CrossLevelRelation[] {
   return all.filter((link) => link.from === id || link.to === id);
+}
+
+// --- связи между картами (R-0086, docs/07-maps.md) ---
+
+/** Ссылка возможности на узел другой карты: `вид:узел` — `codemap:cache`, `userflow:login`, `godot-client:player`. */
+export interface MapLink {
+  kind: string;
+  node: string;
+}
+
+export function parseMapLink(text: string): MapLink | null {
+  const match = /^([a-z][a-z0-9-]*):(.+)$/.exec(text.trim());
+  return match ? { kind: match[1] as string, node: (match[2] as string).trim() } : null;
+}
+
+/** Возможности, у которых есть ссылки на узлы других карт. */
+export interface MapLinkOwner { id: string; mapLinks?: readonly string[] | undefined }
+
+/** Обратная сторона: у узла другой карты — «реализует возможность …». Ключ — `вид:узел`. */
+export function mapLinkBacklinks(capabilities: readonly MapLinkOwner[]): Map<string, string[]> {
+  const index = new Map<string, string[]>();
+  for (const item of capabilities) {
+    for (const raw of item.mapLinks ?? []) {
+      const link = parseMapLink(raw);
+      if (!link) continue;
+      const key = `${link.kind}:${link.node}`;
+      index.set(key, [...(index.get(key) ?? []), item.id]);
+    }
+  }
+  return index;
+}
+
+/** Ссылки на несуществующие узлы или записанные не по форме. `known` — множество `вид:узел` существующих узлов. */
+export function brokenMapLinks(capabilities: readonly MapLinkOwner[], known: ReadonlySet<string>): { capability: string; link: string; reason: 'format' | 'missing' }[] {
+  const broken: { capability: string; link: string; reason: 'format' | 'missing' }[] = [];
+  for (const item of capabilities) {
+    for (const raw of item.mapLinks ?? []) {
+      const link = parseMapLink(raw);
+      if (!link) broken.push({ capability: item.id, link: raw, reason: 'format' });
+      else if (!known.has(`${link.kind}:${link.node}`)) broken.push({ capability: item.id, link: raw, reason: 'missing' });
+    }
+  }
+  return broken;
 }

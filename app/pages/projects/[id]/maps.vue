@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import type { ArchViolationView, FunctionalMode, MapSelection, MermaidEdge } from '~/utils/map-mermaid';
-import { capabilityViews } from '~/utils/functional-view';
-import { partitionMapRecords } from '~~/server/lib/course';
+import { capabilityViews } from '~/utils/functional-view'; import { partitionMapRecords } from '~~/server/lib/course';
 import {
   NO_RELATION_MARKS,
   groupLevel,
@@ -11,8 +10,7 @@ import {
   queueRelationRemove,
   relationMarkCount,
   withMarks,
-  crossLevelRelations,
-  withRelationMarks,
+  withRelationMarks, crossLevelRelations, mapLinkBacklinks,
   type CapabilityCoverage,
   type Horizon,
   type ImplStatus,
@@ -568,6 +566,9 @@ const functionalEffective = computed(() => {
   };
 });
 /** Сквозные связи функциональной карты — по умолчанию не рисуются, инспектор показывает их у выбранного узла (R-0089). */
+/** Связи между картами (R-0086): ссылки возможностей и обратная сторона для узлов других карт. */
+const mapBacklinks = computed(() => Object.fromEntries(mapLinkBacklinks(functionalEffective.value.capabilities)));
+const capabilityMapLinks = computed(() => Object.fromEntries(functionalEffective.value.capabilities.filter((item) => item.mapLinks?.length).map((item) => [item.id, [...(item.mapLinks ?? [])]])));
 const crossLevel = computed(() => crossLevelRelations(functionalEffective.value.capabilities, functionalEffective.value.relations));
 const functionalProgress = computed(() => overallProgress(functionalEffective.value.capabilities));
 
@@ -1862,6 +1863,8 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
             :selection="selection"
             :capability-titles="capabilityTitles"
             :cross-level="crossLevel"
+            :map-backlinks="mapBacklinks"
+            :capability-map-links="capabilityMapLinks"
             :impact-on="impactOn"
             :to="staged ? stage : null"
             @impact="impactOn = !impactOn"

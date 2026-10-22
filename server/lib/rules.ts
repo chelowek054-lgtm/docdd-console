@@ -3,7 +3,7 @@ import { checkArchitecture } from './architecture';
 import { buildReferenceIndex, sameIndex, type ReferenceEntry } from './reference';
 import type { RulesResolution } from './practice-rules';
 import { capabilityFindings } from './coverage';
-import { effectiveHorizon, effectiveOwner, effectivePriority } from './functional';
+import { brokenMapLinks, effectiveHorizon, effectiveOwner, effectivePriority } from './functional';
 import { approvedMaps, checkEvidence, evidenceClaims, foldMaps, parseMapRecord, type MapChange } from './maps';
 import { firstHeading } from './parse';
 import {
@@ -232,7 +232,8 @@ export function checkAll(ctx: RuleContext): Violation[] {
     ...taskStale(ctx),
     ...verificationNeverRun(ctx),
     ...taskNoVerification(ctx),
-    ...capabilityNoOwner(ctx)
+    ...capabilityNoOwner(ctx),
+    ...mapLinksBroken(ctx)
   ];
 }
 
@@ -1172,4 +1173,26 @@ export function capabilityNoOwner(ctx: RuleContext): Violation[] {
     .filter((item) => effectiveOwner(item, byId) === null)
     .map((item) => violation('capability_no_owner', item.declaredBy as string, pathOf.get(item.declaredBy as string) ?? '',
       `У возможности «${item.title ?? item.id}» (\`${item.id}\`) приоритет must или горизонт now, а владельца нет ни у неё, ни у родителей: укажите \`owner\` новой картой.`));
+}
+
+/**
+ * Ссылки возможностей на узлы других карт (R-0086): узел должен существовать.
+ * Предупреждение, а не ошибка: карту могли подтвердить раньше, чем появился узел.
+ */
+export function mapLinksBroken(ctx: RuleContext): Violation[] {
+  const picture = foldMaps(approvedMaps(ctx.records).map((record) => ({ id: record.id, change: parseMapRecord(record.body).change })));
+  const capabilities: (typeof picture.functional.capabilities[number] & { declaredBy?: string | undefined })[] = picture.functional.capabilities;
+  if (!capabilities.some((item) => item.mapLinks?.length)) return [];
+  const known = new Set<string>([
+    ...picture.codemap.modules.map((item) => `codemap:${item.id}`),
+    ...picture.dataflow.sources.map((item) => `dataflow:${item.id}`),
+    ...picture.userflow.screens.map((item) => `userflow:${item.id}`),
+    ...picture.custom.nodes.map((item) => `${item.map}:${item.id}`)
+  ]);
+  const owner = new Map(capabilities.map((item) => [item.id, item.declaredBy ?? '']));
+  const pathOf = new Map(ctx.records.map((record) => [record.id, record.source.path]));
+  return brokenMapLinks(capabilities, known).map((found) => violation('map_link_broken', owner.get(found.capability) ?? '', pathOf.get(owner.get(found.capability) ?? '') ?? '',
+    found.reason === 'format'
+      ? `У возможности \`${found.capability}\` ссылка «${found.link}» записана не по форме \`вид:узел\`.`
+      : `У возможности \`${found.capability}\` ссылка «${found.link}» ведёт на узел, которого нет ни в одной подтверждённой карте.`));
 }

@@ -69,6 +69,11 @@
           "enum": ["now", "next", "later"],
           "description": "Когда нужна: now — в работе или берём следующей, next — после того, что сейчас, later — не в ближайших шагах. Нет поля — «без горизонта». Наследуется вниз, как priority."
         },
+        "mapLinks": {
+          "type": "array",
+          "description": "Ссылки на узлы других карт: `вид:узел` — codemap:<модуль>, dataflow:<источник>, userflow:<экран> или <id своей карты>:<узел>. Ссылка на несуществующий узел — предупреждение map_link_broken (R-0086).",
+          "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*:.+$" }
+        },
         "dashboards": {
           "type": "array",
           "items": { "type": "string", "pattern": "^https?://" },
