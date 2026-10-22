@@ -1,3 +1,4 @@
+import { tr } from '../i18n/tr';
 // Относительный путь, а не алиас Nuxt: этот модуль читает и тест, который
 // собирается без Nuxt.
 import type { IndexRecord } from '../../server/lib/types';
@@ -27,11 +28,11 @@ export interface PhaseProgress {
 export type PhaseFilter = 'all' | 'open' | 'active' | 'planned' | 'done';
 
 export const PHASE_FILTERS: readonly { value: PhaseFilter; label: string }[] = [
-  { value: 'all', label: 'Все' },
-  { value: 'open', label: 'Не закрытые' },
-  { value: 'active', label: 'В работе' },
-  { value: 'planned', label: 'Не начатые' },
-  { value: 'done', label: 'Закрытые' }
+  { value: 'all', get label() { return tr('t83.m5.pf.all'); } },
+  { value: 'open', get label() { return tr('t83.m5.pf.open'); } },
+  { value: 'active', get label() { return tr('t83.m5.pf.active'); } },
+  { value: 'planned', get label() { return tr('t83.m5.pf.planned'); } },
+  { value: 'done', get label() { return tr('t83.m5.pf.done'); } }
 ];
 
 export function parsePhaseFilter(value: unknown): PhaseFilter {

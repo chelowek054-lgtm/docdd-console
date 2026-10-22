@@ -1,3 +1,4 @@
+import { tr } from '../i18n/tr';
 // Относительный путь, а не алиас Nuxt: модуль читает и тест, который
 // собирается без Nuxt (как app/utils/phases.ts).
 /**
@@ -20,12 +21,12 @@ type Results = Readonly<Record<string, { state: string } | undefined>>;
  * судить, что выполнено, — нет.
  */
 export function requirementFact(verifications: readonly string[], results: Results, status: string): Fact {
-  if (verifications.length === 0) return { label: 'не проверяется', color: 'warning' };
+  if (verifications.length === 0) return { label: tr('t83.m5.fact.noCheck'), color: 'warning' };
 
   const states = verifications.map((id) => results[id]?.state);
-  if (states.some((state) => state === 'failed')) return { label: 'не прошла', color: 'error' };
-  if (states.every((state) => state === 'passed')) return { label: 'проверено', color: 'success' };
-  return { label: 'не проверено', color: status === 'approved' ? 'warning' : 'neutral' };
+  if (states.some((state) => state === 'failed')) return { label: tr('t83.m5.fact.failed'), color: 'error' };
+  if (states.every((state) => state === 'passed')) return { label: tr('t83.m5.fact.verified'), color: 'success' };
+  return { label: tr('t83.m5.fact.unverified'), color: status === 'approved' ? 'warning' : 'neutral' };
 }
 
 /** Закрытая задача без пройденной проверки — обещание, а не факт. Не закрытой факта ещё нет. */
@@ -36,9 +37,9 @@ export function taskFact(
   if (task.status !== 'done') return null;
 
   const ids = task.links.verified_by ?? [];
-  if (ids.length === 0) return { label: 'закрыта без проверки', color: 'warning' };
-  if (ids.every((id) => results[id]?.state === 'passed')) return { label: 'проверена', color: 'success' };
-  return { label: 'закрыта, не проверена', color: 'warning' };
+  if (ids.length === 0) return { label: tr('t83.m5.fact.closedNo'), color: 'warning' };
+  if (ids.every((id) => results[id]?.state === 'passed')) return { label: tr('t83.m5.fact.checked'), color: 'success' };
+  return { label: tr('t83.m5.fact.closedUn'), color: 'warning' };
 }
 
 /**
@@ -47,5 +48,5 @@ export function taskFact(
  * засчитывается как есть, — но под фактом виден неподтверждённый способ.
  */
 export function checkNote(status: string, hasResult: boolean): string | null {
-  return hasResult && status !== 'approved' ? 'сама проверка не подтверждена' : null;
+  return hasResult && status !== 'approved' ? tr('t83.m5.fact.note') : null;
 }

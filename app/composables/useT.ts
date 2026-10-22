@@ -1,5 +1,6 @@
 import { designTokens } from '~/design-tokens';
 import { messages } from '~/i18n/index';
+import { setTrLocale } from '~/i18n/tr';
 
 /**
  * i18n интерфейса консоли (docs/16-design-system.md, «i18n»). Языки, основной
@@ -30,6 +31,8 @@ export function useT() {
   const locale = useState<string>('locale', () => DEFAULT_LOCALE);
   const cookie = useCookie<string | null>(COOKIE, { maxAge: 60 * 60 * 24 * 365, sameSite: 'lax' });
 
+  setTrLocale(locale.value);
+
   function t(key: string, params?: Record<string, string | number>): string {
     return translate(locale.value, key, params);
   }
@@ -43,6 +46,7 @@ export function useT() {
   function setLocale(next: string) {
     if (!LOCALES.includes(next)) return;
     locale.value = next;
+    setTrLocale(next);
     cookie.value = next;
   }
 

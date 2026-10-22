@@ -1,4 +1,5 @@
 import { watchEffect } from 'vue';
+import { tr } from '../i18n/tr';
 
 interface Verdict { allowed: boolean; reason?: string }
 interface Me { required: boolean; can: Record<string, Verdict> | null }
@@ -32,7 +33,7 @@ export default defineNuxtPlugin((nuxtApp) => {
         if (verdict && !verdict.allowed) {
           el.setAttribute('disabled', 'true');
           el.setAttribute('aria-disabled', 'true');
-          el.title = verdict.reason ?? 'Нет права на это действие';
+          el.title = verdict.reason ?? tr('t83.m5.can.no');
         }
       };
       el.__canStop = watchEffect(apply);

@@ -4,6 +4,7 @@ import { computed, reactive, ref } from 'vue';
 // Относительные пути, а не алиас Nuxt: хранилище проверяется тестом без Nuxt.
 import type { BatchRun } from '../utils/batch-describe';
 import { add, readEvents } from '../utils/event-stream';
+import { tr } from '../i18n/tr';
 
 /**
  * Запросы к модели живут здесь, а не в странице (docs/04-ui.md, «Запрос к модели»;
@@ -181,7 +182,7 @@ export const useModelJobs = defineStore('modelJobs', () => {
       }
       finish(key, {
         kind: 'failure', ms: Date.now() - started,
-        failure: { code: 'network', message: 'Связь с сервером оборвалась', detail: String(error) }
+        failure: { code: 'network', message: tr('t83.m5.net.lost'), detail: String(error) }
       }, null);
       return null;
     }
