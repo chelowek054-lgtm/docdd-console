@@ -356,7 +356,7 @@ function isActive(to: string): boolean {
     <!-- Вкладки группы: те же пункты, что в её меню, с учётом роли — у каждой группы одна строка. -->
     <!-- Строка есть на каждом экране проекта, даже без вкладок: высота шапки не меняется, страница не прыгает. -->
     <nav v-if="projectId" class="border-b border-default" :aria-label="activeGroup?.label ?? t('app.name')">
-      <div class="ds-container flex min-h-11 flex-nowrap items-center gap-1 overflow-x-auto overflow-y-hidden py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <Transition name="ds-tabs" mode="out-in"><div :key="activeGroup?.label ?? ''" class="ds-container flex min-h-11 flex-nowrap items-center gap-1 overflow-x-auto overflow-y-hidden py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <UButton
           v-for="link in activeGroup?.links ?? []"
           :key="link.to"
@@ -368,7 +368,7 @@ function isActive(to: string): boolean {
         >
           {{ withCount(link) }}
         </UButton>
-      </div>
+      </div></Transition>
     </nav>
 
     <main class="ds-container py-6">

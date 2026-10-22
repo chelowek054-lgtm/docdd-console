@@ -617,3 +617,42 @@ ul.divide-y > li {
 .ds-fade-leave-active {
   transition-duration: var(--ds-motion-base);
 }
+
+/* Строка вкладок группы: при смене группы — плавно, с лёгким масштабом; внутри группы не мигает (ключ — группа). */
+.ds-tabs-enter-active,
+.ds-tabs-leave-active {
+  transition: opacity var(--ds-motion-base) ease, transform var(--ds-motion-base) ease;
+}
+.ds-tabs-enter-from,
+.ds-tabs-leave-to {
+  opacity: 0;
+  transform: scale(0.98);
+}
+
+/* Масштаб: нажатие чуть вдавливает кнопку, окна и всплывающие меню раскрываются из 96%. */
+@layer base {
+  button,
+  a[href] {
+    transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  }
+  button:not(:disabled):active,
+  a[href]:active {
+    transform: scale(0.97);
+  }
+}
+@keyframes ds-scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes ds-scale-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.96); }
+}
+[role='dialog'][data-state='open'],
+[data-reka-popper-content-wrapper] > [data-state='open'] {
+  animation: ds-scale-in var(--ds-motion-base) ease both;
+}
+[role='dialog'][data-state='closed'],
+[data-reka-popper-content-wrapper] > [data-state='closed'] {
+  animation: ds-scale-out var(--ds-motion-fast) ease both;
+}
