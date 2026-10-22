@@ -16,6 +16,9 @@ export const STATUS_WORD: Record<string, string> = {
 
 export interface BoardFilter { phase?: string; assignee?: string; capability?: string }
 
+/** Значение фильтра «Без исполнителя»: менеджеру важнее всего, что никому не отдано. */
+export const NO_ASSIGNEE = '-';
+
 function assigneeOf(record: IndexRecord): string {
   const value = record.extra['assignee'];
   return typeof value === 'string' ? value : '';
@@ -34,7 +37,7 @@ export function boardColumns(records: readonly IndexRecord[], filter: BoardFilte
     if (!column) continue;
     const phase = record.phase ?? covered.get(record.id) ?? '';
     if (filter.phase && phase !== filter.phase) continue;
-    if (filter.assignee && assigneeOf(record) !== filter.assignee) continue;
+    if (filter.assignee && assigneeOf(record) !== (filter.assignee === NO_ASSIGNEE ? '' : filter.assignee)) continue;
     if (filter.capability && !(record.links.affects ?? []).includes(filter.capability)) continue;
     column.push(record);
   }
@@ -157,4 +160,10 @@ export function assistantPrompt(question: AssistantQuestion, records: readonly I
   };
   const shown = question === 'changes' ? tasks.filter((task) => (task.updated ?? '') >= since) : tasks.filter((task) => task.status !== 'done');
   return [heads[question], 'Ничего не меняй в проекте и не читай файлы: данные ниже.', '', '## Фазы', phases || '- нет', '', '## Задачи', shown.map(taskLine).join('\n') || '- нет'].join('\n');
+}
+
+/** Готово к выпуску: закрытые задачи, которых нет ни в одном релизе (по связи `ships`). */
+export function unshippedTasks(records: readonly IndexRecord[]): IndexRecord[] {
+  const shipped = new Set(records.filter((record) => record.type === 'release').flatMap((record) => record.links.ships ?? []));
+  return records.filter((record) => record.type === 'task' && record.status === 'done' && !shipped.has(record.id)).sort((a, b) => b.id.localeCompare(a.id));
 }

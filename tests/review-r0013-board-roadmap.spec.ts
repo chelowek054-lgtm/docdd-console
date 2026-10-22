@@ -1,7 +1,7 @@
 // V-0013 manual — подготовка (R-0013; задачи T-0032, T-0033, T-0034)
 import { describe, expect, it } from 'vitest';
 
-import { applyTarget, boardColumns, overdueDays, roadmap } from '../server/lib/manager';
+import { NO_ASSIGNEE, applyTarget, boardColumns, overdueDays, roadmap, unshippedTasks } from '../server/lib/manager';
 import type { IndexRecord } from '../server/lib/types';
 import { availableActions } from '../server/lib/transitions';
 import { context, rec } from './helpers';
@@ -63,5 +63,20 @@ describe('R-0013 дорожная карта и вехи', () => {
     expect(out.text).toContain('# X');
     expect(applyTarget(src, '1.12.2026').problems).not.toEqual([]);
     expect(applyTarget(out.text, null).text).not.toContain('target:');
+  });
+});
+
+describe('Менеджер и релизы: минимум роли (docs/04-ui.md)', () => {
+  const records = [
+    idx('T-0001', 'task', 'done'),
+    idx('T-0002', 'task', 'done', { extra: { assignee: 'ann' } }),
+    idx('T-0003', 'task', 'ready'),
+    idx('L-0001', 'release', 'approved', { links: { ships: ['T-0001'] } })
+  ];
+  it('фильтр «Без исполнителя»', () => {
+    expect(boardColumns(records, { assignee: NO_ASSIGNEE }).done!.map((r) => r.id)).toEqual(['T-0001']);
+  });
+  it('готово к выпуску — закрытые задачи вне релизов, новые сверху', () => {
+    expect(unshippedTasks(records).map((r) => r.id)).toEqual(['T-0002']);
   });
 });
