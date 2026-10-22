@@ -204,7 +204,7 @@ const aside = computed(() => {
 });
 
 const failure = computed(() => failureOf(data.value));
-const map = computed(() => (failure.value ? null : mergedMap(data.value as Partial<MapResponse> | null)));
+const extraKinds = reactive<Partial<Record<MapKindName, Partial<MapResponse>>>>({}); const map = computed(() => (failure.value ? null : mergedMap(data.value as Partial<MapResponse> | null)));
 
 /**
  * Записи карт видны всегда, а не только когда картина пуста (docs/04-ui.md,
@@ -660,28 +660,28 @@ const views = computed(() => {
       key: 'codemap',
       title: t('maps.v.codemap'),
       question: t('maps.q.codemap'),
-      count: t('maps.c.codemap', { a: value.codemap.modules.length, b: value.codemap.imports.length }),
+      count: t('maps.c.codemap', { a: value.codemap.modules.length || ((data.value as { summary?: Record<string, number> } | null)?.summary ?? {}).modules || 0, b: value.codemap.imports.length || ((data.value as { summary?: Record<string, number> } | null)?.summary ?? {}).imports || 0 }),
       ...(codemapDepth.value ?? codemapView.value ?? codemapMermaid(value))
     },
     {
       key: 'dataflow',
       title: t('maps.v.dataflow'),
       question: t('maps.q.dataflow'),
-      count: t('maps.c.dataflow', { a: value.dataflow.sources.length, b: value.dataflow.flows.length }),
+      count: t('maps.c.dataflow', { a: value.dataflow.sources.length || ((data.value as { summary?: Record<string, number> } | null)?.summary ?? {}).sources || 0, b: value.dataflow.flows.length || ((data.value as { summary?: Record<string, number> } | null)?.summary ?? {}).flows || 0 }),
       ...(dataflowDepth.value ?? dataflowView.value ?? dataflowMermaid(value))
     },
     {
       key: 'userflow',
       title: t('maps.v.userflow'),
       question: t('maps.q.userflow'),
-      count: t('maps.c.userflow', { a: value.userflow.screens.length, b: value.userflow.calls.length }),
+      count: t('maps.c.userflow', { a: value.userflow.screens.length || ((data.value as { summary?: Record<string, number> } | null)?.summary ?? {}).screens || 0, b: value.userflow.calls.length || ((data.value as { summary?: Record<string, number> } | null)?.summary ?? {}).calls || 0 }),
       ...userflowMermaid(value)
     },
     {
       key: 'functional',
       title: t('maps.v.functional'),
       question: t('maps.q.functional'),
-      count: t('maps.c.functional', { a: value.functional.capabilities.length }),
+      count: t('maps.c.functional', { a: value.functional.capabilities.length || ((data.value as { summary?: Record<string, number> } | null)?.summary ?? {}).capabilities || 0 }),
       ...(functionalDepth.value ?? functionalMermaid({ ...value, functional: functionalEffective.value }, statusFilter.value, {
         mode: capMode.value,
         level: capLevel.value,
@@ -1265,7 +1265,7 @@ async function onCustomCreated(definition: CustomMapDefinition) {
 
 // Догрузка видов (T-0112): первый вид пришёл с `data`, остальные — при переключении вкладки, и держатся в памяти.
 const KIND_OF_TAB = { functional: 'functional', codemap: 'codebase', dataflow: 'flows', userflow: 'journeys' } as const;
-const extraKinds = reactive<Partial<Record<MapKindName, Partial<MapResponse>>>>({});
+// extraKinds объявлена выше, рядом с `map`: computed читает её раньше, чем доходит этот блок.
 const loadedKinds = new Set<MapKindName>([firstKind]);
 
 async function loadKind(kind: MapKindName, force = false) {
