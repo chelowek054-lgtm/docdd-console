@@ -29,6 +29,30 @@ export function factCounts(checks: readonly IndexRecord[], results: Readonly<Rec
   return counts;
 }
 
+/** Поля контракта проверки: их показывает карточка «Как проверить», а не «Поля проекта». */
+export const VERIFICATION_FIELDS: ReadonlySet<string> = new Set(['kind', 'runner', 'command']);
+
+export interface RunEntry { at: string; runner: string; state: string; note?: string; checkedBy?: string }
+
+/** Отчёты, где встречается проверка, новые сверху: «когда её гоняли и что вышло». */
+export function runHistory(
+  reports: readonly { started_at: string; runner: string; verifications: Record<string, string>; note?: string; checked_by?: string }[],
+  id: string,
+  limit = 10
+): RunEntry[] {
+  return reports
+    .filter((report) => id in report.verifications)
+    .map((report) => ({
+      at: report.started_at,
+      runner: report.runner,
+      state: report.verifications[id] ?? '',
+      ...(report.note ? { note: report.note } : {}),
+      ...(report.checked_by ? { checkedBy: report.checked_by } : {})
+    }))
+    .sort((a, b) => b.at.localeCompare(a.at))
+    .slice(0, limit);
+}
+
 /**
  * Подтверждённые требования без единой проверки — черновик ещё может измениться,
  * а заменённое и отменённое проверять незачем. Связь ставят с любой стороны:

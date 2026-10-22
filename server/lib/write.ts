@@ -345,7 +345,9 @@ export function splitProse(body: string, eol: string): { prose: string; journal:
 export function replaceProse(file: RecordFile, prose: string): RecordFile {
   const eol = eolOf(file);
   const { journal } = splitProse(file.body, eol);
-  const trimmed = prose.replace(/\s+$/, '');
+  // Журнал, присланный вместе с текстом (копия всего тела), отбрасывается:
+  // иначе в файле окажется второй раздел «Журнал» — журнал ведёт только приложение.
+  const trimmed = splitProse(prose, eol).prose.replace(/\s+$/, '');
   const body = journal.length > 0 ? [trimmed, '', ...journal].join(eol) : `${trimmed}${eol}`;
   return { ...file, body };
 }

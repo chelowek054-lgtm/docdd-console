@@ -21,5 +21,21 @@ export const verify: Record<string, string> = {
   'run.markPassed': 'Отметить видимые: прошли',
   'run.reset': 'Сбросить',
   'run.empty': 'Подтверждённых проверок этого вида нет.',
-  'nav.run': 'Прогон'
+  'nav.run': 'Прогон',
+  'vc.title': 'Как проверить',
+  'vc.how': 'Как запускается',
+  'vc.noCommand': 'Как запускать, не записано: добавьте runner и command в поля проверки.',
+  'vc.runner': 'Раннер: {runner}.',
+  'vc.autoHint': 'Факт приходит отчётом сборки в tests/reports.',
+  'vc.manual': 'Ручная проверка: прогоняет человек',
+  'vc.verifies': 'Что проверяет и кто это строит',
+  'vc.noTasks': 'Задач, которые это реализуют, нет.',
+  'vc.history': 'История прогонов',
+  'vc.noHistory': 'Ещё ни разу не прогонялась.',
+  'vc.kind.unit': 'модульный тест',
+  'vc.kind.integration': 'интеграционный тест',
+  'vc.kind.e2e': 'сквозной тест (e2e)',
+  'vc.kind.manual': 'ручная',
+  'vc.kind.review': 'ревью',
+  'vc.kind.metric': 'метрика'
 };

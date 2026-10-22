@@ -21,5 +21,21 @@ export const verify: Record<string, string> = {
   'run.markPassed': 'Mark visible as passed',
   'run.reset': 'Reset',
   'run.empty': 'No approved checks of this kind.',
-  'nav.run': 'Run'
+  'nav.run': 'Run',
+  'vc.title': 'How to verify',
+  'vc.how': 'How it runs',
+  'vc.noCommand': 'How to run is not recorded: add runner and command to the check.',
+  'vc.runner': 'Runner: {runner}.',
+  'vc.autoHint': 'The result comes as a build report in tests/reports.',
+  'vc.manual': 'Manual check: a person runs it',
+  'vc.verifies': 'What it verifies and who builds it',
+  'vc.noTasks': 'No tasks implement this.',
+  'vc.history': 'Run history',
+  'vc.noHistory': 'Never run yet.',
+  'vc.kind.unit': 'unit test',
+  'vc.kind.integration': 'integration test',
+  'vc.kind.e2e': 'end-to-end test',
+  'vc.kind.manual': 'manual',
+  'vc.kind.review': 'review',
+  'vc.kind.metric': 'metric'
 };

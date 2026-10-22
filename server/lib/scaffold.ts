@@ -153,6 +153,23 @@ function bodyWithCapabilities(
  * Текст новой записи. Тело — подсказка человеку о том, что в нём должно быть;
  * дальше оно принадлежит только ему.
  */
+/** Заготовка проверки — канон тест-кейса (ISO/IEC/IEEE 29119-3): без шагов и ожидаемого её не прогнать. */
+const VERIFICATION_BODY = [
+  'Что проверяем и по какому критерию требования.',
+  '',
+  '## Предусловия',
+  '',
+  '- Что должно быть готово до начала.',
+  '',
+  '## Шаги',
+  '',
+  '1. Действие — ожидаемый результат.',
+  '',
+  '## Ожидаемый результат',
+  '',
+  'Что считается «прошла».'
+].join('\n');
+
 export function recordTemplate(input: TemplateInput, eol = '\n'): string {
   const lines = [
     '---',
@@ -196,7 +213,7 @@ export function recordTemplate(input: TemplateInput, eol = '\n'): string {
   const body = capabilities.length > 0 || relations.length > 0 || input.vision
     ? bodyWithCapabilities(said, capabilities, input.vision, relations)
     : (said === ''
-      ? (input.type === 'reference' ? 'Что это, когда брать, ограничения, примеры использования.' : 'Зачем это, что делаем, чего не делаем, как понять, что готово.')
+      ? (input.type === 'reference' ? 'Что это, когда брать, ограничения, примеры использования.' : input.type === 'verification' ? VERIFICATION_BODY : 'Зачем это, что делаем, чего не делаем, как понять, что готово.')
       : said);
 
   const sources = input.sources ?? [];

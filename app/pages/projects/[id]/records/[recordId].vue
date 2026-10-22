@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { LinkKind } from '~~/server/lib/types';
-import type { IndexRecord } from '~~/server/lib/types';
+import type { IndexRecord } from '~~/server/lib/types'; import { VERIFICATION_FIELDS } from '~~/server/lib/verify-desk';
 
 const route = useRoute();
 const projectId = computed(() => String(route.params['id'] ?? ''));
@@ -56,7 +56,7 @@ const journal = computed(() => {
     .map((line) => line.trim().slice(2));
 });
 
-const extraFields = computed(() => Object.entries(detail.value?.record.extra ?? {}));
+const extraFields = computed(() => Object.entries(detail.value?.record.extra ?? {}).filter(([key]) => !(detail.value?.record.type === 'verification' && VERIFICATION_FIELDS.has(key)))); // поля контракта проверки показывает «Как проверить»
 
 const VERDICTS = computed<Record<string, { label: string; color: BadgeColor }>>(() => ({
   ok: { label: t('rec.verdict.ok'), color: 'success' },
@@ -144,19 +144,19 @@ function entries(
       />
 
       <!-- Ручная проверка: флажок «Проверено» фиксирует прогон (docs/04-ui.md). -->
-      <UCard v-if="detail.record.type === 'verification'">
-        <template #header>
-          <h2 class="font-medium">{{ t('rec.checked') }}</h2>
-        </template>
-        <VerifiedCheck
-          :project-id="projectId"
-          :record="detail.record"
-          :result="index?.verificationResults[detail.record.id]"
-          :roles="index?.project.roles ?? []"
-          @changed="reload"
-        />
-        <DefectFromCheck :project-id="projectId" :record="detail.record" :result="index?.verificationResults[detail.record.id]" />
-      </UCard>
+      <!-- Карточка «Как проверить»: способ, что проверяет, история прогонов (docs/04-ui.md, «Карточка проверки»). -->
+      <VerificationCard
+        v-if="detail.record.type === 'verification'"
+        :project-id="projectId"
+        :record="detail.record"
+        :index="index"
+        @changed="reload"
+      />
+      <!-- Внутри — прежние «Проверено» и «Дефект из провала»: -->
+      <!-- ручную проверку прогоняет только человек, -->
+      <!-- провал автоматической превращается в дефект одной кнопкой. -->
+      <!-- Данные — из индекса: отчёты, связи, задачи требования. -->
+      <!-- Сам текст проверки (шаги) — ниже, в «Тексте документа». -->
 
       <UCard v-if="detail.map">
         <template #header>
@@ -264,7 +264,7 @@ function entries(
               <p class="text-xs uppercase tracking-wide text-muted">{{ group.label }}</p>
               <ul class="mt-1 space-y-1">
                 <li v-for="id in group.ids" :key="id">
-                  <RecordLink :project-id="projectId" :record-id="id" :record="byId.get(id) ?? null" />
+                  <RecordLink :project-id="projectId" :record-id="id" :record="index ? (byId.get(id) ?? null) : undefined" />
                 </li>
               </ul>
             </div>
@@ -275,7 +275,7 @@ function entries(
                 <p class="text-xs uppercase tracking-wide text-muted">{{ group.label }}</p>
                 <ul class="mt-1 space-y-1">
                   <li v-for="id in group.ids" :key="id">
-                    <RecordLink :project-id="projectId" :record-id="id" :record="byId.get(id) ?? null" />
+                    <RecordLink :project-id="projectId" :record-id="id" :record="index ? (byId.get(id) ?? null) : undefined" />
                   </li>
                 </ul>
               </div>
@@ -319,7 +319,7 @@ function entries(
                 <dd class="min-w-0 break-words">{{ value }}</dd>
               </div>
             </dl>
-          </UCard><UCard v-if="detail.record.type === 'task' && detail.record.status === 'done' && (detail.record.backlinks.ships?.length ?? 0) > 0"><template #header><h2 class="font-medium">{{ t('rec.release') }}</h2></template><p v-for="id in detail.record.backlinks.ships" :key="id" class="text-sm"><RecordLink :project-id="projectId" :record-id="id" :record="byId.get(id) ?? null" /></p></UCard>
+          </UCard><UCard v-if="detail.record.type === 'task' && detail.record.status === 'done' && (detail.record.backlinks.ships?.length ?? 0) > 0"><template #header><h2 class="font-medium">{{ t('rec.release') }}</h2></template><p v-for="id in detail.record.backlinks.ships" :key="id" class="text-sm"><RecordLink :project-id="projectId" :record-id="id" :record="index ? (byId.get(id) ?? null) : undefined" /></p></UCard>
         </div>
       </div>
     </template>

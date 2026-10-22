@@ -1,7 +1,7 @@
 // Сверка — рабочее место тестировщика (docs/04-ui.md).
 import { describe, expect, it } from 'vitest';
 
-import { factCounts, factOf, uncoveredRequirements } from '../server/lib/verify-desk';
+import { factCounts, factOf, runHistory, uncoveredRequirements } from '../server/lib/verify-desk';
 import type { IndexRecord } from '../server/lib/types';
 
 const idx = (id: string, type: string, status: string, o: Partial<IndexRecord> & { extra?: Record<string, unknown> } = {}): IndexRecord =>
@@ -34,5 +34,20 @@ describe('требования без проверок', () => {
       idx('V-0001', 'verification', 'approved', { links: { verifies: ['R-0002'] } })
     ];
     expect(uncoveredRequirements(records).map((r) => r.id)).toEqual(['R-0001']);
+  });
+});
+
+describe('история прогонов проверки', () => {
+  it('только отчёты с этой проверкой, новые сверху, не больше лимита', () => {
+    const reports: { started_at: string; runner: string; verifications: Record<string, string>; note?: string; checked_by?: string }[] = [
+      { started_at: '2026-10-01T10:00', runner: 'npm', verifications: { 'V-0001': 'passed' } },
+      { started_at: '2026-10-03T10:00', runner: 'manual:qa', verifications: { 'V-0001': 'failed' }, note: 'кнопка не жмётся', checked_by: 'ann' },
+      { started_at: '2026-10-02T10:00', runner: 'npm', verifications: { 'V-0002': 'passed' } }
+    ];
+    expect(runHistory(reports, 'V-0001')).toEqual([
+      { at: '2026-10-03T10:00', runner: 'manual:qa', state: 'failed', note: 'кнопка не жмётся', checkedBy: 'ann' },
+      { at: '2026-10-01T10:00', runner: 'npm', state: 'passed' }
+    ]);
+    expect(runHistory(reports, 'V-0001', 1)).toHaveLength(1);
   });
 });
