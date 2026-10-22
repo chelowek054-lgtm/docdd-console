@@ -167,15 +167,18 @@ export function buildContextPack(input: ContextInput): ContextPack {
     }
   }
 
+  // Постоянная часть (вектор, карта, практики, правила, справочник) — первой и в одном порядке:
+  // одинаковое начало запроса провайдер кэширует (R-0093). Дальше — по близости к центру.
   // Сортировка не зависит от порядка источников: ключ — второй признак.
-  all.sort((a, b) => a.rank - b.rank || a.key.localeCompare(b.key));
+  all.sort((a, b) => stableRank(a) - stableRank(b) || (stableRank(a) < STABLE_KINDS.length ? 0 : a.rank - b.rank) || a.key.localeCompare(b.key));
 
   const chunks: ContextChunk[] = [];
   const cut: ContextPack['cut'] = [];
   let size = 0;
   for (const chunk of all) {
     // Режем куском целиком, а не посередине; первый кусок берём всегда, иначе пакет пуст.
-    if (size + chunk.size > input.needs.budget && chunks.length > 0) {
+    // Центр запроса не режется никогда: постоянная часть теперь идёт первой, но без центра пакет бессмыслен.
+    if (size + chunk.size > input.needs.budget && chunks.length > 0 && chunk.key !== `record:${input.centerId}`) {
       cut.push({ key: chunk.key, title: chunk.title, size: chunk.size });
       continue;
     }
@@ -197,4 +200,13 @@ export function renderContextPack(pack: ContextPack, options: { exclude?: Readon
     lines.push('## Не вошло в контекст', '', ...pack.cut.map((item) => `- ${item.title} (${item.size} зн.)`), '');
   }
   return lines.join('\n');
+}
+
+/** Виды кусков, что не меняются от запроса к запросу (R-0093): идут первыми и в этом порядке. */
+export const STABLE_KINDS: readonly string[] = ['vision', 'rules', 'practices', 'map', 'reference', 'glossary'];
+
+/** Место постоянного куска; переменный — после всех постоянных. */
+export function stableRank(chunk: Pick<ContextChunk, 'kind'>): number {
+  const at = STABLE_KINDS.indexOf(chunk.kind);
+  return at === -1 ? STABLE_KINDS.length : at;
 }

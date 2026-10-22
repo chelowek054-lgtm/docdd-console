@@ -18,7 +18,9 @@ const providerIds = computed(() => ['claude-code', ...providers.value.map((p) =>
 function addRoute() { routes.value.push({ kind: 'ask', providerId: 'claude-code', model: '' }); }
 const routesBody = () => Object.fromEntries(routes.value.filter((r) => r.kind).map((r) => [r.kind, { providerId: r.providerId, ...(r.model ? { model: r.model } : {}) }]));
 // Расходы за месяц (оценка по символам) и очередь запросов выбранного проекта (T-0024, T-0026).
-interface Total { requests: number; ms: number; chars: number; costUsd: number }
+interface Total { requests: number; ms: number; chars: number; costUsd: number; tokens?: number; estimated?: number }
+/** «≈» — только когда в сумме есть оценка по символам (R-0093); по токенам провайдера — точно. */
+const money = (tot: Total) => `${tot.estimated ? '≈ ' : ''}$${tot.costUsd.toFixed(3)}${tot.tokens ? ` · ${tot.tokens.toLocaleString('ru-RU')} ток.` : ''}`;
 const { data: usage } = await useFetch<{ month: string; total: Total; byUser: Record<string, Total>; byModel: Record<string, Total> }>('/api/llm/usage', { ignoreResponseError: true });
 const { data: projectList } = await useFetch<{ projects?: Array<{ id: string; name?: string }> } | Array<{ id: string; name?: string }>>('/api/projects', { ignoreResponseError: true });
 const projectOptions = computed(() => { const v = projectList.value; return Array.isArray(v) ? v : (v?.projects ?? []); });
@@ -84,10 +86,10 @@ async function check(id: string) {
         <span class="text-sm text-muted">{{ saved }}</span>
       </div>
       <h2 class="pt-3 font-medium">{{ t('mod.spend', { month: usage?.month ?? '' }) }}</h2>
-      <p v-if="usage" class="text-sm">{{ t('mod.requests') }}: {{ usage.total.requests }}, ≈ ${{ usage.total.costUsd.toFixed(3) }}</p>
+      <p v-if="usage" class="text-sm">{{ t('mod.requests') }}: {{ usage.total.requests }}, {{ money(usage.total) }}</p>
       <ul v-if="usage" class="text-sm text-muted">
-        <li v-for="(tot, who) in usage.byUser" :key="'u' + who">{{ who }}: {{ tot.requests }} {{ t('mod.req') }}, ≈ ${{ tot.costUsd.toFixed(3) }}</li>
-        <li v-for="(tot, model) in usage.byModel" :key="'m' + model">{{ model }}: {{ tot.requests }} {{ t('mod.req') }}, ≈ ${{ tot.costUsd.toFixed(3) }}</li>
+        <li v-for="(tot, who) in usage.byUser" :key="'u' + who">{{ who }}: {{ tot.requests }} {{ t('mod.req') }}, {{ money(tot) }}</li>
+        <li v-for="(tot, model) in usage.byModel" :key="'m' + model">{{ model }}: {{ tot.requests }} {{ t('mod.req') }}, {{ money(tot) }}</li>
       </ul>
       <h2 class="pt-3 font-medium">{{ t('mod.queue') }}</h2>
       <USelect v-model="queueProject" :items="projectOptions.map((p) => ({ label: p.name ?? p.id, value: p.id }))" @update:model-value="loadQueue" />

@@ -41,7 +41,7 @@ export interface ProviderRequest {
 }
 
 export type ProviderResult =
-  | { ok: true; answer: string; ms: number; sessionId?: string; model?: string; usage?: { inputTokens?: number; outputTokens?: number } }
+  | { ok: true; answer: string; ms: number; sessionId?: string; model?: string; usage?: { inputTokens?: number; outputTokens?: number; cacheReadTokens?: number; cacheWriteTokens?: number } }
   | { ok: false; failure: ProviderFailure };
 
 export interface ProviderAvailability {

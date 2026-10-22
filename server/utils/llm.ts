@@ -3,7 +3,7 @@ import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { env, platform } from 'node:process';
 
-import { createStreamParser, type ModelEvent } from '../lib/stream-events';
+import { createStreamParser, type ModelEvent } from '../lib/stream-events'; import { UsageMeter } from '../lib/stream-events';
 
 /**
  * Доступ к модели через Claude Code на машине пользователя
@@ -23,7 +23,7 @@ export interface LlmFailure {
 }
 
 export type LlmResult =
-  | { ok: true; answer: string; ms: number; sessionId?: string }
+  | { ok: true; answer: string; ms: number; sessionId?: string; /** Токены из ленты Claude Code (R-0093); без ленты — нет. */ usage?: { inputTokens?: number; outputTokens?: number; cacheReadTokens?: number; cacheWriteTokens?: number } }
   | { ok: false; failure: LlmFailure };
 
 /** Где искать Claude Code, если его нет в PATH. */
@@ -172,6 +172,8 @@ export interface AskOptions {
    * событий; не задан — как раньше, одним ответом.
    */
   onEvent?: (event: ModelEvent) => void;
+  /** Лимит токенов на запрос (R-0093): превышение по ленте останавливает модель с понятной причиной. */
+  tokenLimit?: number;
   /**
    * Продолжить прошлый разговор вместо нового: сто шагов разбора кодовой
    * базы не проходятся заново ради одной правки (docs/09-execution.md).
@@ -306,6 +308,11 @@ export async function ask(prompt: string, options: AskOptions = {}): Promise<Llm
   const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES;
   const run = options.run ?? spawnClaude;
   const started = Date.now();
+  const meter = new UsageMeter();
+  // Лимит задачи: своя отмена поверх человеческой — превышение останавливает процесс (R-0093).
+  const limiter = new AbortController();
+  let overLimit = false;
+  options.signal?.addEventListener('abort', () => limiter.abort(), { once: true });
 
   try {
     // Аргументы фиксированы: от пользователя приходит только текст запроса.
@@ -331,6 +338,11 @@ export async function ask(prompt: string, options: AskOptions = {}): Promise<Llm
         sessionId = event.text;
         return;
       }
+      if (event.kind === 'usage') {
+        meter.push(event);
+        if (options.tokenLimit && meter.total > options.tokenLimit && !overLimit) { overLimit = true; limiter.abort(); }
+        return;
+      }
       options.onEvent?.(event);
     };
 
@@ -347,7 +359,7 @@ export async function ask(prompt: string, options: AskOptions = {}): Promise<Llm
         maxBytes,
         env: childEnvironment(),
         ...(options.cwd ? { cwd: options.cwd } : {}),
-        ...(options.signal ? { signal: options.signal } : {}),
+        signal: limiter.signal,
         ...(onData ? { onData } : {})
       }
     );
@@ -406,9 +418,13 @@ export async function ask(prompt: string, options: AskOptions = {}): Promise<Llm
       };
     }
 
-    return { ok: true, answer, ms: Date.now() - started, ...(sessionId ? { sessionId } : {}) };
+    const used = meter.tokens;
+    return { ok: true, answer, ms: Date.now() - started, ...(sessionId ? { sessionId } : {}), ...(used ? { usage: { inputTokens: used.input, outputTokens: used.output, cacheReadTokens: used.cacheRead, cacheWriteTokens: used.cacheWrite } } : {}) };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    if (overLimit) {
+      return { ok: false, failure: { code: 'cancelled', message: `Превышен лимит токенов на запрос: ${options.tokenLimit}. Модель остановлена; поднимите лимит в настройках моделей (limits) или сузьте задачу.` } };
+    }
     // Отмена — не поломка: человек передумал ждать, и говорить об ошибке здесь
     // значило бы пугать на ровном месте.
     if (options.signal?.aborted || /aborted|отмен/i.test(message)) {

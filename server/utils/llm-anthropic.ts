@@ -47,20 +47,20 @@ export function anthropicProvider(setting: ProviderSetting): Provider {
           return { ok: false, failure: failureOf(undefined, status, request.signal, false) };
         }
         let answer = '';
-        const usage: { inputTokens?: number; outputTokens?: number } = {};
+        const usage: { inputTokens?: number; outputTokens?: number; cacheReadTokens?: number; cacheWriteTokens?: number } = {};
         if (streaming) {
           for await (const data of sseData(response.body)) {
             const event = JSON.parse(data) as {
               type?: string;
               delta?: { text?: string };
-              message?: { usage?: { input_tokens?: number } };
+              message?: { usage?: { input_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number } };
               usage?: { output_tokens?: number };
             };
             if (event.type === 'content_block_delta' && event.delta?.text) {
               answer += event.delta.text;
               request.onEvent?.({ kind: 'text', text: event.delta.text });
             }
-            if (event.type === 'message_start' && event.message?.usage?.input_tokens !== undefined) usage.inputTokens = event.message.usage.input_tokens;
+            if (event.type === 'message_start' && event.message?.usage?.input_tokens !== undefined) { usage.inputTokens = event.message.usage.input_tokens; usage.cacheReadTokens = event.message.usage.cache_read_input_tokens ?? 0; usage.cacheWriteTokens = event.message.usage.cache_creation_input_tokens ?? 0; }
             if (event.type === 'message_delta' && event.usage?.output_tokens !== undefined) usage.outputTokens = event.usage.output_tokens;
           }
         } else {

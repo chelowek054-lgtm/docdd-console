@@ -18,12 +18,19 @@ export interface UsageRecord {
   answerChars: number;
   ms: number;
   ok: boolean;
-  /** Оценка цены в USD; null — цена модели неизвестна. */
+  /** Цена в USD; null — цена модели неизвестна. */
   costUsd: number | null;
+  /** Токены из ответа провайдера (R-0093); нет — провайдер их не отдал. */
+  tokens?: UsageTokens;
+  /** Цена — оценка по символам, а не по токенам: на экране помечается «≈». */
+  estimated?: boolean;
 }
 
-/** USD за миллион токенов: [вход, выход]. Таблица данных, правится без кода. */
-export type PriceTable = Record<string, readonly [number, number]>;
+/** Токены одного запроса так, как их отдаёт провайдер: вход, выход и кэш (чтение и запись). */
+export interface UsageTokens { input: number; output: number; cacheRead: number; cacheWrite: number }
+
+/** USD за миллион токенов: [вход, выход] или [вход, выход, чтение кэша]. Таблица данных, правится без кода. */
+export type PriceTable = Record<string, readonly [number, number] | readonly [number, number, number]>;
 
 /** Грубо: четыре символа на токен. Это оценка, и в отчёте она так и называется. */
 export function estimateCost(prices: PriceTable, model: string, promptChars: number, answerChars: number): number | null {
@@ -49,7 +56,7 @@ export function parseLines(text: string): UsageRecord[] {
   return out;
 }
 
-export interface UsageTotal { requests: number; ms: number; chars: number; costUsd: number }
+export interface UsageTotal { requests: number; ms: number; chars: number; costUsd: number; /** Токенов всего по факту. */ tokens: number; /** Сколько запросов посчитано оценкой по символам. */ estimated: number }
 
 export interface UsageSummary {
   month: string;
@@ -63,9 +70,12 @@ function add(into: UsageTotal, record: UsageRecord): void {
   into.ms += record.ms;
   into.chars += record.promptChars + record.answerChars;
   into.costUsd += record.costUsd ?? 0;
+  if (record.tokens) into.tokens += record.tokens.input + record.tokens.output + record.tokens.cacheRead + record.tokens.cacheWrite;
+  // Старые строки учёта (до R-0093) — без поля: они все были оценкой.
+  if (record.estimated !== false) into.estimated += 1;
 }
 
-const empty = (): UsageTotal => ({ requests: 0, ms: 0, chars: 0, costUsd: 0 });
+const empty = (): UsageTotal => ({ requests: 0, ms: 0, chars: 0, costUsd: 0, tokens: 0, estimated: 0 });
 
 /** Сводка за месяц `YYYY-MM` по людям и моделям; projectId — только этого проекта. */
 export function summarize(records: readonly UsageRecord[], month: string, projectId?: string): UsageSummary {
@@ -79,3 +89,27 @@ export function summarize(records: readonly UsageRecord[], month: string, projec
   }
   return summary;
 }
+
+/**
+ * Цена запроса (R-0093): по токенам провайдера, если он их отдал; иначе — оценка
+ * по символам, и она так и помечена (`estimated`). Чтение кэша — третья цена
+ * в таблице, а нет её — десятая часть входа; запись в кэш — вход с надбавкой в четверть.
+ */
+export function costOf(prices: PriceTable, model: string, tokens: UsageTokens | undefined, promptChars: number, answerChars: number): { costUsd: number | null; estimated: boolean } {
+  if (!tokens) return { costUsd: estimateCost(prices, model, promptChars, answerChars), estimated: true };
+  const price = prices[model];
+  if (!price) return { costUsd: null, estimated: false };
+  const [input, output] = price;
+  const cacheRead = price[2] ?? input / 10;
+  const cost = tokens.input * input + tokens.output * output + tokens.cacheRead * cacheRead + tokens.cacheWrite * input * 1.25;
+  return { costUsd: cost / 1_000_000, estimated: false };
+}
+
+/** Токены из того, что отдал провайдер: недостающее — ноль, а не «неизвестно». */
+export function tokensOf(usage: { inputTokens?: number; outputTokens?: number; cacheReadTokens?: number; cacheWriteTokens?: number } | undefined): UsageTokens | undefined {
+  if (!usage || (usage.inputTokens === undefined && usage.outputTokens === undefined)) return undefined;
+  return { input: usage.inputTokens ?? 0, output: usage.outputTokens ?? 0, cacheRead: usage.cacheReadTokens ?? 0, cacheWrite: usage.cacheWriteTokens ?? 0 };
+}
+
+/** Всего токенов запроса — то, с чем сравнивается лимит задачи. */
+export const totalTokens = (tokens: UsageTokens): number => tokens.input + tokens.output + tokens.cacheRead + tokens.cacheWrite;

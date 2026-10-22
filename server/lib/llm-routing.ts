@@ -59,3 +59,25 @@ export function parseRoutingTable(raw: unknown): RoutingTable {
   }
   return table;
 }
+
+/**
+ * Маршрут по умолчанию (R-0093), когда в таблице вида запроса нет: разбор и
+ * сверка — чат-модели (дешевле, инструменты им не нужны), всё, что работает с
+ * кодом, — агенту. Чат-провайдера не подключено — тоже агент: лучше дорого, чем никак.
+ */
+export const CHAT_KINDS: ReadonlySet<string> = new Set(['inbox', 'inbox-plan', 'review', 'review-batch', 'analyst', 'batch-check', 'manager', 'ask', 'context']);
+
+export function defaultRoute(kind: RequestKind, needsTools: boolean, chatProviderId: string | null, agentProviderId = 'claude-code'): RouteTarget {
+  if (!needsTools && chatProviderId && CHAT_KINDS.has(kind)) return { providerId: chatProviderId };
+  return { providerId: agentProviderId };
+}
+
+/** Лимиты токенов по виду запроса из настроек: `limits: { task: 2000000 }`. Кривое отбрасывается. */
+export function parseLimits(raw: unknown): Record<RequestKind, number> {
+  const out: Record<RequestKind, number> = {};
+  if (typeof raw !== 'object' || raw === null) return out;
+  for (const [kind, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) out[kind] = Math.floor(value);
+  }
+  return out;
+}

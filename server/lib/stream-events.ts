@@ -13,7 +13,9 @@ export type ModelEvent =
   | { kind: 'result'; text: string; failed: boolean }
   | { kind: 'answer'; text: string }
   /** Номер сессии модели: не для показа, а чтобы продолжить работу. */
-  | { kind: 'session'; text: string };
+  | { kind: 'session'; text: string }
+  /** Учёт токенов (R-0093): JSON `{ id?, input, output, cacheRead, cacheWrite, final, costUsd? }` — не для показа. */
+  | { kind: 'usage'; text: string };
 
 const NEW_LINE = String.fromCharCode(10);
 const CARRIAGE_RETURN = String.fromCharCode(13);
@@ -139,8 +141,9 @@ export function parseLine(line: string, state: ParseState): ModelEvent[] {
   }
 
   if (type === 'assistant') {
-    const message = record['message'] as { content?: Block[] } | undefined;
+    const message = record['message'] as { content?: Block[]; id?: string; usage?: RawUsage } | undefined;
     const events: ModelEvent[] = [];
+    if (message?.usage) events.push(usageEvent(message.usage, false, message.id));
     for (const block of message?.content ?? []) {
       if (block.type === 'tool_use' && block.name) {
         if (block.id) state.tools.set(block.id, block.name);
@@ -175,9 +178,11 @@ export function parseLine(line: string, state: ParseState): ModelEvent[] {
 
   if (type === 'result') {
     const answer = record['result'];
-    if (typeof answer === 'string' && answer.trim() !== '') {
-      return [{ kind: 'answer', text: answer }];
-    }
+    const events: ModelEvent[] = [];
+    if (typeof answer === 'string' && answer.trim() !== '') events.push({ kind: 'answer', text: answer });
+    const usage = record['usage'] as RawUsage | undefined;
+    if (usage) events.push(usageEvent(usage, true, undefined, typeof record['total_cost_usd'] === 'number' ? record['total_cost_usd'] : undefined));
+    return events;
   }
 
   return [];
@@ -205,4 +210,56 @@ export function createStreamParser() {
       return events;
     }
   };
+}
+
+/** Учёт токенов в ленте (R-0093): поля так, как их пишет API. */
+interface RawUsage { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number }
+
+function usageEvent(usage: RawUsage, final: boolean, id?: string, costUsd?: number): ModelEvent {
+  return {
+    kind: 'usage',
+    text: JSON.stringify({
+      ...(id ? { id } : {}),
+      input: usage.input_tokens ?? 0,
+      output: usage.output_tokens ?? 0,
+      cacheRead: usage.cache_read_input_tokens ?? 0,
+      cacheWrite: usage.cache_creation_input_tokens ?? 0,
+      final,
+      ...(costUsd !== undefined ? { costUsd } : {})
+    })
+  };
+}
+
+/**
+ * Сумма токенов по ленте: одно сообщение модели приходит несколькими записями с
+ * одним и тем же `id` и одинаковым учётом — считаем его один раз. Итог
+ * (`final`) из записи `result` главнее суммы: его даёт сам Claude Code.
+ */
+export class UsageMeter {
+  private readonly seen = new Map<string, { input: number; output: number; cacheRead: number; cacheWrite: number }>();
+  private anonymous = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
+  private finalUsage: { input: number; output: number; cacheRead: number; cacheWrite: number } | null = null;
+  costUsd: number | undefined;
+
+  push(event: ModelEvent): void {
+    if (event.kind !== 'usage') return;
+    const value = JSON.parse(event.text) as { id?: string; input: number; output: number; cacheRead: number; cacheWrite: number; final: boolean; costUsd?: number };
+    const tokens = { input: value.input, output: value.output, cacheRead: value.cacheRead, cacheWrite: value.cacheWrite };
+    if (value.final) { this.finalUsage = tokens; this.costUsd = value.costUsd; return; }
+    if (value.id) this.seen.set(value.id, tokens);
+    else this.anonymous = { input: this.anonymous.input + tokens.input, output: this.anonymous.output + tokens.output, cacheRead: this.anonymous.cacheRead + tokens.cacheRead, cacheWrite: this.anonymous.cacheWrite + tokens.cacheWrite };
+  }
+
+  get tokens(): { input: number; output: number; cacheRead: number; cacheWrite: number } | null {
+    if (this.finalUsage) return this.finalUsage;
+    if (this.seen.size === 0 && this.anonymous.input + this.anonymous.output === 0) return null;
+    const sum = { ...this.anonymous };
+    for (const item of this.seen.values()) { sum.input += item.input; sum.output += item.output; sum.cacheRead += item.cacheRead; sum.cacheWrite += item.cacheWrite; }
+    return sum;
+  }
+
+  get total(): number {
+    const value = this.tokens;
+    return value ? value.input + value.output + value.cacheRead + value.cacheWrite : 0;
+  }
 }

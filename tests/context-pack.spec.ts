@@ -67,13 +67,13 @@ describe('R-0011: пакет контекста', () => {
     });
     expect(pack.chunks.map((c) => `${c.rank} ${c.key} ${c.size} ${c.why}`)).toMatchInlineSnapshot(`
       [
-        "0 record:T-9 12 центр запроса",
         "3 vision 19 вектор проекта",
+        "40 reference 8 что уже есть (DRY)",
+        "0 record:T-9 12 центр запроса",
         "5 capability:c-1 4 возможность записи",
         "6 capability:c-0 6 родитель возможности",
         "10 record:R-9 16 связь (implements: T-9 → R-9)",
         "10 record:T-8 13 связь (depends_on: T-9 → T-8)",
-        "40 reference 8 что уже есть (DRY)",
       ]
     `);
     expect({ size: pack.size, cut: pack.cut }).toMatchInlineSnapshot(`
