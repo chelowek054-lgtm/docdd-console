@@ -2,13 +2,14 @@
 id: T-0140
 type: task
 title: 'Сценарий нового проекта: вектор, возможности, требования, глоссарий'
-status: ready
+status: in_review
 change: feature
 reuse: none
 created: 2026-10-22
 updated: 2026-10-22
 links:
   implements: [R-0076]
+  verified_by: [V-0103]
   affects: [M-0058]
 ---
 
@@ -20,3 +21,5 @@ links:
 
 - 2026-10-22 · заведена из docs/inbox/podklyuchenie-scenariy-novogo-proekta.md · приложение
 - 2026-10-22 · готова к работе · architect
+- 2026-10-22 · в разработку · developer
+- 2026-10-22 · на проверку · developer

@@ -1223,3 +1223,11 @@ txt/log/json — `400 type_not_allowed`; больше 5 МБ — `400 too_large`
 файлов), служебное пропускается. Ничего не пишет. `POST …/apply { folders: [{ kind, path }] }` — записывает подтверждённое в `sources` манифеста:
 объединяет с названным, пишет списки в одну строку; ответ `{ ok, added }`. Нет папки — `404 path_not_found`, путь вне корня — `403 outside_root`,
 манифест записан незнакомой формой (блочный список) — `409 manifest_unsupported`. Право — `edit_draft`. В манифесте появился необязательный `sources.tests`.
+
+### POST /api/projects/:id/onboarding/wizard (R-0076)
+
+`{ vision: { problem, audience, outcome, not }, features, glossary?, phase? }` — `features` и `glossary` строками, по одной записи в строке («Название — требование»,
+«Термин — определение»). Заводит черновики (`createRecords`, номера раздаёт приложение): карту с вектором и возможностями, на каждую — требование, проверку `manual`,
+задачу `feature` со связями `implements`, `verified_by`, `affects`, и фазу с `covers`; пишет `docs/development/glossary.md`, если файла с терминами нет.
+Ответ — `{ created, problems, glossary }` (`written`/`kept`/`skipped`). Нет проблемы или возможностей — `400 wizard_incomplete`. Право — `edit_draft`; подтверждает человек
+обычными маршрутами (`records/bulk/status`).
