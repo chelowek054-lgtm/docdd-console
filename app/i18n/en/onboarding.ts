@@ -1,5 +1,14 @@
 // Подключение проекта (R-0075).
 export const onboarding: Record<string, string> = {
+  'asis.title': 'Restore as-is',
+  'asis.hint': 'For an existing codebase: what the system already does — capabilities and requirements with code evidence.',
+  'asis.run': 'Propose capabilities and requirements',
+  'asis.proposed': 'Records proposed: {n}',
+  'asis.capabilities': 'capabilities in the map: {n}',
+  'asis.create': 'Create records ({n})',
+  'asis.draftNote': 'Everything arrives as drafts — you approve them in bulk.',
+  'asis.created': 'Drafts created: {n}.',
+  'asis.review': 'Approve in "Documents"',
   'wz.title': 'New project wizard',
   'wz.hint': 'Vision, first capabilities, glossary — draft records up to the first task.',
   'wz.s1': '1. Project vision',

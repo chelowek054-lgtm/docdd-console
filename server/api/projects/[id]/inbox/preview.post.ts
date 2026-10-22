@@ -1,6 +1,8 @@
 import { defineEventHandler, getRouterParam, readBody } from 'h3';
 
 import { fail } from '../../../../utils/http';
+import { evidenceProblems } from '../../../../lib/prompt';
+import { sourceReader } from '../../../../lib/workspace';
 import { proposalOf } from '../../../../utils/inbox-service';
 import { findProject } from '../../../../utils/projects';
 
@@ -30,5 +32,8 @@ export default defineEventHandler(async (event) => {
     return fail(event, 422, 'records_invalid', 'Ответ модели не прошёл схему', parsed.problems.join(' '));
   }
 
-  return { records: parsed.records, problems: parsed.problems, skipped: parsed.skipped };
+  // Свидетельства «путь:строка» из ответа сверяются с файлами: выдуманный путь — замечание человеку (R-0078).
+  const read = sourceReader(project.root);
+  const evidence = evidenceProblems(parsed.records, (path) => read(path)?.split(/\r?\n/) ?? null);
+  return { records: parsed.records, problems: [...parsed.problems, ...evidence], skipped: parsed.skipped };
 });

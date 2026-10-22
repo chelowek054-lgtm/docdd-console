@@ -2,7 +2,7 @@
 id: V-0078
 type: verification
 title: 'Проверка: Функциональная карта и требования «как есть» для готовой кодовой базы'
-status: approved
+status: superseded
 created: 2026-10-22
 updated: 2026-10-22
 kind: manual
@@ -20,3 +20,4 @@ links:
 - 2026-10-22 · текст отредактирован · architect
 - 2026-10-22 · на подтверждение · architect
 - 2026-10-22 · подтверждён · architect
+- 2026-10-22 · заменён · architect

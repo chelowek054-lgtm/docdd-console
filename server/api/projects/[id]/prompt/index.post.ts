@@ -6,7 +6,7 @@ import { checkEvidence, evidenceClaims, parseMapRecord } from '../../../../lib/m
 import {
   architecturePrompt,
   fixPrompt,
-  functionalCheckPrompt,
+  functionalCheckPrompt, asIsPrompt,
   groupsPrompt,
   inboxPrompt,
   mapFixPrompt,
@@ -216,6 +216,20 @@ export default defineEventHandler(async (event) => {
       return { prompt: verifyPrompt(await template('verify-plan.md'), practices), count: practices.length };
     }
 
+    if (kind === 'as-is') {
+      // «Как есть» (R-0078): устройство из подтверждённых карт и то, что уже заведено, — модель читает код сама.
+      const picture = buildProjectMap(project.root);
+      const index = loadIndex(project.root);
+      return {
+        prompt: asIsPrompt(await template('as-is.md'), {
+          modules: picture.codemap.modules, screens: picture.userflow.screens, sources: picture.dataflow.sources,
+          capabilities: picture.functional.capabilities,
+          requirements: index.records.filter((record) => record.type === 'requirement').map((record) => ({ id: record.id, title: record.title }))
+        }),
+        count: picture.codemap.modules.length + picture.userflow.screens.length
+      };
+    }
+
     if (kind === 'functional-check') {
       const capabilities = buildProjectMap(project.root).functional.capabilities;
       if (capabilities.length === 0) {
@@ -358,7 +372,7 @@ export default defineEventHandler(async (event) => {
       };
     }
 
-    return fail(event, 400, 'kind_invalid', 'Известны запросы: `fix`, `maps`, `map-fix`, `inbox`, `verify`, `functional-check`, `relations`, `phases`, `groups`, `architecture`, `priority`, `design-responsive`, `design-pixel`, `review-batch`');
+    return fail(event, 400, 'kind_invalid', 'Известны запросы: `fix`, `maps`, `as-is`, `map-fix`, `inbox`, `verify`, `functional-check`, `relations`, `phases`, `groups`, `architecture`, `priority`, `design-responsive`, `design-pixel`, `review-batch`');
   } catch (error) {
     if (error instanceof WorkspaceError) {
       return fail(event, 422, error.code, error.message, error.detail);

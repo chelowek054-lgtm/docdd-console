@@ -700,3 +700,63 @@ export function reviewBatchPrompt(template: string, settings: ReviewBatchSetting
     .replace(REVIEW_TASKS_MARKER, () => tasks.map(reviewTaskLines).join(LF + LF))
     .split(REVIEW_BRANCH_MARKER).join(settings.branch);
 }
+
+export const AS_IS_MARKERS = { device: '<!-- УСТРОЙСТВО -->', map: '<!-- КАРТА -->', requirements: '<!-- ТРЕБОВАНИЯ -->' } as const;
+
+export interface AsIsInput {
+  /** Модули кодовой карты, экраны и источники данных — что уже известно об устройстве (docs/07-maps.md). */
+  modules: readonly { id: string; title?: string | undefined; layer?: string | undefined; summary?: string | undefined }[];
+  screens: readonly { id: string; title?: string | undefined }[];
+  sources: readonly { id: string; kind: string; title?: string | undefined }[];
+  /** Возможности, что уже стоят, и заголовки заведённых требований — чтобы не задваивать. */
+  capabilities: readonly { id: string; title?: string | undefined }[];
+  requirements: readonly { id: string; title: string }[];
+}
+
+/**
+ * Запрос «как есть» (R-0078, docs/prompts/as-is.md): возможности и требования для готовой кодовой базы.
+ * Модели уходят устройство из карт и то, что уже заведено; код она читает сама. Ответ — блок `docdd-records`.
+ */
+export function asIsPrompt(template: string, input: AsIsInput): string {
+  const lines = (rows: readonly string[], empty: string) => (rows.length ? rows.join('\n') : empty);
+  const device = [
+    ...input.modules.map((item) => `- модуль \`${item.id}\`${item.title ? ` — ${item.title}` : ''}${item.layer ? ` (${item.layer})` : ''}${item.summary ? `: ${item.summary}` : ''}`),
+    ...input.screens.map((item) => `- экран \`${item.id}\`${item.title ? ` — ${item.title}` : ''}`),
+    ...input.sources.map((item) => `- источник данных \`${item.id}\` (${item.kind})${item.title ? ` — ${item.title}` : ''}`)
+  ];
+  return withoutFrontNote(template)
+    .replace(AS_IS_MARKERS.device, lines(device, 'Карт устройства ещё нет: читай код и сам определи, из чего он состоит.'))
+    .replace(AS_IS_MARKERS.map, lines(input.capabilities.map((item) => `- \`${item.id}\`${item.title ? ` — ${item.title}` : ''}`), 'Возможностей пока нет.'))
+    .replace(AS_IS_MARKERS.requirements, lines(input.requirements.map((item) => `- ${item.id}: ${item.title}`), 'Требований пока нет.'));
+}
+
+/**
+ * Свидетельства в предложении (R-0078): строки «путь:строка» в `note` возможностей и в теле требований
+ * сверяются с файлами проекта. Выдуманный путь — замечание человеку, а не молчаливая запись.
+ * `read` отдаёт строки файла или `null`, если файла нет; `fragment` — кусок строки, он ищется в строке и трёх соседних.
+ */
+export function evidenceProblems(
+  records: readonly { key: string; type: string; title: string; body?: string | undefined; capabilities?: readonly { id: string; title?: string | undefined; note?: string | undefined }[] | undefined }[],
+  read: (path: string) => string[] | null
+): string[] {
+  const problems: string[] = [];
+  const check = (owner: string, text: string) => {
+    for (const match of text.matchAll(/([\w./\-]+\.[A-Za-z0-9]+):(\d+)(?:\s*[—-]\s*([^\n]+))?/g)) {
+      const path = (match[1] as string).replace(/\\/g, '/');
+      const line = Number(match[2]);
+      const rows = read(path);
+      if (rows === null) { problems.push(`${owner}: свидетельство ссылается на \`${path}\`, а такого файла нет.`); continue; }
+      if (line < 1 || line > rows.length) { problems.push(`${owner}: в \`${path}\` нет строки ${line}.`); continue; }
+      const fragment = (match[3] ?? '').trim();
+      if (fragment.length >= 3) {
+        const near = rows.slice(Math.max(0, line - 4), line + 3).join('\n');
+        if (!near.includes(fragment)) problems.push(`${owner}: в \`${path}\` рядом со строкой ${line} нет «${fragment.slice(0, 40)}».`);
+      }
+    }
+  };
+  for (const record of records) {
+    for (const capability of record.capabilities ?? []) if (capability.note) check(`возможность \`${capability.id}\``, capability.note);
+    if (record.type === 'requirement' && record.body) check(`требование «${record.title}»`, record.body);
+  }
+  return problems;
+}

@@ -1231,3 +1231,9 @@ txt/log/json — `400 type_not_allowed`; больше 5 МБ — `400 too_large`
 задачу `feature` со связями `implements`, `verified_by`, `affects`, и фазу с `covers`; пишет `docs/development/glossary.md`, если файла с терминами нет.
 Ответ — `{ created, problems, glossary }` (`written`/`kept`/`skipped`). Нет проблемы или возможностей — `400 wizard_incomplete`. Право — `edit_draft`; подтверждает человек
 обычными маршрутами (`records/bulk/status`).
+
+### Запрос `as-is` и проверка свидетельств (R-0078)
+
+`POST /api/projects/:id/prompt { kind: "as-is" }` собирает запрос по шаблону `docs/prompts/as-is.md`: модули, экраны и источники данных из подтверждённых карт, уже стоящие
+возможности и заведённые требования; в ответе `{ prompt, count }`. Ответ модели — тот же блок `docdd-records`, что у входящего; `POST …/inbox/preview` дополнительно сверяет строки вида
+`путь:строка — фрагмент` в `note` возможностей и в теле требований с файлами проекта и добавляет в `problems` замечания о несуществующих файлах и строках и о чужих фрагментах.
