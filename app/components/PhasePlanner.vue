@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { IndexRecord } from '~~/server/lib/types';
 import { phaseCandidates } from '~~/server/lib/phase-plan';
+const { t } = useT();
 
 /**
  * Кнопка «Разбить на фазы» (docs/04-ui.md, «Разбить на фазы»): запрос к модели
@@ -26,10 +27,10 @@ const ids = computed(() => candidates.value.map((task) => task.id));
     :project-id="props.projectId"
     kind="phases"
     :tasks="ids"
-    :label="candidates.length ? `Разбить на фазы: ${candidates.length}` : 'Разбить на фазы'"
-    :hint="`задач в запросе: ${candidates.length}`"
+    :label="candidates.length ? t('t83.m7.pp.split', { n: candidates.length }) : t('t83.m7.pp.split0')"
+    :hint="t('t83.m7.pp.hint', { n: candidates.length })"
     :disabled="candidates.length === 0"
-    disabled-reason="Все задачи уже в фазах или отменены — разбивать нечего."
+    :disabled-reason="t('t83.m7.pp.why')"
   >
     <template #answer="{ answer }">
       <PhasePlan :project-id="props.projectId" :answer="answer" :tasks="ids" @changed="emit('changed')" />

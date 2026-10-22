@@ -28,7 +28,7 @@ const emit = defineEmits<{ pick: [key: string] }>();
         v-if="props.chosen"
         type="button"
         class="shrink-0 self-start pt-0.5"
-        :aria-label="props.chosen.includes(issueKey(issue)) ? `Снять ${issue.code}` : `Отметить ${issue.code}`"
+        :aria-label="props.chosen.includes(issueKey(issue)) ? t('t83.m7.il.unpick', { code: issue.code }) : t('t83.m7.il.pick', { code: issue.code })"
         @click="emit('pick', issueKey(issue))"
       >
         <UIcon
