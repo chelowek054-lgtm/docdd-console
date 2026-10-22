@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { BulkMoved } from '~/composables/useProjectIndex';
-import { FACTS, factCounts, factOf, kindOf, uncoveredRequirements, type Fact } from '~~/server/lib/verify-desk';
+import { FACTS, NO_ASSIGNEE, byAssignee, factCounts, factOf, kindOf, uncoveredRequirements, type Fact } from '~~/server/lib/verify-desk';
 // Вкладка «Проверки» экрана «Сверка»: проверки, результат, нарушения и граф на одном экране (docs/04-ui.md, «Навигация»).
 const route = useRoute(); const { t } = useT();
 const projectId = computed(() => String(route.params['id'] ?? ''));
@@ -20,9 +20,13 @@ const kindItems = computed(() => [
   { label: t('vd.allKinds'), value: ALL_KINDS },
   ...[...new Set(listed.value.map(kindOf).filter(Boolean))].sort().map((value) => ({ label: value, value }))
 ]);
-const byKind = computed(() => (kind.value === ALL_KINDS ? listed.value : listed.value.filter((record) => kindOf(record) === kind.value)));
+/** «Мои» и «Без исполнителя» (R-0097): пусто — все. */
+const who = ref('');
+const { me } = useMe(() => projectId.value);
+const myLogin = computed(() => me.value?.user?.login ?? '');
+const byKind = computed(() => byAssignee(kind.value === ALL_KINDS ? listed.value : listed.value.filter((record) => kindOf(record) === kind.value), who.value));
 const counts = computed(() => factCounts(byKind.value, results.value));
-const FACT_COLOR: Record<Fact, 'error' | 'warning' | 'neutral' | 'success'> = { failed: 'error', awaiting: 'warning', never: 'neutral', passed: 'success' };
+const FACT_COLOR: Record<Fact, 'error' | 'warning' | 'neutral' | 'success'> = { failed: 'error', blocked: 'warning', awaiting: 'warning', never: 'neutral', passed: 'success' };
 const uncovered = computed(() => uncoveredRequirements(records.value));
 const showUncovered = ref(false);
 
@@ -69,6 +73,8 @@ function verifiesOf(check: (typeof checks.value)[number]): string[] {
           :disabled="counts[item] === 0 && fact !== item"
           @click="fact = fact === item ? '' : item"
         >{{ t(`vd.fact.${item}`) }} · {{ counts[item] }}</UButton>
+        <UButton v-if="myLogin" size="sm" :variant="who === myLogin ? 'solid' : 'soft'" color="neutral" icon="i-lucide-user" @click="who = who === myLogin ? '' : myLogin">{{ t('mb.mine') }}</UButton>
+        <UButton size="sm" :variant="who === NO_ASSIGNEE ? 'solid' : 'soft'" color="neutral" icon="i-lucide-user-plus" @click="who = who === NO_ASSIGNEE ? '' : NO_ASSIGNEE">{{ t('mb.noAssignee') }}</UButton>
         <USelect v-model="kind" :items="kindItems" size="sm" class="ml-auto w-44" :aria-label="t('vd.kind')" />
       </div>
 

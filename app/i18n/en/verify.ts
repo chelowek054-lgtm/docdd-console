@@ -1,5 +1,11 @@
 // Сверка — рабочее место тестировщика (docs/04-ui.md).
 export const verify: Record<string, string> = {
+  'vd.fact.blocked': 'Blocked',
+  'run.blocked': 'blocked',
+  'run.reason': 'What blocks it (required)',
+  'vc.assignee': 'Assignee',
+  'vc.takeOn': 'Take it',
+  'vc.blockedBy': 'Blocked: {reason}',
   'vd.all': 'All',
   'vd.fact.failed': 'Failed',
   'vd.fact.awaiting': 'Awaiting manual acceptance',

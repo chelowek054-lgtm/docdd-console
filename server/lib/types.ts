@@ -299,7 +299,7 @@ export interface WorkRecord {
   source: RecordSource;
 }
 
-export type VerificationResult = 'passed' | 'failed' | 'skipped';
+export type VerificationResult = 'passed' | 'failed' | 'skipped' | 'blocked';
 
 export interface Report {
   contract: string;
@@ -316,6 +316,8 @@ export interface Report {
   steps?: { text: string; expected?: string; state: string }[];
   /** Версия сборки или релиза, на котором шёл прогон (R-0062). */
   build?: string;
+  /** Причины итога `blocked`: V-номер → «что мешает» (R-0098). */
+  reasons?: Record<string, string>;
   verifications: Record<string, VerificationResult>;
 }
 
@@ -425,6 +427,8 @@ export interface VerificationOutcome {
   note?: string;
   /** Вид проверки в ручной приёмке автоматической проверки: экран подписывает «прогона сборки не было». */
   manualKind?: string;
+  /** Причина итога `blocked` — что мешает проверить (R-0098). */
+  reason?: string;
 }
 
 export interface IndexRecord {

@@ -36,7 +36,8 @@ export const STATUS_LABELS: Record<string, string> = {
 export const RESULT_LABELS: Record<string, string> = {
   passed: 'прошла',
   failed: 'не прошла',
-  skipped: 'пропущена'
+  skipped: 'пропущена',
+  blocked: 'заблокирована'
 };
 
 /**
@@ -69,6 +70,8 @@ export function statusColor(status: string): BadgeColor {
       return 'neutral';
     case 'failed':
       return 'error';
+    case 'blocked':
+      return 'warning';
     default:
       return 'neutral';
   }

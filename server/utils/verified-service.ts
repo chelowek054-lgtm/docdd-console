@@ -11,6 +11,7 @@ import {
   parseCheckSteps,
   runReportName,
   runReportText,
+  type RunState,
   type ReportStep,
   verifiedJournalAction,
   type ManualState
@@ -94,8 +95,11 @@ export type RunOutcome =
   | { ok: false; status: number; code: string; message: string };
 
 /** Прогон набора проверок на сборке (R-0062): один отчёт с полем `build` на весь набор. */
-export function recordRun(root: string, build: string, results: Record<string, 'passed' | 'failed' | 'skipped'>, actor: string, extra?: { by?: string; note?: string; login?: string }): RunOutcome {
+export function recordRun(root: string, build: string, results: Record<string, RunState>, actor: string, extra?: { by?: string; note?: string; login?: string; reasons?: Record<string, string> }): RunOutcome {
   if (!build.trim()) return { ok: false, status: 400, code: 'build_required', message: 'Не названа сборка или релиз' };
+  // «Заблокирована» без причины — не факт, а жалоба: что мешает, называет тестировщик (R-0098).
+  const noReason = Object.entries(results).filter(([id, state]) => state === 'blocked' && !extra?.reasons?.[id]?.trim()).map(([id]) => id);
+  if (noReason.length) return { ok: false, status: 400, code: 'blocked_reason_required', message: `Не названа причина блокировки: ${noReason.join(', ')}` };
   const ids = Object.keys(results);
   if (ids.length === 0) return { ok: false, status: 400, code: 'run_empty', message: 'В прогоне нет ни одной проверки' };
   const index = loadIndex(root, true);

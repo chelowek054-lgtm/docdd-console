@@ -6,11 +6,24 @@ import type { IndexRecord } from './types';
  * Чистые функции над индексом.
  */
 
-export const FACTS = ['failed', 'awaiting', 'never', 'passed'] as const;
+export const FACTS = ['failed', 'blocked', 'awaiting', 'never', 'passed'] as const;
 export type Fact = (typeof FACTS)[number];
 
 /** Ручную проверку прогоняет только человек: без итога она ждёт его, а не сборку. */
 const MANUAL_KINDS = new Set(['manual', 'review']);
+
+/** Исполнитель проверки (R-0097): логин человека или аккаунта агента; пусто — никому не отдана. */
+export function assigneeOf(check: IndexRecord): string {
+  const value = check.extra['assignee'];
+  return typeof value === 'string' ? value : '';
+}
+
+/** Фильтр исполнителя: `''` — все, `-` — без исполнителя, иначе логин. */
+export const NO_ASSIGNEE = '-';
+export function byAssignee(checks: readonly IndexRecord[], who: string): IndexRecord[] {
+  if (!who) return [...checks];
+  return checks.filter((check) => assigneeOf(check) === (who === NO_ASSIGNEE ? '' : who));
+}
 
 export function kindOf(check: IndexRecord): string {
   const kind = check.extra['kind'];
@@ -19,24 +32,25 @@ export function kindOf(check: IndexRecord): string {
 
 export function factOf(check: IndexRecord, state: string | undefined): Fact {
   if (state === 'failed') return 'failed';
+  if (state === 'blocked') return 'blocked';
   if (state === 'passed') return 'passed';
   return MANUAL_KINDS.has(kindOf(check)) ? 'awaiting' : 'never';
 }
 
 export function factCounts(checks: readonly IndexRecord[], results: Readonly<Record<string, { state: string } | undefined>>): Record<Fact, number> {
-  const counts: Record<Fact, number> = { failed: 0, awaiting: 0, never: 0, passed: 0 };
+  const counts: Record<Fact, number> = { failed: 0, blocked: 0, awaiting: 0, never: 0, passed: 0 };
   for (const check of checks) counts[factOf(check, results[check.id]?.state)] += 1;
   return counts;
 }
 
 /** Поля контракта проверки: их показывает карточка «Как проверить», а не «Поля проекта». */
-export const VERIFICATION_FIELDS: ReadonlySet<string> = new Set(['kind', 'runner', 'command']);
+export const VERIFICATION_FIELDS: ReadonlySet<string> = new Set(['kind', 'runner', 'command', 'assignee']);
 
-export interface RunEntry { at: string; runner: string; state: string; note?: string; checkedBy?: string }
+export interface RunEntry { at: string; runner: string; state: string; note?: string; checkedBy?: string; reason?: string }
 
 /** Отчёты, где встречается проверка, новые сверху: «когда её гоняли и что вышло». */
 export function runHistory(
-  reports: readonly { started_at: string; runner: string; verifications: Record<string, string>; note?: string; checked_by?: string }[],
+  reports: readonly { started_at: string; runner: string; verifications: Record<string, string>; note?: string; checked_by?: string; reasons?: Record<string, string> }[],
   id: string,
   limit = 10
 ): RunEntry[] {
@@ -47,7 +61,8 @@ export function runHistory(
       runner: report.runner,
       state: report.verifications[id] ?? '',
       ...(report.note ? { note: report.note } : {}),
-      ...(report.checked_by ? { checkedBy: report.checked_by } : {})
+      ...(report.checked_by ? { checkedBy: report.checked_by } : {}),
+      ...(report.reasons?.[id] ? { reason: report.reasons[id] } : {})
     }))
     .sort((a, b) => b.at.localeCompare(a.at))
     .slice(0, limit);

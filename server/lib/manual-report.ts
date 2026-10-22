@@ -117,7 +117,9 @@ export function runReportName(build: string, now: Date): string {
  * Отчёт прогона набора проверок (R-0062): итог по каждой и общий (`total`, `failed`),
  * версия сборки — в `build`. Формат тот же, что у любого отчёта, поэтому читается как прежде.
  */
-export function runReportText(build: string, results: Record<string, 'passed' | 'failed' | 'skipped'>, actor: string, now: Date, extra?: { by?: string; note?: string; login?: string }): string {
+export type RunState = 'passed' | 'failed' | 'skipped' | 'blocked';
+
+export function runReportText(build: string, results: Record<string, RunState>, actor: string, now: Date, extra?: { by?: string; note?: string; login?: string; reasons?: Record<string, string> }): string {
   const states = Object.values(results);
   return JSON.stringify({
     contract: 'docdd.workspace/1',
@@ -128,6 +130,7 @@ export function runReportText(build: string, results: Record<string, 'passed' | 
     failed: states.filter((state) => state === 'failed').length,
     ...(extra?.by?.trim() ? { checked_by: extra.by.trim() } : {}),
     ...(extra?.note?.trim() ? { note: extra.note.trim() } : {}),
+    ...(extra?.reasons && Object.keys(extra.reasons).length ? { reasons: extra.reasons } : {}),
     verifications: results
   }, null, 2) + '\n';
 }

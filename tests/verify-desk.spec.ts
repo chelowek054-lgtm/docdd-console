@@ -1,7 +1,7 @@
 // Сверка — рабочее место тестировщика (docs/04-ui.md).
 import { describe, expect, it } from 'vitest';
 
-import { factCounts, factOf, runHistory, uncoveredRequirements } from '../server/lib/verify-desk';
+import { NO_ASSIGNEE, assigneeOf, byAssignee, factCounts, factOf, runHistory, uncoveredRequirements } from '../server/lib/verify-desk';
 import type { IndexRecord } from '../server/lib/types';
 
 const idx = (id: string, type: string, status: string, o: Partial<IndexRecord> & { extra?: Record<string, unknown> } = {}): IndexRecord =>
@@ -20,7 +20,7 @@ describe('факт проверки', () => {
     expect(factOf(unit, 'skipped')).toBe('never');
   });
   it('счётчики по фактам', () => {
-    expect(factCounts([unit, manual], { 'V-0001': { state: 'failed' } })).toEqual({ failed: 1, awaiting: 1, never: 0, passed: 0 });
+    expect(factCounts([unit, manual], { 'V-0001': { state: 'failed' } })).toEqual({ failed: 1, blocked: 0, awaiting: 1, never: 0, passed: 0 });
   });
 });
 
@@ -49,5 +49,42 @@ describe('история прогонов проверки', () => {
       { at: '2026-10-01T10:00', runner: 'npm', state: 'passed' }
     ]);
     expect(runHistory(reports, 'V-0001', 1)).toHaveLength(1);
+  });
+});
+
+describe('итог «заблокирована» (R-0098)', () => {
+  const unit = idx('V-0001', 'verification', 'approved', { extra: { kind: 'unit' } });
+  it('факт — blocked, не провал и не «не запускалась»', () => {
+    expect(factOf(unit, 'blocked')).toBe('blocked');
+    expect(factCounts([unit], { 'V-0001': { state: 'blocked' } }).blocked).toBe(1);
+  });
+  it('причина попадает в историю прогона', () => {
+    const reports = [{ started_at: '2026-10-03T10:00', runner: 'manual:qa', verifications: { 'V-0001': 'blocked' }, reasons: { 'V-0001': 'ждёт T-0042' } }];
+    expect(runHistory(reports, 'V-0001')[0]).toMatchObject({ state: 'blocked', reason: 'ждёт T-0042' });
+  });
+});
+
+describe('исполнитель проверки (R-0097)', () => {
+  const mine = idx('V-0001', 'verification', 'approved', { extra: { assignee: 'ann' } });
+  const free = idx('V-0002', 'verification', 'approved');
+  it('assigneeOf читает логин, пусто — никому', () => {
+    expect(assigneeOf(mine)).toBe('ann');
+    expect(assigneeOf(free)).toBe('');
+  });
+  it('фильтры «Мои» и «Без исполнителя»', () => {
+    expect(byAssignee([mine, free], 'ann').map((r) => r.id)).toEqual(['V-0001']);
+    expect(byAssignee([mine, free], NO_ASSIGNEE).map((r) => r.id)).toEqual(['V-0002']);
+    expect(byAssignee([mine, free], '')).toHaveLength(2);
+  });
+});
+
+describe('отчёт прогона с blocked', () => {
+  it('причины попадают в отчёт и в последний результат', async () => {
+    const { runReportText } = await import('../server/lib/manual-report');
+    const { latestVerificationDetails } = await import('../server/lib/reports');
+    const text = runReportText('1.0', { 'V-0001': 'blocked' }, 'qa', new Date('2026-10-22T10:00:00Z'), { reasons: { 'V-0001': 'ждёт T-0042' } });
+    const report = JSON.parse(text);
+    expect(report.reasons).toEqual({ 'V-0001': 'ждёт T-0042' });
+    expect(latestVerificationDetails([report]).get('V-0001')).toMatchObject({ state: 'blocked', reason: 'ждёт T-0042' });
   });
 });

@@ -2,7 +2,7 @@
 id: T-0162
 type: task
 title: Итог прогона «заблокирована» с причиной
-status: ready
+status: in_review
 change: feature
 created: 2026-10-22
 updated: 2026-10-22
@@ -20,3 +20,5 @@ links:
 
 - 2026-10-22 · заведена · приложение
 - 2026-10-22 · готова к работе · architect
+- 2026-10-22 · в разработку · developer
+- 2026-10-22 · на проверку · developer

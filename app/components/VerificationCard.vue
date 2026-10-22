@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { IndexRecord, ProjectIndex } from '~~/server/lib/types';
-import { kindOf, runHistory } from '~~/server/lib/verify-desk';
+import { assigneeOf, kindOf, runHistory } from '~~/server/lib/verify-desk';
 
 /**
  * «Как проверить» на странице проверки (docs/04-ui.md, «Карточка проверки — для
@@ -30,6 +30,25 @@ const targets = computed(() => {
 
 const history = computed(() => runHistory(props.index?.reports ?? [], props.record.id));
 
+/** Исполнитель проверки (R-0097): «Взять на себя» — вошедший; без входа — по логину из поля. */
+const { me } = useMe(() => props.projectId);
+const myLogin = computed(() => me.value?.user?.login ?? '');
+const assignee = computed(() => assigneeOf(props.record));
+const typed = ref('');
+const busy = ref(false);
+const failure = ref('');
+async function assign(login: string | null) {
+  busy.value = true;
+  failure.value = '';
+  try {
+    const response = await $fetch<{ error?: { message: string } }>(`/api/projects/${props.projectId}/records/${props.record.id}`, { method: 'PATCH', body: { assignee: login, version: props.record.version }, ignoreResponseError: true });
+    if (response?.error) failure.value = response.error.message;
+    else { typed.value = ''; emit('changed'); }
+  } finally {
+    busy.value = false;
+  }
+}
+
 const copied = ref(false);
 async function copy() {
   try {
@@ -53,6 +72,21 @@ const assigneeOf = (task: IndexRecord) => (typeof task.extra['assignee'] === 'st
     </template>
 
     <div class="space-y-5">
+      <!-- Кто прогоняет. -->
+      <section class="flex flex-wrap items-center gap-2 text-sm">
+        <UIcon name="i-lucide-user" class="size-4 text-muted" />
+        <span class="font-medium">{{ t('vc.assignee') }}:</span>
+        <span v-if="assignee">{{ assignee }}</span>
+        <span v-else class="text-warning">{{ t('mb.unassigned') }}</span>
+        <UButton v-if="myLogin && assignee !== myLogin" size="xs" variant="soft" :loading="busy" @click="assign(myLogin)">{{ t('vc.takeOn') }}</UButton>
+        <form class="flex items-center gap-1" @submit.prevent="typed.trim() && assign(typed.trim())">
+          <UInput v-model="typed" size="xs" :placeholder="t('mb.login')" class="w-36" />
+          <UButton type="submit" size="xs" variant="ghost" color="neutral" icon="i-lucide-check" :disabled="!typed.trim()" :aria-label="t('mb.assignShort')" />
+        </form>
+        <UButton v-if="assignee" size="xs" variant="ghost" color="neutral" :loading="busy" @click="assign(null)">{{ t('mb.unassign') }}</UButton>
+        <span v-if="failure" class="w-full text-error">{{ failure }}</span>
+      </section>
+
       <!-- Способ: автоматическую гоняет сборка, ручную — человек. -->
       <section v-if="!manual" class="space-y-2">
         <p class="text-sm font-medium">{{ t('vc.how') }}</p>
@@ -97,6 +131,7 @@ const assigneeOf = (task: IndexRecord) => (typeof task.extra['assignee'] === 'st
             <span class="font-mono text-xs">{{ run.at.replace('T', ' ').slice(0, 16) }}</span>
             <UBadge :color="statusColor(run.state)" variant="subtle" size="sm">{{ resultLabel(run.state) }}</UBadge>
             <span class="text-xs text-muted">{{ run.checkedBy ? `${run.runner} · ${run.checkedBy}` : run.runner }}</span>
+            <span v-if="run.reason" class="w-full text-xs text-warning">{{ t('vc.blockedBy', { reason: run.reason }) }}</span>
             <span v-if="run.note" class="w-full text-xs text-muted">{{ run.note }}</span>
           </li>
         </ul>
