@@ -1,5 +1,6 @@
 // Менеджер и Релизы (docs/04-ui.md, «Менеджер и Релизы»).
 export const manager: Record<string, string> = {
+  'maps.records.course': 'Course changes ({n}) are in the functional map’s course history.',
   'mb.release': 'Ship in a release ({n})',
   'mb.shipped': 'Shipped: {n} — see Releases',
   'mb.blocked': 'waits for {ids}',

@@ -2,6 +2,7 @@
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import type { ArchViolationView, FunctionalMode, MapSelection, MermaidEdge } from '~/utils/map-mermaid';
 import { capabilityViews } from '~/utils/functional-view';
+import { partitionMapRecords } from '~~/server/lib/course';
 import {
   NO_RELATION_MARKS,
   groupLevel,
@@ -211,10 +212,15 @@ const extraKinds = reactive<Partial<Record<MapKindName, Partial<MapResponse>>>>(
  * «Карты»): черновик от «Обновить карты» не должен находиться только по
  * номеру, мелькнувшему в ответе. Пустая строка не показывается.
  */
+/** Сколько записей — смены курса (их показывает «История курса»). */
+const courseCount = computed(() => map.value?.functional.history?.length ?? 0);
 const mapRecords = computed(() => {
-  const all = (index.value?.records ?? [])
+  const maps = (index.value?.records ?? [])
     .filter((record) => record.type === 'map')
     .sort((a, b) => a.id.localeCompare(b.id));
+  // Смены курса показывает «История курса»; здесь — живые карты и всё, что ждёт подтверждения (R-0095).
+  const course = new Set(partitionMapRecords(maps.filter((record) => record.status === 'approved'), map.value?.functional.history ?? []).course.map((record) => record.id));
+  const all = maps.filter((record) => !course.has(record.id));
   const waiting = (status: string) => status === 'draft' || status === 'review';
   return [
     { label: t('maps.grp.approved'), records: all.filter((record) => record.status === 'approved') },
@@ -1344,6 +1350,7 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
         :project-id="projectId"
         :groups="mapRecords"
         :waiting="mapRecords.find((group) => group.label === t('maps.grp.waiting'))?.records.length ?? 0"
+        :course="courseCount"
       />
       <!-- Черновик на подтверждение раскрывает карточку сам: «Обновить карты» -->
       <!-- не должен оставлять его находимым только по номеру из ответа. -->

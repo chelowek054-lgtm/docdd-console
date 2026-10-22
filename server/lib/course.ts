@@ -44,6 +44,17 @@ export interface CourseEntry {
   vision: boolean;
 }
 
+/**
+ * Записи map двух родов (R-0095): живая карта — устройство, функциональная,
+ * свои; смена курса — запись, которая меняет возможности, связи или вектор.
+ * Род определяет содержание, а не заголовок: смена курса — та, что попала в
+ * `courseHistory`; остальное — живые карты.
+ */
+export function partitionMapRecords<T extends { id: string }>(records: readonly T[], history: readonly CourseEntry[]): { live: T[]; course: T[] } {
+  const course = new Set(history.map((entry) => entry.map));
+  return { live: records.filter((record) => !course.has(record.id)), course: records.filter((record) => course.has(record.id)) };
+}
+
 export interface CourseSource {
   id: string;
   title: string;

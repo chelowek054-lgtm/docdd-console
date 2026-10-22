@@ -6,7 +6,7 @@ import type { IndexRecord } from '~~/server/lib/types';
  * вектор: список длинный и нужен не всегда. Свёрнут по умолчанию, выбор помнится
  * в браузере; есть черновик на подтверждение — раскрыт сам, иначе его не заметить.
  */
-const props = defineProps<{ projectId: string; groups: { label: string; records: IndexRecord[] }[]; waiting: number }>();
+const props = defineProps<{ projectId: string; groups: { label: string; records: IndexRecord[] }[]; waiting: number; course?: number }>();
 const { t } = useT();
 
 const STORAGE_KEY = 'docdd:map-records-open';
@@ -38,6 +38,7 @@ const total = computed(() => props.groups.reduce((sum, group) => sum + group.rec
         </span>
       </button>
     </template>
+    <p v-if="course" class="mb-2 text-xs text-muted">{{ t('maps.records.course', { n: course }) }}</p>
     <div class="space-y-1 text-sm">
       <p v-for="group in groups" :key="group.label" class="flex flex-wrap items-center gap-x-4 gap-y-1">
         <span class="text-muted">{{ group.label }}:</span>
