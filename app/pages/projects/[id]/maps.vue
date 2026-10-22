@@ -11,6 +11,7 @@ import {
   queueRelationRemove,
   relationMarkCount,
   withMarks,
+  crossLevelRelations,
   withRelationMarks,
   type CapabilityCoverage,
   type Horizon,
@@ -566,6 +567,8 @@ const functionalEffective = computed(() => {
     relations: withRelationMarks(source?.relations ?? [], relationMarks.value)
   };
 });
+/** Сквозные связи функциональной карты — по умолчанию не рисуются, инспектор показывает их у выбранного узла (R-0089). */
+const crossLevel = computed(() => crossLevelRelations(functionalEffective.value.capabilities, functionalEffective.value.relations));
 const functionalProgress = computed(() => overallProgress(functionalEffective.value.capabilities));
 
 /**
@@ -1858,6 +1861,7 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
             :project-id="projectId"
             :selection="selection"
             :capability-titles="capabilityTitles"
+            :cross-level="crossLevel"
             :impact-on="impactOn"
             :to="staged ? stage : null"
             @impact="impactOn = !impactOn"

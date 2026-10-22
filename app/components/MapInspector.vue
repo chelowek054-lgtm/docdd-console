@@ -3,7 +3,7 @@ import type { ComponentPublicInstance } from 'vue';
 
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import { highlightCode, type CodeToken } from '~/utils/highlight';
-import { COVERAGE_LABEL, HORIZON_LABEL, PRIORITY_LABEL } from '../../server/lib/functional';
+import { COVERAGE_LABEL, HORIZON_LABEL, PRIORITY_LABEL, crossLinksOf, type CrossLevelRelation } from '../../server/lib/functional';
 import { RISK_LABEL, STATUS_STYLE, statusText, type CapabilityLink } from '~/utils/functional-view';
 import type { MapSelection } from '~/utils/map-mermaid';
 import type { EvidenceVerdict } from '~~/server/lib/maps';
@@ -30,6 +30,8 @@ const props = defineProps<{
   capabilityTitles?: Record<string, string>;
   /** Влияние выбранной возможности включено на схеме. */
   impactOn?: boolean;
+  /** Сквозные связи функциональной карты: показываются только для выбранного узла (режим «Рентген»). */
+  crossLevel?: CrossLevelRelation[];
 }>();
 const emit = defineEmits<{
   close: [];
@@ -165,6 +167,7 @@ function removeLink(link: CapabilityLink) {
     : { from: link.id, to: self, type: link.type });
 }
 const titleOf = (id: string) => props.capabilityTitles?.[id] ?? id;
+const xray = computed(() => (props.selection?.kind === 'node' ? crossLinksOf(props.selection.id, props.crossLevel ?? []) : []));
 const capGroupOf = computed(() => (props.selection?.kind === 'node' ? props.selection.capabilityGroup : undefined));
 const coverage = computed(() => capView.value?.coverage);
 const waitingNames = computed(() => (capView.value?.waiting ?? []).map(
@@ -415,6 +418,14 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
           <p v-if="capView.replacedBy.length" class="text-xs text-warning">
             Заменяется на: {{ capView.replacedBy.map(titleOf).join(', ') }} — работа не должна уходить в то, что уходит.
           </p>
+          <!-- Рентген: связи, что минуют уровни, по умолчанию скрыты и видны только у выбранного узла. -->
+          <div v-if="xray.length" class="space-y-1 border-l-2 border-dashed border-warning pl-2">
+            <p class="text-xs font-medium text-warning">Сквозные связи</p>
+            <p v-for="link in xray" :key="`${link.from}>${link.to}:${link.type}`" class="text-xs">
+              {{ link.from === selection.id ? (LINK_WORDS.out as Record<string, string>)[link.type] : (LINK_WORDS.in as Record<string, string>)[link.type] }}
+              «{{ titleOf(link.from === selection.id ? link.to : link.from) }}» <span class="text-muted">— минует уровни: {{ link.gap }}</span>
+            </p>
+          </div>
           <p class="text-xs text-muted">
             Освободит {{ capView.unblocks }} · опирается на {{ capView.reliesOn }} · на неё опираются {{ capView.reliedOnBy }}
           </p>

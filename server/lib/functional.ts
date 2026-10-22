@@ -1215,3 +1215,49 @@ export function effectiveOwner(
   }
   return null;
 }
+
+// --- сквозные связи (R-0089, docs/07-maps.md): в конце файла — карта хранит номера строк ---
+
+/** Связь, что минует уровни: оба узла в разных ветках и на разной глубине. */
+export interface CrossLevelRelation {
+  from: string;
+  to: string;
+  type: string;
+  /** На сколько уровней отличаются концы (>= 1). */
+  gap: number;
+}
+
+/**
+ * Сквозные связи функциональной карты: ни один конец не предок другого (это
+ * ответ дерева, а не связь) и глубины разные. По умолчанию на схеме их нет;
+ * при выборе узла показываются его сквозные связи пунктиром.
+ */
+export function crossLevelRelations(capabilities: readonly CapabilityLike[], relations: readonly RelationLike[]): CrossLevelRelation[] {
+  const byId = new Map(capabilities.map((item) => [item.id, item]));
+  const depth = (id: string): number => {
+    const seen = new Set<string>();
+    let at = byId.get(id);
+    let steps = 0;
+    while (at && !seen.has(at.id)) {
+      seen.add(at.id);
+      const parent = parentOf(at, byId);
+      if (!parent) break;
+      steps += 1;
+      at = byId.get(parent);
+    }
+    return steps;
+  };
+  const found: CrossLevelRelation[] = [];
+  for (const relation of relations) {
+    if (!byId.has(relation.from) || !byId.has(relation.to)) continue;
+    if (isTreeLink(relation.from, relation.to, capabilities)) continue;
+    const gap = Math.abs(depth(relation.from) - depth(relation.to));
+    if (gap >= 1) found.push({ from: relation.from, to: relation.to, type: relation.type, gap });
+  }
+  return found;
+}
+
+/** Сквозные связи одного узла — с обеих сторон. */
+export function crossLinksOf(id: string, all: readonly CrossLevelRelation[]): CrossLevelRelation[] {
+  return all.filter((link) => link.from === id || link.to === id);
+}
