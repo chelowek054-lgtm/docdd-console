@@ -14,7 +14,7 @@ const offerInit = ref(false);
 const newId = ref('');
 const newName = ref('');
 const initFailure = ref<ApiFailure | null>(null);
-const initializing = ref(false);
+const initializing = ref(false); const template = ref('none'); /* шаблон проекта (R-0090): none — пустой формат */ const templateItems = computed(() => [{ label: t('home.templateNone'), value: 'none' }, { label: t('home.templateCore'), value: 'software-core' }]);
 
 function suggestFromPath(path: string) {
   // Путь приходит и с прямыми, и с обратными слешами: пользователь копирует его
@@ -30,7 +30,7 @@ async function init() {
   try {
     const response = await $fetch<ProjectEntry | { error: ApiFailure }>('/api/projects/init', {
       method: 'POST',
-      body: { root: root.value.trim(), id: newId.value.trim(), name: newName.value.trim() },
+      body: { root: root.value.trim(), id: newId.value.trim(), name: newName.value.trim(), ...(template.value !== 'none' ? { template: template.value } : {}) },
       ignoreResponseError: true
     });
     const problem = failureOf(response);
@@ -131,6 +131,7 @@ function shortDate(iso: string): string {
             {{ t('home.initButton') }}
           </UButton>
         </div>
+        <UFormField :label="t('home.template')" :help="t('home.templateHelp')"><USelect v-model="template" :items="templateItems" class="w-full sm:w-80" /></UFormField>
         <p class="text-xs text-muted">{{ t('home.initNote') }}</p>
         <UAlert
           v-if="initFailure"

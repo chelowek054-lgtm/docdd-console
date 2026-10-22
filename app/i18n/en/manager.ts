@@ -1,5 +1,9 @@
 // Менеджер и Релизы (docs/04-ui.md, «Менеджер и Релизы»).
 export const manager: Record<string, string> = {
+  'home.template': 'Project template',
+  'home.templateNone': 'No template — empty format',
+  'home.templateCore': 'software-core — web, backend, fullstack',
+  'home.templateHelp': 'Adds the project contours as a draft map and role map presets. The core and rules stay the same.',
   'maps.records.course': 'Course changes ({n}) are in the functional map’s course history.',
   'mb.release': 'Ship in a release ({n})',
   'mb.shipped': 'Shipped: {n} — see Releases',
