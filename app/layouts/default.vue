@@ -212,6 +212,25 @@ const localeItems = computed(() => locales.map((code) => ({
   onSelect: () => { setLocale(code); }
 })));
 
+/** Пункт группы активен, если совпали путь и его параметры запроса; без параметра в адресе — первый пункт этого пути. */
+function linkActive(to: string, links: NavLink[]): boolean {
+  const [path, query = ''] = to.split('?');
+  if (path !== route.path) return false;
+  const params = new URLSearchParams(query);
+  for (const [name, value] of params) {
+    const current = route.query[name];
+    if (current === undefined || current === null || current === '') {
+      return links.find((link) => link.to.split('?')[0] === path)?.to === to;
+    }
+    if (current !== value) return false;
+  }
+  return true;
+}
+
+/** Группа, в которой открыт экран: её пункты — строкой вкладок под шапкой. */
+const activeGroup = computed(() => entries.value.find((entry): entry is Extract<NavEntry, { kind: 'group' }> =>
+  entry.kind === 'group' && entry.links.some((link) => link.to.split('?')[0] === route.path)) ?? null);
+
 /** Вкладка документов различается запросом, а подсветка — по пути экрана. */
 function isActive(to: string): boolean {
   return to.split('?')[0] === route.path;
@@ -325,6 +344,23 @@ function isActive(to: string): boolean {
         </div>
       </div>
     </header>
+
+    <!-- Вкладки группы: те же пункты, что в её меню, с учётом роли — у каждой группы одна строка. -->
+    <nav v-if="activeGroup" class="border-b border-default" :aria-label="activeGroup.label">
+      <div class="ds-container ds-scroll flex flex-nowrap items-center gap-1 overflow-x-auto py-1.5">
+        <UButton
+          v-for="link in activeGroup.links"
+          :key="link.to"
+          :to="link.to"
+          :variant="linkActive(link.to, activeGroup.links) ? 'soft' : 'ghost'"
+          :color="linkActive(link.to, activeGroup.links) ? 'primary' : 'neutral'"
+          size="sm"
+          class="shrink-0 whitespace-nowrap"
+        >
+          {{ withCount(link) }}
+        </UButton>
+      </div>
+    </nav>
 
     <main class="ds-container py-6">
       <slot />

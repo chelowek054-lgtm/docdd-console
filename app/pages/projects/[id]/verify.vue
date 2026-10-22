@@ -28,7 +28,7 @@ const tab = computed({
 <template>
   <div class="space-y-5">
     <h1 class="text-xl font-semibold">{{ t('nav.verify') }}</h1>
-    <UTabs v-model="tab" :items="TABS" :content="false" />
+    <!-- Вкладки группы — строкой под шапкой (docs/04-ui.md, «Навигация»). -->
     <ChecksPanel v-if="tab === 'checks'" />
     <ResultsPanel v-else-if="tab === 'results'" />
     <IssuesPanel v-else-if="tab === 'issues'" />

@@ -27,7 +27,7 @@ const tab = computed({
 <template>
   <div class="space-y-5">
     <h1 class="text-xl font-semibold">{{ t('nav.fill') }}</h1>
-    <UTabs v-model="tab" :items="TABS" :content="false" />
+    <!-- Вкладки группы — строкой под шапкой (docs/04-ui.md, «Навигация»). -->
     <InboxPanel v-if="tab === 'inbox'" />
     <ExternalImportPanel v-else-if="tab === 'jira' || tab === 'confluence'" :key="tab" :source="tab" />
     <ImportPanel v-else />

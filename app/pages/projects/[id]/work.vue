@@ -43,7 +43,7 @@ const tab = computed({
         <UButton size="xs" :variant="mode === 'id' ? 'solid' : 'ghost'" color="neutral" @click="setOrder('id')">{{ t('work.byId') }}</UButton>
       </div>
     </div>
-    <UTabs v-model="tab" :items="TABS" :content="false" />
+    <!-- Вкладки группы — строкой под шапкой (docs/04-ui.md, «Навигация»). -->
     <TasksPanel v-if="tab === 'tasks'" />
     <PhasesPanel v-else />
   </div>

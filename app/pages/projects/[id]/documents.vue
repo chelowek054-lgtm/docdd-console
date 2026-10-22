@@ -127,7 +127,7 @@ const EMPTY = computed<Record<string, string>>(() => ({
         />
       </div>
 
-      <UTabs v-model="type" :items="TABS" :content="false" />
+      <!-- Вкладки группы — строкой под шапкой (docs/04-ui.md, «Навигация»). -->
       <p v-if="type === 'reference'" class="text-sm text-muted">
         {{ t('docs.refHint') }} <NuxtLink :to="`/projects/${projectId}/reference`" class="hover:underline">{{ t('docs.refLink') }}</NuxtLink>.
       </p>
