@@ -61,5 +61,5 @@ function leanRecord(record: IndexRecord, light: unknown): IndexRecord {
     if (record.type === 'task') for (const key of ['change', 'reuse', 'assignee', 'reviewer']) if (key in record.extra) extra[key] = record.extra[key];
     return { ...rest, extra } as IndexRecord;
   }
-  return light === '1' ? { ...base, tags: [], created: null, updated: null, owner: null, phase: null, path: '' } : base;
+  return light === '1' ? { ...base, tags: [], created: null, updated: record.type === 'task' ? record.updated : null, owner: null, phase: null, path: '' } : base; // updated задачи — возраст карточки на доске
 }

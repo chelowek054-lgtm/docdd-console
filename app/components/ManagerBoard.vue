@@ -26,6 +26,12 @@ const WIP_LIMIT: Record<string, number> = { in_progress: 5, in_review: 5 };
 const overLimit = (status: string) => (columns.value[status]?.length ?? 0) > (WIP_LIMIT[status] ?? Infinity);
 const { me } = useMe(() => props.projectId);
 const myLogin = computed(() => me.value?.user?.login ?? '');
+/** Заблокирована: ждёт незакрытых задач из depends_on — причина видна на карточке, а не в голове исполнителя. */
+const byId = computed(() => new Map(props.records.map((record) => [record.id, record])));
+function blockers(task: IndexRecord): string[] {
+  if (task.status === 'done') return [];
+  return (task.links.depends_on ?? []).filter((id) => { const other = byId.value.get(id); return other && other.status !== 'done' && other.status !== 'dropped'; });
+}
 /** Сколько дней задача без движения — по дате последнего изменения файла. */
 function ageDays(task: IndexRecord): number {
   const updated = typeof task.updated === 'string' ? task.updated : '';
@@ -162,6 +168,7 @@ async function drop(status: string) {
                 </template>
               </UPopover>
               <UBadge v-if="phaseOf(task)" color="neutral" variant="outline" size="sm" :title="phaseTitle.get(phaseOf(task))">{{ phaseOf(task) }}</UBadge>
+              <UBadge v-if="blockers(task).length" color="error" variant="soft" size="sm" icon="i-lucide-ban" :title="blockers(task).join(', ')">{{ t('mb.blocked', { ids: blockers(task).join(', ') }) }}</UBadge>
               <UBadge v-if="(status === 'in_progress' || status === 'in_review') && ageDays(task) >= 3" :color="ageDays(task) >= 7 ? 'error' : 'warning'" variant="soft" size="sm" icon="i-lucide-clock">{{ t('mb.age', { n: ageDays(task) }) }}</UBadge>
               <UBadge v-if="status === 'in_review' && reviewer(task)" color="info" variant="soft" size="sm" icon="i-lucide-user-check">{{ reviewer(task) }}</UBadge>
             </span>
