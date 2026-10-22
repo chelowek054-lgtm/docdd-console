@@ -3,6 +3,7 @@
 // «Карты по желанию пользователя»): определение пишется в манифест карт, узлы — потом.
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import { slugify } from '~~/server/lib/scaffold';
+import { ROLE_MAP_TEMPLATES, type RoleMapTemplate } from '~~/server/lib/role-maps';
 import type { CustomMapDefinition, CustomMapFeature, CustomRelationStyle } from '~~/server/lib/types';
 
 const props = defineProps<{ projectId: string }>();
@@ -51,6 +52,21 @@ watch(open, (value) => {
   idTouched.value = false;
   error.value = null;
 });
+
+/** Заготовка под роль (R-0087): подставляет определение, дальше его правят как обычно. */
+function applyTemplate(template: RoleMapTemplate) {
+  const def = template.definition;
+  Object.assign(form, {
+    title: def.title,
+    id: def.id,
+    summary: def.summary ?? '',
+    label: def.node.label,
+    plural: def.node.plural,
+    relations: def.relations.map((item) => ({ ...item })),
+    features: [...def.features]
+  });
+  idTouched.value = true;
+}
 
 function addRelation() {
   form.relations.push({ id: '', label: '', style: 'depends' });
@@ -102,6 +118,13 @@ async function submit() {
   <UModal v-model:open="open" title="Новая карта" description="Своя карта проекта: что в ней узлы и какими бывают связи.">
     <template #body>
       <form class="space-y-4" @submit.prevent="submit">
+        <div class="space-y-1">
+          <p class="text-sm font-medium">Заготовка под роль</p>
+          <div class="flex flex-wrap gap-2">
+            <UButton v-for="template in ROLE_MAP_TEMPLATES" :key="template.role" size="xs" variant="soft" color="neutral" @click="applyTemplate(template)">{{ template.name }}</UButton>
+          </div>
+          <p class="text-xs text-muted">Подставит название, узлы и виды связей — дальше правьте как нужно.</p>
+        </div>
         <UFormField label="Название" required>
           <UInput v-model="form.title" class="w-full" placeholder="Например, «Интеграции»" />
         </UFormField>
