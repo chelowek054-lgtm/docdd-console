@@ -8,6 +8,7 @@ import { ancestors, depthOf, foldEdges, visibleAt, type Edge, type TreeNode } fr
 import { slugify } from '~~/server/lib/scaffold';
 import type { CustomNodeView, CustomRelationView } from '~~/server/lib/custom-maps';
 import type { CustomMapDefinition, CustomRelationStyle } from '~~/server/lib/types';
+const { t } = useT();
 
 const props = defineProps<{
   projectId: string;
@@ -121,11 +122,11 @@ const statusItems = computed(() =>
 );
 const priorityItems = computed(() => [
   ...PRIORITIES.map((value) => ({ label: PRIORITY_LABEL[value], value })),
-  { label: 'без приоритета', value: NONE }
+  { label: t('t83.m2.noPriority'), value: NONE }
 ]);
 const horizonItems = computed(() => [
   ...HORIZONS.map((value) => ({ label: HORIZON_LABEL[value], value })),
-  { label: 'без горизонта', value: NONE }
+  { label: t('t83.m2.noHorizon'), value: NONE }
 ]);
 const splitNodes = computed<TreeNode[]>(() => tree.value.map((node) => ({ id: node.id, parent: node.parent })));
 
@@ -279,7 +280,7 @@ const graphSource = computed(() => {
           v-model="view"
           class="ml-auto w-40"
           size="xs"
-          :items="[{ label: 'Дерево', value: 'tree' }, { label: 'Граф', value: 'graph' }]"
+          :items="[{ label: t('t83.m2.tree'), value: 'tree' }, { label: t('t83.m2.graph'), value: 'graph' }]"
         />
       </div>
     </template>
@@ -290,8 +291,8 @@ const graphSource = computed(() => {
         color="info"
         variant="subtle"
         icon="i-lucide-file-clock"
-        :title="`Заведён черновик ${draft}`"
-        description="Правка войдёт в карту, когда человек подтвердит черновик."
+        :title="t('t83.m2.draftMade', { draft })"
+        :description="t('t83.custom-map-view.1')"
       />
       <UAlert v-if="error" color="error" variant="subtle" :description="error" />
 
@@ -299,7 +300,7 @@ const graphSource = computed(() => {
       <MapSplitHints v-if="group" :group-id="group" :nodes="splitNodes" :edges="edges" />
 
       <div v-if="nodes.length" class="flex flex-wrap items-center gap-2 text-sm">
-        <UInput v-model="search" size="xs" icon="i-lucide-search" placeholder="Поиск по названию" class="w-48" />
+        <UInput v-model="search" size="xs" icon="i-lucide-search" :placeholder="t('t83.custom-map-view.2')" class="w-48" />
         <USelectMenu
           v-if="hasStatus"
           v-model="statusFilter"
@@ -308,7 +309,7 @@ const graphSource = computed(() => {
           class="w-48"
           value-key="value"
           :items="statusItems"
-          placeholder="Состояние: все"
+          :placeholder="t('t83.custom-map-view.3')"
         />
         <USelect
           v-if="hasPriority"
@@ -316,7 +317,7 @@ const graphSource = computed(() => {
           size="xs"
           class="w-40"
           :items="priorityItems"
-          placeholder="Приоритет: все"
+          :placeholder="t('t83.custom-map-view.4')"
           @update:model-value="(value) => (priorityFilter = value ? String(value) : null)"
         />
         <USelect
@@ -325,7 +326,7 @@ const graphSource = computed(() => {
           size="xs"
           class="w-40"
           :items="horizonItems"
-          placeholder="Горизонт: все"
+          :placeholder="t('t83.custom-map-view.5')"
           @update:model-value="(value) => (horizonFilter = value ? String(value) : null)"
         />
         <UButton
@@ -335,7 +336,7 @@ const graphSource = computed(() => {
           color="neutral"
           :variant="hiddenKinds.includes(kind.id) ? 'outline' : 'soft'"
           :class="hiddenKinds.includes(kind.id) ? 'line-through opacity-60' : ''"
-          :title="hiddenKinds.includes(kind.id) ? 'Показать вид связи' : 'Скрыть вид связи'"
+          :title="hiddenKinds.includes(kind.id) ? t('t83.m2.showKind') : t('t83.m2.hideKind')"
           @click="toggleKind(kind.id)"
         >
           {{ kind.label }} · {{ kindCounts[kind.id] }}
@@ -345,14 +346,14 @@ const graphSource = computed(() => {
           size="xs"
           variant="link"
           color="neutral"
-          label="Сбросить фильтры"
+          :label="t('t83.custom-map-view.6')"
           @click="resetFilters"
         />
       </div>
 
       <template v-if="view === 'tree'">
         <p v-if="!nodes.length" class="text-sm text-muted">
-          {{ definition.node.plural }} пока не описаны — добавьте первый узел ниже.
+          {{ t('t83.custom-map-view.7', { plural: definition.node.plural }) }}
         </p>
         <ul class="space-y-1">
           <li
@@ -364,7 +365,7 @@ const graphSource = computed(() => {
           >
             <span class="font-medium">{{ row.node.title ?? row.node.id }}</span>
             <span class="font-mono text-xs text-muted">{{ row.node.id }}</span>
-            <UBadge v-if="row.node.pending" size="sm" color="warning" variant="subtle" label="черновик" />
+            <UBadge v-if="row.node.pending" size="sm" color="warning" variant="subtle" :label="t('t83.custom-map-view.8')" />
             <USelect
               v-if="hasStatus"
               class="ml-auto w-40"
@@ -379,7 +380,7 @@ const graphSource = computed(() => {
               size="xs"
               color="neutral"
               variant="ghost"
-              :title="`Убрать: ${definition.node.label}`"
+              :title="t('t83.m2.removeNode', { label: definition.node.label })"
               :disabled="busy"
               @click="send({ action: 'remove', node: { id: row.node.id } })"
             />
@@ -387,13 +388,13 @@ const graphSource = computed(() => {
         </ul>
 
         <div v-if="Object.keys(statusMarks).length" class="flex items-center gap-2 rounded-md bg-elevated p-2 text-sm">
-          <span>Отмечено: {{ Object.keys(statusMarks).length }}</span>
-          <UButton class="ml-auto" size="xs" label="Сохранить отметки" :loading="busy" @click="saveStatuses" />
-          <UButton size="xs" color="neutral" variant="ghost" label="Сбросить" @click="statusMarks = {}" />
+          <span>{{ t('t83.custom-map-view.9', { p: Object.keys(statusMarks).length }) }}</span>
+          <UButton class="ml-auto" size="xs" :label="t('t83.functional-tree.5')" :loading="busy" @click="saveStatuses" />
+          <UButton size="xs" color="neutral" variant="ghost" :label="t('t83.functional-tree.6')" @click="statusMarks = {}" />
         </div>
 
         <div v-if="shownRelations.length" class="space-y-1">
-          <p class="text-sm font-medium">Связи</p>
+          <p class="text-sm font-medium">{{ t('t83.map-inspector.36') }}</p>
           <div v-for="edge in shownRelations" :key="`${edge.from}:${edge.type}:${edge.to}`" class="flex items-center gap-2 text-sm">
             <span>{{ titleOf(edge.from) }}</span>
             <span class="text-muted">{{ kindLabel.get(edge.type) ?? edge.type }}</span>
@@ -404,7 +405,7 @@ const graphSource = computed(() => {
               size="xs"
               color="neutral"
               variant="ghost"
-              title="Убрать связь"
+              :title="t('t83.custom-map-view.10')"
               :disabled="busy"
               @click="send({ action: 'unrelate', relation: { from: edge.from, to: edge.to, type: edge.type } })"
             />
@@ -412,26 +413,26 @@ const graphSource = computed(() => {
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
-          <UInput v-model="newNode.title" size="sm" :placeholder="`Новый узел: ${definition.node.label}`" />
-          <USelect v-model="newNode.parent" size="sm" class="w-48" :items="nodeItems" placeholder="Внутри (необязательно)" />
-          <UButton size="sm" icon="i-lucide-plus" :label="`Добавить: ${definition.node.label}`" :disabled="busy" @click="addNode" />
+          <UInput v-model="newNode.title" size="sm" :placeholder="t('t83.m2.newNode', { label: definition.node.label })" />
+          <USelect v-model="newNode.parent" size="sm" class="w-48" :items="nodeItems" :placeholder="t('t83.custom-map-view.11')" />
+          <UButton size="sm" icon="i-lucide-plus" :label="t('t83.m2.addNode', { label: definition.node.label })" :disabled="busy" @click="addNode" />
         </div>
         <div v-if="nodes.length >= 2" class="flex flex-wrap items-center gap-2">
-          <USelect v-model="newRelation.from" size="sm" class="w-44" :items="nodeItems" placeholder="От" />
+          <USelect v-model="newRelation.from" size="sm" class="w-44" :items="nodeItems" :placeholder="t('t83.custom-map-view.12')" />
           <USelect
             v-model="newRelation.type"
             size="sm"
             class="w-44"
             :items="definition.relations.map((item) => ({ label: item.label, value: item.id }))"
-            placeholder="Вид связи"
+            :placeholder="t('t83.custom-map-view.13')"
           />
-          <USelect v-model="newRelation.to" size="sm" class="w-44" :items="nodeItems" placeholder="К" />
-          <UButton size="sm" icon="i-lucide-link" label="Связать" :disabled="busy" @click="relate" />
+          <USelect v-model="newRelation.to" size="sm" class="w-44" :items="nodeItems" :placeholder="t('t83.custom-map-view.14')" />
+          <UButton size="sm" icon="i-lucide-link" :label="t('t83.functional-tree.16')" :disabled="busy" @click="relate" />
         </div>
       </template>
 
       <template v-else>
-        <p v-if="!shownNodes.length" class="text-sm text-muted">{{ nodes.length ? 'Под фильтры ничего не попало.' : 'Рисовать пока нечего.' }}</p>
+        <p v-if="!shownNodes.length" class="text-sm text-muted">{{ nodes.length ? t('t83.m2.nothingFilters') : t('t83.m2.nothingToDraw') }}</p>
         <MermaidDiagram v-else :id="`custom-${definition.id}`" :source="graphSource" />
       </template>
     </div>

@@ -34,6 +34,12 @@ export function useT() {
     return translate(locale.value, key, params);
   }
 
+  /** Число с существительным: форма берётся по правилам языка из ключей `<ключ>.one|few|many`, `{n}` — число. */
+  function tn(key: string, n: number, params?: Record<string, string | number>): string {
+    const form = new Intl.PluralRules(tag.value).select(n);
+    return translate(locale.value, `${key}.${form === 'other' || form === 'zero' || form === 'two' ? 'many' : form}`, { ...params, n });
+  }
+
   function setLocale(next: string) {
     if (!LOCALES.includes(next)) return;
     locale.value = next;
@@ -47,5 +53,5 @@ export function useT() {
     return new Date(iso).toLocaleString(tag.value, { dateStyle: 'short', timeStyle: 'short' });
   }
 
-  return { t, locale, setLocale, locales: LOCALES, tag, dateTime };
+  return { t, tn, locale, setLocale, locales: LOCALES, tag, dateTime };
 }

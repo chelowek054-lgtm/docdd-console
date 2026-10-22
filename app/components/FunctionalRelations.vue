@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import { RELATION_LABEL, type RelationItem, type RelationsResult } from '../../server/lib/functional';
+const { t } = useT();
 
 /**
  * Ответ «Предложить связи» таблицей: от — вид — к — фраза (docs/04-ui.md,
@@ -71,14 +72,14 @@ function apply() {
 
 <template>
   <div class="mb-3">
-    <p v-if="loading" class="text-sm text-muted">Разбираю ответ…</p>
+    <p v-if="loading" class="text-sm text-muted">{{ t('t83.functional-check.1') }}</p>
 
     <!-- Блока нет — это не отказ: ответ остаётся текстом ниже, как раньше. -->
     <p v-else-if="failure" class="text-sm text-muted">{{ failure.message }}</p>
 
     <template v-else-if="result">
       <p v-if="result.relations.length === 0" class="text-sm text-muted">
-        Новых связей в ответе нет.
+        {{ t('t83.functional-relations.1') }}
       </p>
 
       <template v-else>
@@ -87,10 +88,10 @@ function apply() {
             <thead class="bg-elevated text-left text-xs text-muted">
               <tr>
                 <th class="w-8 p-2" />
-                <th class="p-2">От</th>
-                <th class="p-2">Вид</th>
-                <th class="p-2">К</th>
-                <th class="p-2">Чем связаны</th>
+                <th class="p-2">{{ t('t83.custom-map-view.12') }}</th>
+                <th class="p-2">{{ t('t83.functional-relations.2') }}</th>
+                <th class="p-2">{{ t('t83.custom-map-view.14') }}</th>
+                <th class="p-2">{{ t('t83.functional-relations.3') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -98,7 +99,7 @@ function apply() {
                 <td class="p-2">
                   <UCheckbox
                     :model-value="picked.has(keyOf(row))"
-                    :aria-label="`Занести связь: ${nameOf(row.from)} — ${nameOf(row.to)}`"
+                    :aria-label="t('t83.m2.markRel', { from: nameOf(row.from), to: nameOf(row.to) })"
                     @update:model-value="(value) => toggle(keyOf(row), value)"
                   />
                 </td>
@@ -115,18 +116,18 @@ function apply() {
 
         <div class="mt-2 flex flex-wrap items-center gap-3">
           <UButton size="sm" :disabled="picked.size === 0" @click="apply">
-            Занести связи ({{ picked.size }})
+            {{ t('t83.functional-relations.4', { size: picked.size }) }}
           </UButton>
           <p class="text-xs text-muted">
-            Они попадут в пачку связей на экране, а не в карту: проверьте и сохраните.
+            {{ t('t83.functional-relations.5') }}
           </p>
-          <p v-if="applied" class="text-sm text-success">Занесено — смотрите дерево.</p>
+          <p v-if="applied" class="text-sm text-success">{{ t('t83.functional-check.9') }}</p>
         </div>
       </template>
 
       <ul v-if="result.skipped.length" class="mt-2 space-y-0.5 text-xs text-muted">
         <li v-for="row in result.skipped" :key="`${row.from}>${row.to}:${row.type}`">
-          <span class="font-mono">{{ row.from }} → {{ row.to }}</span> ({{ row.type }}) — пропущено: {{ row.reason }}
+          <span class="font-mono">{{ row.from }} → {{ row.to }}</span> {{ t('t83.functional-relations.6', { type: row.type, reason: row.reason }) }}
         </li>
       </ul>
     </template>

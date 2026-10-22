@@ -6,6 +6,7 @@ import {
   type CapabilityLike,
   type RelationLike
 } from '../../server/lib/functional';
+const { t } = useT();
 
 /**
  * «Можно начинать» (docs/07-maps.md, «Что дальше и что заденет»): нижние
@@ -35,9 +36,9 @@ const hidden = computed(() => Math.max(0, next.value.items.length - SHOWN));
 <template>
   <div v-if="capabilities.length > 0" class="mb-3 ds-card p-3 text-sm">
     <div class="mb-1 flex flex-wrap items-center gap-2">
-      <h3 class="font-medium">Можно начинать</h3>
+      <h3 class="font-medium">{{ t('t83.functional-next.1') }}</h3>
       <span v-if="next.items.length" class="text-xs text-muted">
-        по приоритету, горизонту и тому, сколько освободит
+        {{ t('t83.functional-next.2') }}
       </span>
       <UButton
         v-if="next.unrated"
@@ -47,12 +48,12 @@ const hidden = computed(() => Math.max(0, next.value.items.length - SHOWN));
         color="neutral"
         @click="emit('show-unrated')"
       >
-        и ещё {{ next.unrated }} не оценено
+        {{ t('t83.functional-next.3', { unrated: next.unrated }) }}
       </UButton>
     </div>
 
     <p v-if="next.items.length === 0" class="text-muted">
-      Сейчас начинать нечего: всё реализовано, ждёт зависимости или отложено.
+      {{ t('t83.functional-next.4') }}
     </p>
     <ol v-else class="space-y-1">
       <li v-for="item in shown" :key="item.id" class="flex flex-wrap items-center gap-2">
@@ -61,11 +62,11 @@ const hidden = computed(() => Math.max(0, next.value.items.length - SHOWN));
         </button>
         <UBadge v-if="item.priority" size="xs" variant="subtle" color="neutral">{{ PRIORITY_LABEL[item.priority] }}</UBadge>
         <UBadge v-if="item.horizon" size="xs" variant="outline" color="neutral">{{ HORIZON_LABEL[item.horizon] }}</UBadge>
-        <span v-if="item.unblocks" class="text-xs text-muted">освободит {{ item.unblocks }}</span>
+        <span v-if="item.unblocks" class="text-xs text-muted">{{ t('t83.functional-next.5', { unblocks: item.unblocks }) }}</span>
       </li>
     </ol>
     <UButton v-if="hidden > 0" class="mt-1" size="xs" variant="link" color="neutral" @click="all = !all">
-      {{ all ? 'Свернуть' : `Показать ещё ${hidden}` }}
+      {{ all ? t('t83.m2.collapse') : t('t83.m2.showMore', { hidden }) }}
     </UButton>
   </div>
 </template>

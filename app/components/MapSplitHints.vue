@@ -2,6 +2,7 @@
 // Подсказки дробления группы (ADR-0027): слишком много детей, слабая связность,
 // цикл. Это совет, а не запрет; тексты и условия считает hierarchy.ts.
 import { cyclesAt, foldEdges, splitHints, splitHintTexts, visibleAt, type Edge, type TreeNode } from '~~/server/lib/hierarchy';
+const { t } = useT();
 
 const props = defineProps<{ groupId: string; nodes: TreeNode[]; edges: Edge[] }>();
 
@@ -19,7 +20,7 @@ const texts = computed(() => {
     color="warning"
     variant="subtle"
     icon="i-lucide-split"
-    title="Группу стоит раздробить"
+    :title="t('t83.map-split-hints.1')"
     data-test="map-split-hints"
   >
     <template #description>

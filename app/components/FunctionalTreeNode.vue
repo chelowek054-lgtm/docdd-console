@@ -9,6 +9,7 @@ import {
   type Priority
 } from '../../server/lib/functional';
 import { RISK_LABEL, STATUS_STYLE, statusText, tasksText, type CapabilityView } from '~/utils/functional-view';
+const { t } = useT();
 
 export interface Capability {
   id: string;
@@ -72,7 +73,7 @@ const titleOf = (id: string) => props.allCapabilities.find((item) => item.id ===
 const waitingTitle = computed(() => {
   const ids = view.value?.waiting ?? [];
   if (ids.length === 0) return '';
-  return `ждёт: ${ids.map(titleOf).join(', ')}`;
+  return t('t83.m2.ftn.waits', { list: ids.map(titleOf).join(', ') });
 });
 
 // Что стоит за отметкой в процессе (docs/07-maps.md, «Покрытие процессом»).
@@ -81,9 +82,9 @@ const checks = computed(() => {
   const cover = view.value?.coverage;
   if (!cover || cover.verifications.ids.length === 0) return null;
   const { passed, failed, ids } = cover.verifications;
-  if (failed > 0) return { icon: 'i-lucide-circle-x', text: 'text-error', title: `Проверка падает: ${failed} из ${ids.length}` };
-  if (passed === ids.length) return { icon: 'i-lucide-check', text: 'text-success', title: `Проверки прошли: ${passed} из ${ids.length}` };
-  return { icon: 'i-lucide-dot', text: 'text-muted', title: `Прошли ${passed} из ${ids.length}, остальные не запускались` };
+  if (failed > 0) return { icon: 'i-lucide-circle-x', text: 'text-error', title: t('t83.m2.ftn.failed', { failed, total: ids.length }) };
+  if (passed === ids.length) return { icon: 'i-lucide-check', text: 'text-success', title: t('t83.m2.ftn.passed', { passed, total: ids.length }) };
+  return { icon: 'i-lucide-dot', text: 'text-muted', title: t('t83.m2.ftn.partial', { passed, total: ids.length }) };
 });
 // «Нет следа» — только у нижней возможности и только когда покрытие загружено.
 const noTrace = computed(() => !isParent.value && view.value?.coverage?.level === 'none');
@@ -93,7 +94,7 @@ const consistency = computed(() => (view.value?.flags ?? []).filter((flag) => fl
 const menuOn = ref(false);
 const SOFT = { success: 'bg-success/10 text-success', warning: 'bg-warning/10 text-warning', error: 'bg-error/10 text-error', neutral: 'bg-elevated text-default' } as const;
 const statusBtn = computed(() => `ds-hit inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium ${SOFT[BADGE_COLOR[key.value]]}`);
-const statusTitle = computed(() => 'Состояние: ' + IMPL_LABEL[key.value] + '. Нажмите, чтобы отметить');
+const statusTitle = computed(() => t('t83.m2.ftn.state', { label: IMPL_LABEL[key.value] }));
 
 function onRow(event: Event) {
   const anchor = (event.currentTarget as HTMLElement).querySelector<HTMLElement>('[data-anchor]');
@@ -113,7 +114,7 @@ function onRow(event: Event) {
         v-if="children.length > 0"
         type="button"
         class="ds-hit inline-flex size-6 shrink-0 items-center justify-center rounded text-default hover:bg-elevated"
-        :aria-label="isOpen ? 'Свернуть' : 'Развернуть'"
+        :aria-label="isOpen ? t('t83.m2.collapse') : t('t83.m2.expand')"
         @click="emit('toggle', item.id)"
       >
         <UIcon :name="isOpen ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" class="size-4" />
@@ -140,7 +141,7 @@ function onRow(event: Event) {
             variant="subtle"
             :color="PRIORITY_COLOR[view.priority.value]"
             :class="view.priority.inherited ? 'opacity-60' : ''"
-            :title="view.priority.inherited ? `Приоритет унаследован от «${titleOf(view.priority.from)}»` : 'Приоритет'"
+            :title="view.priority.inherited ? t('t83.m2.ftn.prioInh', { from: titleOf(view.priority.from) }) : t('t83.m2.ftn.priority')"
           >
             {{ PRIORITY_LABEL[view.priority.value] }}
           </LightBadge>
@@ -150,15 +151,15 @@ function onRow(event: Event) {
             variant="outline"
             color="neutral"
             :class="view.horizon.inherited ? 'opacity-60' : ''"
-            :title="view.horizon.inherited ? `Горизонт унаследован от «${titleOf(view.horizon.from)}»` : 'Горизонт'"
+            :title="view.horizon.inherited ? t('t83.m2.ftn.horInh', { from: titleOf(view.horizon.from) }) : t('t83.m2.ftn.horizon')"
           >
             {{ HORIZON_LABEL[view.horizon.value] }}
           </LightBadge>
 
-          <LightBadge v-if="view.owner" variant="outline" color="neutral" :class="view.owner.inherited ? 'opacity-60' : ''" :title="view.owner.inherited ? `Владелец унаследован от «${titleOf(view.owner.from)}»` : 'Владелец возможности'">{{ view.owner.value }}</LightBadge>
-          <span v-if="tasks" class="text-xs text-muted" title="Задачи, связанные с возможностью через её карту">{{ tasks }}</span>
+          <LightBadge v-if="view.owner" variant="outline" color="neutral" :class="view.owner.inherited ? 'opacity-60' : ''" :title="view.owner.inherited ? t('t83.m2.ftn.ownInh', { from: titleOf(view.owner.from) }) : t('t83.m2.ftn.owner')">{{ view.owner.value }}</LightBadge>
+          <span v-if="tasks" class="text-xs text-muted" :title="t('t83.functional-tree-node.1')">{{ tasks }}</span>
           <UIcon v-if="checks" :name="checks.icon" class="size-4" :class="checks.text" :title="checks.title" />
-          <span v-if="noTrace" class="text-xs text-dimmed" title="Ни требований, ни задач за этой возможностью нет">нет следа</span>
+          <span v-if="noTrace" class="text-xs text-dimmed" :title="t('t83.functional-tree-node.2')">{{ t('t83.functional-tree-node.3') }}</span>
           <LightBadge
             v-for="flag in consistency"
             :key="flag"
@@ -169,16 +170,16 @@ function onRow(event: Event) {
             {{ RISK_LABEL[flag] }}
           </LightBadge>
           <LightBadge v-if="view.replacedBy.length" variant="subtle" color="warning">
-            заменяется на {{ view.replacedBy.map(titleOf).join(', ') }}
+            {{ t('t83.functional-tree-node.4', { p: view.replacedBy.map(titleOf).join(', ') }) }}
           </LightBadge>
         </div>
 
         <p v-if="item.note && !isParent" class="text-xs text-muted">{{ item.note }}</p>
       </div>
 
-      <LightBadge v-if="item.pending && !hidePending" color="neutral" variant="subtle">ещё не устоялось</LightBadge>
-      <LightBadge v-if="view?.inCycle" color="error" variant="subtle" title="Две возможности ждут друг друга — граница проведена неверно">
-        цикл
+      <LightBadge v-if="item.pending && !hidePending" color="neutral" variant="subtle">{{ t('t83.functional-tree-node.5') }}</LightBadge>
+      <LightBadge v-if="view?.inCycle" color="error" variant="subtle" :title="t('t83.functional-tree-node.6')">
+        {{ t('t83.functional-tree-node.7') }}
       </LightBadge>
       <LightBadge v-else-if="waitingTitle" color="warning" variant="subtle" :title="waitingTitle">
         {{ waitingTitle }}
@@ -186,7 +187,7 @@ function onRow(event: Event) {
 
       <!-- Кнопки действий — одна панель на всё дерево, см. FunctionalTree.vue. -->
 
-      <span v-if="unsaved" class="mt-1 text-xs text-warning" title="Отметка не сохранена">●</span>
+      <span v-if="unsaved" class="mt-1 text-xs text-warning" :title="t('t83.functional-tree-node.8')">●</span>
 
       <!-- Лист — кнопка с меню отметок; у родителя состояние производное, менять его нечем. -->
       <UDropdownMenu v-if="!isParent && menuOn" :items="menu" :default-open="true" @update:open="(open) => { if (!open) menuOn = false; }">

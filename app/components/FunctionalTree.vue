@@ -26,6 +26,7 @@ import {
   type RelationType,
   type StatusFilter
 } from '../../server/lib/functional';
+const { t } = useT();
 
 /**
  * Функциональная карта — дерево, а не диаграмма: читает её часто не
@@ -157,11 +158,11 @@ const failure = ref<ApiFailure | null>(null);
 const statusItems = (['unrated', 'implemented', 'partial', 'not_implemented'] as const)
   .map((value) => ({ label: IMPL_LABEL[value], value }));
 const priorityItems = [
-  { label: 'Без приоритета', value: 'none' as const },
+  { get label() { return t('t83.m2.NoPriority'); }, value: 'none' as const },
   ...PRIORITIES.map((value) => ({ label: PRIORITY_LABEL[value], value }))
 ];
 const horizonItems = [
-  { label: 'Без горизонта', value: 'none' as const },
+  { get label() { return t('t83.m2.NoHorizon'); }, value: 'none' as const },
   ...HORIZONS.map((value) => ({ label: HORIZON_LABEL[value], value }))
 ];
 
@@ -259,13 +260,13 @@ function onSubmit() {
         ...(formPriority.value !== 'none' ? { priority: formPriority.value } : {}),
         ...(formHorizon.value !== 'none' ? { horizon: formHorizon.value } : {})
       },
-      `изменена «${title}»`
+      t('t83.m2.ft.changed', { title })
     );
   } else {
     const id = slugify(title);
     void saveCapability(
       { id, title, parent: formParent.value ?? undefined, summary },
-      `добавлена «${title}»`
+      t('t83.m2.ft.added', { title })
     );
   }
 }
@@ -273,11 +274,11 @@ function onSubmit() {
 async function removeCapability(item: Capability) {
   const kids = childrenOf(item.id);
   const question = kids.length > 0
-    ? `Убрать «${item.title ?? item.id}»? У неё ${kids.length} подпунктов — они останутся, но станут отдельными.`
-    : `Убрать «${item.title ?? item.id}»?`;
+    ? t('t83.m2.ft.confirmKids', { title: item.title ?? item.id, n: kids.length })
+    : t('t83.m2.ft.confirm', { title: item.title ?? item.id });
   // eslint-disable-next-line no-alert -- то же подтверждение, что и на удаление где угодно в браузере; своё модальное окно ради одной кнопки не оправдано.
   if (!confirm(question)) return;
-  await post({ action: 'remove', capability: { id: item.id } }, `убрана «${item.title ?? item.id}»`);
+  await post({ action: 'remove', capability: { id: item.id } }, t('t83.m2.ft.removed', { title: item.title ?? item.id }));
 }
 
 async function saveMarks() {
@@ -287,7 +288,7 @@ async function saveMarks() {
     ...(value.note !== undefined ? { note: value.note } : {})
   }));
   if (statuses.length === 0) return;
-  if (await post({ action: 'status', statuses }, `отметки состояния (${statuses.length})`)) marks.value = {};
+  if (await post({ action: 'status', statuses }, t('t83.m2.ft.marks', { n: statuses.length }))) marks.value = {};
 }
 
 // --- форма: связать ---
@@ -336,7 +337,7 @@ async function saveRelations() {
     action: 'relations',
     ...(add.length ? { add: add.map(({ from, to, type, summary }) => ({ from, to, type, ...(summary ? { summary } : {}) })) } : {}),
     ...(remove.length ? { remove } : {})
-  }, `связи (+${add.length} −${remove.length})`);
+  }, t('t83.m2.ft.links', { add: add.length, remove: remove.length }));
   if (ok) relationMarks.value = NO_RELATION_MARKS;
 }
 
@@ -397,12 +398,12 @@ function hidePanel(event?: FocusEvent) {
   <div>
     <div class="mb-3 flex flex-wrap items-center gap-3">
       <UButton v-show="!treeHidden" size="xs" icon="i-lucide-plus" variant="soft" @click="openAdd(null)">
-        Добавить возможность
+        {{ t('t83.functional-tree.1') }}
       </UButton>
 
       <p v-if="pendingDraft" class="flex flex-wrap items-center gap-2 text-sm text-muted">
-        Черновик {{ pendingDraft.id }} создан: {{ pendingDraft.label }}.
-        <UButton size="xs" :loading="confirming" @click="confirmDraft">Подтвердить</UButton>
+        {{ t('t83.functional-tree.2', { id: pendingDraft.id, label: pendingDraft.label }) }}
+        <UButton size="xs" :loading="confirming" @click="confirmDraft">{{ t('t83.functional-tree.3') }}</UButton>
       </p>
     </div>
 
@@ -413,17 +414,17 @@ function hidePanel(event?: FocusEvent) {
         v-if="markCount > 0"
         class="flex flex-wrap items-center gap-3 ds-card ds-card--warn p-2 text-sm"
       >
-        <span>Отметок: {{ markCount }} — пока не сохранены</span>
-        <UButton size="xs" :loading="saving" @click="saveMarks">Сохранить отметки</UButton>
-        <UButton size="xs" variant="ghost" color="neutral" @click="marks = {}">Сбросить</UButton>
+        <span>{{ t('t83.functional-tree.4', { markCount: markCount }) }}</span>
+        <UButton size="xs" :loading="saving" @click="saveMarks">{{ t('t83.functional-tree.5') }}</UButton>
+        <UButton size="xs" variant="ghost" color="neutral" @click="marks = {}">{{ t('t83.functional-tree.6') }}</UButton>
       </div>
       <div
         v-if="relationCount > 0"
         class="flex flex-wrap items-center gap-3 ds-card ds-card--warn p-2 text-sm"
       >
-        <span>Связей: +{{ relationMarks.add.length }} −{{ relationMarks.remove.length }} — пока не сохранены</span>
-        <UButton size="xs" :loading="saving" @click="saveRelations">Сохранить связи</UButton>
-        <UButton size="xs" variant="ghost" color="neutral" @click="relationMarks = NO_RELATION_MARKS">Сбросить</UButton>
+        <span>{{ t('t83.functional-tree.7', { length: relationMarks.add.length, length2: relationMarks.remove.length }) }}</span>
+        <UButton size="xs" :loading="saving" @click="saveRelations">{{ t('t83.functional-tree.8') }}</UButton>
+        <UButton size="xs" variant="ghost" color="neutral" @click="relationMarks = NO_RELATION_MARKS">{{ t('t83.functional-tree.6') }}</UButton>
       </div>
     </div>
     <UAlert
@@ -437,24 +438,24 @@ function hidePanel(event?: FocusEvent) {
 
     <UCard v-if="formOpen" v-show="!treeHidden" class="mb-3">
       <p class="mb-2 text-sm text-muted">
-        {{ editingId ? 'Название, описание, состояние, приоритет и горизонт' : 'Название возможности' }}
+        {{ editingId ? t('t83.m2.ft.editTitle') : t('t83.m2.ft.newTitle') }}
       </p>
       <div class="flex flex-wrap items-center gap-3">
         <UInput
           v-model="formTitle"
           class="min-w-64 flex-1"
-          placeholder="Как это назовёт доменный специалист, не разработчик"
+          :placeholder="t('t83.functional-tree.9')"
           @keyup.enter="onSubmit"
         />
-        <UButton :loading="saving" :disabled="!formTitle.trim()" @click="onSubmit">Сохранить</UButton>
-        <UButton variant="ghost" color="neutral" @click="closeForm">Отмена</UButton>
+        <UButton :loading="saving" :disabled="!formTitle.trim()" @click="onSubmit">{{ t('t83.functional-tree.10') }}</UButton>
+        <UButton variant="ghost" color="neutral" @click="closeForm">{{ t('t83.functional-tree.11') }}</UButton>
       </div>
       <UTextarea
         v-model="formSummary"
         class="mt-3 w-full"
         :rows="3"
         autoresize
-        placeholder="Описание — необязательно: зачем это в системе и что даёт пользователю, простыми словами"
+        :placeholder="t('t83.functional-tree.12')"
       />
       <!-- У родителя состояние производное — поле показывать нечем и незачем. -->
       <div v-if="editingId && !editingIsParent" class="mt-3 flex flex-wrap items-start gap-3">
@@ -463,7 +464,7 @@ function hidePanel(event?: FocusEvent) {
           v-model="formNote"
           class="min-w-64 flex-1"
           :disabled="formStatus === 'unrated'"
-          placeholder="Что сделано и чего не хватает — одна-две фразы"
+          :placeholder="t('t83.functional-tree.13')"
         />
       </div>
       <!-- Приоритет и горизонт — и у родителя: это решение о ветке целиком, в подпунктах оно наследуется. -->
@@ -483,7 +484,7 @@ function hidePanel(event?: FocusEvent) {
 
     <UCard v-if="relateFrom" v-show="!treeHidden" class="mb-3">
       <p class="mb-2 text-sm text-muted">
-        Связать «{{ relateFrom.title ?? relateFrom.id }}» с другой возможностью — связь отложится в пачку
+        {{ t('t83.functional-tree.14', { p: relateFrom.title ?? relateFrom.id }) }}
       </p>
       <div class="flex flex-wrap items-center gap-3">
         <USelect v-model="relateType" class="w-44" :items="relationItems" />
@@ -491,15 +492,15 @@ function hidePanel(event?: FocusEvent) {
           v-model="relateTo"
           class="min-w-64 flex-1"
           :items="relateTargets"
-          placeholder="С какой возможностью"
+          :placeholder="t('t83.functional-tree.15')"
         />
-        <UButton :disabled="!relateTo" @click="submitRelate">Связать</UButton>
-        <UButton variant="ghost" color="neutral" @click="relateFrom = null">Отмена</UButton>
+        <UButton :disabled="!relateTo" @click="submitRelate">{{ t('t83.functional-tree.16') }}</UButton>
+        <UButton variant="ghost" color="neutral" @click="relateFrom = null">{{ t('t83.functional-tree.11') }}</UButton>
       </div>
       <UInput
         v-model="relateSummary"
         class="mt-3 w-full"
-        placeholder="Чем именно связаны — одна фраза, необязательно"
+        :placeholder="t('t83.functional-tree.17')"
       />
       <UAlert
         v-if="failure"
@@ -512,11 +513,11 @@ function hidePanel(event?: FocusEvent) {
     </UCard>
 
     <p v-if="allPending" v-show="!treeHidden" class="mb-3 text-sm text-muted">
-      Карта ещё не подтверждена, поэтому всё на ней помечено как план.
+      {{ t('t83.functional-tree.18') }}
     </p>
 
     <p v-if="roots.length === 0" v-show="!treeHidden" class="ds-card ds-card--dashed p-6 text-center text-sm text-muted">
-      {{ capabilities.length === 0 ? 'Возможностей пока нет — добавьте первую.' : 'Под этот фильтр ничего не подошло.' }}
+      {{ capabilities.length === 0 ? t('t83.m2.ft.none') : t('t83.m2.ft.noMatch') }}
     </p>
     <div v-else v-show="!treeHidden" ref="wrapRef" class="relative" @mouseleave="hidePanel()" @focusout="hidePanel">
     <ul class="space-y-0.5">
@@ -545,10 +546,10 @@ function hidePanel(event?: FocusEvent) {
       class="absolute z-10 flex -translate-x-full gap-1 rounded bg-elevated"
       :style="{ top: panel.top + 'px', left: panel.left + 'px' }"
     >
-      <UButton icon="i-lucide-plus" size="xs" variant="ghost" color="neutral" title="Добавить подпункт" @click="openAdd(panel.item.id)" />
-      <UButton icon="i-lucide-pencil" size="xs" variant="ghost" color="neutral" title="Переименовать, описание, состояние, приоритет" @click="openEdit(panel.item)" />
-      <UButton icon="i-lucide-link" size="xs" variant="ghost" color="neutral" title="Связать с другой возможностью" @click="openRelate(panel.item)" />
-      <UButton icon="i-lucide-trash-2" size="xs" variant="ghost" color="neutral" title="Убрать" @click="removeCapability(panel.item)" />
+      <UButton icon="i-lucide-plus" size="xs" variant="ghost" color="neutral" :title="t('t83.functional-tree.19')" @click="openAdd(panel.item.id)" />
+      <UButton icon="i-lucide-pencil" size="xs" variant="ghost" color="neutral" :title="t('t83.functional-tree.20')" @click="openEdit(panel.item)" />
+      <UButton icon="i-lucide-link" size="xs" variant="ghost" color="neutral" :title="t('t83.functional-tree.21')" @click="openRelate(panel.item)" />
+      <UButton icon="i-lucide-trash-2" size="xs" variant="ghost" color="neutral" :title="t('t83.functional-tree.22')" @click="removeCapability(panel.item)" />
     </div>
     </div>
   </div>

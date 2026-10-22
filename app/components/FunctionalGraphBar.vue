@@ -10,6 +10,7 @@ import {
   type Priority
 } from '../../server/lib/functional';
 import { FUNCTIONAL_MODE_LABEL, type FunctionalLevel, type FunctionalMode } from '~/utils/map-mermaid';
+const { t } = useT();
 
 /**
  * Управление графом состояния: уровень (группы / всё), режим окраски и
@@ -55,14 +56,14 @@ function toggleKind(type: string) {
 }
 
 const priorityItems = [
-  { label: 'Любой приоритет', value: 'all' as const },
+  { get label() { return t('t83.m2.anyPriority'); }, value: 'all' as const },
   ...PRIORITIES.map((value) => ({ label: PRIORITY_LABEL[value], value })),
-  { label: 'Без приоритета', value: 'none' as const }
+  { get label() { return t('t83.m2.NoPriority'); }, value: 'none' as const }
 ];
 const horizonItems = [
-  { label: 'Любой горизонт', value: 'all' as const },
+  { get label() { return t('t83.m2.anyHorizon'); }, value: 'all' as const },
   ...HORIZONS.map((value) => ({ label: HORIZON_LABEL[value], value })),
-  { label: 'Без горизонта', value: 'none' as const }
+  { get label() { return t('t83.m2.NoHorizon'); }, value: 'none' as const }
 ];
 </script>
 
@@ -77,7 +78,7 @@ const horizonItems = [
           icon="i-lucide-boxes"
           @click="emit('show-groups')"
         >
-          Группы
+          {{ t('t83.functional-graph-bar.1') }}
         </UButton>
         <UButton
           size="xs"
@@ -86,38 +87,38 @@ const horizonItems = [
           icon="i-lucide-network"
           @click="emit('show-all')"
         >
-          Всё
+          {{ t('t83.functional-graph-bar.2') }}
         </UButton>
       </div>
 
       <p v-if="level === 'group'" class="text-sm text-muted">
-        <button type="button" class="hover:underline" @click="emit('show-groups')">Все группы</button>
+        <button type="button" class="hover:underline" @click="emit('show-groups')">{{ t('t83.functional-graph-bar.3') }}</button>
         › {{ groupTitle }}
       </p>
 
       <div class="ml-auto flex items-center gap-2">
-        <span class="text-xs text-muted">Окраска</span>
+        <span class="text-xs text-muted">{{ t('t83.functional-graph-bar.4') }}</span>
         <UTabs v-model="mode" size="xs" class="w-80" :items="modeItems" />
       </div>
     </div>
     <p v-if="!hasCoverage" class="text-xs text-muted">
-      «Покрытие» и «Риски» станут доступны, когда загрузится то, что стоит за возможностями в процессе.
+      {{ t('t83.functional-graph-bar.5') }}
     </p>
 
     <div class="flex flex-wrap items-center gap-2 text-xs">
-      <span class="text-muted">Связи</span>
+      <span class="text-muted">{{ t('t83.map-inspector.36') }}</span>
       <UButton
         v-for="type in kinds"
         :key="type"
         size="xs"
         color="neutral"
         :variant="hiddenKinds.includes(type) ? 'outline' : 'subtle'"
-        :title="hiddenKinds.includes(type) ? 'Показать' : 'Скрыть'"
+        :title="hiddenKinds.includes(type) ? t('t83.m2.show') : t('t83.m2.hide')"
         @click="toggleKind(type)"
       >
         {{ RELATION_LABEL[type] }} · {{ kindCounts[type] }}
       </UButton>
-      <span v-if="kinds.length === 0" class="text-muted">пока нет</span>
+      <span v-if="kinds.length === 0" class="text-muted">{{ t('t83.functional-graph-bar.6') }}</span>
 
       <USelect
         class="ml-auto w-44"
@@ -138,10 +139,10 @@ const horizonItems = [
         color="neutral"
         :variant="onlyRisks ? 'solid' : 'outline'"
         :disabled="!hasCoverage"
-        title="Оставить возможности с признаком риска и их родителей"
+        :title="t('t83.functional-graph-bar.7')"
         @click="onlyRisks = !onlyRisks"
       >
-        Только риски
+        {{ t('t83.functional-graph-bar.8') }}
       </UButton>
     </div>
   </div>

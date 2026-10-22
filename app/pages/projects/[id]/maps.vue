@@ -91,7 +91,7 @@ const taskId = ref('');
 /** Ответ, поправленный моделью: заменяет прошлый, пока его не сохранили. */
 const fixed = ref('');
 
-const { t } = useT(); const { running: fixing, elapsed, outcome, log, stream, cancel } = useModelRequest(() => `${projectId.value}:map-fix`, {
+const { t, tn } = useT(); const { running: fixing, elapsed, outcome, log, stream, cancel } = useModelRequest(() => `${projectId.value}:map-fix`, {
   label: t('maps.fixLabel'),
   onRecovered: (answer) => acceptFix(answer as { answer: string })
 });
@@ -168,7 +168,7 @@ async function createImplementingTask() {
       method: 'POST',
       body: {
         type: 'task',
-        title: `Реализовать карту ${draftId.value}`,
+        title: t('t83.m2.m.task', { id: draftId.value }),
         change: 'feature',
         links: { affects: [draftId.value] }
       },
@@ -900,13 +900,13 @@ const FOLD_LOOK: Record<string, { fill: string; stroke: string; dash?: boolean; 
 };
 const FOLD_ARROW: Record<string, string> = { depends: '-->', uses: '-.->', feeds: '==>', triggers: '--o', replaces: '--x' };
 const FOLD_KIND: Record<string, string> = {
-  depends: 'зависит от', uses: 'пользуется', feeds: 'передаёт данные в', triggers: 'запускает', replaces: 'заменяет'
+  get depends() { return t('t83.m2.rel.depends'); }, get uses() { return t('t83.m2.rel.uses'); }, get feeds() { return t('t83.m2.rel.feedsIn'); }, get triggers() { return t('t83.m2.rel.triggers'); }, get replaces() { return t('t83.m2.rel.replaces'); }
 };
 const FOLD_RISK: Record<string, string> = {
-  red: 'Цикл или падающая проверка', orange: 'Отметка расходится с задачами', yellow: 'Ждёт зависимость', none: 'Без признаков'
+  get red() { return t('t83.m2.risk.red'); }, get orange() { return t('t83.m2.risk.orange'); }, get yellow() { return t('t83.m2.risk.yellow'); }, get none() { return t('t83.m2.risk.none'); }
 };
 const FOLD_ORDER: Record<string, string> = {
-  start: 'Можно начинать', wait: 'Ждёт зависимость', done: 'Готово', skip: 'Не берём', unrated: 'Не оценено'
+  get start() { return t('t83.m2.order.start'); }, get wait() { return t('t83.m2.order.wait'); }, get done() { return t('t83.m2.order.done'); }, get skip() { return t('t83.m2.order.skip'); }, get unrated() { return t('t83.m2.order.unrated'); }
 };
 
 interface FoldNode {
@@ -970,7 +970,7 @@ function foldedDiagram(
     const cls = ghost ? 'fold_ghost' : node.cls;
     if (cls) used.add(cls);
     lines.push(`    ${id}["${foldText(node.title)}${tail}"]${cls ? `:::${cls}` : ''}`);
-    out.details[id] = node.expandable ? `${node.title}: свёрнуто ${node.size} ${unit}` : node.title;
+    out.details[id] = node.expandable ? t('t83.m2.fold.collapsed', { title: node.title, size: node.size, unit }) : node.title;
     out.nodes[id] = {
       id: node.key, title: node.title, ...(node.summary ? { summary: node.summary } : {}), ...node.extra,
       ...(ghost ? { ghost: { groupId: node.key, groupTitle: node.title } } : {})
@@ -1042,8 +1042,8 @@ const codemapDepth = computed<DepthOutput | null>(() => {
       expandable: groupIds.has(key),
       summary: titles.get(key)?.summary ?? moduleById.get(key)?.summary
     })),
-    [...folded.values()].map((edge) => ({ ...edge, label: 'импорт' })),
-    'модулей',
+    [...folded.values()].map((edge) => ({ ...edge, label: t('t83.m2.import') })),
+    t('t83.m2.unit.modules'),
     { focus: foldFocus.value, inside: underFn(params.open, treeNodes) }
   );
 });
@@ -1082,7 +1082,7 @@ const dataflowDepth = computed<DepthOutput | null>(() => {
       evidence: link.flows[0]?.evidence ?? NO_EVIDENCE,
       status: link.status
     })),
-    'потоков',
+    t('t83.m2.unit.flows'),
     // Источники — не ветка дерева кода: призраками становятся только группы кода вне раскрытой.
     { focus: foldFocus.value, inside: (key) => key.startsWith('s:') || codeInside(key.slice(2)) }
   );
@@ -1181,7 +1181,7 @@ const functionalDepth = computed<DepthOutput | null>(() => {
       }))
     }
   }));
-  return foldedDiagram(nodes, edges, 'возможностей', { focus: foldFocus.value, inside: underFn(open, treeNodes) });
+  return foldedDiagram(nodes, edges, t('t83.m2.unit.caps'), { focus: foldFocus.value, inside: underFn(open, treeNodes) });
 });
 
 /** Данные для подсказок дробления открытой группы кодовой карты (`MapSplitHints`, T-0097). */
@@ -1330,7 +1330,7 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
       <div class="flex flex-wrap items-center gap-3">
         <h1 class="text-xl font-semibold">{{ t('maps.title') }}</h1>
         <p v-if="map" class="text-sm text-muted">
-          сложено из {{ plural(map.from.length, 'карты', 'карт', 'карт') }}
+          {{ t('t83.m2.m.byMaps', { maps: tn('t83.m2.pl.mapsOf', map.from.length) }) }}
         </p>
         <UBadge v-if="map && map.unverified > 0" color="error" variant="subtle" class="ml-auto">
           {{ t('maps.unverified', { n: map.unverified }) }}
@@ -1441,8 +1441,8 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
       </PromptPanel>
 
       <p class="text-sm text-muted">
-        Картина складывается из подтверждённых карт изменений. Черновики сюда не
-        входят: пока человек не подтвердил, это намерение, а не устройство проекта.
+        {{ t('t83.maps.1') }}
+
       </p>
 
       <!-- Пользовательские карты от общей картины не зависят (docs/adr/0028-custom-maps.md):
@@ -1487,23 +1487,23 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
         <!-- Пусто — тоже ответ, и он обязан назвать причину (docs/04-ui.md). -->
         <template v-if="aside.superseded.length || aside.drafts.length">
           <p class="font-medium text-default">
-            Карты есть, но в картину не входит ни одна.
+            {{ t('t83.maps.2') }}
           </p>
           <p v-if="aside.superseded.length" class="mt-2">
-            {{ plural(aside.superseded.length, "карта помечена", "карты помечены", "карт помечены") }}
-            заменёнными: <span class="font-mono">{{ aside.superseded.map((record) => record.id).join(", ") }}</span>.
-            Карта — это изменение, а не снимок: картина складывается из суммы подтверждённых.
-            Пометив прежние заменёнными, вы вычли их из суммы.
+            {{ tn('t83.m2.pl.supersededMaps', aside.superseded.length) }}
+            <span class="font-mono">{{ aside.superseded.map((record) => record.id).join(", ") }}</span>{{ t('t83.maps.3') }}
+
+
           </p>
           <p v-if="aside.drafts.length" class="mt-2">
-            {{ plural(aside.drafts.length, "карта ждёт", "карты ждут", "карт ждут") }} подтверждения:
+            {{ tn('t83.m2.pl.draftMaps', aside.drafts.length) }}
             <span class="font-mono">{{ aside.drafts.map((record) => record.id).join(", ") }}</span>.
           </p>
         </template>
 
         <template v-else>
-          Подтверждённых карт нет — складывать нечего. Карта заводится записью типа
-          <code>map</code> и запрашивается у модели по шаблону из <code>docs/prompts/</code>.
+          {{ t('t83.maps.4') }}
+          <code>map</code> {{ t('t83.maps.5') }} <code>docs/prompts/</code>.
         </template>
       </div>
 
@@ -1575,8 +1575,8 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
 
             <template v-if="shown === 'dataflow' && flowMode === 'groups'">
               <p class="mb-3 text-sm text-muted">
-                Кто читает и пишет где: группы кода слева, виды источников справа; стрелка идёт по направлению
-                данных, подпись — число потоков. Клик — карточка, двойной клик — открыть.
+                {{ t('t83.maps.6') }}
+
               </p>
             </template>
 
@@ -1590,19 +1590,19 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
                   <span class="font-medium">{{ flowMode === 'code' ? flowGroupTitle : flowKindLabel }}</span>
                   <span class="text-muted">
                     · {{ flowMode === 'code' ? t('maps.codeGroup') : t('maps.sourceKind') }},
-                    {{ plural(flowScopeValue?.sources.length ?? 0, 'источник', 'источника', 'источников') }}
+                    {{ tn('t83.m2.pl.source', flowScopeValue?.sources.length ?? 0) }}
                   </span>
                 </p>
                 <p v-if="flowMode === 'code'" class="text-xs text-muted">
-                  Выберите модуль или источник — другие группы, которые трогают те же источники, появятся призраками.
+                  {{ t('t83.maps.7') }}
                 </p>
               </div>
             </template>
 
             <template v-if="shown === 'codemap' && codemapMode === 'groups'">
               <p class="mb-3 text-sm text-muted">
-                Группы выведены из путей к файлам; стрелка — сколько импортов идёт из одной группы в другую.
-                Клик — карточка группы, двойной клик — открыть её целиком.
+                {{ t('t83.maps.8') }}
+
               </p>
             </template>
 
@@ -1615,7 +1615,7 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
                   <span class="text-muted">›</span>
                   <span class="font-medium">{{ openGroupInfo.title }}</span>
                   <UBadge v-if="openGroupInfo.auto" size="xs" color="neutral" variant="subtle">{{ t('maps.auto') }}</UBadge>
-                  <span class="text-muted">· {{ plural(openGroupInfo.moduleCount, 'модуль', 'модуля', 'модулей') }}</span>
+                  <span class="text-muted">· {{ tn('t83.m2.pl.module', openGroupInfo.moduleCount) }}</span>
                 </p>
                 <p v-if="openGroupInfo.dependsOn.length || openGroupInfo.usedBy.length" class="flex flex-wrap items-center gap-x-1 text-xs text-muted">
                   <template v-if="openGroupInfo.dependsOn.length">
@@ -1640,7 +1640,7 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
                   </template>
                 </p>
                 <p class="text-xs text-muted">
-                  Толстая рамка — порт: у модуля есть связи за пределами группы. Выберите модуль, чтобы увидеть, куда они ведут.
+                  {{ t('t83.maps.9') }}
                 </p>
                 <MapSplitHints
                   v-if="splitHints"
@@ -1697,8 +1697,8 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
             <!-- Слои — только у кодовой базы: у остальных видов узел не несёт слоя. На обзоре групп их нет. -->
             <template v-if="shown === 'codemap' && codemapMode !== 'groups' && allLayers.length > 1">
               <p v-if="isLargeCodemap && hiddenLayers.size > 0" class="mb-2 text-sm text-muted">
-                {{ codemapMode === 'group' ? t('maps.bigGroup') : t('maps.bigCodebase') }} ({{ scopeCodemap?.modules.length }} модулей) — чтобы не перегружать диаграмму,
-                сначала показан один слой. Выберите другой чипом; чтобы увидеть все разом, кликните по выбранному ещё раз.
+                {{ codemapMode === 'group' ? t('maps.bigGroup') : t('maps.bigCodebase') }} {{ t('t83.m2.m.codemapHint', { n: scopeCodemap?.modules.length ?? 0 }) }}
+
               </p>
               <div class="mb-3 flex flex-wrap gap-1">
                 <UButton

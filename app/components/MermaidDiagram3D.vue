@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { colorOf, type MermaidEdge, type MermaidNode } from '../utils/map-mermaid';
+const { t } = useT();
 
 /**
  * Тот же граф, что и `MermaidDiagram.vue`, но силовой раскладкой в 3D
@@ -185,7 +186,7 @@ onUnmounted(() => document.removeEventListener('fullscreenchange', onFullscreenC
           size="xs"
           color="neutral"
           variant="subtle"
-          :title="fullscreen ? 'Выйти из полного экрана' : 'На весь экран'"
+          :title="fullscreen ? t('t83.m2.fs.exit') : t('t83.m2.fs.enter')"
           @click="toggleFullscreen"
         />
       </div>
@@ -200,7 +201,7 @@ onUnmounted(() => document.removeEventListener('fullscreenchange', onFullscreenC
         </span>
       </div>
       <p class="absolute bottom-2 left-2 z-10 text-xs text-muted">
-        Перетаскивание вращает, колесо — масштаб, правая кнопка — панорама
+        {{ t('t83.mermaid-diagram3-d.1') }}
       </p>
       <div ref="viewport" class="h-[70vh]" :class="fullscreen ? 'h-full' : ''" />
     </div>
@@ -209,7 +210,7 @@ onUnmounted(() => document.removeEventListener('fullscreenchange', onFullscreenC
       color="warning"
       variant="subtle"
       icon="i-lucide-triangle-alert"
-      title="3D-сцена не собралась"
+      :title="t('t83.mermaid-diagram3-d.2')"
       :description="error"
     />
   </div>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { IMPL_LABEL, type Progress, type StatusFilter } from '../../server/lib/functional';
 import { STATUS_STYLE } from '~/utils/functional-view';
+const { t } = useT();
 
 /**
  * Сводка над деревом и графом функциональной карты: сколько возможностей в
@@ -49,13 +50,13 @@ function toggle(key: StatusFilter) {
         :icon="STATUS_STYLE[key].icon"
         :class="filter === key ? '' : STATUS_STYLE[key].text"
         :aria-pressed="filter === key"
-        :title="filter === key ? 'Снять фильтр' : `Показать только: ${IMPL_LABEL[key]}`"
+        :title="filter === key ? t('t83.m2.resetFilter') : t('t83.m2.onlyKey', { label: IMPL_LABEL[key] })"
         @click="toggle(key)"
       >
         {{ IMPL_LABEL[key] }} {{ progress[key] }}
       </UButton>
-      <span class="ml-1 text-xs text-muted">из {{ progress.total }}</span>
-      <UButton v-if="filter" size="xs" variant="link" color="neutral" @click="filter = null">Показать все</UButton>
+      <span class="ml-1 text-xs text-muted">{{ t('t83.functional-summary.1', { total: progress.total }) }}</span>
+      <UButton v-if="filter" size="xs" variant="link" color="neutral" @click="filter = null">{{ t('t83.functional-summary.2') }}</UButton>
     </div>
   </div>
 </template>
