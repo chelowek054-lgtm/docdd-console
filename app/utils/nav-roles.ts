@@ -11,23 +11,23 @@ export type NavRole = (typeof NAV_ROLES)[number];
 export type NavRoleChoice = NavRole | '';
 
 export type NavKey =
-  | 'overview' | 'requirements' | 'designDocs' | 'decisions' | 'contracts' | 'reference' | 'knowledge' | 'glossary'
+  | 'overview' | 'strategy' | 'requirements' | 'designDocs' | 'decisions' | 'contracts' | 'reference' | 'knowledge' | 'glossary'
   | 'tasks' | 'phases' | 'manager' | 'releases'
   | 'checks' | 'run' | 'results' | 'issues' | 'graph'
   | 'maps' | 'inbox' | 'import'
   | 'design' | 'analyst' | 'practices';
 
 const BY_ROLE: Record<NavRole, readonly NavKey[]> = {
-  architect: ['requirements', 'designDocs', 'decisions', 'contracts', 'reference', 'knowledge', 'glossary', 'tasks', 'phases', 'manager', 'checks', 'run', 'results', 'issues', 'graph', 'maps', 'import', 'design', 'practices'],
+  architect: ['strategy', 'requirements', 'designDocs', 'decisions', 'contracts', 'reference', 'knowledge', 'glossary', 'tasks', 'phases', 'manager', 'checks', 'run', 'results', 'issues', 'graph', 'maps', 'import', 'design', 'practices'],
   developer: ['designDocs', 'decisions', 'contracts', 'reference', 'tasks', 'checks', 'run', 'results', 'issues', 'maps', 'design'],
-  pm: ['requirements', 'knowledge', 'tasks', 'phases', 'manager', 'releases', 'maps', 'inbox', 'import'],
-  analyst: ['requirements', 'knowledge', 'glossary', 'maps', 'inbox', 'import', 'analyst'],
+  pm: ['strategy', 'requirements', 'knowledge', 'tasks', 'phases', 'manager', 'releases', 'maps', 'inbox', 'import'],
+  analyst: ['strategy', 'requirements', 'knowledge', 'glossary', 'maps', 'inbox', 'import', 'analyst'],
   domain: ['requirements', 'knowledge', 'glossary', 'inbox'],
   designer: ['designDocs', 'knowledge', 'tasks', 'design'],
   qa: ['requirements', 'contracts', 'tasks', 'releases', 'checks', 'run', 'results', 'issues', 'graph'],
   devops: ['tasks', 'releases', 'run', 'results'],
   support: ['knowledge', 'glossary', 'releases', 'inbox'],
-  viewer: ['requirements', 'knowledge', 'manager', 'releases']
+  viewer: ['strategy', 'requirements', 'knowledge', 'manager', 'releases']
 };
 
 /** Обзор нужен всем: это первый экран проекта. */
@@ -48,6 +48,7 @@ export function isNavRole(value: unknown): value is NavRole {
  */
 export const NAV_HINTS: Record<NavKey, string> = {
   overview: 'обзор главная сводка дашборд прогресс overview dashboard',
+  strategy: 'стратегия контуры здоровье светофор руководитель проекта strategy health contours',
   requirements: 'требования требование фичи что должно быть requirements',
   designDocs: 'проектные документы дизайн документ архитектура design docs',
   decisions: 'решения adr решение почему decisions',

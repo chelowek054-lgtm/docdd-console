@@ -81,7 +81,7 @@ const allEntries = computed<NavEntry[]>(() => {
   if (!projectId.value) return [];
   const base = `/projects/${projectId.value}`;
   return [
-    { kind: 'link', key: 'overview', label: t('nav.overview'), to: base },
+    { kind: 'link', key: 'overview', label: t('nav.overview'), to: base }, { kind: 'link', key: 'strategy', label: t('nav.strategy'), to: `${base}/strategy` },
     {
       kind: 'group',
       label: t('nav.documents'),
