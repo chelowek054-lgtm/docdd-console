@@ -119,8 +119,9 @@ function size(bytes: number): string {
         class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted"
       >
         В манифесте не объявлено <code>sources.docs</code> — приложению негде искать
-        старую документацию. Добавьте в <code>docs/development/project.yaml</code> список папок.
+        старую документацию. Укажите папки ниже или добавьте их в <code>docs/development/project.yaml</code>.
       </div>
+      <SourcesFinder v-if="survey && survey.folders.length === 0" :project-id="projectId" only="docs" @applied="refreshSurvey()" />
 
       <div
         v-else-if="plan.length === 0 && status !== 'pending'"

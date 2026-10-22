@@ -1,0 +1,10 @@
+{
+  "contract": "docdd.workspace/1",
+  "runner": "vitest",
+  "started_at": "2026-10-22T17:17:16Z",
+  "total": 1867,
+  "failed": 0,
+  "verifications": {
+    "V-0102": "passed"
+  }
+}

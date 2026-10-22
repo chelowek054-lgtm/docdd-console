@@ -30,7 +30,7 @@ const tab = computed({
     <h1 class="text-xl font-semibold">{{ t('nav.fill') }}</h1>
     <!-- Вкладки группы — строкой под шапкой (docs/04-ui.md, «Навигация»). -->
     <InboxPanel v-if="tab === 'inbox'" />
-    <OnboardingChecklist v-else-if="tab === 'onboarding'" :project-id="String(route.params['id'] ?? '')" />
+    <div v-else-if="tab === 'onboarding'" class="space-y-5"><OnboardingChecklist :project-id="String(route.params['id'] ?? '')" /><SourcesFinder :project-id="String(route.params['id'] ?? '')" /></div>
     <ExternalImportPanel v-else-if="tab === 'jira' || tab === 'confluence'" :key="tab" :source="tab" />
     <ImportPanel v-else />
   </div>

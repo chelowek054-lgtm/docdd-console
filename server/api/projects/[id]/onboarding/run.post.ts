@@ -3,6 +3,7 @@ import { defineEventHandler, getRouterParam, readBody } from 'h3';
 import type { StepId } from '../../../../lib/onboarding';
 import { fail } from '../../../../utils/http';
 import { onboardingReport } from '../../../../utils/onboarding-service';
+import '../../../../utils/onboarding-handlers';
 import { runOnboarding } from '../../../../utils/onboarding-steps';
 import { findProject } from '../../../../utils/projects';
 

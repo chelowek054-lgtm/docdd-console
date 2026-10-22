@@ -378,7 +378,7 @@ export interface ProjectManifest {
   contract: string;
   project: { id: string; name: string; description?: string };
   paths: Partial<Record<SectionKey, string>>;
-  sources?: { code?: string[]; docs?: string[]; client?: string[]; inbox?: string[]; shared?: SharedSource[] };
+  sources?: { code?: string[]; docs?: string[]; client?: string[]; tests?: string[]; inbox?: string[]; shared?: SharedSource[] };
   roles?: { id: string; name: string }[];
   /** Команда проекта: логин и роли человека в этом проекте (docs/adr/0020-people-roles-permissions.md). */
   team?: { login: string; roles: string[]; deny?: string[] }[]; /** Метрики продукта из Prometheus для обзора (docs/04-ui.md, «Наблюдаемость»). */ observability?: { url?: string; dashboard?: string; queries?: { id: string; label: string; query: string; unit?: string; warn?: number }[] };

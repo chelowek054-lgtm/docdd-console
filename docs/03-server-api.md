@@ -1215,3 +1215,11 @@ txt/log/json — `400 type_not_allowed`; больше 5 МБ — `400 too_large`
 `{ done, total, percent, next }`. Ничего не пишет. `POST …/run { step?, force? }` — выполняет автоматические шаги, что ещё не готовы (`step` — один;
 `force` — и готовые, перезапуск); ответ — `{ ran, left, state, steps, readiness }`: что сделано словами и сколько создано, и шаги, оставшиеся модели или
 человеку. Право — `edit_draft`. Незнакомый шаг — `400 step_unknown`.
+
+### GET /api/projects/:id/sources/detect и POST …/sources/apply (R-0077)
+
+`GET` — `{ folders, files, fresh, named }`: найденные папки (`kind` — `code`/`client`/`docs`/`tests`, `path`, `files`, `why`), файлы
+(`contract`, `dependencies`, `ci_report` с форматом), из папок — ещё не названные (`fresh`) и названное (`named`). Обход неглубокий (пять уровней, до 30 тысяч
+файлов), служебное пропускается. Ничего не пишет. `POST …/apply { folders: [{ kind, path }] }` — записывает подтверждённое в `sources` манифеста:
+объединяет с названным, пишет списки в одну строку; ответ `{ ok, added }`. Нет папки — `404 path_not_found`, путь вне корня — `403 outside_root`,
+манифест записан незнакомой формой (блочный список) — `409 manifest_unsupported`. Право — `edit_draft`. В манифесте появился необязательный `sources.tests`.
