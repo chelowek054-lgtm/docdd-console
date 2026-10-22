@@ -29,7 +29,7 @@ const TAP = 'relative before:absolute before:inset-x-0 before:top-1/2 before:h-1
 export default defineAppConfig({
   ui: {
     card: {
-      slots: { root: 'rounded-(--ds-radius-lg)' },
+      slots: { root: 'rounded-(--ds-radius-lg) ds-appear' },
       variants: { variant: { outline: { root: 'ring-0 shadow-(--ds-shadow-card)' } } }
     },
     input: { slots: { base: 'min-h-11' } },

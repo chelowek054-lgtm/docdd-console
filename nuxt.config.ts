@@ -55,6 +55,9 @@ export default defineNuxtConfig({
   },
 
   app: {
+    // Переходы между страницами и раскладками — глобально: новые страницы получают их сами (docs/04-ui.md, «Движение и курсор»).
+    pageTransition: { name: 'page', mode: 'out-in' },
+    layoutTransition: { name: 'layout', mode: 'out-in' },
     head: {
       title: 'DocDD Console',
       htmlAttrs: { lang: 'ru' }
