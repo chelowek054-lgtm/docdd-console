@@ -354,14 +354,15 @@ function isActive(to: string): boolean {
     </header>
 
     <!-- Вкладки группы: те же пункты, что в её меню, с учётом роли — у каждой группы одна строка. -->
-    <nav v-if="activeGroup" class="border-b border-default" :aria-label="activeGroup.label">
-      <div class="ds-container flex flex-nowrap items-center gap-1 overflow-x-auto overflow-y-hidden py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <!-- Строка есть на каждом экране проекта, даже без вкладок: высота шапки не меняется, страница не прыгает. -->
+    <nav v-if="projectId" class="border-b border-default" :aria-label="activeGroup?.label ?? t('app.name')">
+      <div class="ds-container flex min-h-11 flex-nowrap items-center gap-1 overflow-x-auto overflow-y-hidden py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <UButton
-          v-for="link in activeGroup.links"
+          v-for="link in activeGroup?.links ?? []"
           :key="link.to"
           :to="link.to"
-          :variant="linkActive(link.to, activeGroup.links) ? 'soft' : 'ghost'"
-          :color="linkActive(link.to, activeGroup.links) ? 'primary' : 'neutral'"
+          :variant="linkActive(link.to, activeGroup?.links ?? []) ? 'soft' : 'ghost'"
+          :color="linkActive(link.to, activeGroup?.links ?? []) ? 'primary' : 'neutral'"
           size="sm"
           class="shrink-0 whitespace-nowrap"
         >
