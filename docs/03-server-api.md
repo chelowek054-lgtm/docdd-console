@@ -1166,3 +1166,11 @@ matter. **Текст документа не меняется** — ни стр�
 возможностями первого уровня («Продукт и требования», «Архитектура и код», «Интерфейс и дизайн», «Инфраструктура и
 выкладка», «Качество и безопасность», «Выпуск и поддержка»). Роли команды — те же, что у любого нового проекта.
 Незнакомый шаблон — `400 template_unknown`. Без поля — прежний пустой формат.
+
+### GET /api/projects/:id/batch-check?capability=<id>
+
+Сверка пачки по возможности (R-0092): задачи, чьи `affects` называют карты, объявившие возможность, и связанные с ними
+требования и проверки. Ответ `{ capability, maps, gaps, clean }`; пробел — `{ kind, id, message }`, `kind` —
+`requirement_no_check`, `requirement_no_task`, `task_no_requirement`, `check_not_runnable`. Нет `capability` — `400`,
+нет возможности — `404`. При `policy.require_batch_check_before_ready: true` те же пробелы — ошибка `task_batch_gap`
+и блокируют переход задачи в `ready` ([05-validation.md](05-validation.md)).

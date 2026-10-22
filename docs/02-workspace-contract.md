@@ -41,6 +41,7 @@ policy:
   stale_in_progress_days: 14
   map_portion_files: 40
   require_capability_owner: false   # необязательно: must/now без владельца — предупреждение capability_no_owner
+  require_batch_check_before_ready: false   # необязательно: сверка пачки — задача не идёт в ready с пробелами в требованиях и проверках (R-0092)
 architecture:
   entries: { python: [__init__.py], typescript: [index.ts, index.tsx] }
   shared: [learningBack/platform, learningFront/src/shared]

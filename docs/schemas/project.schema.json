@@ -261,6 +261,11 @@
           "default": true,
           "description": "Задача не закрывается, пока её проверки не прошли."
         },
+        "require_batch_check_before_ready": {
+          "type": "boolean",
+          "default": false,
+          "description": "Задача не уходит в ready, пока у реализуемых ею требований есть пробелы: нет проверки, проверку нечем прогнать, у самой задачи нет требования (R-0092)."
+        },
         "stale_in_progress_days": {
           "type": "integer",
           "minimum": 1,

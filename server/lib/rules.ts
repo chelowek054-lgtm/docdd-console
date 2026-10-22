@@ -3,7 +3,7 @@ import { checkArchitecture } from './architecture';
 import { buildReferenceIndex, sameIndex, type ReferenceEntry } from './reference';
 import type { RulesResolution } from './practice-rules';
 import { capabilityFindings } from './coverage';
-import { brokenMapLinks, inputsNotReady, effectiveHorizon, effectiveOwner, effectivePriority } from './functional';
+import { taskGaps } from './batch-check'; import { brokenMapLinks, inputsNotReady, effectiveHorizon, effectiveOwner, effectivePriority } from './functional';
 import { approvedMaps, checkEvidence, evidenceClaims, foldMaps, parseMapRecord, type MapChange } from './maps';
 import { firstHeading } from './parse';
 import {
@@ -233,7 +233,7 @@ export function checkAll(ctx: RuleContext): Violation[] {
     ...verificationNeverRun(ctx),
     ...taskNoVerification(ctx),
     ...capabilityNoOwner(ctx),
-    ...mapLinksBroken(ctx), ...blockInputsNotReady(ctx)
+    ...mapLinksBroken(ctx), ...taskBatchGaps(ctx), ...blockInputsNotReady(ctx)
   ];
 }
 
@@ -1218,6 +1218,21 @@ export function blockInputsNotReady(ctx: RuleContext): Violation[] {
       found.push(violation('block_inputs_not_ready', task.id, task.source.path,
         `Задача ${task.id} в работе, а у возможности \`${item.id}\` входы не готовы: ${notReady.map((entry) => entry.why === 'missing' ? `${entry.input} (записи нет)` : `${entry.input} (${entry.status})`).join(', ')}.`));
     }
+  }
+  return found;
+}
+
+/**
+ * Сверка пачки как правило перехода (R-0092): при `policy.require_batch_check_before_ready`
+ * задача не уходит в `ready` и дальше, пока у реализуемых ею требований есть пробелы.
+ * Ошибка попадает в «блокеры» перехода, как и прочие правила задач.
+ */
+export function taskBatchGaps(ctx: RuleContext): Violation[] {
+  if (!ctx.policy.require_batch_check_before_ready) return [];
+  const found: Violation[] = [];
+  for (const task of tasks(ctx)) {
+    if (!TASK_READY_AND_BEYOND.includes(task.status) || task.status === 'done') continue;
+    for (const gap of taskGaps(task, ctx.records)) found.push(violation('task_batch_gap', task.id, task.source.path, `Сверка пачки: ${gap.message}`));
   }
   return found;
 }

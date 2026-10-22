@@ -14,7 +14,7 @@ const projectId = computed(() => String(route.params['id'] ?? ''));
 
 interface Inbox {
   folders: string[];
-  notes: { path: string; title: string; size: number }[];
+  notes: { path: string; title: string; size: number; role?: string; feature?: string }[];
   /** Разобранные — не исчезли, а переехали; видно, что из каждой выросло. */
   archived: { path: string; title: string; size: number; derived: string[] }[];
 }
@@ -284,6 +284,8 @@ async function create() {
                   class="text-muted"
                 />
                 <span class="font-medium">{{ note.title }}</span>
+                <UBadge v-if="note.role" size="sm" variant="soft" color="info" icon="i-lucide-user">{{ note.role }}</UBadge>
+                <UBadge v-if="note.feature" size="sm" variant="outline" color="neutral">{{ note.feature }}</UBadge>
                 <span class="font-mono text-xs text-muted">{{ note.path }}</span>
               </button>
             </li>

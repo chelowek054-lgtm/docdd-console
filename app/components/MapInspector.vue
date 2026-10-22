@@ -180,6 +180,18 @@ const inLinks = computed(() => {
   return ['codemap', 'dataflow', 'userflow'].flatMap((kind) => props.mapBacklinks?.[`${kind}:${sel.id}`] ?? []);
 });
 const contract = computed(() => (props.selection?.kind === 'node' && props.selection.capability ? props.capabilityContracts?.[props.selection.id] : undefined));
+/** Сверка пачки по возможности (R-0092): по кнопке, а не на каждый выбор узла. */
+interface BatchReport { gaps: { kind: string; id: string; message: string }[]; clean: boolean }
+const batch = ref<BatchReport | null>(null);
+const batchBusy = ref(false);
+watch(() => (props.selection?.kind === 'node' ? props.selection.id : ''), () => { batch.value = null; });
+async function runBatch() {
+  if (props.selection?.kind !== 'node') return;
+  batchBusy.value = true;
+  try {
+    batch.value = await $fetch<BatchReport>(`/api/projects/${props.projectId}/batch-check`, { query: { capability: props.selection.id } });
+  } catch { batch.value = null; } finally { batchBusy.value = false; }
+}
 const xray = computed(() => (props.selection?.kind === 'node' ? crossLinksOf(props.selection.id, props.crossLevel ?? []) : []));
 const capGroupOf = computed(() => (props.selection?.kind === 'node' ? props.selection.capabilityGroup : undefined));
 const coverage = computed(() => capView.value?.coverage);
@@ -432,6 +444,13 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
           <p v-if="capView.replacedBy.length" class="text-xs text-warning">
             Заменяется на: {{ capView.replacedBy.map(titleOf).join(', ') }} — работа не должна уходить в то, что уходит.
           </p>
+          <div v-if="!ghostOf && !capGroupOf" class="space-y-1">
+            <UButton size="xs" variant="soft" color="neutral" icon="i-lucide-clipboard-check" :loading="batchBusy" @click="runBatch">Сверка пачки</UButton>
+            <p v-if="batch?.clean" class="text-xs text-success">Пачка чистая: у требований есть проверки и задачи.</p>
+            <ul v-else-if="batch" class="space-y-0.5 text-xs text-warning">
+              <li v-for="gap in batch.gaps" :key="`${gap.kind}:${gap.id}`">{{ gap.message }}</li>
+            </ul>
+          </div>
           <div v-if="contract" class="space-y-1">
             <p v-if="contract.inputs.length" class="text-xs">
               <span class="font-medium">Входы:</span>
