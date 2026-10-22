@@ -54,10 +54,18 @@ const filter = (value: string) => (value === ALL ? '' : value);
 const columns = computed(() => boardColumns(props.records, { phase: filter(phase.value), assignee: filter(assignee.value), capability: filter(capability.value) }));
 
 /** «Сделано» растёт без конца: новые сверху, по умолчанию — последние десять. */
+/**
+ * «Сделано» — только то, что ещё не выпущено: выпущенное уходит с доски в свой релиз
+ * (как «Release» на канбан-доске Jira). Иначе колонка растёт без конца и прячет свежее.
+ */
+const shippedIds = computed(() => new Set(props.records.filter((r) => r.type === 'release').flatMap((r) => r.links.ships ?? [])));
+const doneOnBoard = computed(() => (columns.value['done'] ?? []).filter((task) => !shippedIds.value.has(task.id)));
+const shippedCount = computed(() => (columns.value['done'] ?? []).length - doneOnBoard.value.length);
+
 function visible(status: string): IndexRecord[] {
   const list = columns.value[status] ?? [];
   if (status !== 'done') return list;
-  const newest = [...list].reverse();
+  const newest = [...doneOnBoard.value].reverse();
   return showAllDone.value ? newest : newest.slice(0, DONE_LIMIT);
 }
 
@@ -125,7 +133,7 @@ async function drop(status: string) {
       >
         <h2 class="mb-2 flex items-center justify-between px-1 text-sm font-semibold">
           {{ STATUS_WORD[status] }}
-          <UBadge :color="overLimit(status) ? 'error' : 'neutral'" variant="soft" size="sm" :title="WIP_LIMIT[status] ? t('mb.wip', { n: WIP_LIMIT[status] }) : undefined">{{ columns[status]?.length ?? 0 }}<template v-if="WIP_LIMIT[status]"> / {{ WIP_LIMIT[status] }}</template></UBadge>
+          <UBadge :color="overLimit(status) ? 'error' : 'neutral'" variant="soft" size="sm" :title="WIP_LIMIT[status] ? t('mb.wip', { n: WIP_LIMIT[status] }) : undefined">{{ status === 'done' ? doneOnBoard.length : columns[status]?.length ?? 0 }}<template v-if="WIP_LIMIT[status]"> / {{ WIP_LIMIT[status] }}</template></UBadge>
         </h2>
         <div class="min-h-0 flex-1 space-y-2 overflow-y-auto">
           <div
@@ -141,7 +149,7 @@ async function drop(status: string) {
             </NuxtLink>
             <span class="mt-1.5 flex flex-wrap items-center gap-1">
               <!-- Исполнитель — назначается прямо здесь, без перехода в задачу. -->
-              <UPopover :open="assigning === task.id" @update:open="(value) => { assigning = value ? task.id : ''; typed = ''; }">
+              <UPopover v-if="status !== 'done' || assigneeOf(task)" :open="assigning === task.id" @update:open="(value) => { assigning = value ? task.id : ''; typed = ''; }">
                 <UButton
                   size="xs"
                   :variant="assigneeOf(task) ? 'soft' : 'outline'"
@@ -174,15 +182,20 @@ async function drop(status: string) {
             </span>
           </div>
           <UButton
-            v-if="status === 'done' && (columns.done?.length ?? 0) > DONE_LIMIT"
+            v-if="status === 'done' && doneOnBoard.length > DONE_LIMIT"
             size="xs"
             variant="ghost"
             color="neutral"
             block
             @click="showAllDone = !showAllDone"
           >
-            {{ showAllDone ? t('mb.showLess') : t('mb.showAll', { n: columns.done?.length ?? 0 }) }}
+            {{ showAllDone ? t('mb.showLess') : t('mb.showAll', { n: doneOnBoard.length }) }}
           </UButton>
+          <!-- Выпустить: закрытое уходит в релиз и с доски. -->
+          <div v-if="status === 'done'" class="space-y-1 pt-1 text-center">
+            <UButton v-if="doneOnBoard.length" size="xs" variant="soft" icon="i-lucide-rocket" block :to="`/projects/${props.projectId}/releases`">{{ t('mb.release', { n: doneOnBoard.length }) }}</UButton>
+            <NuxtLink v-if="shippedCount" :to="`/projects/${props.projectId}/releases`" class="block text-xs text-muted hover:underline">{{ t('mb.shipped', { n: shippedCount }) }}</NuxtLink>
+          </div>
         </div>
       </section>
     </div>

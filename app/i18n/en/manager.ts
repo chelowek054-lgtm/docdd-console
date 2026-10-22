@@ -1,5 +1,7 @@
 // Менеджер и Релизы (docs/04-ui.md, «Менеджер и Релизы»).
 export const manager: Record<string, string> = {
+  'mb.release': 'Ship in a release ({n})',
+  'mb.shipped': 'Shipped: {n} — see Releases',
   'mb.blocked': 'waits for {ids}',
   'mb.mine': 'Mine',
   'mb.wip': 'Column limit: {n}',

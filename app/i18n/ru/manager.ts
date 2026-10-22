@@ -1,5 +1,7 @@
 // Менеджер и Релизы (docs/04-ui.md, «Менеджер и Релизы»).
 export const manager: Record<string, string> = {
+  'mb.release': 'Выпустить в релиз ({n})',
+  'mb.shipped': 'Выпущено: {n} — в «Релизах»',
   'mb.blocked': 'ждёт {ids}',
   'mb.mine': 'Мои',
   'mb.wip': 'Лимит колонки: {n}',
