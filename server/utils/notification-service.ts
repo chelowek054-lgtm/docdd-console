@@ -3,7 +3,7 @@ import { useStorage } from 'nitropack/runtime';
 import {
   appendNotification,
   makeNotification,
-  markRead,
+  markReadFor,
   newZoneNotices,
   noopChannel,
   webhookChannel,
@@ -81,7 +81,7 @@ export function notify(projectId: string, input: NotificationInput): Promise<Not
 
 export function readNotifications(projectId: string, recipient: string, ids: readonly string[]): Promise<void> {
   return enqueue(async () => {
-    await useStorage('data').setItem(keyOf(projectId), markRead(await listNotifications(projectId), recipient, ids));
+    await useStorage('data').setItem(keyOf(projectId), markReadFor(await listNotifications(projectId), recipient, ids));
   });
 }
 

@@ -181,3 +181,15 @@ export function webhookChannel(url: string, doFetch: typeof fetch = fetch, timeo
     }
   };
 }
+
+/** Читатель колокольчика: вошедший видит своё; без входа консоль одного человека — ему всё (`*`). */
+export const EVERYONE = '*';
+
+export function visibleTo(list: readonly Notification[], reader: string): Notification[] {
+  return reader === EVERYONE ? [...list].reverse() : forRecipient(list, reader);
+}
+
+export function markReadFor(list: readonly Notification[], reader: string, ids: readonly string[] = []): Notification[] {
+  if (reader !== EVERYONE) return markRead(list, reader, ids);
+  return list.map((item) => (ids.length === 0 || ids.includes(item.id) ? { ...item, read: true } : item));
+}

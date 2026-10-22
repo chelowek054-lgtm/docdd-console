@@ -84,7 +84,7 @@ export default defineEventHandler(async (event) => {
         saveRecord(again, note, project.root);
       }
     }
-    notifyPatched(id, recordId, context.record.data, fields); return { record: saved.record };
+    notifyPatched(id, recordId, context.record.data, fields, project.root); return { record: saved.record };
   } catch (error) {
     if (error instanceof OutsideRootError) {
       return fail(event, 403, 'outside_root', error.message, error.requested);

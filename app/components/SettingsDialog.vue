@@ -78,7 +78,8 @@ watch(open, (value) => {
   <UModal v-model:open="open" :title="t('st.title')" :ui="{ content: 'sm:max-w-4xl' }">
     <template #body>
       <!-- Аккордеон: заголовки во всю ширину, пока раздел не выбран. -->
-      <ul v-if="!section" class="space-y-2">
+      <Transition name="ds-fade" mode="out-in">
+      <ul v-if="!section" key="list" class="space-y-2">
         <li v-for="item in sections" :key="item.value">
           <button type="button" class="ds-card ds-card--bordered flex w-full items-center gap-3 p-4 text-left hover:bg-elevated" @click="section = item.value">
             <UIcon :name="item.icon" class="size-5 shrink-0 text-primary" />
@@ -92,7 +93,7 @@ watch(open, (value) => {
       </ul>
 
       <!-- Раздел выбран: аккордеон — узкой колонкой слева, настройки — справа. -->
-      <div v-else class="grid gap-4 sm:grid-cols-[11rem_minmax(0,1fr)]">
+      <div v-else key="grid" class="grid gap-4 sm:grid-cols-[11rem_minmax(0,1fr)]">
         <nav class="flex gap-1 sm:flex-col" :aria-label="t('st.title')">
           <button
             v-for="item in sections"
@@ -155,6 +156,7 @@ watch(open, (value) => {
           </div>
         </Transition>
       </div>
+      </Transition>
     </template>
   </UModal>
 </template>

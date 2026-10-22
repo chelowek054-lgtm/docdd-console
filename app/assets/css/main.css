@@ -590,3 +590,30 @@ ul.divide-y > li {
     cursor: not-allowed;
   }
 }
+
+/*
+ * Мягче, а не резко: наведение и смена состояния у всего нажимаемого плавные,
+ * переходы страниц и блоков — на базовой длительности, а не на быстрой.
+ */
+@layer base {
+  button,
+  a[href],
+  [role='tab'],
+  [role='menuitem'],
+  [role='option'],
+  input,
+  select,
+  textarea {
+    transition-property: color, background-color, border-color, box-shadow, opacity;
+    transition-duration: var(--ds-motion-base);
+    transition-timing-function: ease;
+  }
+}
+.page-enter-active,
+.page-leave-active,
+.layout-enter-active,
+.layout-leave-active,
+.ds-fade-enter-active,
+.ds-fade-leave-active {
+  transition-duration: var(--ds-motion-base);
+}

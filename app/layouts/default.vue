@@ -310,8 +310,8 @@ function isActive(to: string): boolean {
               <span class="hidden truncate xl:inline">{{ roleLabel }}</span>
             </UButton>
           </UDropdownMenu>
-          <GlobalSearch v-if="projectId" :project-id="projectId" :links="searchLinks" /><SettingsDialog :project-id="projectId" />
-          <ModelJobsBar /><NotificationsBell />
+          <GlobalSearch v-if="projectId" :project-id="projectId" :links="searchLinks" /><NotificationsBell /><ModelJobsBar />
+          <span v-if="projectId" class="mx-1 h-5 w-px bg-(--ui-border)" aria-hidden="true" /><!-- поиск и события | общие экраны | вид и настройки -->
 
           <!-- Без проекта: общие экраны консоли. С проектом к ним ведёт логотип — список проектов. -->
           <template v-if="!projectId">
@@ -348,7 +348,7 @@ function isActive(to: string): boolean {
             <template #fallback>
               <UButton icon="i-lucide-monitor" :aria-label="t('theme.fallbackAria')" variant="ghost" color="neutral" size="sm" disabled />
             </template>
-          </ClientOnly>
+          </ClientOnly><SettingsDialog :project-id="projectId" />
         </div>
       </div>
     </header>
