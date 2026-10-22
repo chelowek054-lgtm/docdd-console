@@ -70,7 +70,7 @@ function toggle(which: string) {
 
     <template v-else>
       <div class="flex flex-wrap items-center gap-4 text-sm">
-        <span class="font-medium">{{ t('t83.m2.inventory', { files: tn('t83.m2.pl.file', data.total) }) }}</span>
+        <span class="font-medium">{{ t('t83.m2.m.inventory', { files: tn('t83.m2.pl.file', data.total) }) }}</span>
 
         <span class="text-muted">{{ t('t83.map-inventory.3', { described: data.described }) }}</span>
 
