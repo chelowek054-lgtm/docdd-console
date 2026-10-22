@@ -2,7 +2,7 @@
 id: T-0146
 type: task
 title: Поиск по всем текстовым источникам и разделам консоли
-status: in_review
+status: done
 change: feature
 created: 2026-10-22
 updated: 2026-10-22
@@ -21,3 +21,4 @@ links:
 - 2026-10-22 · готова к работе · architect
 - 2026-10-22 · в разработку · architect
 - 2026-10-22 · на проверку · architect
+- 2026-10-22 · закрыта · architect

@@ -2,7 +2,7 @@
 id: T-0152
 type: task
 title: 'Контракт блока: входы и выходы возможности'
-status: in_review
+status: done
 change: feature
 created: 2026-10-22
 updated: 2026-10-22
@@ -22,3 +22,4 @@ links:
 - 2026-10-22 · готова к работе · architect
 - 2026-10-22 · в разработку · developer
 - 2026-10-22 · на проверку · developer
+- 2026-10-22 · закрыта · architect

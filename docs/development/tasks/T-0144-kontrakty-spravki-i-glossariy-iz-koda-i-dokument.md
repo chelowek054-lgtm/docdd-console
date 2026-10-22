@@ -2,7 +2,7 @@
 id: T-0144
 type: task
 title: Контракты, справки и глоссарий из кода и документации
-status: in_review
+status: done
 change: feature
 reuse: none
 created: 2026-10-22
@@ -23,3 +23,4 @@ links:
 - 2026-10-22 · готова к работе · architect
 - 2026-10-22 · в разработку · developer
 - 2026-10-22 · на проверку · developer
+- 2026-10-22 · закрыта · architect

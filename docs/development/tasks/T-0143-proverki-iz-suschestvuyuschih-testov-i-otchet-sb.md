@@ -2,7 +2,7 @@
 id: T-0143
 type: task
 title: Проверки из существующих тестов и отчёт сборки
-status: in_review
+status: done
 change: feature
 reuse: none
 created: 2026-10-22
@@ -23,3 +23,4 @@ server/lib/tests-import.ts: поиск тестов и сопоставлени�
 - 2026-10-22 · готова к работе · architect
 - 2026-10-22 · в разработку · developer
 - 2026-10-22 · на проверку · developer
+- 2026-10-22 · закрыта · architect
