@@ -12,8 +12,8 @@ import { screens as ruScreens } from './ru/screens';
  * исходнике: перевод идёт по группам, а не одним коммитом.
  */
 export const messages: Record<string, Record<string, string>> = {
-  ru: { ...ruShell, ...ruDesign, ...ruScreens, ...ruPages, ...ruRest, ...ruRecords, ...ruPages2, ...ruComponents, ...ruNav, ...ruOverview, ...ruSearch, ...ruSettings, ...ruNotifications, ...ruManager, ...ruVerify, ...ruStrategy, ...ruAgents, ...ruOnboarding, ...ruUiMaps, ...ruUiInbox },
-  en: { ...enShell, ...enDesign, ...enScreens, ...enPages, ...enRest, ...enRecords, ...enPages2, ...enComponents, ...enNav, ...enOverview, ...enSearch, ...enSettings, ...enNotifications, ...enManager, ...enVerify, ...enStrategy, ...enAgents, ...enOnboarding, ...enUiMaps, ...enUiInbox }
+  ru: { ...ruShell, ...ruDesign, ...ruScreens, ...ruPages, ...ruRest, ...ruRecords, ...ruPages2, ...ruComponents, ...ruNav, ...ruOverview, ...ruSearch, ...ruSettings, ...ruNotifications, ...ruManager, ...ruVerify, ...ruStrategy, ...ruAgents, ...ruOnboarding, ...ruUiMaps, ...ruUiInbox, ...ruUiRest },
+  en: { ...enShell, ...enDesign, ...enScreens, ...enPages, ...enRest, ...enRecords, ...enPages2, ...enComponents, ...enNav, ...enOverview, ...enSearch, ...enSettings, ...enNotifications, ...enManager, ...enVerify, ...enStrategy, ...enAgents, ...enOnboarding, ...enUiMaps, ...enUiInbox, ...enUiRest }
 };
 import { pages as enPages } from './en/pages';
 import { pages as ruPages } from './ru/pages';
@@ -49,3 +49,5 @@ import { uiMaps as enUiMaps } from './en/ui-maps';
 import { uiMaps as ruUiMaps } from './ru/ui-maps';
 import { uiInbox as enUiInbox } from './en/ui-inbox';
 import { uiInbox as ruUiInbox } from './ru/ui-inbox';
+import { uiRest as enUiRest } from './en/ui-rest';
+import { uiRest as ruUiRest } from './ru/ui-rest';

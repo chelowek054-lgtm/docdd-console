@@ -37,7 +37,7 @@ async function created() {
   await Promise.all([refresh(), refreshIndex()]);
 }
 
-const KIND_LABEL: Record<string, string> = { component: 'компонент', api: 'сервис, API', technique: 'приём', data: 'данные' };
+const KIND_LABEL: Record<string, string> = { get component() { return t('t83.m4.rf.component'); }, get api() { return t('t83.m4.rf.api'); }, get technique() { return t('t83.m4.rf.technique'); }, get data() { return t('t83.m4.rf.data'); } };
 </script>
 
 <template>
@@ -65,12 +65,12 @@ const KIND_LABEL: Record<string, string> = { component: 'компонент', ap
               <span :class="report.index.fresh ? 'text-success' : 'font-semibold text-warning'">
                 {{ report.index.fresh ? t('ref.fresh') : report.index.exists ? t('ref.stale') : t('ref.none') }}
               </span>
-              · {{ report.index.lines }} строк · <span class="font-mono text-xs">{{ report.index.path }}</span>
+              {{ t('t83.reference.1', { lines: report.index.lines }) }} <span class="font-mono text-xs">{{ report.index.path }}</span>
             </p>
             <UButton size="sm" variant="soft" icon="i-lucide-refresh-cw" :loading="busy" @click="rebuild">{{ t('ref.rebuild') }}</UButton>
           </div>
           <p v-if="report.index.undescribedModules" class="text-sm text-muted">
-            Модулей без описания: {{ report.index.undescribedModules }} — по ним индекс не защищает от дублей. Описание берётся из карты кода (поле summary), его подтверждают на экране «Карты».
+            {{ t('t83.reference.2', { undescribedModules: report.index.undescribedModules }) }}
           </p>
           <UAlert v-if="trouble" color="error" variant="subtle" icon="i-lucide-triangle-alert" :title="trouble.message" :description="trouble.detail" />
           <details>
@@ -85,7 +85,7 @@ const KIND_LABEL: Record<string, string> = { component: 'компонент', ap
         </div>
 
         <p v-if="!report.items?.length" class="text-sm text-muted">
-          Справок пока нет. Заведите справку вручную или разберите заметку из входящего: факты о внешней системе — это справка.
+          {{ t('t83.reference.3') }}
         </p>
         <div v-else class="overflow-x-auto">
           <table class="w-full text-left text-sm">

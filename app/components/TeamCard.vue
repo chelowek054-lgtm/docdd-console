@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const { t } = useT();
 const props = defineProps<{ projectId: string }>();
 
 interface Member { login: string; roles: string[]; known: boolean }
@@ -12,13 +13,13 @@ const unknown = computed(() => data.value.filter((member) => !member.known));
 <template>
   <UCard v-if="data.length > 0">
     <template #header>
-      <h2 class="font-medium">Команда</h2>
+      <h2 class="font-medium">{{ t('t83.team-card.1') }}</h2>
     </template>
     <ul class="space-y-1 text-sm">
       <li v-for="member in data" :key="member.login" class="flex items-center gap-2">
         <span class="font-mono text-xs">{{ member.login }}</span>
         <UBadge v-for="role in member.roles" :key="role" color="neutral" variant="subtle" size="sm">{{ role }}</UBadge>
-        <UBadge v-if="!member.known" color="warning" variant="subtle" size="sm">нет учётной записи</UBadge>
+        <UBadge v-if="!member.known" color="warning" variant="subtle" size="sm">{{ t('t83.team-card.2') }}</UBadge>
       </li>
     </ul>
     <UAlert
@@ -27,8 +28,8 @@ const unknown = computed(() => data.value.filter((member) => !member.known));
       color="warning"
       variant="subtle"
       icon="i-lucide-triangle-alert"
-      :title="`Незнакомый логин: ${unknown.map((member) => member.login).join(', ')}`"
-      description="В манифесте указан человек, которого нет среди учёток сервера. Заведите его на экране «Люди»."
+      :title="t('t83.m4.tc.unknown', { logins: unknown.map((member) => member.login).join(', ') })"
+      :description="t('t83.team-card.3')"
     />
   </UCard>
 </template>

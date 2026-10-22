@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import type { IndexRecord, VerificationOutcome } from '~~/server/lib/types';
+const { t } = useT();
 
 /**
  * Флажок «Проверено» на ручной проверке (docs/04-ui.md, «Отметка „Проверено“»).
@@ -33,8 +34,8 @@ const who = computed(() => {
   const name = props.roles.find((item) => item.id === role)?.name ?? role;
   // Ручная приёмка автоматического вида не выдаёт себя за прогон сборки.
   const head = !result.runner.startsWith('manual')
-    ? `прогон ${result.runner}`
-    : result.manualKind ? 'принята вручную, прогона сборки не было' : 'проверено вручную';
+    ? t('t83.m4.vc.run', { runner: result.runner })
+    : result.manualKind ? t('t83.m4.vc.manualAuto') : t('t83.m4.vc.manual');
   return [head, name, result.checkedBy, result.at.slice(0, 10)].filter(Boolean).join(' · ');
 });
 
@@ -71,7 +72,7 @@ async function toggle(value: boolean | 'indeterminate') {
       <UCheckbox
         :model-value="checked"
         :disabled="busy"
-        label="Проверено"
+        :label="t('t83.verified-check.1')"
         @update:model-value="toggle"
       />
       <USelect
@@ -80,7 +81,7 @@ async function toggle(value: boolean | 'indeterminate') {
         size="xs"
         class="w-44"
         :items="props.roles.map((role) => ({ label: role.name, value: role.id }))"
-      /><span v-if="me.required && me.user" class="text-sm text-muted">Вошли: {{ me.user.name }}</span>
+      /><span v-if="me.required && me.user" class="text-sm text-muted">{{ t('t83.verified-check.2', { name: me.user.name }) }}</span>
       <span v-if="who" class="text-xs text-muted" :title="props.result?.note">{{ who }}</span>
     </div>
 

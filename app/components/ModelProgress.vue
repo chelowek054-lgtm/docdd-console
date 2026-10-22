@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ModelOutcome } from '~/stores/modelJobs';
+import type { ModelOutcome } from '~/stores/modelJobs'; const { t } = useT();
 
 /**
  * Ход запроса к модели и его итог (docs/04-ui.md, раздел «Запрос к модели»).
@@ -22,22 +22,22 @@ const failure = computed(() => (props.outcome?.kind === 'failure' ? props.outcom
   <div v-if="props.running" class="flex flex-wrap items-center gap-3 rounded bg-elevated px-3 py-2">
     <UIcon name="i-lucide-loader-circle" class="animate-spin text-(color:--ds-color-accent-text)" />
     <p class="text-sm">
-      Модель работает — {{ duration(props.elapsed * 1000) }}
+      {{ t('t83.model-progress.1', { p: duration(props.elapsed * 1000) }) }}
       <!-- Срока нет: сколько ждать, решает тот, кто ждёт (docs/04-ui.md). -->
-      <span class="text-muted">· остановить можно кнопкой</span>
+      <span class="text-muted">{{ t('t83.model-progress.2') }}</span>
     </p>
     <UButton size="xs" variant="ghost" color="neutral" class="ml-auto" @click="emit('cancel')">
-      Отменить
+      {{ t('t83.model-jobs-bar.2') }}
     </UButton>
   </div>
 
   <template v-else-if="props.outcome">
     <p v-if="props.outcome.kind === 'answer'" class="text-sm text-muted">
-      Ответ за {{ duration(props.outcome.ms) }}.
+      {{ t('t83.model-progress.3', { p: duration(props.outcome.ms) }) }}
     </p>
 
     <p v-else-if="props.outcome.kind === 'cancelled'" class="text-sm text-muted">
-      Отменено через {{ duration(props.outcome.ms) }}. Программа снята — ничего не осталось работать в фоне.
+      {{ t('t83.model-progress.4', { p: duration(props.outcome.ms) }) }}
     </p>
 
     <UAlert

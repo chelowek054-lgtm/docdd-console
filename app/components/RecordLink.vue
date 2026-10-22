@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { IndexRecord } from '~~/server/lib/types';
+import type { IndexRecord } from '~~/server/lib/types'; const { t } = useT();
 
 const props = defineProps<{
   projectId: string;
@@ -19,6 +19,6 @@ const props = defineProps<{
     <!-- Ссылка на несуществующую запись — это нарушение link_broken, и она
          обязана выглядеть иначе, чем рабочая. `undefined` — индекс ещё грузится:
          тогда только номер, иначе на миг загорается ложное «записи нет». -->
-    <UBadge v-else-if="props.record === null" color="error" variant="subtle" size="sm">записи нет</UBadge>
+    <UBadge v-else-if="props.record === null" color="error" variant="subtle" size="sm">{{ t('t83.record-link.1') }}</UBadge>
   </NuxtLink>
 </template>

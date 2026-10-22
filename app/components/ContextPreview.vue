@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ApiFailure } from '~/composables/useProjectIndex';
+const { t } = useT();
 
 /**
  * «Что уйдёт модели» (docs/adr/0021-context-pack.md): куски пакета, размер и
@@ -29,7 +30,7 @@ async function load() {
     preview.value = response;
     emit('ready', response.prompt); emit('exclude', excluded.value);
   } catch (error) {
-    failure.value = { code: 'network', message: 'Не удалось собрать пакет контекста', detail: String(error) };
+    failure.value = { code: 'network', message: t('t83.m4.ctx.fail'), detail: String(error) };
   } finally {
     loading.value = false;
   }
@@ -45,26 +46,25 @@ watch(() => [props.projectId, props.centerId, props.need], load, { immediate: tr
 
 <template>
   <section class="context-preview">
-    <h3>Что уйдёт модели</h3>
+    <h3>{{ t('t83.context-preview.1') }}</h3>
     <p v-if="failure" role="alert">{{ failure.message }}</p>
-    <p v-else-if="loading && !preview">Собираю пакет…</p>
+    <p v-else-if="loading && !preview">{{ t('t83.context-preview.2') }}</p>
     <template v-else-if="preview">
       <p>
-        {{ preview.size }} зн. из {{ preview.budget }}, около {{ preview.tokens }} токенов,
-        ориентировочно ${{ preview.costUsd }}
+        {{ t('t83.context-preview.3', { size: preview.size, budget: preview.budget, tokens: preview.tokens, costUsd: preview.costUsd }) }}
       </p>
       <ul>
         <li v-for="chunk in preview.chunks" :key="chunk.key">
           <label>
             <input type="checkbox" :checked="!chunk.excluded && !chunk.withheld" :disabled="chunk.withheld" @change="toggle(chunk.key)">
-            {{ chunk.title }} ({{ chunk.size }} зн.) — {{ chunk.why }}
-            <em v-if="chunk.withheld">закрыт: провайдер не допущен к закрытым данным</em>
+            {{ t('t83.context-preview.4', { title: chunk.title, size: chunk.size, why: chunk.why }) }}
+            <em v-if="chunk.withheld">{{ t('t83.context-preview.5') }}</em>
           </label>
         </li>
       </ul>
       <details v-if="preview.cut.length">
-        <summary>Не влезло в бюджет: {{ preview.cut.length }}</summary>
-        <ul><li v-for="item in preview.cut" :key="item.key">{{ item.title }} ({{ item.size }} зн.)</li></ul>
+        <summary>{{ t('t83.context-preview.6', { length: preview.cut.length }) }}</summary>
+        <ul><li v-for="item in preview.cut" :key="item.key">{{ t('t83.context-preview.7', { title: item.title, size: item.size }) }}</li></ul>
       </details>
     </template>
   </section>

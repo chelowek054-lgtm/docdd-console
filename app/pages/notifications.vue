@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const { t } = useT();
 const { me } = useMe(() => '');
 const { data, refresh } = useFetch<{ hasUrl: boolean; fromEnv: boolean }>('/api/notifications/channel', { default: () => ({ hasUrl: false, fromEnv: false }) });
 
@@ -26,23 +27,23 @@ async function save() {
 
 <template>
   <div class="mx-auto max-w-2xl space-y-4">
-    <h1 class="text-xl font-semibold">Внешний канал уведомлений</h1>
+    <h1 class="text-xl font-semibold">{{ t('t83.notifications.1') }}</h1>
     <UAlert
       v-if="me.required && !me.user?.admin"
       color="warning"
       variant="subtle"
-      title="Экран только для администратора сервера"
+      :title="t('t83.notifications.2')"
     />
     <UCard v-else>
       <p class="mb-3 text-sm">
-        Webhook (Slack, Mattermost): на него уходит <code>{text}</code> по каждому уведомлению.
-        Сейчас: {{ data.hasUrl ? 'адрес задан' : 'канал не настроен' }}<span v-if="data.fromEnv"> (из DOCDD_NOTIFY_WEBHOOK)</span>.
+        {{ t('t83.notifications.3') }} <code>{text}</code> {{ t('t83.m4.nt.each') }}
+        {{ t('t83.m4.nt.now') }} {{ data.hasUrl ? t('t83.m4.nt.url') : t('t83.m4.nt.none') }}<span v-if="data.fromEnv"> {{ t('t83.notifications.4') }}</span>.
       </p>
       <form class="space-y-3" @submit.prevent="save">
         <UInput v-model="url" class="w-full" placeholder="https://hooks.example.com/…" />
         <UAlert v-if="problem" color="error" variant="subtle" :title="problem" />
-        <UAlert v-if="saved" color="success" variant="subtle" title="Сохранено" />
-        <UButton type="submit">Сохранить (пусто — отключить)</UButton>
+        <UAlert v-if="saved" color="success" variant="subtle" :title="t('t83.notifications.5')" />
+        <UButton type="submit">{{ t('t83.notifications.6') }}</UButton>
       </form>
     </UCard>
   </div>

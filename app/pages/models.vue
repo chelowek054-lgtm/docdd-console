@@ -63,8 +63,8 @@ async function check(id: string) {
         <UInput v-model="p.model" :placeholder="t('mod.model')" />
         <UInput v-model="p.apiKeyEnv" :placeholder="t('mod.keyEnv')" />
         <UInput v-model="p.apiKey" type="password" :placeholder="p.hasKey ? t('mod.keyFound') : t('mod.keyOptional')" />
-        <UButton v-if="p.hasKey" size="xs" variant="ghost" color="error" @click="p.clearKey = true; p.apiKey = ''; p.hasKey = false">Стереть ключ</UButton>
-        <span v-if="p.clearKey" class="text-xs text-muted">ключ будет стёрт после «Сохранить»</span>
+        <UButton v-if="p.hasKey" size="xs" variant="ghost" color="error" @click="p.clearKey = true; p.apiKey = ''; p.hasKey = false">{{ t('t83.models.1') }}</UButton>
+        <span v-if="p.clearKey" class="text-xs text-muted">{{ t('t83.models.2') }}</span>
         <UCheckbox v-model="p.closedData" :label="t('mod.closed')" />
         <div class="flex items-center gap-2">
           <UButton variant="ghost" color="neutral" @click="check(p.id)">{{ t('mod.check') }}</UButton>
@@ -96,7 +96,7 @@ async function check(id: string) {
       <ul class="text-sm">
         <li v-for="job in jobs" :key="job.id">{{ job.kind }} · {{ job.user }} · {{ job.state }}{{ job.note ? ' — ' + job.note : '' }}
           <UButton v-if="job.state === 'queued' || job.state === 'running'" size="xs" variant="ghost" color="error" @click="cancelJob(job.id)">{{ t('mod.cancel') }}</UButton>
-          <details v-if="job.answer"><summary>Ответ{{ job.ms ? `, ${job.ms} мс` : '' }}</summary><pre class="whitespace-pre-wrap">{{ job.answer }}</pre></details>
+          <details v-if="job.answer"><summary>{{ t('t83.m4.md.answer') }}{{ job.ms ? t('t83.m4.md.ms', { ms: job.ms }) : '' }}</summary><pre class="whitespace-pre-wrap">{{ job.answer }}</pre></details>
         </li>
       </ul>
     </template>

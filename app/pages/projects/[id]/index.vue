@@ -2,7 +2,7 @@
 import type { IndexRecord } from '~~/server/lib/types';
 
 const route = useRoute();
-const projectId = computed(() => String(route.params['id'] ?? '')); const { t } = useT();
+const projectId = computed(() => String(route.params['id'] ?? '')); const { t, tn } = useT();
 
 const { index, failure, records, errors, warnings, refresh, status } = useProjectIndex(projectId);
 
@@ -34,7 +34,7 @@ const blocking = computed(() => errors.value.slice(0, 8));
 
 function days(record: IndexRecord): string {
   const count = daysSince(record.updated);
-  return count === null ? 'без даты' : plural(count, 'день', 'дня', 'дней');
+  return count === null ? t('t83.m4.nodate') : tn('t83.m4.pl.day', count);
 }
 </script>
 
@@ -70,14 +70,14 @@ function days(record: IndexRecord): string {
             <p class="text-3xl font-semibold" :class="errors.length ? 'text-error' : 'text-success'">
               {{ errors.length }}
             </p>
-            <p class="text-sm text-muted">{{ plural(errors.length, 'ошибка', 'ошибки', 'ошибок') }} процесса</p>
+            <p class="text-sm text-muted">{{ tn('t83.m4.pl.err', errors.length) }}</p>
           </UCard>
         </NuxtLink>
 
         <NuxtLink :to="`/projects/${projectId}/verify?tab=issues`" class="block">
           <UCard :ui="{ body: 'p-4' }">
             <p class="text-3xl font-semibold">{{ warnings.length }}</p>
-            <p class="text-sm text-muted">{{ plural(warnings.length, 'предупреждение', 'предупреждения', 'предупреждений') }}</p>
+            <p class="text-sm text-muted">{{ tn('t83.m4.pl.warn', warnings.length) }}</p>
           </UCard>
         </NuxtLink>
 
@@ -102,7 +102,7 @@ function days(record: IndexRecord): string {
             <h2 class="font-medium">{{ t('proj.canTakeTitle') }}</h2>
           </template>
           <p v-if="ready.length === 0" class="text-sm text-muted">
-            Готовых задач нет. Задача становится готовой, когда её документы подтверждены и есть связь <code>implements</code>.
+            {{ t('t83.index.1') }} <code>implements</code>.
           </p>
           <ul v-else class="space-y-2">
             <li v-for="task in ready" :key="task.id" class="flex items-start justify-between gap-2">

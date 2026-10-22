@@ -93,7 +93,7 @@ function shortDate(iso: string): string {
 <template>
   <div class="space-y-6">
     <div>
-      <h1 class="text-xl font-semibold">{{ t('home.title') }}</h1><NuxtLink v-if="me.user?.admin" to="/people" class="text-sm text-primary hover:underline">Люди</NuxtLink>
+      <h1 class="text-xl font-semibold">{{ t('home.title') }}</h1><NuxtLink v-if="me.user?.admin" to="/people" class="text-sm text-primary hover:underline">{{ t('t83.index.2') }}</NuxtLink>
       <p class="text-sm text-muted">{{ t('home.lead') }}</p>
     </div>
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const { t } = useT();
 // Вкладка «Результат» экрана «Сверка»: проверки, результат, нарушения и граф на одном экране (docs/04-ui.md, «Навигация»).
 const route = useRoute();
 const projectId = computed(() => String(route.params['id'] ?? ''));
@@ -23,14 +24,12 @@ function totalCount(report: (typeof reports.value)[number]): number {
 
     <template v-else>
       <div class="flex flex-wrap items-center gap-3">
-        <h2 class="text-lg font-semibold">Результат</h2>
+        <h2 class="text-lg font-semibold">{{ t('t83.results-panel.1') }}</h2>
         <p class="text-sm text-muted">{{ reports.length }}</p>
       </div>
 
       <div v-if="reports.length === 0" class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted">
-        Отчётов о прогонах нет. Приложение их не пишет — прогнать проверки и
-        положить отчёт в <code>docs/development/tests/reports/</code> нужно
-        руками или своим инструментом.
+        {{ t('t83.results-panel.2') }} <code>docs/development/tests/reports/</code> {{ t('t83.results-panel.3') }}
       </div>
 
       <ul v-else class="divide-y divide-default rounded-lg border border-default">
@@ -43,7 +42,7 @@ function totalCount(report: (typeof reports.value)[number]): number {
                 :color="failedCount(report) > 0 ? 'error' : 'success'"
                 variant="subtle"
                 size="sm"
-              >{{ totalCount(report) - failedCount(report) }} из {{ totalCount(report) }}</UBadge>
+              >{{ t('t83.results-panel.4', { p: totalCount(report) - failedCount(report), p2: totalCount(report) }) }}</UBadge>
             </summary>
 
             <ul class="mt-3 space-y-1 pl-1">

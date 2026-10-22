@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { draftsFromCriteria, parseCriteria } from '~~/server/lib/criteria';
 import type { IndexRecord } from '~~/server/lib/types';
+const { t } = useT();
 
 /**
  * Критерии приёмки требования и черновики проверок из них (T-0037). Черновики
@@ -24,7 +25,7 @@ async function create() {
     }
     emit('created');
   } catch {
-    failure.value = 'Не все черновики заведены';
+    failure.value = t('t83.m4.rc.fail');
   } finally {
     busy.value = false;
   }
@@ -33,13 +34,13 @@ async function create() {
 
 <template>
   <UCard v-if="criteria.length > 0">
-    <template #header>Критерии приёмки · {{ criteria.length }}</template>
+    <template #header>{{ t('t83.record-criteria.1', { length: criteria.length }) }}</template>
     <ul class="list-disc pl-5 text-sm">
       <li v-for="item in criteria" :key="item">{{ item }}</li>
     </ul>
     <div class="mt-3 flex items-center gap-3">
-      <UButton :disabled="drafts.length === 0" :loading="busy" @click="create">Завести черновики проверок ({{ drafts.length }})</UButton>
-      <span v-if="drafts.length === 0" class="text-xs text-muted">Проверки на все критерии уже заведены</span>
+      <UButton :disabled="drafts.length === 0" :loading="busy" @click="create">{{ t('t83.record-criteria.2', { length: drafts.length }) }}</UButton>
+      <span v-if="drafts.length === 0" class="text-xs text-muted">{{ t('t83.record-criteria.3') }}</span>
       <span v-if="failure" class="text-xs text-error">{{ failure }}</span>
     </div>
   </UCard>

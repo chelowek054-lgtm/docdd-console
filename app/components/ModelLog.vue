@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { LogLine } from '~/stores/modelJobs';
+import type { LogLine } from '~/stores/modelJobs'; const { t, tn } = useT();
 
 /**
  * Лента работы модели (docs/04-ui.md, раздел «Что модель делает прямо сейчас»).
@@ -41,8 +41,8 @@ watch(
       @click="open = !open"
     >
       <UIcon :name="open ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" class="text-muted" />
-      <span class="font-medium">Что делает модель</span>
-      <span class="text-muted">· {{ plural(props.lines.length, 'шаг', 'шага', 'шагов') }}</span>
+      <span class="font-medium">{{ t('t83.model-log.1') }}</span>
+      <span class="text-muted">· {{ tn('t83.m4.pl.step', props.lines.length) }}</span>
       <!-- Свёрнутая лента показывает, чем модель занята сейчас. -->
       <span v-if="!open && last" class="min-w-0 flex-1 truncate text-xs text-muted">{{ last }}</span>
     </button>

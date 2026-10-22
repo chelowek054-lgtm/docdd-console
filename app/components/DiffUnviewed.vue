@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const { t } = useT();
 /** Значок «разница не открывалась» в списке на подтверждении (R-0068). Список id общий на проект. */
 const props = defineProps<{ projectId: string; recordId: string; status: string }>();
 
@@ -19,6 +20,6 @@ onMounted(async () => {
 
 <template>
   <UBadge v-if="props.status === 'review' && ids[props.projectId]?.includes(props.recordId)" color="warning" variant="subtle" size="sm" class="ml-2">
-    разница не открывалась
+    {{ t('t83.diff-unviewed.1') }}
   </UBadge>
 </template>
