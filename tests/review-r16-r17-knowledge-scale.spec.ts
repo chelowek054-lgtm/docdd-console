@@ -11,19 +11,15 @@ import { breadcrumbs, knowledgeTree } from '../server/lib/knowledge';
 import { failedRow, portfolioRow } from '../server/lib/portfolio';
 import { buildSearchIndex, searchIndex } from '../server/lib/search';
 import { claudeMd, DEFAULT_PATHS, fileNameFor, manifestYaml, recordTemplate, VISION_STUB } from '../server/lib/scaffold';
-import type { IndexRecord } from '../server/lib/types';
 
-const rec = (id: string, type: string, title: string, status = 'approved'): IndexRecord => ({ id, type, title, status, path: `${id}.md` }) as unknown as IndexRecord;
 
 describe('R-0016: знания', () => {
-  it('дерево по группам, пустые группы скрыты, крошки ведут группа → документ', () => {
-    const tree = knowledgeTree([rec('D-0001', 'design', 'Макет'), rec('A-0002', 'decision', 'Выбор'), rec('T-0001', 'task', 'Задача')]);
-    expect(tree.map((g) => g.title)).toEqual(['Проектные документы', 'Решения']);
-    expect(breadcrumbs(tree, 'A-0002').map((n) => n.key)).toEqual(['group:decision', 'A-0002']);
-    expect(breadcrumbs(tree, 'нет')).toEqual([]);
+  it('документы проекта в дерево не входят: у них свои пункты меню; без заметок дерево пустое', () => {
+    expect(knowledgeTree([])).toEqual([]);
+    expect(breadcrumbs([], 'нет')).toEqual([]);
   });
   it('заметки с путём встают деревом, крошки находят вложенную', () => {
-    const tree = knowledgeTree([], [{ path: 'inbox/b.md', text: '# Б\nМесто в дереве страниц: А / Б.\n' }]);
+    const tree = knowledgeTree([{ path: 'inbox/b.md', text: '# Б\nМесто в дереве страниц: А / Б.\n' }]);
     expect(breadcrumbs(tree, 'inbox/b.md')).toHaveLength(2);
     expect(tree[0]?.children[0]?.title).toBe('А');
   });

@@ -11,23 +11,23 @@ export type NavRole = (typeof NAV_ROLES)[number];
 export type NavRoleChoice = NavRole | '';
 
 export type NavKey =
-  | 'overview' | 'strategy' | 'requirements' | 'designDocs' | 'decisions' | 'contracts' | 'reference' | 'knowledge' | 'glossary'
+  | 'overview' | 'strategy' | 'requirements' | 'designDocs' | 'decisions' | 'contracts' | 'reference' | 'glossary'
   | 'tasks' | 'phases' | 'manager' | 'releases'
   | 'checks' | 'run' | 'results' | 'issues' | 'graph'
   | 'maps' | 'inbox' | 'import' | 'onboarding'
   | 'design' | 'analyst' | 'practices';
 
 const BY_ROLE: Record<NavRole, readonly NavKey[]> = {
-  architect: ['strategy', 'requirements', 'designDocs', 'decisions', 'contracts', 'reference', 'knowledge', 'glossary', 'tasks', 'phases', 'manager', 'checks', 'run', 'results', 'issues', 'graph', 'maps', 'import', 'onboarding', 'design', 'practices'],
+  architect: ['strategy', 'requirements', 'designDocs', 'decisions', 'contracts', 'reference', 'glossary', 'tasks', 'phases', 'manager', 'checks', 'run', 'results', 'issues', 'graph', 'maps', 'import', 'onboarding', 'design', 'practices'],
   developer: ['designDocs', 'decisions', 'contracts', 'reference', 'tasks', 'checks', 'run', 'results', 'issues', 'maps', 'design'],
-  pm: ['strategy', 'requirements', 'knowledge', 'tasks', 'phases', 'manager', 'releases', 'maps', 'inbox', 'import', 'onboarding'],
-  analyst: ['strategy', 'requirements', 'knowledge', 'glossary', 'maps', 'inbox', 'import', 'analyst'],
-  domain: ['requirements', 'knowledge', 'glossary', 'inbox'],
-  designer: ['designDocs', 'knowledge', 'tasks', 'design'],
+  pm: ['strategy', 'requirements', 'tasks', 'phases', 'manager', 'releases', 'maps', 'inbox', 'import', 'onboarding'],
+  analyst: ['strategy', 'requirements', 'glossary', 'maps', 'inbox', 'import', 'analyst'],
+  domain: ['requirements', 'glossary', 'inbox'],
+  designer: ['designDocs', 'tasks', 'design'],
   qa: ['requirements', 'contracts', 'tasks', 'releases', 'checks', 'run', 'results', 'issues', 'graph'],
   devops: ['tasks', 'releases', 'run', 'results'],
-  support: ['knowledge', 'glossary', 'releases', 'inbox'],
-  viewer: ['strategy', 'requirements', 'knowledge', 'manager', 'releases']
+  support: ['glossary', 'releases', 'inbox'],
+  viewer: ['strategy', 'requirements', 'designDocs', 'manager', 'releases']
 };
 
 /** Обзор нужен всем: это первый экран проекта. */
@@ -54,7 +54,6 @@ export const NAV_HINTS: Record<NavKey, string> = {
   decisions: 'решения adr решение почему decisions',
   contracts: 'контракты api openapi схема формат contracts',
   reference: 'справочник справки библиотеки зависимости переиспользование reference',
-  knowledge: 'знания вики confluence страницы база знаний knowledge wiki',
   glossary: 'глоссарий термины словарь glossary terms',
   tasks: 'задачи тикеты задача jira бэклог tasks backlog',
   phases: 'фазы этапы спринты план порядок phases sprints',

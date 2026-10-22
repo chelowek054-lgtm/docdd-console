@@ -214,7 +214,7 @@ async function create() {
 
     <template v-else>
       <div class="flex flex-wrap items-center gap-3">
-        <h2 class="text-lg font-semibold">{{ t('t83.inbox-panel.1') }}</h2>
+        <h2 class="text-lg font-semibold">{{ t('t83.inbox-panel.1') }}</h2> <NuxtLink :to="`/projects/${projectId}/knowledge`" class="text-sm text-muted hover:underline">{{ t('kn.treeLink') }}</NuxtLink>
         <UBadge v-if="inbox?.notes.length" variant="subtle">{{ t('t83.inbox-panel.2', { length: inbox.notes.length }) }}</UBadge>
       </div>
 

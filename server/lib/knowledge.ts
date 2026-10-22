@@ -1,12 +1,11 @@
 import { titleOf } from './inbox';
-import type { IndexRecord } from './types';
 
 /**
- * Пространство знаний (R-0016, docs/15-team-platform.md): документы проекта
- * как дерево страниц. Чистая функция над индексом и заметками входящего —
- * своей базы страниц нет, дерево собирается из файлов каждый раз.
+ * Пространство знаний (R-0016, docs/15-team-platform.md): заметки входящего
+ * как дерево страниц. Документы проекта сюда не входят — у них свои пункты
+ * меню (docs/04-ui.md, «Навигация»). Чистая функция над заметками — своей базы
+ * страниц нет, дерево собирается из файлов каждый раз.
  */
-const KNOWLEDGE_TYPES = ['design', 'decision', 'contract'] as const;
 
 export interface KnowledgeNode {
   /** Путь файла (для заметки) или id записи. */
@@ -19,25 +18,9 @@ export interface KnowledgeNode {
   children: KnowledgeNode[];
 }
 
-const GROUP_TITLES: Record<string, string> = { design: 'Проектные документы', decision: 'Решения', contract: 'Контракты', notes: 'База знаний (входящее)' };
-
-export function knowledgeTree(records: readonly IndexRecord[], notes: readonly { path: string; text: string }[] = []): KnowledgeNode[] {
-  const groups: KnowledgeNode[] = KNOWLEDGE_TYPES.map((type) => ({
-    key: `group:${type}`,
-    title: GROUP_TITLES[type] ?? type,
-    kind: 'record' as const,
-    children: records
-      .filter((record) => record.type === type)
-      .sort((a, b) => a.id.localeCompare(b.id))
-      .map((record) => ({ key: record.id, title: `${record.id} · ${record.title}`, kind: 'record' as const, recordId: record.id, status: record.status, children: [] }))
-  }));
-  groups.push({
-    key: 'group:notes',
-    title: GROUP_TITLES['notes'] ?? 'notes',
-    kind: 'note',
-    children: notesTree(notes)
-  });
-  return groups.filter((group) => group.children.length > 0);
+export function knowledgeTree(notes: readonly { path: string; text: string }[] = []): KnowledgeNode[] {
+  const children = notesTree(notes);
+  return children.length > 0 ? [{ key: 'group:notes', title: 'База знаний (входящее)', kind: 'note', children }] : [];
 }
 
 /** Хлебные крошки страницы: группа → документ. */

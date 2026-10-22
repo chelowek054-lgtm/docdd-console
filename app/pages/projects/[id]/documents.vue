@@ -17,10 +17,10 @@ const TABS = computed(() => [
   { label: t('docs.tab.requirement'), value: 'requirement' },
   { label: t('docs.tab.design'), value: 'design' },
   { label: t('docs.tab.decision'), value: 'decision' },
-  { label: t('docs.tab.contract'), value: 'contract' },
-  { label: t('docs.tab.reference'), value: 'reference' }
+  { label: t('docs.tab.contract'), value: 'contract' }
 ]);
-const DOCUMENT_TYPES = ['requirement', 'design', 'decision', 'contract', 'reference'];
+const DOCUMENT_TYPES = ['requirement', 'design', 'decision', 'contract']; // справки — на своём экране (docs/04-ui.md, «Навигация»): старые ссылки на вкладку ведут туда
+if (route.query['type'] === 'reference') await navigateTo(`/projects/${projectId.value}/reference`, { replace: true });
 
 /** Вкладка живёт в адресе: пункт шапки ведёт сразу на свою, а не на выбор. */
 const type = computed({

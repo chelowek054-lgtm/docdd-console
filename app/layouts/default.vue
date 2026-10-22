@@ -91,7 +91,6 @@ const allEntries = computed<NavEntry[]>(() => {
         { key: 'decisions', label: t('nav.decisions'), to: `${base}/documents?type=decision`, count: unconfirmed('decision') },
         { key: 'contracts', label: t('nav.contracts'), to: `${base}/documents?type=contract`, count: unconfirmed('contract') },
         { key: 'reference', label: t('nav.reference'), to: `${base}/reference`, count: unconfirmed('reference') },
-        { key: 'knowledge', label: t('nav.knowledge'), to: `${base}/knowledge` },
         { key: 'glossary', label: t('nav.glossary'), to: `${base}/glossary` }
       ]
     },
