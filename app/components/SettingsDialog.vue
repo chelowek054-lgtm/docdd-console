@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AutoHeight from '~/components/AutoHeight.vue';
 import ModelsPage from '~/pages/models.vue';
+import AgentsPanel from '~/components/AgentsPanel.vue';
 import PeoplePage from '~/pages/people.vue';
 import { ALL_ACTIONS, ROLE_ACTIONS } from '~~/server/lib/permissions';
 
@@ -18,11 +19,12 @@ const open = ref(false);
  * Разделы — аккордеоном: сначала заголовки с описанием; выбран раздел — список
  * уходит влево узкой колонкой, справа его настройки, переключаться можно оттуда же.
  */
-type Section = 'search' | 'models' | 'access';
+type Section = 'search' | 'models' | 'agents' | 'access';
 const section = ref<Section | null>(null);
 const sections = computed(() => [
   { value: 'search' as const, label: t('st.search'), hint: t('st.searchShort'), icon: 'i-lucide-search' },
-  { value: 'models' as const, label: t('st.models'), hint: t('st.modelsShort'), icon: 'i-lucide-bot' },
+  { value: 'models' as const, label: t('st.models'), hint: t('st.modelsShort'), icon: 'i-lucide-cpu' },
+  { value: 'agents' as const, label: t('ag.section'), hint: t('ag.sectionShort'), icon: 'i-lucide-bot' },
   { value: 'access' as const, label: t('st.access'), hint: t('st.accessShort'), icon: 'i-lucide-users' }
 ]);
 
@@ -128,6 +130,11 @@ watch(open, (value) => {
           </div>
 
           <div v-else-if="section === 'models'" key="models" class="min-w-0"><ModelsPage /></div>
+
+          <div v-else-if="section === 'agents'" key="agents" class="min-w-0">
+            <AgentsPanel v-if="props.projectId" :project-id="props.projectId" />
+            <p v-else class="text-sm text-muted">{{ t('ag.noProject') }}</p>
+          </div>
 
           <div v-else key="access" class="min-w-0 space-y-6">
             <PeoplePage />

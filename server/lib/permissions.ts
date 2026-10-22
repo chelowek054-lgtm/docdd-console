@@ -2,6 +2,8 @@
  * Матрица «роль → действие» (docs/adr/0020-people-roles-permissions.md, п. 4).
  * Чистые функции: проверяются без сервера. Манифест может права только сузить.
  */
+import { AGENT_FORBIDDEN_ACTIONS } from './agents';
+
 export type Action =
   | 'read'
   | 'edit_draft'
@@ -43,11 +45,13 @@ export interface Verdict {
 
 /** Право человека на действие в проекте с такой командой. Администратор сервера — не роль проекта. */
 export function can(
-  user: { login: string; admin: boolean } | null,
+  user: { login: string; admin: boolean; agent?: unknown } | null,
   team: readonly TeamMember[] | undefined,
   action: Action
 ): Verdict {
   if (!user) return { allowed: false, reason: 'Нужно войти' };
+  // Агенту при любой роли не сливать и не управлять командой (ADR-0033).
+  if (user.agent && AGENT_FORBIDDEN_ACTIONS.has(action)) return { allowed: false, reason: `Агенту действие «${action}» недоступно: это делает человек` };
   if (action === 'admin') {
     return user.admin ? { allowed: true } : { allowed: false, reason: 'Только администратор сервера' };
   }
@@ -74,6 +78,8 @@ export function actionFor(method: string, path: string, body?: unknown): Action 
   }
   if (/^\/api\/notifications\/channel\/?$/.test(path)) return 'admin';
   if (/\/shared\/?$/.test(path)) return 'team';
+  // Агенты определяют, что делает модель от имени роли: это управление командой (ADR-0033).
+  if (/\/agents(\/|$)/.test(path)) return 'team';
   // Слияние (accept) — отдельное право `merge`: его можно отнять манифестом, не отнимая работу.
   if (/\/records\/[^/]+\/work\/?$/.test(path) && (body as { action?: unknown } | null | undefined)?.action === 'accept') return 'merge';
   if (/\/work\/?$/.test(path) || /\/fix(\/work)?\/?$/.test(path)) return 'work';

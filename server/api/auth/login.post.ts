@@ -10,7 +10,8 @@ export default defineEventHandler(async (event) => {
   const password = typeof body?.password === 'string' ? body.password : '';
   const user = (await loadUsers()).find((item) => item.login === login);
   // Один ответ на «нет такого» и «не тот пароль»: логины не перебираются.
-  if (!user || !verifyPassword(password, user.passwordHash)) {
+  // Агент через браузер не входит (ADR-0033): у него нет пароля, только токен на запуск.
+  if (!user || user.agent || !verifyPassword(password, user.passwordHash)) {
     return fail(event, 401, 'login_failed', 'Неверный логин или пароль');
   }
   const token = signSession(user.login, Date.now() + SESSION_TTL_MS, await sessionSecret());

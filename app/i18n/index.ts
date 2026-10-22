@@ -12,8 +12,8 @@ import { screens as ruScreens } from './ru/screens';
  * исходнике: перевод идёт по группам, а не одним коммитом.
  */
 export const messages: Record<string, Record<string, string>> = {
-  ru: { ...ruShell, ...ruDesign, ...ruScreens, ...ruPages, ...ruRest, ...ruRecords, ...ruPages2, ...ruComponents, ...ruNav, ...ruOverview, ...ruSearch, ...ruSettings, ...ruNotifications, ...ruManager, ...ruVerify, ...ruStrategy },
-  en: { ...enShell, ...enDesign, ...enScreens, ...enPages, ...enRest, ...enRecords, ...enPages2, ...enComponents, ...enNav, ...enOverview, ...enSearch, ...enSettings, ...enNotifications, ...enManager, ...enVerify, ...enStrategy }
+  ru: { ...ruShell, ...ruDesign, ...ruScreens, ...ruPages, ...ruRest, ...ruRecords, ...ruPages2, ...ruComponents, ...ruNav, ...ruOverview, ...ruSearch, ...ruSettings, ...ruNotifications, ...ruManager, ...ruVerify, ...ruStrategy, ...ruAgents },
+  en: { ...enShell, ...enDesign, ...enScreens, ...enPages, ...enRest, ...enRecords, ...enPages2, ...enComponents, ...enNav, ...enOverview, ...enSearch, ...enSettings, ...enNotifications, ...enManager, ...enVerify, ...enStrategy, ...enAgents }
 };
 import { pages as enPages } from './en/pages';
 import { pages as ruPages } from './ru/pages';
@@ -41,3 +41,5 @@ import { verify as enVerify } from './en/verify';
 import { verify as ruVerify } from './ru/verify';
 import { strategy as enStrategy } from './en/strategy';
 import { strategy as ruStrategy } from './ru/strategy';
+import { agents as enAgents } from './en/agents';
+import { agents as ruAgents } from './ru/agents';

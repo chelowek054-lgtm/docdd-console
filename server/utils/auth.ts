@@ -2,9 +2,9 @@ import { randomBytes } from 'node:crypto';
 
 import { useStorage } from 'nitropack/runtime';
 import type { H3Event } from 'h3';
-import { getCookie } from 'h3';
+import { getCookie, getHeader } from 'h3';
 
-import { readSession, type UserAccount } from '../lib/auth';
+import { isAgentSessionName, readAgentToken, readSession, signAgentToken, type UserAccount } from '../lib/auth';
 
 /**
  * Вход выключен по умолчанию: локальный режим одного человека работает как раньше.
@@ -38,9 +38,24 @@ export async function sessionSecret(): Promise<string> {
 }
 
 export async function currentUser(event: H3Event): Promise<UserAccount | null> {
+  // Агент приходит с токеном на запуск (ADR-0033); человек — с cookie-сессией.
+  const bearer = /^Bearer\s+(.+)$/i.exec(getHeader(event, 'authorization') ?? '')?.[1];
+  if (bearer) {
+    const agent = readAgentToken(bearer.trim(), await sessionSecret(), Date.now());
+    const found = agent ? (await loadUsers()).find((user) => user.login === agent && user.agent) : undefined;
+    return found ?? null;
+  }
   const token = getCookie(event, SESSION_COOKIE);
   if (!token) return null;
   const login = readSession(token, await sessionSecret(), Date.now());
-  if (!login) return null;
-  return (await loadUsers()).find((user) => user.login === login) ?? null;
+  if (!login || isAgentSessionName(login)) return null;
+  const user = (await loadUsers()).find((item) => item.login === login) ?? null;
+  // Учётка агента браузерной сессией не пользуется.
+  return user && !user.agent ? user : null;
+}
+
+/** Токен на один запуск агента (ADR-0033): живёт шесть часов. Выдаёт его консоль, а не человек. */
+export const AGENT_TOKEN_TTL_MS = 6 * 60 * 60 * 1000;
+export async function agentToken(login: string): Promise<string> {
+  return signAgentToken(login, Date.now() + AGENT_TOKEN_TTL_MS, await sessionSecret());
 }

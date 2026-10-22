@@ -1,9 +1,11 @@
 import { defineEventHandler, getRequestURL, readBody, setResponseStatus } from 'h3';
 
+import { agentSignature, agentVerdict } from '../lib/agents';
 import { signature } from '../lib/auth';
 import { actionFor, can, type TeamMember } from '../lib/permissions';
 import { readManifest } from '../lib/workspace';
 import { authEnabled, currentUser, loadUsers } from '../utils/auth';
+import { loadIndex } from '../utils/index-service';
 import { findProject } from '../utils/projects';
 
 /**
@@ -33,10 +35,12 @@ export default defineEventHandler(async (event) => {
   const action = isUsers ? 'admin' : actionFor(event.method, path, early);
 
   let team: TeamMember[] | undefined;
+  let projectRoot: string | null = null;
   const projectId = /^\/api\/projects\/([^/]+)\//.exec(path)?.[1];
   if (projectId) {
     const project = await findProject(decodeURIComponent(projectId));
     if (project) {
+      projectRoot = project.root;
       try {
         team = readManifest(project.root).team;
       } catch {
@@ -51,12 +55,20 @@ export default defineEventHandler(async (event) => {
     : projectId ? can(user, team, action) : { allowed: action === 'read' };
   if (!verdict.allowed) return deny(403, 'forbidden', ('reason' in verdict && verdict.reason) || 'Нет права на это действие');
 
+  // Агент: поверх прав роли — документы не подтверждает, текст не правит, свою работу не принимает (ADR-0033).
+  if (user.agent && projectRoot && event.method !== 'GET') {
+    let records: Parameters<typeof agentVerdict>[4] = [];
+    try { records = loadIndex(projectRoot).records; } catch { records = []; }
+    const limit = agentVerdict(user.login, event.method, path, early, records);
+    if (!limit.allowed) return deny(403, limit.code ?? 'forbidden', limit.reason ?? 'Агенту это недоступно');
+  }
+
   const roles = team?.find((member) => member.login === user.login)?.roles ?? [];
   event.context['user'] = { login: user.login, name: user.name, admin: user.admin, roles };
 
   // Подпись — вошедшим человеком, а не выбором из списка: тело правим до маршрута.
   if (['POST', 'PATCH', 'PUT'].includes(event.method) && !isUsers) {
     const body = await readBody<Record<string, unknown>>(event).catch(() => null);
-    if (body && typeof body === 'object') body['actor'] = signature(user.name, roles);
+    if (body && typeof body === 'object') body['actor'] = user.agent ? agentSignature(signature(user.name, roles)) : signature(user.name, roles);
   }
 });

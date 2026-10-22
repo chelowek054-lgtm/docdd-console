@@ -7,6 +7,8 @@ export interface UserAccount {
   /** `scrypt$<соль hex>$<хеш hex>` */
   passwordHash: string;
   admin: boolean;
+  /** Аккаунт агента (ADR-0033): пароля нет, вход — только токеном на запуск. */
+  agent?: { type: string };
 }
 
 /** Хеш с солью: пароль в файле не хранится, а перебор по словарю дорог. */
@@ -52,3 +54,19 @@ export function authorFromSignature(actor: string): { name: string; email: strin
   if (!match?.[1]) return null;
   return { name: match[1], email: `${match[1].toLowerCase().replace(/\s+/g, '.')}@docdd.local` };
 }
+
+/** Токен агента (ADR-0033): та же подпись, что у сессии, но с префиксом — cookie и токен не взаимозаменяемы. */
+const AGENT_PREFIX = 'agent:';
+
+export function signAgentToken(login: string, expiresAt: number, secret: string): string {
+  return signSession(`${AGENT_PREFIX}${login}`, expiresAt, secret);
+}
+
+/** Логин агента из токена; не агентский, просрочен или подделан — `null`. */
+export function readAgentToken(token: string, secret: string, now: number): string | null {
+  const name = readSession(token, secret, now);
+  return name && name.startsWith(AGENT_PREFIX) ? name.slice(AGENT_PREFIX.length) : null;
+}
+
+/** Обычная сессия не может нести логин агента: агент через браузер не входит. */
+export const isAgentSessionName = (name: string): boolean => name.startsWith(AGENT_PREFIX);
