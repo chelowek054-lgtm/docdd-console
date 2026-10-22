@@ -12,6 +12,8 @@ export const overview: Record<string, string> = {
   'ov.capLine': 'реализовано {done} · частично {partial} · нет {none}',
   'ov.phases': 'Фазы: от разработки до прода',
   'ov.all': 'Все',
+  'ov.showMore': 'Показать ещё {n}',
+  'ov.showLess': 'Свернуть',
   'ov.noPhases': 'Фаз нет. Разбейте задачи на фазы на экране «Работа».',
   'ov.stage.prod': 'в проде',
   'ov.stage.stage': 'на стенде',

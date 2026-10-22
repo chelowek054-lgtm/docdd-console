@@ -12,6 +12,8 @@ export const overview: Record<string, string> = {
   'ov.capLine': 'implemented {done} · partial {partial} · not {none}',
   'ov.phases': 'Phases: from development to production',
   'ov.all': 'All',
+  'ov.showMore': 'Show {n} more',
+  'ov.showLess': 'Collapse',
   'ov.noPhases': 'No phases yet. Split tasks into phases on the Work screen.',
   'ov.stage.prod': 'in production',
   'ov.stage.stage': 'on staging',

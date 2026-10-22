@@ -37,6 +37,15 @@ const TASK_SEGMENTS = [
 ] as const;
 const taskTotal = computed(() => TASK_SEGMENTS.reduce((sum, segment) => sum + (overview.value.tasks.byStatus[segment.status] ?? 0), 0));
 
+/** Сначала незакрытые фазы — они требуют внимания; закрытые и выложенные в прод — следом. Порядок внутри — как в плане. */
+const PHASES_SHOWN = 5;
+const allPhases = ref(false);
+const orderedPhases = computed(() => {
+  const finished = (stage: PhaseStage) => stage === 'closed' || stage === 'prod';
+  return [...overview.value.phases.filter((phase) => !finished(phase.stage)), ...overview.value.phases.filter((phase) => finished(phase.stage))];
+});
+const shownPhases = computed(() => (allPhases.value ? orderedPhases.value : orderedPhases.value.slice(0, PHASES_SHOWN)));
+
 const STAGE_COLOR: Record<PhaseStage, 'success' | 'info' | 'warning' | 'primary' | 'neutral'> = {
   prod: 'success', stage: 'info', review: 'warning', development: 'primary', not_started: 'neutral', closed: 'neutral'
 };
@@ -110,7 +119,7 @@ const formatValue = (value: number) => (Math.abs(value) >= 100 ? Math.round(valu
         </template>
         <p v-if="!overview.phases.length" class="p-4 text-sm text-muted">{{ t('ov.noPhases') }}</p>
         <ul v-else class="divide-y divide-default">
-          <li v-for="phase in overview.phases" :key="phase.id" class="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 px-4 py-2.5 sm:grid-cols-[minmax(0,1fr)_10rem_auto]">
+          <li v-for="phase in shownPhases" :key="phase.id" class="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 px-4 py-2.5 sm:grid-cols-[minmax(0,1fr)_10rem_auto]">
             <NuxtLink :to="`${base}/records/${phase.id}`" class="min-w-0 truncate text-sm hover:underline">
               <span class="font-mono text-xs text-muted">{{ phase.id }}</span> {{ phase.title }}
             </NuxtLink>
@@ -125,6 +134,11 @@ const formatValue = (value: number) => (Math.abs(value) >= 100 ? Math.round(valu
             </div>
           </li>
         </ul>
+        <div v-if="orderedPhases.length > PHASES_SHOWN" class="border-t border-default p-2 text-center">
+          <UButton variant="ghost" color="neutral" size="sm" @click="allPhases = !allPhases">
+            {{ allPhases ? t('ov.showLess') : t('ov.showMore', { n: orderedPhases.length - PHASES_SHOWN }) }}
+          </UButton>
+        </div>
       </UCard>
 
       <!-- Наблюдаемость: важное о живой системе из Prometheus/Grafana. -->
