@@ -286,6 +286,30 @@
       "properties": {
         "custom": { "type": "array", "items": { "type": "object" } }
       }
+    },
+    "observability": {
+      "type": "object",
+      "description": "Метрики продукта из Prometheus для обзора проекта (docs/04-ui.md, «Наблюдаемость»). url — адрес Prometheus (иначе DOCDD_PROMETHEUS_URL), dashboard — ссылка на панель Grafana.",
+      "additionalProperties": false,
+      "properties": {
+        "url": { "type": "string" },
+        "dashboard": { "type": "string" },
+        "queries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "label", "query"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "type": "string" },
+              "label": { "type": "string" },
+              "query": { "type": "string" },
+              "unit": { "type": "string" },
+              "warn": { "type": "number" }
+            }
+          }
+        }
+      }
     }
   }
 }

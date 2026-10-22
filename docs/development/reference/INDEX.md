@@ -47,6 +47,7 @@
 - `server/utils/http.ts` — описания нет
 - `server/utils/index-service.ts` — описания нет
 - `server/utils/inventory-service.ts` — описания нет
+- `server/utils/llm-gateway.ts` — описания нет
 - `server/utils/llm.ts` — описания нет
 - `server/utils/map-service.ts` — описания нет
 - `server/utils/projects.ts` — описания нет

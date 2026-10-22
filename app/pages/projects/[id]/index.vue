@@ -61,7 +61,7 @@ function days(record: IndexRecord): string {
           {{ t('proj.reload') }}
 
         </UButton>
-      </div>
+      </div><ProjectDashboard :project-id="projectId" />
 
       <!-- Цифра всегда с причиной: каждая ведёт к списку, а не висит в воздухе. -->
       <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
