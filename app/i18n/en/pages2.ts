@@ -163,7 +163,7 @@ export const pages2: Record<string, string> = {
   'maps.fixLabel': 'Fix the maps answer',
   'maps.grp.approved': 'Approved',
   'maps.grp.waiting': 'Awaiting approval',
-  'maps.grp.out': 'Outside the sum',
+  'maps.grp.out': 'Outside the sum', 'maps.records.title': 'Map records', 'maps.records.hint': 'What the maps are built from: {n}',
   'maps.fk.file': 'files',
   'maps.fk.db': 'databases',
   'maps.fk.queue': 'queues',

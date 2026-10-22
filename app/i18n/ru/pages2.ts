@@ -163,7 +163,7 @@ export const pages2: Record<string, string> = {
   'maps.fixLabel': 'Поправить ответ по картам',
   'maps.grp.approved': 'Подтверждены',
   'maps.grp.waiting': 'Ждут подтверждения',
-  'maps.grp.out': 'Вне суммы',
+  'maps.grp.out': 'Вне суммы', 'maps.records.title': 'Записи карт', 'maps.records.hint': 'Из чего сложены карты: {n}',
   'maps.fk.file': 'файлы',
   'maps.fk.db': 'базы данных',
   'maps.fk.queue': 'очереди',

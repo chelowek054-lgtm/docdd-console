@@ -1338,18 +1338,18 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
         @changed="() => refresh()"
       />
 
-      <div v-if="mapRecords.length" class="space-y-1 text-sm">
-        <p v-for="group in mapRecords" :key="group.label" class="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <span class="text-muted">{{ group.label }}:</span>
-          <RecordLink
-            v-for="record in group.records"
-            :key="record.id"
-            :project-id="projectId"
-            :record-id="record.id"
-            :record="record"
-          />
-        </p>
-      </div>
+      <!-- Записи карт — аккордеоном, как вектор (MapRecordsCard): длинный список нужен не всегда. -->
+      <MapRecordsCard
+        v-if="mapRecords.length"
+        :project-id="projectId"
+        :groups="mapRecords"
+        :waiting="mapRecords.find((group) => group.label === t('maps.grp.waiting'))?.records.length ?? 0"
+      />
+      <!-- Черновик на подтверждение раскрывает карточку сам: «Обновить карты» -->
+      <!-- не должен оставлять его находимым только по номеру из ответа. -->
+      <!-- Свёрнута ли карточка, помнит браузер (как у вектора). -->
+      <!-- Подписи групп — те же maps.grp.*. -->
+      <!-- Ниже — опись файлов. -->
 
       <MapInventory :project-id="projectId" @changed="() => refresh()" />
 
