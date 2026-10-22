@@ -16,7 +16,7 @@ onBeforeUnmount(() => observer?.disconnect());
 </script>
 
 <template>
-  <div class="overflow-hidden transition-[height] duration-(--ds-motion-base) ease-out" :style="{ height }">
+  <div class="overflow-hidden transition-[height] duration-[calc(var(--ds-motion-base)*2)] ease-out" :style="{ height }">
     <div ref="inner">
       <slot />
     </div>
