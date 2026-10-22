@@ -9,7 +9,7 @@ import { reviewerOf, roleName } from '~~/server/lib/reviewer';
  * карточки — тот же маршрут смены статуса, что и кнопка в записи: правила
  * переходов не обходятся, причина отказа показывается перечнем.
  */
-const props = defineProps<{ projectId: string; records: IndexRecord[]; roles?: { id: string; name: string }[] }>();
+const props = defineProps<{ projectId: string; records: IndexRecord[]; roles?: { id: string; name: string }[]; team?: { login: string }[] }>();
 const emit = defineEmits<{ changed: [] }>();
 const { t } = useT();
 
@@ -57,6 +57,21 @@ function reviewer(task: IndexRecord): string {
   return pick ? roleName(pick.role, props.roles ?? []) : '';
 }
 
+/** Кого можно назначить: команда проекта и те, кто уже исполняет задачи. */
+const people = computed(() => [...new Set([...(props.team ?? []).map((member) => member.login), ...assignees.value])].sort());
+const assigning = ref('');
+const typed = ref('');
+
+/** Назначение прямо с доски: тот же PATCH, что в карточке задачи, — с журналом и уведомлением. */
+async function assign(task: IndexRecord, login: string | null) {
+  assigning.value = '';
+  typed.value = '';
+  failure.value = null;
+  const response = await $fetch<{ error?: ApiFailure }>(`/api/projects/${props.projectId}/records/${task.id}`, { method: 'PATCH', body: { assignee: login, version: task.version }, ignoreResponseError: true });
+  if (response?.error) failure.value = response.error;
+  else emit('changed');
+}
+
 async function drop(status: string) {
   const id = dragged.value;
   dragged.value = '';
@@ -92,23 +107,49 @@ async function drop(status: string) {
           <UBadge color="neutral" variant="soft" size="sm">{{ columns[status]?.length ?? 0 }}</UBadge>
         </h2>
         <div class="min-h-0 flex-1 space-y-2 overflow-y-auto">
-          <NuxtLink
+          <div
             v-for="task in visible(status)"
             :key="task.id"
-            :to="`/projects/${props.projectId}/records/${task.id}`"
             draggable="true"
-            class="block rounded-md border border-default bg-default p-2 text-xs hover:border-primary"
+            class="rounded-md border border-default bg-default p-2 text-xs hover:border-primary"
             @dragstart="dragged = task.id"
           >
-            <span class="font-mono text-muted">{{ task.id }}</span>
-            <span class="mt-0.5 block text-sm leading-snug">{{ task.title }}</span>
+            <NuxtLink :to="`/projects/${props.projectId}/records/${task.id}`" class="block">
+              <span class="font-mono text-muted">{{ task.id }}</span>
+              <span class="mt-0.5 block text-sm leading-snug">{{ task.title }}</span>
+            </NuxtLink>
             <span class="mt-1.5 flex flex-wrap items-center gap-1">
-              <UBadge v-if="assigneeOf(task)" color="primary" variant="soft" size="sm" icon="i-lucide-user">{{ assigneeOf(task) }}</UBadge>
-              <UBadge v-else-if="status !== 'done'" color="warning" variant="soft" size="sm">{{ t('mb.unassigned') }}</UBadge>
+              <!-- Исполнитель — назначается прямо здесь, без перехода в задачу. -->
+              <UPopover :open="assigning === task.id" @update:open="(value) => { assigning = value ? task.id : ''; typed = ''; }">
+                <UButton
+                  size="xs"
+                  :variant="assigneeOf(task) ? 'soft' : 'outline'"
+                  :color="assigneeOf(task) ? 'primary' : (status === 'done' ? 'neutral' : 'warning')"
+                  :icon="assigneeOf(task) ? 'i-lucide-user' : 'i-lucide-user-plus'"
+                  :aria-label="t('mb.assign', { id: task.id })"
+                >{{ assigneeOf(task) || t('mb.unassigned') }}</UButton>
+                <template #content>
+                  <div class="w-56 space-y-1 p-2">
+                    <button
+                      v-for="person in people"
+                      :key="person"
+                      type="button"
+                      class="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm hover:bg-elevated"
+                      :class="person === assigneeOf(task) ? 'text-primary' : ''"
+                      @click="assign(task, person)"
+                    ><UIcon name="i-lucide-user" class="size-3.5" />{{ person }}</button>
+                    <form class="flex gap-1 pt-1" @submit.prevent="typed.trim() && assign(task, typed.trim())">
+                      <UInput v-model="typed" size="xs" :placeholder="t('mb.login')" class="flex-1" />
+                      <UButton type="submit" size="xs" :disabled="!typed.trim()" icon="i-lucide-check" :aria-label="t('mb.assignShort')" />
+                    </form>
+                    <button v-if="assigneeOf(task)" type="button" class="w-full rounded px-2 py-1 text-left text-sm text-muted hover:bg-elevated" @click="assign(task, null)">{{ t('mb.unassign') }}</button>
+                  </div>
+                </template>
+              </UPopover>
               <UBadge v-if="phaseOf(task)" color="neutral" variant="outline" size="sm" :title="phaseTitle.get(phaseOf(task))">{{ phaseOf(task) }}</UBadge>
               <UBadge v-if="status === 'in_review' && reviewer(task)" color="info" variant="soft" size="sm" icon="i-lucide-user-check">{{ reviewer(task) }}</UBadge>
             </span>
-          </NuxtLink>
+          </div>
           <UButton
             v-if="status === 'done' && (columns.done?.length ?? 0) > DONE_LIMIT"
             size="xs"

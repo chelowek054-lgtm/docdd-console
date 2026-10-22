@@ -1,5 +1,9 @@
 // Менеджер и Релизы (docs/04-ui.md, «Менеджер и Релизы»).
 export const manager: Record<string, string> = {
+  'mb.assign': 'Назначить исполнителя {id}',
+  'mb.assignShort': 'Назначить',
+  'mb.login': 'Логин',
+  'mb.unassign': 'Снять исполнителя',
   'mb.allPhases': "Все фазы",
   'mb.allAssignees': "Все исполнители",
   'mb.noAssignee': "Без исполнителя",

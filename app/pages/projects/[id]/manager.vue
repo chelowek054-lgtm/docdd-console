@@ -24,7 +24,7 @@ const tab = computed({
   <div class="space-y-5">
     <h1 class="text-xl font-semibold">{{ t('mgr.title') }}</h1>
     <UTabs v-model="tab" :items="TABS" :content="false" />
-    <ManagerBoard v-if="tab === 'board'" :project-id="projectId" :records="records" :roles="index?.project.roles ?? []" @changed="refresh()" />
+    <ManagerBoard v-if="tab === 'board'" :project-id="projectId" :records="records" :roles="index?.project.roles ?? []" :team="index?.project.team ?? []" @changed="refresh()" />
     <ManagerRoadmap v-else-if="tab === 'roadmap'" :project-id="projectId" :records="records" @changed="refresh()" />
     <ManagerSummary v-else-if="tab === 'summary'" :project-id="projectId" :project-name="index?.project.name ?? projectId" :records="records" />
     <ManagerAssistant v-else :project-id="projectId" :records="records" />
