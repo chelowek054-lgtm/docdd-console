@@ -664,7 +664,10 @@ Decision и design из источников, названных в `sources.sha
 
 Собирает запрос по шаблону из [prompts/](prompts/), подставляя данные проекта:
 для `fix` — отобранные нарушения, для `maps` — состояние карт и список того, что
-перестало сходиться. Возвращает `{ "prompt": "…", "count": 3 }`.
+перестало сходиться. Возвращает `{ "prompt": "…", "count": 3 }`. У `inbox` — `mode: "strategy"` и
+необязательный `contour` (id контура): к разбору добавляется раздел
+[prompts/strategy-intent.md](prompts/strategy-intent.md) — разложить намерение целиком и сверить с
+вектором ([adr/0037](adr/0037-strategy-intent-input.md)).
 
 ### `POST /api/llm/ask`
 

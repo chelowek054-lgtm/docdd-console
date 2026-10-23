@@ -8,7 +8,7 @@ import {
   fixPrompt,
   functionalCheckPrompt, asIsPrompt,
   groupsPrompt,
-  inboxPrompt,
+  inboxPrompt, strategyIntentBlock,
   mapFixPrompt,
   mapsPrompt,
   phasesPrompt,
@@ -60,7 +60,7 @@ export default defineEventHandler(async (event) => {
     issues?: unknown;
     answer?: unknown;
     problems?: unknown;
-    notes?: unknown;
+    notes?: unknown; mode?: unknown; contour?: unknown;
     tasks?: unknown;
     skip?: unknown;
     limit?: unknown;
@@ -155,10 +155,15 @@ export default defineEventHandler(async (event) => {
       // задваивало то, что в ней уже есть (docs/06-phases.md, фаза 12).
       const capabilities = buildProjectMap(project.root).functional.capabilities;
 
-      return {
-        prompt: inboxPrompt(await template('inbox-plan.md'), notes, known, capabilities, referenceIndexText(project.root), packExtra(project.root, '', 'inbox', notes.map((note) => note.text).join(String.fromCharCode(10)))),
-        count: notes.length
-      };
+      let prompt = inboxPrompt(await template('inbox-plan.md'), notes, known, capabilities, referenceIndexText(project.root), packExtra(project.root, '', 'inbox', notes.map((note) => note.text).join(String.fromCharCode(10))));
+      // Намерение со стратегической карты (ADR-0037): тот же разбор, но разложить целиком.
+      if (body?.mode === 'strategy') {
+        const contourId = typeof body?.contour === 'string' ? body.contour : '';
+        const contour = capabilities.find((item) => item.id === contourId && !item.parent) ?? null;
+        const vision = buildProjectMap(project.root).functional.vision;
+        prompt += String.fromCharCode(10, 10) + strategyIntentBlock(await template('strategy-intent.md'), contour, vision);
+      }
+      return { prompt, count: notes.length };
     }
 
     if (kind === 'phases') {

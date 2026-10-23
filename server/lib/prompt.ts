@@ -760,3 +760,34 @@ export function evidenceProblems(
   }
   return problems;
 }
+
+
+/**
+ * Раздел режима «стратегия» к разбору входящего (ADR-0037, docs/prompts/strategy-intent.md):
+ * куда встают новые возможности и вектор проекта, против которого модель сверяет намерение.
+ */
+export function strategyIntentBlock(
+  template: string,
+  contour: { id: string; title?: string } | null,
+  vision: { problem?: string; audience?: string; outcome?: string; not?: string } | null
+): string {
+  const place = contour
+    ? `под контуром \`${contour.id}\`${contour.title ? ` — ${contour.title}` : ''} (\`parent\` верхней новой возможности — \`${contour.id}\`).`
+    : 'под подходящим контуром из карты выше, а если ни один не подходит — новым контуром (возможность без `parent`).';
+  const said = vision && (vision.problem || vision.audience || vision.outcome || vision.not)
+    ? [
+        vision.problem ? `- Проблема: ${vision.problem}` : '',
+        vision.audience ? `- Для кого: ${vision.audience}` : '',
+        vision.outcome ? `- Успех: ${vision.outcome}` : '',
+        vision.not ? `- Чего не делает: ${vision.not}` : ''
+      ].filter(Boolean).join(LF)
+    : 'Вектор проекта не записан — сверять не с чем.';
+  return withoutFrontNote(template).replace('<!-- КОНТУР -->', place).replace('<!-- ВЕКТОР -->', said);
+}
+
+/** «ВНЕ ВЕКТОРА: …» первой строкой ответа (ADR-0037, п. 5): причина или `null`. */
+export function offVector(answer: string): string | null {
+  const first = answer.trimStart().split(/\r?\n/, 1)[0] ?? '';
+  const match = /^ВНЕ ВЕКТОРА:\s*(.*)$/.exec(first.trim());
+  return match ? (match[1] ?? '').trim() || 'без причины' : null;
+}

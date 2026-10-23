@@ -54,6 +54,9 @@ const counts = computed(() => ({
 
     <UTabs v-model="view" size="xs" class="w-56" :items="[{ label: t('st2.view.contours'), value: 'contours' }, { label: t('st2.view.map'), value: 'map' }]" />
 
+    <!-- Намерение одной фразой (ADR-0037): на карточках контуров; на «Карте» строку показывает сама карта. -->
+    <StrategyIntent v-if="view === 'contours'" :project-id="projectId" :contours="contours.map((item) => ({ id: item.id, title: item.title }))" />
+
     <MapsPage v-if="view === 'map'" scope="strategic" />
 
     <p v-else-if="pending && !contours.length" class="text-sm text-muted">{{ t('st2.loading') }}</p>

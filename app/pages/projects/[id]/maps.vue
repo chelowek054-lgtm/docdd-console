@@ -1530,6 +1530,13 @@ watch(views, (list) => {
       <p v-if="deletedNote && !strategic" class="text-sm text-muted">{{ deletedNote }}</p>
       <p v-if="!strategic && customData && !views.length && !customMaps.definitions.length" class="rounded-lg border border-dashed border-default p-6 text-center text-sm text-muted">{{ t('maps.noWorking') }}</p>
       <CustomMapForm v-if="!strategic" v-model:open="customFormOpen" :project-id="projectId" :engines="customMaps.engines" @created="onCustomCreated" />
+      <!-- Строка намерения (ADR-0037) — над стратегической картой, и на «Картах», и на «Стратегии». -->
+      <StrategyIntent
+        v-if="map && !customCurrent && shown === 'functional'"
+        :project-id="projectId"
+        :contours="map.functional.capabilities.filter((item) => !item.parent).map((item) => ({ id: item.id, title: item.title }))"
+        @created="() => refresh()"
+      />
       <CustomMapView
         v-if="customCurrent"
         :project-id="projectId"
