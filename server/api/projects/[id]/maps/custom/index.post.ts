@@ -10,6 +10,7 @@ import { appendCustomMap } from '../../../../../lib/manifest-write';
 import { OutsideRootError, normalizeRoot, resolveInside } from '../../../../../lib/paths';
 import { DEVELOPMENT_DIR, MANIFEST_FILE, WorkspaceError, readWorkspace } from '../../../../../lib/workspace';
 import { fail, failWith } from '../../../../../utils/http';
+import { whoIs } from '../../../../../utils/job-feeds';
 import { findProject } from '../../../../../utils/projects';
 
 /**
@@ -28,9 +29,11 @@ export default defineEventHandler(async (event) => {
   const body = await readBody<Record<string, unknown>>(event);
   // Шаблон с движком (ADR-0035): без формы, строка `maps.custom` с `template`.
   if (body && typeof body === 'object' && body['template'] !== undefined) {
-    return createEngineMap(event, project.root, body['template']);
+    return createEngineMap(event, project.root, body['template'], whoIs(event).user);
   }
-  const definition = asDefinition(body);
+  const parsed = asDefinition(body);
+  // Кто завёл — удалить сможет он или администратор (ADR-0036).
+  const definition: Record<string, unknown> | null = parsed ? { ...parsed, by: whoIs(event).user } : null;
   if (!definition) {
     return fail(event, 400, 'custom_map_invalid', 'Нужен объект определения: `id`, `title`, `node` {label, plural}, `features`');
   }
@@ -99,7 +102,7 @@ function asDefinition(body: Record<string, unknown> | null | undefined): Record<
 }
 
 /** Заводит рабочую карту из шаблона с движком: одна на проект, `id` равен шаблону. */
-function createEngineMap(event: H3Event, projectRoot: string, template: unknown) {
+function createEngineMap(event: H3Event, projectRoot: string, template: unknown, by: string) {
   if (!isEngineTemplate(template)) {
     return fail(event, 400, 'custom_map_invalid', `Шаблон с движком: ${ENGINE_TEMPLATES.join(', ')}`);
   }
@@ -113,7 +116,7 @@ function createEngineMap(event: H3Event, projectRoot: string, template: unknown)
     if (existing.some((item) => (item as { id?: unknown } | null)?.id === template)) {
       return fail(event, 409, 'custom_map_exists', `Карта «${template}» уже объявлена`);
     }
-    const definition = { id: template, title: ENGINE_TITLE[template], template };
+    const definition = { id: template, title: ENGINE_TITLE[template], template, by };
     const manifestPath = resolveInside(root, join(DEVELOPMENT_DIR, MANIFEST_FILE));
     const edit = appendCustomMap(readFileSync(manifestPath, 'utf8'), definition);
     if (!edit.ok) return fail(event, 422, 'manifest_form', edit.message);

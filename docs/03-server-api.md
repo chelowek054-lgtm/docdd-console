@@ -491,6 +491,10 @@
 из той же сложенной картины, что у `GET …/map`. Поля, которых карта в
 `features` не взяла, не приходят.
 
+### `DELETE /api/projects/:id/maps/custom/:mapId`
+
+Убирает строку рабочей карты из `maps.custom` ([adr/0036](adr/0036-delete-working-map.md)); записи `map` не трогаются, строка возвращается из git. Удаляет создатель (`by` определения) или администратор, иначе `403 forbidden`; строку без `by` — только администратор. Ответ — `{ removed, by, file }`. Ошибки: `404 custom_map_not_found`, `422 manifest_form`. При создании (`POST` ниже) в строку пишется `by` — логин создателя.
+
 ### `POST /api/projects/:id/maps/custom`
 
 Тело `{ template: "codemap" | "dataflow" | "userflow" }` заводит рабочую карту

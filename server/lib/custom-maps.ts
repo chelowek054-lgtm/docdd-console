@@ -47,7 +47,9 @@ export function engineMaps(manifest: Pick<ProjectManifest, 'maps'>, projectMap: 
     userflow: projectMap.userflow.screens.length > 0 || projectMap.userflow.transitions.length > 0 || projectMap.userflow.calls.length > 0
   };
   const declared = declaredEngines(manifest);
-  return ENGINE_TEMPLATES.filter((name) => live[name] || declared.includes(name));
+  // Есть список `maps.custom` — его и слушаем (ADR-0036, п. 5): удалённая карта не возвращается сама.
+  if (declared.length > 0 || Array.isArray(manifest.maps?.custom)) return ENGINE_TEMPLATES.filter((name) => declared.includes(name));
+  return ENGINE_TEMPLATES.filter((name) => live[name]);
 }
 
 export interface CustomDefinitionsResult {
@@ -227,4 +229,15 @@ export function customMapView(projectMap: Pick<ProjectMap, 'custom'>, def: Custo
  */
 export function customDraftText(id: string, title: string, change: CustomChange, today: string): string {
   return mapDraftText(id, title, { custom: change }, ['custom'], today);
+}
+
+
+/**
+ * Может ли человек удалить рабочую карту (ADR-0036): создатель (`by`) или администратор.
+ * Строку без `by` — только администратор.
+ */
+export function canDeleteMap(entry: unknown, user: string, admin: boolean): boolean {
+  if (admin) return true;
+  const by = (entry as { by?: unknown } | null)?.by;
+  return typeof by === 'string' && by !== '' && by === user;
 }

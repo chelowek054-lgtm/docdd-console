@@ -28,7 +28,13 @@ export default defineEventHandler(async (event) => {
     const maps: Record<string, CustomMapView> = {};
     for (const def of definitions) maps[def.id] = customMapView(projectMap, def);
     // Рабочие карты с движком (ADR-0035): объявленные и уже живущие записями.
-    return { definitions, problems, maps, engines: engineMaps(manifest, projectMap) };
+    // Кто завёл каждую строку (ADR-0036): экран показывает «Удалить карту» создателю и администратору.
+    const owners: Record<string, string | null> = {};
+    for (const item of Array.isArray(manifest.maps?.custom) ? manifest.maps.custom : []) {
+      const entry = item as { id?: unknown; by?: unknown } | null;
+      if (typeof entry?.id === 'string') owners[entry.id] = typeof entry.by === 'string' ? entry.by : null;
+    }
+    return { definitions, problems, maps, engines: engineMaps(manifest, projectMap), owners };
   } catch (error) {
     if (error instanceof WorkspaceError) {
       return fail(event, 422, error.code, error.message, error.detail);

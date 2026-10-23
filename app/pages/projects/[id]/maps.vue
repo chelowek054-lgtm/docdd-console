@@ -1267,6 +1267,8 @@ type CustomMapsResponse = {
   maps: Record<string, CustomMapContent>;
   /** Рабочие карты с движком, заведённые в проекте (ADR-0035). */
   engines: string[];
+  /** Кто завёл строку `maps.custom` (ADR-0036); `null` — неизвестно, удаляет только администратор. */
+  owners?: Record<string, string | null>;
 };
 const { data: customData, refresh: refreshCustom } = useFetch<CustomMapsResponse | { error: ApiFailure }>(
   () => `/api/projects/${projectId.value}/maps/custom`
@@ -1287,6 +1289,31 @@ const customShown = computed<string | null>({
 });
 const customFormOpen = ref(false);
 const customCurrent = computed(() => customMaps.value.definitions.find((item) => item.id === customShown.value) ?? null);
+
+/** Открытая рабочая карта, которую этот человек вправе удалить (ADR-0036): создатель или администратор. */
+const deletable = computed(() => {
+  if (strategic) return null;
+  const id = customShown.value ?? (shown.value !== 'functional' ? shown.value : null);
+  const owners = customMaps.value.owners ?? {};
+  if (!id || !(id in owners)) return null;
+  const user = currentUser.value.user;
+  // Без входа учёток нет: местный пользователь распоряжается всем (как на сервере).
+  const allowed = !user || user.admin || (owners[id] !== null && owners[id] === user.login);
+  return allowed ? { id, title: workingTabs.value.find((tab) => tab.value === id || tab.value === `engine:${id}`)?.label ?? id } : null;
+});
+const deletedNote = ref<string | null>(null);
+async function deleteMap() {
+  const target = deletable.value;
+  if (!target || !window.confirm(t('maps.del.confirm', { title: target.title }))) return;
+  const response = await $fetch<{ removed: string; file: string } | { error: ApiFailure }>(
+    `/api/projects/${projectId.value}/maps/custom/${encodeURIComponent(target.id)}`,
+    { method: 'DELETE', ignoreResponseError: true }
+  );
+  if ('error' in response) { deletedNote.value = response.error.message; return; }
+  deletedNote.value = t('maps.del.done', { title: target.title, file: response.file });
+  customShown.value = null;
+  await refreshCustom();
+}
 
 async function onCustomCreated(definition: CustomMapDefinition) {
   await refreshCustom();
@@ -1497,8 +1524,10 @@ watch(views, (list) => {
           @update:model-value="pickWorking"
         />
         <UButton class="shrink-0" icon="i-lucide-plus" size="sm" variant="soft" :label="t('maps.newMap')" @click="customFormOpen = true" />
+        <UButton v-if="deletable" class="shrink-0" icon="i-lucide-trash-2" size="sm" color="error" variant="ghost" :label="t('maps.del.button')" @click="deleteMap" />
       </div>
       <p v-for="problem in customMaps.problems" :key="problem" class="text-sm text-warning">{{ problem }}</p>
+      <p v-if="deletedNote && !strategic" class="text-sm text-muted">{{ deletedNote }}</p>
       <p v-if="!strategic && customData && !views.length && !customMaps.definitions.length" class="rounded-lg border border-dashed border-default p-6 text-center text-sm text-muted">{{ t('maps.noWorking') }}</p>
       <CustomMapForm v-if="!strategic" v-model:open="customFormOpen" :project-id="projectId" :engines="customMaps.engines" @created="onCustomCreated" />
       <CustomMapView

@@ -51,10 +51,10 @@ describe('какие рабочие карты с движком есть у п�
     expect(engineMaps({}, map)).toEqual(['dataflow']);
   });
 
-  it('объявленная и живая складываются в порядке шаблонов', () => {
+  it('есть список maps.custom — он и решает, живые записи без строки не видны (ADR-0036)', () => {
     const map = emptyProjectMap();
     map.userflow.screens.push({ id: 'home', title: 'Главная' } as never);
-    expect(engineMaps(custom({ id: 'codemap', title: 'К', template: 'codemap' }), map)).toEqual(['codemap', 'userflow']);
+    expect(engineMaps(custom({ id: 'codemap', title: 'К', template: 'codemap' }), map)).toEqual(['codemap']);
   });
 });
 
