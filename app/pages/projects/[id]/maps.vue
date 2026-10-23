@@ -1333,6 +1333,16 @@ function mergedMap(first: Partial<MapResponse> | null): MapResponse | null {
 
 watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true });
 // Открытая вкладка исчезла из списка (например, карту ещё не завели) — первая из имеющихся.
+/** Рабочие карты одним списком: шаблоны с движком и свои (ADR-0035). */
+const workingTabs = computed(() => [
+  ...views.value.filter((view) => view.key !== 'functional').map((view) => ({ label: view.title, value: `engine:${view.key}`, badge: view.count })),
+  ...customMaps.value.definitions.map((item) => ({ label: item.title, value: item.id, badge: customMaps.value.maps[item.id]?.nodes.length ?? 0 }))
+]);
+function pickWorking(value: string | number) {
+  const key = String(value);
+  if (key.startsWith('engine:')) { shown.value = key.slice(7) as typeof shown.value; customShown.value = null; }
+  else customShown.value = key || null;
+}
 watch(views, (list) => {
   const first = list[0];
   if (first && !list.some((view) => view.key === shown.value)) shown.value = first.key as typeof shown.value;
@@ -1469,20 +1479,22 @@ watch(views, (list) => {
            пользовательские (подчёркнутые) и «Новая карта». Вид разный нарочно:
            встроенные заданы консолью, свои — проектом. -->
       <div v-if="!strategic" class="ds-scroll flex flex-nowrap items-center gap-3 overflow-x-auto pb-2">
+        <!-- Две категории (ADR-0035): стратегическая карта — одна, плашкой; все остальные — одним рядом,
+             одинаково: шаблон с движком и своя карта для человека не различаются. -->
+        <UButton
+          v-for="view in (map && map.from.length > 0 ? views.filter((item) => item.key === 'functional') : [])"
+          :key="view.key"
+          class="shrink-0"
+          :variant="!customShown && shown === 'functional' ? 'solid' : 'soft'"
+          @click="() => { shown = 'functional'; customShown = null }"
+        >{{ view.title }} <UBadge size="sm" color="neutral" variant="subtle">{{ view.count }}</UBadge></UButton>
         <UTabs
-          v-if="map && map.from.length > 0"
-          :model-value="customShown ? '' : shown"
-          :items="views.map((view) => ({ label: view.title, value: view.key, badge: view.count }))"
-          :ui="{ root: 'w-auto shrink-0', list: 'w-auto' }"
-          @update:model-value="(value) => { shown = value as typeof shown; customShown = null }"
-        />
-        <UTabs
-          v-if="customMaps.definitions.length"
-          :model-value="customShown ?? ''"
+          v-if="workingTabs.length"
+          :model-value="customShown ?? (shown === 'functional' ? '' : `engine:${shown}`)"
           variant="link"
-          :items="customMaps.definitions.map((item) => ({ label: item.title, value: item.id, badge: customMaps.maps[item.id]?.nodes.length ?? 0 }))"
+          :items="workingTabs"
           :ui="{ root: 'w-auto shrink-0', list: 'w-auto' }"
-          @update:model-value="(value) => (customShown = String(value) || null)"
+          @update:model-value="pickWorking"
         />
         <UButton class="shrink-0" icon="i-lucide-plus" size="sm" variant="soft" :label="t('maps.newMap')" @click="customFormOpen = true" />
       </div>

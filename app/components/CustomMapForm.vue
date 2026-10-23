@@ -148,10 +148,19 @@ async function submit() {
   <UModal v-model:open="open" :title="t('t83.custom-map-form.1')" :description="t('t83.custom-map-form.2')">
     <template #body>
       <form class="space-y-4" @submit.prevent="submit">
-        <div v-if="ENGINES.some((item) => !engines.includes(item.value))" class="space-y-1">
+        <div class="space-y-1">
           <p class="text-sm font-medium">{{ t('ctpl.engine') }}</p>
           <div class="flex flex-wrap gap-2">
-            <UButton v-for="item in ENGINES.filter((e) => !engines.includes(e.value))" :key="item.value" size="xs" variant="soft" :loading="busy" @click="createEngine(item.value)">{{ item.label }}</UButton>
+            <UButton
+              v-for="item in ENGINES"
+              :key="item.value"
+              size="xs"
+              variant="soft"
+              :disabled="engines.includes(item.value)"
+              :icon="engines.includes(item.value) ? 'i-lucide-check' : undefined"
+              :loading="busy"
+              @click="createEngine(item.value)"
+            >{{ item.label }}</UButton>
           </div>
           <p class="text-xs text-muted">{{ t('ctpl.engineHint') }}</p>
         </div>
