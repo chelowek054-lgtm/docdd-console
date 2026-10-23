@@ -25,7 +25,13 @@ export default defineEventHandler(async (event) => {
 
   try {
     const root = normalizeRoot(project.root);
-    const custom = readWorkspace(root).manifest.maps?.custom;
+    readWorkspace(root);
+    // Номер строки и сверку берём из самого файла, а не из разобранного манифеста: правка идёт по тексту,
+    // и любое расхождение (кэш, правка рядом) иначе убрало бы чужую строку.
+    const manifestPath = resolveInside(root, join(DEVELOPMENT_DIR, MANIFEST_FILE));
+    const text = readFileSync(manifestPath, 'utf8');
+    const ids = (value: unknown) => (Array.isArray(value) ? value.map((item) => (item as { id?: unknown } | null)?.id) : []);
+    const custom = (load(text) as { maps?: { custom?: unknown } } | null)?.maps?.custom;
     const list = Array.isArray(custom) ? custom : [];
     const index = list.findIndex((item) => (item as { id?: unknown } | null)?.id === mapId);
     if (index < 0) return fail(event, 404, 'custom_map_not_found', `Карты «${mapId}» в \`maps.custom\` нет`);
@@ -33,12 +39,12 @@ export default defineEventHandler(async (event) => {
     if (!canDeleteMap(list[index], who.user, who.admin)) {
       return fail(event, 403, 'forbidden', 'Удалить карту может тот, кто её завёл, или администратор');
     }
-    const manifestPath = resolveInside(root, join(DEVELOPMENT_DIR, MANIFEST_FILE));
-    const edit = removeCustomMap(readFileSync(manifestPath, 'utf8'), index);
+    const edit = removeCustomMap(text, index);
     if (!edit.ok) return fail(event, 422, 'manifest_form', edit.message);
-    // Построчная правка не разбирает YAML — сверяем результат, прежде чем писать файл человека.
-    const after = (load(edit.text) as { maps?: { custom?: unknown } } | null)?.maps?.custom;
-    if (!Array.isArray(after) || after.length !== list.length - 1 || after.some((item) => (item as { id?: unknown } | null)?.id === mapId)) {
+    // Построчная правка не разбирает YAML — сверяем: ушла ровно эта строка, остальные на месте и по порядку.
+    const expected = ids(list).filter((_, at) => at !== index);
+    const after = ids((load(edit.text) as { maps?: { custom?: unknown } } | null)?.maps?.custom);
+    if (JSON.stringify(after) !== JSON.stringify(expected)) {
       return fail(event, 422, 'manifest_form', 'Не удалось точечно убрать строку `maps.custom` — уберите карту вручную');
     }
     writeFileSync(manifestPath, edit.text, 'utf8');
