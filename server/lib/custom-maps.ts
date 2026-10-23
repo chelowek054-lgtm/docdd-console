@@ -12,6 +12,44 @@ export const CUSTOM_MAP_FEATURES: readonly CustomMapFeature[] = ['status', 'prio
 
 const MAP_ID = /^[A-Za-z0-9-]+$/;
 
+/**
+ * Шаблоны с движком (ADR-0035): рабочие карты, у которых свой разбор, опись и сверка — прежние
+ * виды `codemap`, `dataflow`, `userflow`. В манифесте — строка `maps.custom` с `template` и `id`,
+ * равным шаблону; содержание остаётся в блоках записей `map`, как и было.
+ */
+export const ENGINE_TEMPLATES = ['codemap', 'dataflow', 'userflow'] as const;
+export type EngineTemplate = (typeof ENGINE_TEMPLATES)[number];
+
+export function isEngineTemplate(value: unknown): value is EngineTemplate {
+  return typeof value === 'string' && (ENGINE_TEMPLATES as readonly string[]).includes(value);
+}
+
+/** Шаблоны с движком, объявленные в манифесте. */
+export function declaredEngines(manifest: Pick<ProjectManifest, 'maps'>): EngineTemplate[] {
+  const raw = manifest.maps?.custom;
+  if (!Array.isArray(raw)) return [];
+  const found: EngineTemplate[] = [];
+  for (const entry of raw) {
+    const item = entry as Record<string, unknown> | null;
+    if (item && typeof item === 'object' && isEngineTemplate(item['template']) && item['id'] === item['template'] && !found.includes(item['template'])) found.push(item['template']);
+  }
+  return found;
+}
+
+/**
+ * Какие рабочие карты с движком есть у проекта: объявленные и те, что уже живут подтверждёнными
+ * записями (старые проекты, ADR-0035, п. 4) — файлы при этом не правятся.
+ */
+export function engineMaps(manifest: Pick<ProjectManifest, 'maps'>, projectMap: Pick<ProjectMap, 'codemap' | 'dataflow' | 'userflow'>): EngineTemplate[] {
+  const live: Record<EngineTemplate, boolean> = {
+    codemap: projectMap.codemap.modules.length > 0 || projectMap.codemap.imports.length > 0 || projectMap.codemap.groups.length > 0,
+    dataflow: projectMap.dataflow.sources.length > 0 || projectMap.dataflow.flows.length > 0,
+    userflow: projectMap.userflow.screens.length > 0 || projectMap.userflow.transitions.length > 0 || projectMap.userflow.calls.length > 0
+  };
+  const declared = declaredEngines(manifest);
+  return ENGINE_TEMPLATES.filter((name) => live[name] || declared.includes(name));
+}
+
 export interface CustomDefinitionsResult {
   definitions: CustomMapDefinition[];
   /** Беды определений по-человечески; определение с бедой в `definitions` не попадает. */
@@ -64,6 +102,16 @@ export function customDefinitions(manifest: Pick<ProjectManifest, 'maps'>): Cust
     }
     const item = entry as Record<string, unknown>;
     const own: string[] = [];
+
+    // Шаблон с движком (ADR-0035) — не пользовательская карта: узлов и видов связей у неё нет.
+    if (item['template'] !== undefined) {
+      if (!isEngineTemplate(item['template']) || item['id'] !== item['template']) {
+        problems.push(`${where}.template: можно ${ENGINE_TEMPLATES.join(', ')}, а id равен шаблону.`);
+      } else if (seen.has(item['template'])) {
+        problems.push(`${where}.id: карта «${item['template']}» уже объявлена.`);
+      } else seen.add(item['template']);
+      return;
+    }
 
     const id = item['id'];
     if (typeof id !== 'string' || !MAP_ID.test(id)) own.push(`${where}.id: латиница, цифры, дефис.`);

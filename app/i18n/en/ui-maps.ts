@@ -93,6 +93,8 @@ export const uiMaps: Record<string, string> = {
   't83.custom-map-form.1': 'New map',
   't83.custom-map-form.2': 'Your own project map: what its nodes are and what kinds of links exist.',
   't83.custom-map-form.3': 'Role template',
+  'ctpl.engine': 'Engine template',
+  'ctpl.engineHint': 'Has an inventory, code checks and rules. One per project.',
   't83.custom-map-form.4': 'Fills in the name, nodes and link kinds - then edit as needed.',
   't83.custom-map-form.5': 'Name',
   't83.custom-map-form.6': 'For example, “Integrations”',

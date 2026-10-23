@@ -482,7 +482,10 @@
 ### `GET /api/projects/:id/maps/custom`
 
 Пользовательские карты ([adr/0028](adr/0028-custom-maps.md)):
-`{ definitions, problems, maps }`. `definitions` — годные определения из
+`{ definitions, problems, maps, engines }`. `engines` — рабочие карты с движком
+([adr/0035](adr/0035-two-kinds-of-maps.md)): `codemap`, `dataflow`, `userflow`,
+заведённые строкой `maps.custom` с `template` либо уже живущие подтверждёнными
+записями. `definitions` — годные определения из
 `maps.custom` манифеста; `problems` — беды неверных (такое определение
 пропущено, остальные живут); `maps` — по `id` карты её `{ nodes, relations }`
 из той же сложенной картины, что у `GET …/map`. Поля, которых карта в
@@ -490,7 +493,10 @@
 
 ### `POST /api/projects/:id/maps/custom`
 
-Тело — определение: `id`, `title`, `summary?`, `node { label, plural }`,
+Тело `{ template: "codemap" | "dataflow" | "userflow" }` заводит рабочую карту
+с движком (ADR-0035): в `project.yaml` дописывается строка `{ id, title, template }`,
+`id` равен шаблону, на проект один экземпляр (`409 custom_map_exists`). Иначе тело —
+определение: `id`, `title`, `summary?`, `node { label, plural }`,
 `relations?` (без них — пять видов функциональной карты), `features`.
 Проверяется тем же отбором, что читает манифест, и дописывается в
 `project.yaml` точечно: остальной файл и комментарии не трогаются. Ответ —

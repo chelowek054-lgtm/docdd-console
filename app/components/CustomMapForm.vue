@@ -7,7 +7,7 @@ import { ROLE_MAP_TEMPLATES, type RoleMapTemplate } from '~~/server/lib/role-map
 import type { CustomMapDefinition, CustomMapFeature, CustomRelationStyle } from '~~/server/lib/types';
 const { t } = useT();
 
-const props = defineProps<{ projectId: string }>();
+const props = defineProps<{ projectId: string; engines: readonly string[] }>();
 const emit = defineEmits<{ created: [definition: CustomMapDefinition] }>();
 const open = defineModel<boolean>('open', { required: true });
 
@@ -69,6 +69,35 @@ function applyTemplate(template: RoleMapTemplate) {
   idTouched.value = true;
 }
 
+/** Шаблон с движком (ADR-0035): форма не нужна, в манифест пишется строка с `template`. */
+const ENGINES: { value: string; label: string }[] = [
+  { value: 'codemap', get label() { return t('maps.v.codemap'); } },
+  { value: 'dataflow', get label() { return t('maps.v.dataflow'); } },
+  { value: 'userflow', get label() { return t('maps.v.userflow'); } }
+];
+
+async function createEngine(template: string) {
+  error.value = null;
+  busy.value = true;
+  try {
+    const response = await $fetch<{ definition: CustomMapDefinition } | { error: ApiFailure }>(
+      `/api/projects/${props.projectId}/maps/custom`,
+      { method: 'POST', body: { template } }
+    );
+    if ('error' in response) {
+      error.value = response.error.message;
+      return;
+    }
+    emit('created', response.definition);
+    open.value = false;
+  } catch (failure: unknown) {
+    const data = (failure as { data?: { error?: ApiFailure; message?: string } }).data;
+    error.value = data?.error?.message ?? data?.message ?? (failure as Error).message;
+  } finally {
+    busy.value = false;
+  }
+}
+
 function addRelation() {
   form.relations.push({ id: '', label: '', style: 'depends' });
 }
@@ -119,6 +148,13 @@ async function submit() {
   <UModal v-model:open="open" :title="t('t83.custom-map-form.1')" :description="t('t83.custom-map-form.2')">
     <template #body>
       <form class="space-y-4" @submit.prevent="submit">
+        <div v-if="ENGINES.some((item) => !engines.includes(item.value))" class="space-y-1">
+          <p class="text-sm font-medium">{{ t('ctpl.engine') }}</p>
+          <div class="flex flex-wrap gap-2">
+            <UButton v-for="item in ENGINES.filter((e) => !engines.includes(e.value))" :key="item.value" size="xs" variant="soft" :loading="busy" @click="createEngine(item.value)">{{ item.label }}</UButton>
+          </div>
+          <p class="text-xs text-muted">{{ t('ctpl.engineHint') }}</p>
+        </div>
         <div class="space-y-1">
           <p class="text-sm font-medium">{{ t('t83.custom-map-form.3') }}</p>
           <div class="flex flex-wrap gap-2">

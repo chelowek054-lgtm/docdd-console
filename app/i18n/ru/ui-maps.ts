@@ -93,6 +93,8 @@ export const uiMaps: Record<string, string> = {
   't83.custom-map-form.1': 'Новая карта',
   't83.custom-map-form.2': 'Своя карта проекта: что в ней узлы и какими бывают связи.',
   't83.custom-map-form.3': 'Заготовка под роль',
+  'ctpl.engine': 'Шаблон с движком',
+  'ctpl.engineHint': 'Есть опись, сверка с кодом и правила. Одна на проект.',
   't83.custom-map-form.4': 'Подставит название, узлы и виды связей — дальше правьте как нужно.',
   't83.custom-map-form.5': 'Название',
   't83.custom-map-form.6': 'Например, «Интеграции»',

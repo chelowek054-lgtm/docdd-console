@@ -1,6 +1,6 @@
 import { defineEventHandler, getRouterParam } from 'h3';
 
-import { customDefinitions, customMapView, type CustomMapView } from '../../../../../lib/custom-maps';
+import { customDefinitions, customMapView, engineMaps, type CustomMapView } from '../../../../../lib/custom-maps';
 import { OutsideRootError, normalizeRoot } from '../../../../../lib/paths';
 import { WorkspaceError, readWorkspace } from '../../../../../lib/workspace';
 import { fail } from '../../../../../utils/http';
@@ -22,11 +22,13 @@ export default defineEventHandler(async (event) => {
 
   try {
     const root = normalizeRoot(project.root);
-    const { definitions, problems } = customDefinitions(readWorkspace(root).manifest);
+    const manifest = readWorkspace(root).manifest;
+    const { definitions, problems } = customDefinitions(manifest);
     const projectMap = memoByFingerprint(project.root, 'map', () => fingerprintProject(project.root), () => buildProjectMap(project.root));
     const maps: Record<string, CustomMapView> = {};
     for (const def of definitions) maps[def.id] = customMapView(projectMap, def);
-    return { definitions, problems, maps };
+    // Рабочие карты с движком (ADR-0035): объявленные и уже живущие записями.
+    return { definitions, problems, maps, engines: engineMaps(manifest, projectMap) };
   } catch (error) {
     if (error instanceof WorkspaceError) {
       return fail(event, 422, error.code, error.message, error.detail);

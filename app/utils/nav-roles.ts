@@ -19,14 +19,14 @@ export type NavKey =
 
 const BY_ROLE: Record<NavRole, readonly NavKey[]> = {
   architect: ['strategy', 'requirements', 'designDocs', 'decisions', 'contracts', 'reference', 'glossary', 'tasks', 'phases', 'manager', 'checks', 'run', 'results', 'issues', 'graph', 'maps', 'import', 'onboarding', 'design', 'practices'],
-  developer: ['designDocs', 'decisions', 'contracts', 'reference', 'tasks', 'checks', 'run', 'results', 'issues', 'maps', 'design'],
+  developer: ['strategy', 'designDocs', 'decisions', 'contracts', 'reference', 'tasks', 'checks', 'run', 'results', 'issues', 'maps', 'design'],
   pm: ['strategy', 'requirements', 'tasks', 'phases', 'manager', 'releases', 'maps', 'inbox', 'import', 'onboarding'],
   analyst: ['strategy', 'requirements', 'glossary', 'maps', 'inbox', 'import', 'analyst'],
-  domain: ['requirements', 'glossary', 'inbox'],
-  designer: ['designDocs', 'tasks', 'design'],
-  qa: ['requirements', 'contracts', 'tasks', 'releases', 'checks', 'run', 'results', 'issues', 'graph'],
-  devops: ['tasks', 'releases', 'run', 'results'],
-  support: ['glossary', 'releases', 'inbox'],
+  domain: ['strategy', 'requirements', 'glossary', 'inbox'],
+  designer: ['strategy', 'designDocs', 'tasks', 'design'],
+  qa: ['strategy', 'requirements', 'contracts', 'tasks', 'releases', 'checks', 'run', 'results', 'issues', 'graph'],
+  devops: ['strategy', 'tasks', 'releases', 'run', 'results'],
+  support: ['strategy', 'glossary', 'releases', 'inbox'],
   viewer: ['strategy', 'requirements', 'designDocs', 'manager', 'releases']
 };
 

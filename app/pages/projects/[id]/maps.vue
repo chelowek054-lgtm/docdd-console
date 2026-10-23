@@ -34,9 +34,16 @@ import { layerOf } from '~~/server/lib/layers';
 import type { ProjectMap } from '~~/server/lib/maps';
 import { emptyProjectMap } from '~~/server/lib/maps';
 const route = useRoute();
+/**
+ * Две категории карт (ADR-0035): `strategic` — стратегическая карта (вид `functional`) на экране «Стратегия»,
+ * `working` — рабочие карты (шаблоны с движком и свои) на экране «Карты». Страница одна, потому что
+ * дерево, граф, правка и сверка у них общие.
+ */
+const props = withDefaults(defineProps<{ scope?: 'strategic' | 'working' }>(), { scope: 'working' });
+const strategic = props.scope === 'strategic';
 const projectId = computed(() => String(route.params['id'] ?? '')); const { me: currentUser } = useMe(projectId);
 
-type MapResponse = ProjectMap & { unverified: number }; type MapKindName = 'functional' | 'codebase' | 'flows' | 'journeys'; const firstKind: MapKindName = route.query['fgroup'] || route.query['fkind'] || route.query['fview'] ? 'flows' : route.query['group'] || route.query['view'] ? 'codebase' : 'functional';
+type MapResponse = ProjectMap & { unverified: number }; type MapKindName = 'functional' | 'codebase' | 'flows' | 'journeys'; const firstKind: MapKindName = strategic ? 'functional' : route.query['fgroup'] || route.query['fkind'] || route.query['fview'] ? 'flows' : route.query['group'] || route.query['view'] ? 'codebase' : 'codebase';
 
 const { data, refresh: refreshMap, status } = useFetch<MapResponse | { error: ApiFailure }>(
   () => `/api/projects/${projectId.value}/map?kind=${firstKind}`,
@@ -714,15 +721,17 @@ const views = computed(() => {
       }))
     }
   ];
-  // Функциональная карта — основной источник правды: первая вкладка и открывается
-  // по умолчанию (docs/04-ui.md, «Карты»).
-  return [...all.filter((view) => view.key === 'functional'), ...all.filter((view) => view.key !== 'functional')];
+  // Стратегическая карта живёт на экране «Стратегия», рабочие — на «Картах» (ADR-0035): у рабочих только
+  // заведённые шаблоны с движком; пока список не пришёл, показываем все три, чтобы вкладки не мигали.
+  if (strategic) return all.filter((view) => view.key === 'functional');
+  const engines: readonly string[] = customData.value && 'engines' in customData.value ? customData.value.engines : ['codemap', 'dataflow', 'userflow'];
+  return all.filter((view) => view.key !== 'functional' && engines.includes(view.key));
 });
 
 // Ссылка с группой в адресе ведёт на её вкладку, а не на первую (docs/04-ui.md, «Группы кодовой карты»).
 const startTab = route.query['fgroup'] || route.query['fkind'] || route.query['fview']
   ? 'dataflow'
-  : route.query['group'] || route.query['view'] ? 'codemap' : 'functional';
+  : route.query['group'] || route.query['view'] ? 'codemap' : strategic ? 'functional' : 'codemap';
 const shown = ref<'codemap' | 'dataflow' | 'userflow' | 'functional'>(startTab);
 const current = computed(() => views.value.find((view) => view.key === shown.value));
 
@@ -1255,6 +1264,8 @@ type CustomMapsResponse = {
   definitions: CustomMapDefinition[];
   problems: string[];
   maps: Record<string, CustomMapContent>;
+  /** Рабочие карты с движком, заведённые в проекте (ADR-0035). */
+  engines: string[];
 };
 const { data: customData, refresh: refreshCustom } = useFetch<CustomMapsResponse | { error: ApiFailure }>(
   () => `/api/projects/${projectId.value}/maps/custom`
@@ -1262,7 +1273,7 @@ const { data: customData, refresh: refreshCustom } = useFetch<CustomMapsResponse
 const customMaps = computed<CustomMapsResponse>(() =>
   customData.value && !('error' in customData.value)
     ? customData.value
-    : { definitions: [], problems: [], maps: {} }
+    : { definitions: [], problems: [], maps: {}, engines: [] }
 );
 /** Открытая пользовательская карта; null — показан встроенный вид. */
 // Открытая пользовательская карта живёт в адресе (?cmap=), как и её глубина:
@@ -1320,6 +1331,18 @@ function mergedMap(first: Partial<MapResponse> | null): MapResponse | null {
 }
 
 watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true });
+// Открытая вкладка исчезла из списка (например, карту ещё не завели) — первая из имеющихся.
+watch(views, (list) => {
+  const first = list[0];
+  if (first && !list.some((view) => view.key === shown.value)) shown.value = first.key as typeof shown.value;
+});
+// Старая ссылка `?open=<возможность>` вела на вкладку «Функциональная»: теперь это «Стратегия».
+onMounted(() => {
+  const q = route.query;
+  if (!strategic && q['open'] && !q['group'] && !q['view'] && !q['fgroup'] && !q['fkind'] && !q['fview'] && !q['cmap']) {
+    void navigateTo({ path: `/projects/${projectId.value}/strategy`, query: { open: String(q['open']) } }, { replace: true });
+  }
+});
 </script>
 
 <template>
@@ -1328,7 +1351,7 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
 
     <template v-else>
       <div class="flex flex-wrap items-center gap-3">
-        <h1 class="text-xl font-semibold">{{ t('maps.title') }}</h1>
+        <h1 v-if="!strategic" class="text-xl font-semibold">{{ t('maps.title') }}</h1>
         <p v-if="map" class="text-sm text-muted">
           {{ t('t83.m2.m.byMaps', { maps: tn('t83.m2.pl.mapsOf', map.from.length) }) }}
         </p>
@@ -1350,7 +1373,7 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
 
       <!-- Вектор — над списками карт и описью: это якорь всего проекта, а не подробность одной вкладки. -->
       <VisionCard
-        v-if="map"
+        v-if="map && strategic"
         :project-id="projectId"
         :vision="map.functional.vision"
         @changed="() => refresh()"
@@ -1370,9 +1393,10 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
       <!-- Подписи групп — те же maps.grp.*. -->
       <!-- Ниже — опись файлов. -->
 
-      <MapInventory :project-id="projectId" @changed="() => refresh()" />
+      <MapInventory v-if="!strategic" :project-id="projectId" @changed="() => refresh()" />
 
       <PromptPanel
+        v-if="!strategic"
         :project-id="projectId"
         kind="maps"
         :label="t('maps.updateLabel')"
@@ -1450,7 +1474,7 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
       <!-- Все карты — одной строкой с прокруткой: встроенные (плашки), затем
            пользовательские (подчёркнутые) и «Новая карта». Вид разный нарочно:
            встроенные заданы консолью, свои — проектом. -->
-      <div class="ds-scroll flex flex-nowrap items-center gap-3 overflow-x-auto pb-2">
+      <div v-if="!strategic" class="ds-scroll flex flex-nowrap items-center gap-3 overflow-x-auto pb-2">
         <UTabs
           v-if="map && map.from.length > 0"
           :model-value="customShown ? '' : shown"
@@ -1469,7 +1493,8 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
         <UButton class="shrink-0" icon="i-lucide-plus" size="sm" variant="soft" :label="t('maps.newMap')" @click="customFormOpen = true" />
       </div>
       <p v-for="problem in customMaps.problems" :key="problem" class="text-sm text-warning">{{ problem }}</p>
-      <CustomMapForm v-model:open="customFormOpen" :project-id="projectId" @created="onCustomCreated" />
+      <p v-if="!strategic && customData && !views.length && !customMaps.definitions.length" class="rounded-lg border border-dashed border-default p-6 text-center text-sm text-muted">{{ t('maps.noWorking') }}</p>
+      <CustomMapForm v-if="!strategic" v-model:open="customFormOpen" :project-id="projectId" :engines="customMaps.engines" @created="onCustomCreated" />
       <CustomMapView
         v-if="customCurrent"
         :project-id="projectId"

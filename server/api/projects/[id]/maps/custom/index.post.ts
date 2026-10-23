@@ -1,11 +1,11 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { defineEventHandler, getRouterParam, readBody } from 'h3';
+import { defineEventHandler, getRouterParam, readBody, type H3Event } from 'h3';
 import { load } from 'js-yaml';
 
 import { dropCache } from '../../../../../lib/cache';
-import { customDefinitions } from '../../../../../lib/custom-maps';
+import { ENGINE_TEMPLATES, customDefinitions, declaredEngines, isEngineTemplate } from '../../../../../lib/custom-maps';
 import { appendCustomMap } from '../../../../../lib/manifest-write';
 import { OutsideRootError, normalizeRoot, resolveInside } from '../../../../../lib/paths';
 import { DEVELOPMENT_DIR, MANIFEST_FILE, WorkspaceError, readWorkspace } from '../../../../../lib/workspace';
@@ -26,6 +26,10 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody<Record<string, unknown>>(event);
+  // Шаблон с движком (ADR-0035): без формы, строка `maps.custom` с `template`.
+  if (body && typeof body === 'object' && body['template'] !== undefined) {
+    return createEngineMap(event, project.root, body['template']);
+  }
   const definition = asDefinition(body);
   if (!definition) {
     return fail(event, 400, 'custom_map_invalid', 'Нужен объект определения: `id`, `title`, `node` {label, plural}, `features`');
@@ -93,3 +97,39 @@ function asDefinition(body: Record<string, unknown> | null | undefined): Record<
     features: body['features'] ?? []
   };
 }
+
+/** Заводит рабочую карту из шаблона с движком: одна на проект, `id` равен шаблону. */
+function createEngineMap(event: H3Event, projectRoot: string, template: unknown) {
+  if (!isEngineTemplate(template)) {
+    return fail(event, 400, 'custom_map_invalid', `Шаблон с движком: ${ENGINE_TEMPLATES.join(', ')}`);
+  }
+  try {
+    const root = normalizeRoot(projectRoot);
+    const manifest = readWorkspace(root).manifest;
+    if (manifest.maps?.custom !== undefined && !Array.isArray(manifest.maps.custom)) {
+      return fail(event, 422, 'custom_map_invalid', '`maps.custom` в манифесте — не список; поправьте вручную');
+    }
+    const existing = Array.isArray(manifest.maps?.custom) ? manifest.maps.custom : [];
+    if (existing.some((item) => (item as { id?: unknown } | null)?.id === template)) {
+      return fail(event, 409, 'custom_map_exists', `Карта «${template}» уже объявлена`);
+    }
+    const definition = { id: template, title: ENGINE_TITLE[template], template };
+    const manifestPath = resolveInside(root, join(DEVELOPMENT_DIR, MANIFEST_FILE));
+    const edit = appendCustomMap(readFileSync(manifestPath, 'utf8'), definition);
+    if (!edit.ok) return fail(event, 422, 'manifest_form', edit.message);
+    // Построчная правка не разбирает YAML — сверяем результат, прежде чем писать файл человека.
+    const reread = load(edit.text) as { maps?: { custom?: unknown[] } } | null;
+    if (!declaredEngines({ maps: { custom: reread?.maps?.custom ?? [] } }).includes(template)) {
+      return fail(event, 422, 'manifest_form', 'Не удалось точечно дописать `maps.custom`: форма секции непривычная — допишите карту вручную');
+    }
+    writeFileSync(manifestPath, edit.text, 'utf8');
+    dropCache(root);
+    return { definition };
+  } catch (error) {
+    if (error instanceof OutsideRootError) return fail(event, 403, 'outside_root', error.message, error.requested);
+    if (error instanceof WorkspaceError) return fail(event, 422, error.code, error.message, error.detail);
+    return fail(event, 500, 'custom_map_failed', 'Не удалось сохранить определение карты', String(error));
+  }
+}
+
+const ENGINE_TITLE = { codemap: 'Кодовая база', dataflow: 'Потоки данных', userflow: 'Пользовательские пути' } as const;

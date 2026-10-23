@@ -2,9 +2,11 @@
 export const strategy: Record<string, string> = {
   'nav.strategy': 'Strategy',
   'st2.title': 'Strategy',
-  'st2.hint': 'Project contours — the top level of the functional map; health is computed.',
+  'st2.hint': 'Project contours - the top level of the strategic map; health is computed automatically.',
+  'st2.view.contours': 'Contours',
+  'st2.view.map': 'Map',
   'st2.loading': 'Building contours…',
-  'st2.empty': 'No top-level capabilities. A contour is a capability without a parent in the functional map.',
+  'st2.empty': 'There are no top-level capabilities. A contour is a capability without a parent on the strategic map.',
   'st2.problems': 'Problems: {n}',
   'st2.attention': 'Attention: {n}',
   'st2.progress': '{done} of {total} implemented',

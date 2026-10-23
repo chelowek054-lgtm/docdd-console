@@ -1,17 +1,21 @@
 <script setup lang="ts">
+import MapsPage from './maps.vue';
 import type { ProjectMap } from '~~/server/lib/maps';
 import { roadmap } from '~~/server/lib/manager';
 import { strategyContours, type HealthLevel, type StrategyCapability } from '~~/server/lib/strategy';
 
 /**
  * «Стратегия» (R-0084, R-0085; docs/04-ui.md): контуры проекта — возможности
- * верхнего уровня функциональной карты — со здоровьем из четырёх сигналов.
- * Это вид той же карты: клик по контуру ведёт в его поддерево на «Картах».
+ * верхнего уровня стратегической карты (в файлах — функциональной) — со здоровьем из
+ * четырёх сигналов. Экран — сама карта (ADR-0035): «Контуры» — карточки, «Карта» — дерево и
+ * граф целиком с правкой на месте; клик по контуру открывает его поддерево.
  */
 const route = useRoute();
 const { t } = useT();
 const projectId = computed(() => String(route.params['id'] ?? ''));
 const { index, records } = useProjectIndex(projectId);
+// Ссылка `?open=<id>` ведёт сразу в дерево.
+const view = ref<'contours' | 'map'>(route.query['open'] ? 'map' : 'contours');
 
 const { data: mapData, pending } = useFetch<Partial<ProjectMap>>(() => `/api/projects/${projectId.value}/map?kind=functional`, { key: () => `strategy-map:${projectId.value}`, server: false, lazy: true });
 
@@ -48,15 +52,19 @@ const counts = computed(() => ({
       </span>
     </div>
 
-    <p v-if="pending && !contours.length" class="text-sm text-muted">{{ t('st2.loading') }}</p>
+    <UTabs v-model="view" size="xs" class="w-56" :items="[{ label: t('st2.view.contours'), value: 'contours' }, { label: t('st2.view.map'), value: 'map' }]" />
+
+    <MapsPage v-if="view === 'map'" scope="strategic" />
+
+    <p v-else-if="pending && !contours.length" class="text-sm text-muted">{{ t('st2.loading') }}</p>
     <div v-else-if="!contours.length" class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted">{{ t('st2.empty') }}</div>
 
-    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+    <div v-if="view === 'contours'" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
       <UCard v-for="contour in contours" :key="contour.id" :ui="{ body: 'space-y-3' }">
         <div class="flex items-start gap-2">
           <UIcon :name="ICON[contour.health.level]" class="mt-0.5 size-5 shrink-0" :class="TEXT[contour.health.level]" />
           <div class="min-w-0 flex-1">
-            <NuxtLink :to="`/projects/${projectId}/maps?open=${encodeURIComponent(contour.id)}`" class="font-medium hover:text-primary">{{ contour.title }}</NuxtLink>
+            <NuxtLink :to="`/projects/${projectId}/strategy?open=${encodeURIComponent(contour.id)}`" class="font-medium hover:text-primary" @click="view = 'map'">{{ contour.title }}</NuxtLink>
             <p v-if="contour.summary" class="text-xs text-muted">{{ contour.summary }}</p>
           </div>
           <UBadge :color="COLOR[contour.health.level]" variant="soft" size="sm">{{ t(`st2.level.${contour.health.level}`) }}</UBadge>
