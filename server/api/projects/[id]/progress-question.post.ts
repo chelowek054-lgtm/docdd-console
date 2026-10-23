@@ -1,11 +1,10 @@
 import { defineEventHandler, getRouterParam, readBody } from 'h3';
 
-import { abortSignalOf } from '../../../utils/abort';
 import { fail } from '../../../utils/http';
 import { loadIndex } from '../../../utils/index-service';
 import { ask } from '../../../utils/llm';
 import { findProject } from '../../../utils/projects';
-import { eventStream } from '../../../utils/sse';
+import { feedStream } from '../../../utils/job-feeds';
 
 /**
  * Единственный запрос к модели, который доступен наблюдателю (T-0017,
@@ -26,10 +25,10 @@ export default defineEventHandler(async (event) => {
     byStatus.set(record.status, (byStatus.get(record.status) ?? 0) + 1);
   }
   const summary = [...byStatus].map(([state, count]) => `${state}: ${count}`).join(', ') || 'задач нет';
-  const stream = eventStream(event);
+  const stream = feedStream(event, project.id);
   const result = await ask(
     `Ответь коротко, по-русски, только о ходе работы над проектом «${project.name}». Задачи по статусам: ${summary}. Если вопрос не о ходе работы — скажи, что отвечаешь только на это.\n\nВопрос: ${question}`,
-    { signal: abortSignalOf(event), access: 'none', effort: 'low' }
+    { signal: stream.signal, access: 'none', effort: 'low' }
   );
   if (!result.ok) {
     stream.send('error', { error: { ...result.failure, code: `llm_${result.failure.code}` } });

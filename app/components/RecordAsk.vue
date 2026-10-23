@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { ApiFailure } from '~/composables/useProjectIndex';
 const { t } = useT();
 
 /**
@@ -11,29 +10,28 @@ const props = defineProps<{ projectId: string; recordId: string }>();
 const open = ref(false);
 const question = ref('');
 const role = ref('');
-const busy = ref(false);
 const note = ref('');
 const answer = ref('');
-const failure = ref<ApiFailure | null>(null);
 const skipped = ref<string[]>([]);
 
+function accept(result: { answer: string; note: string }) {
+  answer.value = result.answer;
+  note.value = result.note;
+}
+
+// Через общее хранилище заданий (ADR-0034): ответ переживает переход и обновление страницы.
+const { running: busy, elapsed, outcome, stream, cancel } = useModelRequest(() => `${props.projectId}:${props.recordId}:ask`, {
+  label: t('t83.record-ask.1'),
+  onRecovered: (result) => { open.value = true; accept(result as { answer: string; note: string }); }
+});
+
 async function send() {
-  busy.value = true;
-  failure.value = null;
   note.value = '';
-  try {
-    const response = await $fetch<{ answer: string; note: string } | { error: ApiFailure }>(
-      `/api/projects/${props.projectId}/records/${props.recordId}/ask`,
-      { method: 'POST', body: { question: question.value, role: role.value || undefined, exclude: skipped.value }, ignoreResponseError: true }
-    );
-    if ('error' in response) { failure.value = response.error; return; }
-    answer.value = response.answer;
-    note.value = response.note;
-  } catch (error) {
-    failure.value = { code: 'network', message: t('t83.m3.ra.fail'), detail: String(error) };
-  } finally {
-    busy.value = false;
-  }
+  const result = await stream<{ answer: string; note: string }>(
+    `/api/projects/${props.projectId}/records/${props.recordId}/ask`,
+    { question: question.value, role: role.value || undefined, exclude: skipped.value }
+  );
+  if (result) accept(result);
 }
 </script>
 
@@ -51,7 +49,7 @@ async function send() {
       </select>
       <textarea v-model="question" rows="3" :placeholder="t('t83.record-ask.8')" />
       <button type="button" :disabled="busy || !question.trim()" @click="send">{{ busy ? t('t83.m3.ra.busy') : t('t83.m3.ra.send') }}</button>
-      <p v-if="failure" role="alert">{{ failure.message }}</p>
+      <ModelProgress :running="busy" :elapsed="elapsed" :outcome="outcome" @cancel="cancel" />
       <template v-if="note">
         <p>{{ t('t83.record-ask.9') }} <span class="font-mono">{{ note }}</span></p>
         <pre>{{ answer }}</pre>

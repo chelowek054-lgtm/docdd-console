@@ -16,14 +16,7 @@ function minutes(seconds: number): string {
   return seconds < 60 ? t('t83.m4.mj.sec', { n: seconds }) : t('t83.m4.mj.min', { m: Math.floor(seconds / 60), s: seconds % 60 });
 }
 
-// Обновление страницы оборвёт идущие запросы: хранилище в памяти браузера.
-function warn(event: BeforeUnloadEvent) {
-  if (store.runningCount === 0) return;
-  event.preventDefault();
-  event.returnValue = '';
-}
-onMounted(() => window.addEventListener('beforeunload', warn));
-onBeforeUnmount(() => window.removeEventListener('beforeunload', warn));
+// Предупреждения при обновлении нет: задание идёт на сервере и переживает перезагрузку (ADR-0034).
 </script>
 
 <template>

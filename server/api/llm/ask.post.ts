@@ -2,7 +2,7 @@ import { defineEventHandler, readBody } from 'h3';
 
 import { askRouted } from '../../utils/llm-gateway';
 import { ask } from '../../utils/llm';
-import { eventStream } from '../../utils/sse';
+import { feedStream } from '../../utils/job-feeds';
 import { fail } from '../../utils/http';
 import { findProject } from '../../utils/projects';
 import { sharedDenied } from '../../utils/mode';
@@ -28,11 +28,11 @@ export default defineEventHandler(async (event) => {
   // Модель работает в корне проекта, а не в папке сервера: иначе она разберёт
   // не тот код. Путь берётся из списка проектов, а не из запроса браузера.
   const project = await findProject(projectId);
-  const stream = eventStream(event);
+  const stream = feedStream(event, projectId);
 
-  const result: Awaited<ReturnType<typeof ask>> = await askRouted('ask', { projectId, user: ((event.context as { user?: { login?: string } }).user?.login) ?? 'local', onJob: (id) => stream.send('job', { id }) }, prompt, {
+  const result: Awaited<ReturnType<typeof ask>> = await askRouted('ask', { projectId, user: ((event.context as { user?: { login?: string } }).user?.login) ?? 'local', onJob: (id) => stream.queued(id) }, prompt, {
     ...(project ? { cwd: project.root } : {}),
-    // Сигнал соединения не передаём: обновление страницы не отменяет задание, отмена — DELETE очереди.
+    // Сигнал соединения не передаём: обновление страницы не отменяет задание (ADR-0034), отмена — DELETE ленты или очереди.
     // Этот запрос спрашивает, а не чинит: до подтверждения человеком в
     // проекте не должно измениться ничего (adr/0010).
     // Запрос, которому всё нужное уже подставлено (порядок по важности), идёт без инструментов.

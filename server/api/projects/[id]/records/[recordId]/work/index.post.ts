@@ -3,9 +3,8 @@ import { useStorage } from 'nitropack/runtime';
 
 import { normalizeRoot } from '../../../../../../lib/paths';
 import { WorkspaceError } from '../../../../../../lib/workspace';
-import { abortSignalOf } from '../../../../../../utils/abort';
 import { fail } from '../../../../../../utils/http';
-import { eventStream } from '../../../../../../utils/sse';
+import { feedStream } from '../../../../../../utils/job-feeds';
 import { loadIndex } from '../../../../../../utils/index-service';
 import { findProject } from '../../../../../../utils/projects';
 import { accept, handover, reject } from '../../../../../../utils/work-service';
@@ -52,12 +51,12 @@ export default defineEventHandler(async (event) => {
 
       // Работа идёт минутами: экран показывает её ход лентой событий
       // (docs/04-ui.md, раздел «Запрос к модели»).
-      const stream = eventStream(event);
+      const stream = feedStream(event, id);
       const outcome = await handover(root, index, record, {
         actor,
         rework: action === 'rework' ? comment : '',
         template: await template('task.md'),
-        signal: abortSignalOf(event),
+        signal: stream.signal,
         onEvent: (modelEvent) => stream.send(modelEvent.kind, modelEvent)
       });
 

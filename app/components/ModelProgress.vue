@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ModelOutcome } from '~/stores/modelJobs'; const { t } = useT();
+import type { ModelOutcome } from '~/stores/modelJobs'; import { MODEL_PEERS } from '~/composables/useModelRequest'; const { t } = useT();
 
 /**
  * Ход запроса к модели и его итог (docs/04-ui.md, раздел «Запрос к модели»).
@@ -15,6 +15,9 @@ const props = defineProps<{
 
 const emit = defineEmits<{ cancel: [] }>();
 
+/** Такой же запрос у других людей в проекте (ADR-0034): ответы у каждого свои, заводить дважды незачем. */
+const peers = inject(MODEL_PEERS, computed(() => [] as string[]));
+
 const failure = computed(() => (props.outcome?.kind === 'failure' ? props.outcome.failure : null));
 </script>
 
@@ -25,6 +28,7 @@ const failure = computed(() => (props.outcome?.kind === 'failure' ? props.outcom
       {{ t('t83.model-progress.1', { p: duration(props.elapsed * 1000) }) }}
       <!-- Срока нет: сколько ждать, решает тот, кто ждёт (docs/04-ui.md). -->
       <span class="text-muted">{{ t('t83.model-progress.2') }}</span>
+      <span v-if="peers.length" class="block text-xs text-(color:--ds-color-warn)">{{ t('t83.m8.peers', { users: peers.join(', ') }) }}</span>
     </p>
     <UButton size="xs" variant="ghost" color="neutral" class="ml-auto" @click="emit('cancel')">
       {{ t('t83.model-jobs-bar.2') }}

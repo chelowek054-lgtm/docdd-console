@@ -9,6 +9,7 @@ import { resolveInside, toProjectPath } from '../../../../../lib/paths';
 import { readWorkspace } from '../../../../../lib/workspace';
 import { packFor, roleNeeds } from '../../../../../utils/context-service';
 import { fail } from '../../../../../utils/http';
+import { feedStream } from '../../../../../utils/job-feeds';
 import { ask } from '../../../../../utils/llm';
 import { findProject } from '../../../../../utils/projects';
 import { sharedDenied } from '../../../../../utils/mode';
@@ -48,8 +49,14 @@ export default defineEventHandler(async (event) => {
   // Закрытые куски не уходят: допуск провайдера к закрытым данным пока не объявлен.
   const prompt = template.replace('<!-- КОНТЕКСТ -->', () => renderContextPack(pack, { exclude })).replace('<!-- ВОПРОС -->', () => question);
 
-  const result = await ask(prompt, { cwd: project.root, access: 'none', effort: 'low' });
-  if (!result.ok) return fail(event, 502, `llm_${result.failure.code}`, result.failure.message, result.failure.detail);
+  // Лента задания (ADR-0034): ответ доживёт до обновления страницы, отменить можно только кнопкой.
+  const stream = feedStream(event, id);
+  const result = await ask(prompt, { cwd: project.root, access: 'none', effort: 'low', signal: stream.signal, onEvent: (modelEvent) => stream.send(modelEvent.kind, modelEvent) });
+  if (!result.ok) {
+    stream.send('error', { error: { ...result.failure, code: `llm_${result.failure.code}` } });
+    stream.close();
+    return;
+  }
 
   const stamp = new Date().toISOString().slice(0, 10);
   let absolute = resolveInside(project.root, `${inbox}/вопрос-${recordId}-${stamp}.md`);
@@ -57,5 +64,6 @@ export default defineEventHandler(async (event) => {
   mkdirSync(dirname(absolute), { recursive: true });
   writeFileSync(absolute, `# Вопрос по ${recordId}\n\n${question}\n\n## Ответ модели (черновик)\n\n${result.answer.trim()}\n`, 'utf8');
 
-  return { answer: result.answer, note: toProjectPath(project.root, absolute) };
+  stream.send('done', { answer: result.answer, note: toProjectPath(project.root, absolute) });
+  stream.close();
 });
