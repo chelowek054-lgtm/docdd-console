@@ -1027,10 +1027,14 @@ export function functionalMermaid(
   const classCount = new Map<string, number>();
   const leafNodes = new Map<string, string>();
 
-  function leaf(item: (typeof capabilities)[number], pad: string): void {
+  /** `folded` — ветка, свёрнутая глубиной: узел-группа со счётом, двойной клик открывает её (ADR-0027, п. 5). */
+  function leaf(item: (typeof capabilities)[number], pad: string, folded = false): void {
     placed.add(item.id);
     const view = views.get(item.id);
-    const { key, lines: text } = placement(mode, view, titles);
+    const placedText = placement(mode, view, titles);
+    const { key } = placedText;
+    const progress = folded ? view?.progress : undefined;
+    const text = progress ? [`${progress.implemented} из ${progress.total}`, ...placedText.lines] : placedText.lines;
     classCount.set(key, (classCount.get(key) ?? 0) + 1);
     const node = shown(item.id);
     leafNodes.set(item.id, node);
@@ -1040,7 +1044,8 @@ export function functionalMermaid(
     nodes[node] = {
       id: item.id, title: item.title, summary: item.summary, declaredBy: (item as { declaredBy?: string }).declaredBy,
       declaredAt: (item as { declaredAt?: string }).declaredAt, declaredByRole: (item as { declaredByRole?: string | null }).declaredByRole,
-      pending: (item as { pending?: boolean }).pending, capability: true, note: item.note, ...(view ? { capabilityView: view } : {})
+      pending: (item as { pending?: boolean }).pending, capability: true, note: item.note, ...(view ? { capabilityView: view } : {}),
+      ...(folded ? { capabilityGroup: item.id } : {})
     };
   }
 
@@ -1054,7 +1059,7 @@ export function functionalMermaid(
     if (kids.length === 0 || depth + 1 >= depthLimit) {
       // Свёрнутая ветка: узел с состоянием всей ветки, подпункты считаются нарисованными в нём.
       for (const under of descendantsOf(item.id)) placed.add(under);
-      leaf(item, pad);
+      leaf(item, pad, kids.length > 0);
       return;
     }
     placed.add(item.id);

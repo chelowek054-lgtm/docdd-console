@@ -187,8 +187,10 @@ const styleCounts = computed(() => {
 });
 /** Глубина графа от верхних узлов: у выбранной группы её дети — первый уровень. */
 const maxDepth = computed(() => {
-  if (!Number.isFinite(levels.value)) return undefined;
-  return group.value && !opened.value ? levels.value + 1 : levels.value;
+  const inGroup = !!group.value && !opened.value;
+  // Открытая группа без выбранной глубины — как обзор: её подпункты, подгруппы свёрнуты со счётом (ADR-0027, п. 5).
+  if (!Number.isFinite(levels.value)) return inGroup && route.query['cdepth'] !== 'all' ? 2 : undefined;
+  return inGroup ? levels.value + 1 : levels.value;
 });
 const selection = ref<MapSelection | null>(null);
 const focus = ref<string | null>(null);
@@ -235,7 +237,8 @@ function onNodeClick(key: string) {
 }
 function onNodeDblClick(key: string) {
   const node = graph.value.nodes?.[key];
-  if (level.value === 'groups' && node?.capabilityGroup) enterGroup(node.capabilityGroup);
+  // Узел обзора и свёрнутая подгруппа на любой глубине открываются одинаково.
+  if (node?.capabilityGroup && !node.ghost) enterGroup(node.capabilityGroup);
 }
 const titles = computed<Record<string, string>>(() => Object.fromEntries(tree.value.map((node) => [node.id, node.title ?? node.id])));
 
