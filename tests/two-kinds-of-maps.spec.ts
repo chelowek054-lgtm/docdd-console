@@ -30,13 +30,13 @@ describe('шаблоны с движком в манифесте', () => {
     expect(declaredEngines(manifest)).toEqual(['dataflow']);
   });
 
-  it('свой id, совпавший с шаблоном, — повтор', () => {
+  it('свой id «codemap» или «functional» занят', () => {
     const result = customDefinitions(custom(
       { id: 'codemap', title: 'Кодовая база', template: 'codemap' },
       { id: 'codemap', title: 'Ещё', node: { label: 'Узел', plural: 'Узлы' } }
     ));
     expect(result.definitions).toEqual([]);
-    expect(result.problems.join(' ')).toContain('уже объявлена');
+    expect(result.problems.join(' ')).toContain('занято');
   });
 });
 

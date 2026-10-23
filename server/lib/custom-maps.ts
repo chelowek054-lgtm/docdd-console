@@ -115,6 +115,7 @@ export function customDefinitions(manifest: Pick<ProjectManifest, 'maps'>): Cust
 
     const id = item['id'];
     if (typeof id !== 'string' || !MAP_ID.test(id)) own.push(`${where}.id: латиница, цифры, дефис.`);
+    else if (id === 'functional' || isEngineTemplate(id)) own.push(`${where}.id: «${id}» занято: стратегическая карта одна, шаблоны с движком заводятся через template.`);
     else if (seen.has(id)) own.push(`${where}.id: карта «${id}» уже объявлена.`);
 
     const title = item['title'];

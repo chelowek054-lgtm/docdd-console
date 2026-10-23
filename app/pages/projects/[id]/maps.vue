@@ -43,7 +43,7 @@ const props = withDefaults(defineProps<{ scope?: 'strategic' | 'working' }>(), {
 const strategic = props.scope === 'strategic';
 const projectId = computed(() => String(route.params['id'] ?? '')); const { me: currentUser } = useMe(projectId);
 
-type MapResponse = ProjectMap & { unverified: number }; type MapKindName = 'functional' | 'codebase' | 'flows' | 'journeys'; const firstKind: MapKindName = strategic ? 'functional' : route.query['fgroup'] || route.query['fkind'] || route.query['fview'] ? 'flows' : route.query['group'] || route.query['view'] ? 'codebase' : 'codebase';
+type MapResponse = ProjectMap & { unverified: number }; type MapKindName = 'functional' | 'codebase' | 'flows' | 'journeys'; const firstKind: MapKindName = strategic ? 'functional' : route.query['fgroup'] || route.query['fkind'] || route.query['fview'] ? 'flows' : route.query['group'] || route.query['view'] ? 'codebase' : 'functional';
 
 const { data, refresh: refreshMap, status } = useFetch<MapResponse | { error: ApiFailure }>(
   () => `/api/projects/${projectId.value}/map?kind=${firstKind}`,
@@ -721,17 +721,17 @@ const views = computed(() => {
       }))
     }
   ];
-  // Стратегическая карта живёт на экране «Стратегия», рабочие — на «Картах» (ADR-0035): у рабочих только
+  // Стратегическая карта — первой вкладкой и на «Картах», и на «Стратегии» (ADR-0035); рабочие — только заведённые
   // заведённые шаблоны с движком; пока список не пришёл, показываем все три, чтобы вкладки не мигали.
   if (strategic) return all.filter((view) => view.key === 'functional');
   const engines: readonly string[] = customData.value && 'engines' in customData.value ? customData.value.engines : ['codemap', 'dataflow', 'userflow'];
-  return all.filter((view) => view.key !== 'functional' && engines.includes(view.key));
+  return all.filter((view) => view.key === 'functional' || engines.includes(view.key));
 });
 
 // Ссылка с группой в адресе ведёт на её вкладку, а не на первую (docs/04-ui.md, «Группы кодовой карты»).
 const startTab = route.query['fgroup'] || route.query['fkind'] || route.query['fview']
   ? 'dataflow'
-  : route.query['group'] || route.query['view'] ? 'codemap' : strategic ? 'functional' : 'codemap';
+  : route.query['group'] || route.query['view'] ? 'codemap' : 'functional';
 const shown = ref<'codemap' | 'dataflow' | 'userflow' | 'functional'>(startTab);
 const current = computed(() => views.value.find((view) => view.key === shown.value));
 
@@ -1336,11 +1336,7 @@ watch(views, (list) => {
   const first = list[0];
   if (first && !list.some((view) => view.key === shown.value)) shown.value = first.key as typeof shown.value;
 });
-// Старая ссылка `?open=<возможность>` вела на вкладку «Функциональная»: теперь это «Стратегия».
-onMounted(() => {
-  const q = route.query;
-  if (!strategic && q['open'] && !q['group'] && !q['view'] && !q['fgroup'] && !q['fkind'] && !q['fview'] && !q['cmap']) {
-    void navigateTo({ path: `/projects/${projectId.value}/strategy`, query: { open: String(q['open']) } }, { replace: true });
+
   }
 });
 </script>
@@ -1373,7 +1369,7 @@ onMounted(() => {
 
       <!-- Вектор — над списками карт и описью: это якорь всего проекта, а не подробность одной вкладки. -->
       <VisionCard
-        v-if="map && strategic"
+        v-if="map"
         :project-id="projectId"
         :vision="map.functional.vision"
         @changed="() => refresh()"
