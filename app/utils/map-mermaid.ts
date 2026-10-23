@@ -819,6 +819,12 @@ export interface FunctionalGraphOptions {
   /** Выбранная возможность: соседи из других групп «призраками» и влияние. */
   selected?: string | null | undefined;
   impact?: boolean | undefined;
+  /**
+   * Сколько уровней рисовать от верхних узлов (ADR-0027): глубже ветка
+   * сворачивается в узел со своим состоянием, а связи поднимаются к видимому
+   * предку. Нет — без предела.
+   */
+  maxDepth?: number | undefined;
 }
 
 interface Look {
@@ -1002,6 +1008,20 @@ export function functionalMermaid(
 
   const lines = [mode === 'order' ? 'flowchart RL' : 'flowchart LR', ...classDefsOf(mode)];
 
+  // Глубина от верхних узлов и видимый представитель каждого узла при пределе `maxDepth`.
+  const depthLimit = options.maxDepth && options.maxDepth > 0 ? options.maxDepth : Number.POSITIVE_INFINITY;
+  const visibleAs = new Map<string, string>();
+  const walkDepth = (item: (typeof capabilities)[number], depth: number, shownAs: string | null) => {
+    if (visibleAs.has(item.id)) return;
+    const as = shownAs ?? item.id;
+    visibleAs.set(item.id, as);
+    for (const kid of index.get(item.id) ?? []) walkDepth(kid, depth + 1, shownAs ?? (depth + 1 >= depthLimit ? as : null));
+  };
+  for (const top of index.get(null) ?? []) walkDepth(top, 0, null);
+  function descendantsOf(id: string): string[] {
+    return [...visibleAs].filter(([item, as]) => as === id && item !== id).map(([item]) => item);
+  }
+
   const placed = new Set<string>();
   // Сколько нижних возможностей каждого класса нарисовано — для легенды.
   const classCount = new Map<string, number>();
@@ -1031,7 +1051,9 @@ export function functionalMermaid(
     const pad = '    '.repeat(depth + 1);
     // Уже стоящие на месте не считаем: рамка без единого содержимого ничего не рисует.
     const kids = (index.get(item.id) ?? []).filter((kid) => !placed.has(kid.id));
-    if (kids.length === 0) {
+    if (kids.length === 0 || depth + 1 >= depthLimit) {
+      // Свёрнутая ветка: узел с состоянием всей ветки, подпункты считаются нарисованными в нём.
+      for (const under of descendantsOf(item.id)) placed.add(under);
       leaf(item, pad);
       return;
     }
@@ -1097,7 +1119,7 @@ export function functionalMermaid(
       }
     }
   }
-  const { drawn } = drawableRelations(relations, capabilities);
+  const { drawn } = drawableRelations(Number.isFinite(depthLimit) ? liftRelations(relations, visibleAs) : relations, capabilities);
   const waiting = new Set(drawn.filter((relation) => (views.get(relation.from)?.waiting ?? []).includes(relation.to)));
   const drawnLinks: DrawnLink[] = drawn.map((relation) => {
     const cyclic = relation.type === 'depends' && views.get(relation.from)?.inCycle && views.get(relation.to)?.inCycle;
@@ -1178,6 +1200,27 @@ export function functionalMermaid(
     edges: [],
     neighbors: neighborsOf(everyLink.map((link) => ({ from: link.from, to: link.to })))
   };
+}
+
+/**
+ * Связи свёрнутых веток — к видимым предкам концов (ADR-0027): одинаковые
+ * стрелки сливаются в одну с числом исходных, связь внутри одного узла уходит.
+ */
+function liftRelations<R extends { from: string; to: string; type: string; summary?: string | undefined }>(
+  relations: readonly R[],
+  visibleAs: ReadonlyMap<string, string>
+): R[] {
+  const merged = new Map<string, { relation: R; count: number }>();
+  for (const relation of relations) {
+    const from = visibleAs.get(relation.from) ?? relation.from;
+    const to = visibleAs.get(relation.to) ?? relation.to;
+    if (from === to) continue;
+    const key = `${from}>${to}:${relation.type}`;
+    const seen = merged.get(key);
+    if (seen) seen.count += 1;
+    else merged.set(key, { relation: { ...relation, from, to }, count: 1 });
+  }
+  return [...merged.values()].map(({ relation, count }) => (count > 1 ? { ...relation, summary: `×${count}` } : relation));
 }
 
 /** Порядок строк легенды: как на переключателе, а не как встретились в карте. */

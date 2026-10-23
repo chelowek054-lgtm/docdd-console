@@ -1,13 +1,32 @@
 <script setup lang="ts">
-// Одна пользовательская карта (docs/adr/0028-custom-maps.md). FunctionalTree сохраняет
-// правки в маршруты функциональной карты (`…/map/capability`), поэтому дерево здесь своё,
-// а граф — тот же MermaidDiagram. Любая правка заводит черновик `map`, а не меняет карту.
-import type { ApiFailure } from '~/composables/useProjectIndex';
-import { HORIZONS, HORIZON_LABEL, IMPL_LABEL, IMPL_STATUSES, PRIORITIES, PRIORITY_LABEL } from '~~/server/lib/functional';
-import { ancestors, depthOf, foldEdges, visibleAt, type Edge, type TreeNode } from '~~/server/lib/hierarchy';
+// Одна пользовательская карта (docs/adr/0028-custom-maps.md). По п. 3 ADR она рисуется
+// теми же деревом и графом, что стратегическая: FunctionalTree пишет правки в маршрут
+// этой карты (`…/maps/custom/:mapId/node`), граф — functionalMermaid с уровнями, режимами
+// и легендой. Любая правка заводит черновик `map`, а не меняет карту.
+import {
+  HORIZONS,
+  HORIZON_LABEL,
+  IMPL_LABEL,
+  IMPL_STATUSES,
+  NO_RELATION_MARKS,
+  PRIORITIES,
+  PRIORITY_LABEL,
+  groupLevel,
+  queueRelationRemove,
+  withMarks,
+  withRelationMarks,
+  type Horizon,
+  type Mark,
+  type Priority,
+  type RelationMarks,
+  type RelationType
+} from '~~/server/lib/functional';
+import { ancestors, depthOf } from '~~/server/lib/hierarchy';
 import { slugify } from '~~/server/lib/scaffold';
 import type { CustomNodeView, CustomRelationView } from '~~/server/lib/custom-maps';
-import type { CustomMapDefinition, CustomRelationStyle } from '~~/server/lib/types';
+import type { CustomMapDefinition } from '~~/server/lib/types';
+import { functionalMermaid, fromNodeId, type FunctionalMode, type MapSelection } from '~/utils/map-mermaid';
+import type { Capability } from './FunctionalTreeNode.vue';
 const { t } = useT();
 
 const props = defineProps<{
@@ -20,23 +39,33 @@ const emit = defineEmits<{ changed: [] }>();
 
 const view = ref<'tree' | 'graph'>('tree');
 const hasStatus = computed(() => props.definition.features.includes('status'));
-const kindLabel = computed(() => new Map(props.definition.relations.map((item) => [item.id, item.label])));
-
 const hasPriority = computed(() => props.definition.features.includes('priority'));
 const hasHorizon = computed(() => props.definition.features.includes('horizon'));
+const kindLabel = computed(() => new Map(props.definition.relations.map((item) => [item.id, item.label])));
+/** Вид связи карты → один из пяти стилей: по нему граф рисует стрелку, считает «ждёт» и циклы. */
+const styleOf = computed(() => new Map(props.definition.relations.map((item) => [item.id, item.style])));
+const endpoint = computed(() => `/api/projects/${props.projectId}/maps/custom/${props.definition.id}/node`);
 
-// Узлы с висячим родителем поднимаем в корень: иначе hierarchy.ts посчитает
-// им глубину по несуществующему предку, а дерево их не покажет вовсе.
-const tree = computed<CustomNodeView[]>(() => {
-  const ids = new Set(props.nodes.map((node) => node.id));
-  return props.nodes.map((node) => (node.parent && ids.has(node.parent) ? node : { ...node, parent: undefined }));
+// Несохранённые отметки и связи — пачкой, как у стратегической карты; другая карта — другая пачка.
+const marks = ref<Record<string, Mark>>({});
+const relationMarks = ref<RelationMarks>(NO_RELATION_MARKS);
+watch(() => props.definition.id, () => {
+  marks.value = {};
+  relationMarks.value = NO_RELATION_MARKS;
+  selection.value = null;
 });
-const edges = computed<Edge[]>(() =>
-  props.relations.map((edge) => ({ from: edge.from, to: edge.to, kind: edge.type, ...(edge.verdict ? { verdict: edge.verdict } : {}) }))
-);
+
+// Узлы с висячим родителем поднимаем в корень: иначе дерево их не покажет вовсе.
+const saved = computed<Capability[]>(() => {
+  const ids = new Set(props.nodes.map((node) => node.id));
+  return props.nodes.map((node) => (node.parent && ids.has(node.parent) ? node : { ...node, parent: undefined })) as Capability[];
+});
+const tree = computed<Capability[]>(() => withMarks(saved.value, marks.value));
+const relations = computed(() => withRelationMarks(props.relations, relationMarks.value));
 
 // Группа, глубина и раскрытие — в адресе (ADR-0027), их пишет MapDepthBar.
 const route = useRoute();
+const router = useRouter();
 const group = computed(() => {
   const id = String(route.query['cgroup'] ?? '');
   return tree.value.some((node) => node.id === id) ? id : null;
@@ -48,7 +77,7 @@ const levels = computed(() => {
   return /^[1-9]$/.test(wanted) ? Number(wanted) : Number.POSITIVE_INFINITY;
 });
 
-// Фильтры только читают: сужают картину, ничего не записывая (как у функциональной карты).
+// Фильтры только читают: сужают картину, ничего не записывая (как у стратегической карты).
 const UNRATED = 'unrated';
 const NONE = 'none';
 const statusFilter = ref<string[]>([]);
@@ -67,7 +96,7 @@ watch(() => props.definition.id, resetFilters);
 const filtering = computed(
   () => statusFilter.value.length > 0 || !!priorityFilter.value || !!horizonFilter.value || !!search.value.trim()
 );
-function matches(node: CustomNodeView): boolean {
+function matches(node: Capability): boolean {
   if (hasStatus.value && statusFilter.value.length && !statusFilter.value.includes(node.status ?? UNRATED)) return false;
   if (hasPriority.value && priorityFilter.value && (node.priority ?? NONE) !== priorityFilter.value) return false;
   if (hasHorizon.value && horizonFilter.value && (node.horizon ?? NONE) !== horizonFilter.value) return false;
@@ -96,16 +125,9 @@ const kept = computed<Set<string>>(() => {
   return new Set(ids);
 });
 const shownNodes = computed(() => tree.value.filter((node) => kept.value.has(node.id)));
-const shownEdges = computed(() =>
-  edges.value.filter((edge) => !hiddenKinds.value.includes(edge.kind ?? '') && kept.value.has(edge.from) && kept.value.has(edge.to))
+const shownRelations = computed(() =>
+  relations.value.filter((edge) => !hiddenKinds.value.includes(edge.type) && kept.value.has(edge.from) && kept.value.has(edge.to))
 );
-
-/** Видимый представитель узла на текущей глубине (свёртка — hierarchy.ts). */
-function visibleOf(id: string): string {
-  const depth = Number.isFinite(levels.value) ? levels.value : 99;
-  // Глубина 1 у корня — сами корни (уровень 0), у группы — её дети.
-  return group.value ? visibleAt(id, tree.value, group.value, depth) : visibleAt(id, tree.value, null, depth - 1);
-}
 
 const kindCounts = computed(() => {
   const counts: Record<string, number> = {};
@@ -128,144 +150,110 @@ const horizonItems = computed(() => [
   ...HORIZONS.map((value) => ({ label: HORIZON_LABEL[value], value })),
   { label: t('t83.m2.noHorizon'), value: NONE }
 ]);
-const splitNodes = computed<TreeNode[]>(() => tree.value.map((node) => ({ id: node.id, parent: node.parent })));
+const splitNodes = computed(() => tree.value.map((node) => ({ id: node.id, parent: node.parent })));
+const splitEdges = computed(() => props.relations.map((edge) => ({ from: edge.from, to: edge.to, kind: edge.type })));
 
-interface Row { node: CustomNodeView; depth: number }
-const rows = computed<Row[]>(() => {
-  // Дерево режется той же глубиной, что и граф: от корня или от выбранной группы.
-  const base = group.value ? depthOf(group.value, tree.value) + 1 : 0;
-  return allRows.value.filter((row) => {
-    if (!kept.value.has(row.node.id)) return false;
-    if (!Number.isFinite(levels.value)) return true;
-    return row.depth < base + levels.value || (!!group.value && opened.value && row.depth < base);
-  });
+// --- граф: то же, что у стратегической карты (docs/04-ui.md, «Уровни графа», «Режимы окраски») ---
+const GROUPED = 25;
+/** Связи в стилях: граф и «ждёт» знают только пять видов. */
+const styledRelations = computed(() =>
+  shownRelations.value.map((edge) => ({ ...edge, type: (styleOf.value.get(edge.type) ?? edge.type) as RelationType }))
+);
+const groups = computed(() => groupLevel(shownNodes.value, styledRelations.value).groups);
+/** Открытая группа графа — только узел верхнего уровня: так её понимают призраки и уровень `group`. */
+const topGroup = computed(() => (group.value && !tree.value.find((node) => node.id === group.value)?.parent ? group.value : null));
+const level = computed<'groups' | 'group' | 'all'>(() => {
+  if (topGroup.value && !opened.value) return 'group';
+  if (group.value) return 'all';
+  const wanted = String(route.query['cview'] ?? '');
+  if (wanted === 'all' || groups.value.length < 2) return 'all';
+  if (wanted === 'groups') return 'groups';
+  return shownNodes.value.length > GROUPED ? 'groups' : 'all';
 });
-const allRows = computed<Row[]>(() => {
-  const ids = new Set(props.nodes.map((node) => node.id));
-  const out: Row[] = [];
-  const seen = new Set<string>();
-  const walk = (parent: string | undefined, depth: number) => {
-    for (const node of props.nodes) {
-      const own = node.parent && ids.has(node.parent) ? node.parent : undefined;
-      if (own !== parent || seen.has(node.id)) continue;
-      seen.add(node.id);
-      out.push({ node, depth });
-      walk(node.id, depth + 1);
-    }
-  };
-  walk(undefined, 0);
-  return out;
+const groupTitle = computed(() => tree.value.find((node) => node.id === group.value)?.title ?? group.value ?? '');
+/** Покрытия процессом у рабочей карты нет: «Покрытие» и «Риски» красить нечем, остаются «Состояние» и «Порядок». */
+const mode = computed<FunctionalMode>({
+  get: () => (String(route.query['cmode'] ?? '') === 'order' ? 'order' : 'state'),
+  set: (value) => { void router.replace({ query: { ...route.query, cmode: value === 'order' ? 'order' : undefined } }); }
 });
-
-// Отметки состояния копятся пачкой и уходят одним черновиком.
-const statusMarks = ref<Record<string, string>>({});
-watch(() => props.definition.id, () => { statusMarks.value = {}; });
-
-const busy = ref(false);
-const error = ref<string | null>(null);
-const draft = ref<string | null>(null);
-
-type NodeAction =
-  | { action: 'add'; node: { id: string; title: string; parent?: string } }
-  | { action: 'remove'; node: { id: string } }
-  | { action: 'relate' | 'unrelate'; relation: { from: string; to: string; type: string } }
-  | { action: 'status'; statuses: Record<string, string> };
-
-async function send(body: NodeAction): Promise<boolean> {
-  busy.value = true;
-  error.value = null;
-  try {
-    const response = await $fetch<{ record: { id: string } } | { error: ApiFailure }>(
-      `/api/projects/${props.projectId}/maps/custom/${props.definition.id}/node`,
-      { method: 'POST', body }
-    );
-    if ('error' in response) {
-      error.value = response.error.message;
-      return false;
-    }
-    draft.value = response.record.id;
-    emit('changed');
-    return true;
-  } catch (failure: unknown) {
-    const data = (failure as { data?: { error?: ApiFailure; message?: string } }).data;
-    error.value = data?.error?.message ?? data?.message ?? (failure as Error).message;
-    return false;
-  } finally {
-    busy.value = false;
+const graphHiddenKinds = ref<string[]>([]);
+const planPriority = ref<Priority | 'none' | null>(null);
+const planHorizon = ref<Horizon | 'none' | null>(null);
+const onlyRisks = ref(false);
+const styleCounts = computed(() => {
+  const counts: Record<string, number> = {};
+  for (const edge of styledRelations.value) counts[edge.type] = (counts[edge.type] ?? 0) + 1;
+  return counts;
+});
+/** Глубина графа от верхних узлов: у выбранной группы её дети — первый уровень. */
+const maxDepth = computed(() => {
+  if (!Number.isFinite(levels.value)) return undefined;
+  return group.value && !opened.value ? levels.value + 1 : levels.value;
+});
+const selection = ref<MapSelection | null>(null);
+const focus = ref<string | null>(null);
+const impactOn = ref(false);
+const graph = computed(() => functionalMermaid(
+  { functional: { capabilities: shownNodes.value, relations: styledRelations.value } } as Parameters<typeof functionalMermaid>[0],
+  null,
+  {
+    mode: mode.value,
+    level: level.value,
+    group: level.value === 'group' ? topGroup.value : null,
+    hiddenKinds: new Set(graphHiddenKinds.value),
+    plan: { priority: planPriority.value, horizon: planHorizon.value },
+    onlyRisks: onlyRisks.value,
+    legendInside: false,
+    selected: focus.value,
+    impact: impactOn.value,
+    maxDepth: maxDepth.value
   }
+));
+const pendingIds = computed(() => new Set(Object.entries(graph.value.nodes ?? {}).filter(([, node]) => node.pending).map(([key]) => key)));
+const ghostIds = computed(() => new Set(Object.entries(graph.value.nodes ?? {}).filter(([, node]) => node.ghost).map(([key]) => key)));
+
+function go(query: Record<string, string | undefined>) {
+  selection.value = null;
+  void router.push({ query: { ...route.query, cview: undefined, cgroup: undefined, copen: undefined, ...query } });
+}
+const showGroups = () => go({ cview: 'groups' });
+const showAll = () => go({ cview: 'all' });
+const enterGroup = (id: string) => go({ cgroup: id });
+
+watch(selection, (value) => {
+  if (!value) {
+    focus.value = null;
+    impactOn.value = false;
+  } else if (value.kind === 'node' && value.capability && !value.ghost && focus.value !== value.id) {
+    focus.value = value.id;
+    impactOn.value = false;
+  }
+});
+function onNodeClick(key: string) {
+  const node = graph.value.nodes?.[key];
+  if (node) selection.value = { kind: 'node', ...node };
+}
+function onNodeDblClick(key: string) {
+  const node = graph.value.nodes?.[key];
+  if (level.value === 'groups' && node?.capabilityGroup) enterGroup(node.capabilityGroup);
+}
+const titles = computed<Record<string, string>>(() => Object.fromEntries(tree.value.map((node) => [node.id, node.title ?? node.id])));
+
+/** Карточка убирает связь в стиле графа — находим, какой из видов карты за ней стоит. */
+function removeRelation(relation: { from: string; to: string; type: string }) {
+  const own = relations.value.find((edge) => edge.from === relation.from && edge.to === relation.to
+    && (edge.type === relation.type || styleOf.value.get(edge.type) === relation.type));
+  if (!own) return;
+  relationMarks.value = queueRelationRemove(relationMarks.value, { from: own.from, to: own.to, type: own.type }, props.relations);
 }
 
-const newNode = reactive({ title: '', parent: '' });
-async function addNode() {
-  const title = newNode.title.trim();
-  if (!title) return;
-  const id = slugOf(title);
-  const ok = await send({ action: 'add', node: { id, title, ...(newNode.parent ? { parent: newNode.parent } : {}) } });
-  if (ok) Object.assign(newNode, { title: '', parent: '' });
-}
-
-const newRelation = reactive({ from: '', to: '', type: '' });
-async function relate() {
-  if (!newRelation.from || !newRelation.to || !newRelation.type) return;
-  const ok = await send({ action: 'relate', relation: { ...newRelation } });
-  if (ok) Object.assign(newRelation, { from: '', to: '' });
-}
-
-async function saveStatuses() {
-  if (await send({ action: 'status', statuses: { ...statusMarks.value } })) statusMarks.value = {};
-}
-
-function slugOf(title: string): string {
-  // Латиница для id узла: та же транслитерация, что у id карты в форме.
+/** Латиница для id узла: та же транслитерация, что у id карты в форме. */
+function idOf(title: string): string {
   return slugify(title, 40) || `node-${props.nodes.length + 1}`;
 }
 
-const nodeItems = computed(() => props.nodes.map((node) => ({ label: node.title ?? node.id, value: node.id })));
-const shownRelations = computed(() =>
-  props.relations.filter((edge) => !hiddenKinds.value.includes(edge.type) && kept.value.has(edge.from) && kept.value.has(edge.to))
-);
-const titleOf = (id: string) => props.nodes.find((node) => node.id === id)?.title ?? id;
-
-// Стрелка mermaid под каждый из пяти стилей функциональной карты.
-const ARROW: Record<CustomRelationStyle, string> = {
-  depends: '-->',
-  uses: '-.->',
-  feeds: '==>',
-  triggers: '--o',
-  replaces: '--x'
-};
-// Граф строится по свёрнутой картине: узлы — видимые представители, связи
-// схлопнуты foldEdges, на стрелке — вид и число исходных связей (×N).
-const graphSource = computed(() => {
-  const visible = new Map<string, string>();
-  for (const node of shownNodes.value) visible.set(node.id, visibleOf(node.id));
-  const drawn = [...new Set(visible.values())];
-  const index = new Map(drawn.map((id, at) => [id, `n${at}`]));
-  const byId = new Map(tree.value.map((node) => [node.id, node]));
-  const style = new Map(props.definition.relations.map((item) => [item.id, item.style]));
-  const quote = (text: string) => text.replace(/"/g, '#quot;');
-  const lines = ['flowchart LR'];
-  for (const id of drawn) {
-    const hidden = shownNodes.value.filter((item) => visible.get(item.id) === id).length - 1;
-    const title = (byId.get(id)?.title ?? id) + (hidden > 0 ? ` (+${hidden})` : '');
-    lines.push(`  ${index.get(id)}["${quote(title)}"]`);
-  }
-  for (const id of drawn) {
-    const parent = byId.get(id)?.parent;
-    if (parent && index.has(parent)) lines.push(`  ${index.get(parent)} --- ${index.get(id)}`);
-  }
-  const { edges: folded } = foldEdges(shownEdges.value, (id) => visible.get(id) ?? id);
-  for (const edge of folded) {
-    const from = index.get(edge.from);
-    const to = index.get(edge.to);
-    if (!from || !to) continue;
-    const single = edge.kinds.length === 1 ? style.get(edge.kinds[0] ?? '') : undefined;
-    const arrow = ARROW[single ?? 'depends'];
-    const label = edge.kinds.map((kind) => kindLabel.value.get(kind) ?? kind).join(', ') + (edge.count > 1 ? ` ×${edge.count}` : '');
-    lines.push(`  ${from} ${arrow}|"${quote(label)}"| ${to}`);
-  }
-  return lines.join('\n');
-});
+const treeRelations = computed(() => withRelationMarks(props.relations, relationMarks.value));
+const depthOfGroup = computed(() => (group.value ? depthOf(group.value, tree.value) : -1));
 </script>
 
 <template>
@@ -286,18 +274,8 @@ const graphSource = computed(() => {
     </template>
 
     <div class="space-y-4">
-      <UAlert
-        v-if="draft"
-        color="info"
-        variant="subtle"
-        icon="i-lucide-file-clock"
-        :title="t('t83.m2.draftMade', { draft })"
-        :description="t('t83.custom-map-view.1')"
-      />
-      <UAlert v-if="error" color="error" variant="subtle" :description="error" />
-
       <MapDepthBar kind="custom" :tree="tree" />
-      <MapSplitHints v-if="group" :group-id="group" :nodes="splitNodes" :edges="edges" />
+      <MapSplitHints v-if="group" :group-id="group" :nodes="splitNodes" :edges="splitEdges" />
 
       <div v-if="nodes.length" class="flex flex-wrap items-center gap-2 text-sm">
         <UInput v-model="search" size="xs" icon="i-lucide-search" :placeholder="t('t83.custom-map-view.2')" class="w-48" />
@@ -311,36 +289,39 @@ const graphSource = computed(() => {
           :items="statusItems"
           :placeholder="t('t83.custom-map-view.3')"
         />
-        <USelect
-          v-if="hasPriority"
-          :model-value="priorityFilter ?? undefined"
-          size="xs"
-          class="w-40"
-          :items="priorityItems"
-          :placeholder="t('t83.custom-map-view.4')"
-          @update:model-value="(value) => (priorityFilter = value ? String(value) : null)"
-        />
-        <USelect
-          v-if="hasHorizon"
-          :model-value="horizonFilter ?? undefined"
-          size="xs"
-          class="w-40"
-          :items="horizonItems"
-          :placeholder="t('t83.custom-map-view.5')"
-          @update:model-value="(value) => (horizonFilter = value ? String(value) : null)"
-        />
-        <UButton
-          v-for="kind in definition.relations.filter((item) => kindCounts[item.id])"
-          :key="kind.id"
-          size="xs"
-          color="neutral"
-          :variant="hiddenKinds.includes(kind.id) ? 'outline' : 'soft'"
-          :class="hiddenKinds.includes(kind.id) ? 'line-through opacity-60' : ''"
-          :title="hiddenKinds.includes(kind.id) ? t('t83.m2.showKind') : t('t83.m2.hideKind')"
-          @click="toggleKind(kind.id)"
-        >
-          {{ kind.label }} · {{ kindCounts[kind.id] }}
-        </UButton>
+        <!-- В графе приоритет, горизонт и виды связей фильтрует панель графа — двух одинаковых полос не держим. -->
+        <template v-if="view === 'tree'">
+          <USelect
+            v-if="hasPriority"
+            :model-value="priorityFilter ?? undefined"
+            size="xs"
+            class="w-40"
+            :items="priorityItems"
+            :placeholder="t('t83.custom-map-view.4')"
+            @update:model-value="(value) => (priorityFilter = value ? String(value) : null)"
+          />
+          <USelect
+            v-if="hasHorizon"
+            :model-value="horizonFilter ?? undefined"
+            size="xs"
+            class="w-40"
+            :items="horizonItems"
+            :placeholder="t('t83.custom-map-view.5')"
+            @update:model-value="(value) => (horizonFilter = value ? String(value) : null)"
+          />
+          <UButton
+            v-for="kind in definition.relations.filter((item) => kindCounts[item.id])"
+            :key="kind.id"
+            size="xs"
+            color="neutral"
+            :variant="hiddenKinds.includes(kind.id) ? 'outline' : 'soft'"
+            :class="hiddenKinds.includes(kind.id) ? 'line-through opacity-60' : ''"
+            :title="hiddenKinds.includes(kind.id) ? t('t83.m2.showKind') : t('t83.m2.hideKind')"
+            @click="toggleKind(kind.id)"
+          >
+            {{ kindLabel.get(kind.id) ?? kind.id }} · {{ kindCounts[kind.id] }}
+          </UButton>
+        </template>
         <UButton
           v-if="filtering || hiddenKinds.length"
           size="xs"
@@ -351,90 +332,71 @@ const graphSource = computed(() => {
         />
       </div>
 
-      <template v-if="view === 'tree'">
-        <p v-if="!nodes.length" class="text-sm text-muted">
-          {{ t('t83.custom-map-view.7', { plural: definition.node.plural }) }}
-        </p>
-        <ul class="space-y-1">
-          <li
-            v-for="row in rows"
-            :key="row.node.id"
-            class="flex items-center gap-2 text-sm"
-            :class="row.node.pending ? 'opacity-60' : ''"
-            :style="{ paddingLeft: `${row.depth * 1.25}rem` }"
-          >
-            <span class="font-medium">{{ row.node.title ?? row.node.id }}</span>
-            <span class="font-mono text-xs text-muted">{{ row.node.id }}</span>
-            <UBadge v-if="row.node.pending" size="sm" color="warning" variant="subtle" :label="t('t83.custom-map-view.8')" />
-            <USelect
-              v-if="hasStatus"
-              class="ml-auto w-40"
-              size="xs"
-              :model-value="statusMarks[row.node.id] ?? row.node.status ?? 'unrated'"
-              :items="[...IMPL_STATUSES, 'unrated'].map((value) => ({ label: IMPL_LABEL[value as keyof typeof IMPL_LABEL], value }))"
-              @update:model-value="(value) => (statusMarks = { ...statusMarks, [row.node.id]: String(value) })"
-            />
-            <UButton
-              :class="hasStatus ? '' : 'ml-auto'"
-              icon="i-lucide-trash-2"
-              size="xs"
-              color="neutral"
-              variant="ghost"
-              :title="t('t83.m2.removeNode', { label: definition.node.label })"
-              :disabled="busy"
-              @click="send({ action: 'remove', node: { id: row.node.id } })"
-            />
-          </li>
-        </ul>
+      <!-- Всегда на месте: в режиме «Граф» прячется само дерево, а полосы сохранения остаются. -->
+      <FunctionalTree
+        v-model:marks="marks"
+        v-model:relation-marks="relationMarks"
+        :tree-hidden="view !== 'tree'"
+        :project-id="projectId"
+        :capabilities="shownNodes"
+        :saved="saved"
+        :relations="treeRelations.filter((edge) => kept.has(edge.from) && kept.has(edge.to) && !hiddenKinds.includes(edge.type))"
+        :saved-relations="props.relations"
+        :filter="null"
+        :endpoint="endpoint"
+        :relation-kinds="definition.relations"
+        :id-of="idOf"
+        @select="(value) => (selection = value)"
+        @changed="emit('changed')"
+      />
 
-        <div v-if="Object.keys(statusMarks).length" class="flex items-center gap-2 rounded-md bg-elevated p-2 text-sm">
-          <span>{{ t('t83.custom-map-view.9', { p: Object.keys(statusMarks).length }) }}</span>
-          <UButton class="ml-auto" size="xs" :label="t('t83.functional-tree.5')" :loading="busy" @click="saveStatuses" />
-          <UButton size="xs" color="neutral" variant="ghost" :label="t('t83.functional-tree.6')" @click="statusMarks = {}" />
-        </div>
-
-        <div v-if="shownRelations.length" class="space-y-1">
-          <p class="text-sm font-medium">{{ t('t83.map-inspector.36') }}</p>
-          <div v-for="edge in shownRelations" :key="`${edge.from}:${edge.type}:${edge.to}`" class="flex items-center gap-2 text-sm">
-            <span>{{ titleOf(edge.from) }}</span>
-            <span class="text-muted">{{ kindLabel.get(edge.type) ?? edge.type }}</span>
-            <span>{{ titleOf(edge.to) }}</span>
-            <UButton
-              class="ml-auto"
-              icon="i-lucide-unlink"
-              size="xs"
-              color="neutral"
-              variant="ghost"
-              :title="t('t83.custom-map-view.10')"
-              :disabled="busy"
-              @click="send({ action: 'unrelate', relation: { from: edge.from, to: edge.to, type: edge.type } })"
-            />
-          </div>
-        </div>
-
-        <div class="flex flex-wrap items-center gap-2">
-          <UInput v-model="newNode.title" size="sm" :placeholder="t('t83.m2.newNode', { label: definition.node.label })" />
-          <USelect v-model="newNode.parent" size="sm" class="w-48" :items="nodeItems" :placeholder="t('t83.custom-map-view.11')" />
-          <UButton size="sm" icon="i-lucide-plus" :label="t('t83.m2.addNode', { label: definition.node.label })" :disabled="busy" @click="addNode" />
-        </div>
-        <div v-if="nodes.length >= 2" class="flex flex-wrap items-center gap-2">
-          <USelect v-model="newRelation.from" size="sm" class="w-44" :items="nodeItems" :placeholder="t('t83.custom-map-view.12')" />
-          <USelect
-            v-model="newRelation.type"
-            size="sm"
-            class="w-44"
-            :items="definition.relations.map((item) => ({ label: item.label, value: item.id }))"
-            :placeholder="t('t83.custom-map-view.13')"
-          />
-          <USelect v-model="newRelation.to" size="sm" class="w-44" :items="nodeItems" :placeholder="t('t83.custom-map-view.14')" />
-          <UButton size="sm" icon="i-lucide-link" :label="t('t83.functional-tree.16')" :disabled="busy" @click="relate" />
-        </div>
-      </template>
-
-      <template v-else>
-        <p v-if="!shownNodes.length" class="text-sm text-muted">{{ nodes.length ? t('t83.m2.nothingFilters') : t('t83.m2.nothingToDraw') }}</p>
-        <MermaidDiagram v-else :id="`custom-${definition.id}`" :source="graphSource" />
+      <template v-if="view === 'graph'">
+        <FunctionalGraphBar
+          v-if="nodes.length"
+          v-model:mode="mode"
+          v-model:hidden-kinds="graphHiddenKinds"
+          v-model:priority="planPriority"
+          v-model:horizon="planHorizon"
+          v-model:only-risks="onlyRisks"
+          :level="level"
+          :can-switch="groups.length >= 2 && depthOfGroup < 1"
+          :group-title="groupTitle"
+          :has-coverage="false"
+          :kind-counts="styleCounts"
+          @show-groups="showGroups"
+          @show-all="showAll"
+        />
+        <FunctionalLegendBar v-if="graph.legend" :legend="graph.legend" />
+        <p v-if="!graph.text" class="text-sm text-muted">{{ nodes.length ? t('t83.m2.nothingFilters') : t('t83.m2.nothingToDraw') }}</p>
+        <MermaidDiagram
+          v-else
+          :id="`custom-${definition.id}`"
+          :key="`${definition.id}:${level}:${group ?? ''}:${maxDepth ?? ''}`"
+          :source="graph.text"
+          :details="graph.details"
+          :paths="graph.paths"
+          :edges="graph.edges"
+          :neighbors="graph.neighbors"
+          :pending-ids="pendingIds"
+          :ghost-ids="ghostIds"
+          :focus-key="focus && level !== 'groups' ? fromNodeId(focus) : null"
+          :keep-view="true"
+          @node-click="onNodeClick"
+          @node-dblclick="onNodeDblClick"
+          @background-click="selection = null"
+        />
       </template>
     </div>
+
+    <MapInspector
+      :project-id="projectId"
+      :selection="selection"
+      :capability-titles="titles"
+      :impact-on="impactOn"
+      @impact="impactOn = !impactOn"
+      @unrelate="removeRelation"
+      @close="selection = null"
+      @open-group="enterGroup"
+    />
   </UCard>
 </template>

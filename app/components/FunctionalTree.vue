@@ -58,6 +58,15 @@ const props = defineProps<{
    * оттуда же, где его видно (docs/04-ui.md, «Отметки состояния — пачкой»).
    */
   treeHidden?: boolean;
+  /**
+   * Куда писать правки; по умолчанию — стратегическая карта. Рабочая карта
+   * (ADR-0028, п. 3) рисуется этим же деревом и пишет в свой маршрут.
+   */
+  endpoint?: string;
+  /** Свои виды связей рабочей карты; стиль переводит вид в один из пяти для «ждёт» и циклов. */
+  relationKinds?: readonly { id: string; label: string; style: RelationType }[];
+  /** id нового узла из названия; у рабочей карты id — только латиница (custommap.schema.json). */
+  idOf?: (title: string) => string;
 }>();
 
 /** Несохранённые отметки живут у родителя: их же кладёт «Проверить по коду» и рисует граф. */
@@ -70,7 +79,12 @@ const emit = defineEmits<{
   changed: [];
 }>();
 
-const views = computed(() => capabilityViews(props.capabilities, props.relations, props.coverage));
+const styleOf = computed(() => new Map((props.relationKinds ?? []).map((kind) => [kind.id, kind.style])));
+const views = computed(() => capabilityViews(
+  props.capabilities,
+  props.relationKinds ? props.relations.map((item) => ({ ...item, type: styleOf.value.get(item.type) ?? item.type })) : props.relations,
+  props.coverage
+));
 const visible = computed(() => filterByStatus(props.capabilities, props.filter) as Capability[]);
 
 function childrenOf(id: string): Capability[] {
@@ -219,7 +233,7 @@ async function post(body: Record<string, unknown>, label: string): Promise<boole
   saving.value = true;
   failure.value = null;
   try {
-    const response = await $fetch(`/api/projects/${props.projectId}/map/capability`, {
+    const response = await $fetch(props.endpoint ?? `/api/projects/${props.projectId}/map/capability`, {
       method: 'POST',
       body,
       ignoreResponseError: true
@@ -263,7 +277,7 @@ function onSubmit() {
       t('t83.m2.ft.changed', { title })
     );
   } else {
-    const id = slugify(title);
+    const id = props.idOf ? props.idOf(title) : slugify(title);
     void saveCapability(
       { id, title, parent: formParent.value ?? undefined, summary },
       t('t83.m2.ft.added', { title })
@@ -301,7 +315,7 @@ function openRelate(item: Capability) {
   formOpen.value = false;
   relateFrom.value = item;
   relateTo.value = '';
-  relateType.value = 'depends';
+  relateType.value = (relationItems.value[0]?.value ?? 'depends') as RelationType;
   relateSummary.value = '';
   failure.value = null;
 }
@@ -341,7 +355,9 @@ async function saveRelations() {
   if (ok) relationMarks.value = NO_RELATION_MARKS;
 }
 
-const relationItems = RELATION_TYPES.map((value) => ({ label: RELATION_LABEL[value], value }));
+const relationItems = computed(() => props.relationKinds
+  ? props.relationKinds.map((kind) => ({ label: kind.label, value: kind.id }))
+  : RELATION_TYPES.map((value) => ({ label: RELATION_LABEL[value], value })));
 
 /**
  * Подтверждение прямо здесь, без похода на экран записи: `draft → review →
