@@ -1359,6 +1359,8 @@ function mergedMap(first: Partial<MapResponse> | null): MapResponse | null {
 }
 
 watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true });
+// Вектор лежит в стратегической карте, а карточка вектора видна над любой вкладкой: без неё она писала бы «не записан».
+if (firstKind !== 'functional') void loadKind('functional');
 // Открытая вкладка исчезла из списка (например, карту ещё не завели) — первая из имеющихся.
 /** Рабочие карты одним списком: шаблоны с движком и свои (ADR-0035). */
 const workingTabs = computed(() => [
