@@ -1,0 +1,47 @@
+name: Bug report
+description: Something works differently from what the docs describe
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Security problems go to SECURITY.md, not here.
+        Можно писать по-русски.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did and what you saw.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      description: If a doc in `docs/` describes the expected behaviour, link it.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open project ...
+        2. Click ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Commit or version
+      placeholder: e.g. a1b2c3d
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      placeholder: OS, Node version, browser
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Server output, browser console, `npm run check -- <project> --json` output.

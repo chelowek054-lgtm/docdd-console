@@ -1,11 +1,17 @@
 {
   "name": "docdd-console",
-  "private": true,
   "type": "module",
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
   },
-  "description": "Инструмент контроля разработки по правилу «документ ведёт код»",
+  "description": "Documentation Driven Development, enforced: tasks can't start until a human approves the documents behind them",
+  "license": "Apache-2.0",
+  "author": "chelowek <chelowekapi@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chelowek054-lgtm/docdd-console.git"
+  },
+  "keywords": ["documentation-driven-development", "spec-driven-development", "ai-agents", "architecture", "requirements", "nuxt"],
   "scripts": {
     "dev": "nuxt dev",
     "build": "nuxt build",
