@@ -725,7 +725,8 @@ const views = computed(() => {
   // заведённые шаблоны с движком; пока список не пришёл, показываем все три, чтобы вкладки не мигали.
   if (strategic) return all.filter((view) => view.key === 'functional');
   const engines: readonly string[] = customData.value && 'engines' in customData.value ? customData.value.engines : ['codemap', 'dataflow', 'userflow'];
-  return all.filter((view) => view.key === 'functional' || engines.includes(view.key));
+  const shownViews = all.filter((view) => view.key === 'functional' || engines.includes(view.key));
+  return [...shownViews.filter((view) => view.key === 'functional'), ...shownViews.filter((view) => view.key !== 'functional')];
 });
 
 // Ссылка с группой в адресе ведёт на её вкладку, а не на первую (docs/04-ui.md, «Группы кодовой карты»).
@@ -1335,9 +1336,6 @@ watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true })
 watch(views, (list) => {
   const first = list[0];
   if (first && !list.some((view) => view.key === shown.value)) shown.value = first.key as typeof shown.value;
-});
-
-  }
 });
 </script>
 
