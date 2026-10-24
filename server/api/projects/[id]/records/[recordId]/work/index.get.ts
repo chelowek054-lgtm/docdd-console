@@ -2,11 +2,9 @@ import { readFileSync } from 'node:fs';
 
 import { defineEventHandler, getRouterParam } from 'h3';
 
-import { agentForAssignee } from '../../../../../../lib/agent-run';
 import { normalizeRoot } from '../../../../../../lib/paths';
 import { WorkspaceError } from '../../../../../../lib/workspace';
-import { listAgents } from '../../../../../../utils/agents-service';
-import { authEnabled, loadUsers } from '../../../../../../utils/auth';
+import { chooseAgent } from '../../../../../../utils/agent-run-service';
 import { fail } from '../../../../../../utils/http';
 import { loadIndex } from '../../../../../../utils/index-service';
 import { findProject } from '../../../../../../utils/projects';
@@ -31,10 +29,13 @@ export default defineEventHandler(async (event) => {
 
     const body = readFileSync(`${root}/${record.path}`, 'utf8');
     const state = await workState(root, record, body);
-    // Исполнитель — аккаунт агента с файлом: экран предложит «Запустить в работу» (R-0100).
-    const assignee = typeof record.extra['assignee'] === 'string' ? record.extra['assignee'] : '';
-    const choice = authEnabled() && assignee ? agentForAssignee(assignee, await loadUsers(), listAgents(root).agents) : null;
-    return { ...state, agent: choice?.ok ? { login: choice.account.login, title: choice.agent.title } : null };
+    // Исполнитель — аккаунт агента: экран предложит «Запустить в работу» (R-0100), а если запуск
+    // невозможен (нет файла агента, агент не в команде) — назовёт причину. Человек-исполнитель — кнопки нет.
+    const choice = await chooseAgent(root, record);
+    const agent = choice.ok
+      ? { login: choice.account.login, title: choice.agent.title }
+      : choice.code === 'agent_not_defined' || choice.code === 'agent_not_in_team' ? { problem: choice.message } : null;
+    return { ...state, agent };
   } catch (error) {
     if (error instanceof WorkspaceError) {
       return fail(event, 422, error.code, error.message, error.detail);

@@ -1,11 +1,9 @@
-import { defineEventHandler, getRequestURL, getRouterParam, readBody } from 'h3';
+import { defineEventHandler, getRouterParam, readBody } from 'h3';
 import { useStorage } from 'nitropack/runtime';
 
-import { accessFor, agentForAssignee, agentRunPrompt } from '../../../../../../lib/agent-run';
 import { normalizeRoot } from '../../../../../../lib/paths';
 import { WorkspaceError } from '../../../../../../lib/workspace';
-import { listAgents } from '../../../../../../utils/agents-service';
-import { agentToken, authEnabled, loadUsers } from '../../../../../../utils/auth';
+import { prepareAgent, type PreparedAgent } from '../../../../../../utils/agent-run-service';
 import { fail } from '../../../../../../utils/http';
 import { feedStream } from '../../../../../../utils/job-feeds';
 import { loadIndex } from '../../../../../../utils/index-service';
@@ -52,22 +50,13 @@ export default defineEventHandler(async (event) => {
         );
       }
 
-      // «Запустить в работу» (R-0100): исполнитель — аккаунт агента; консоль выдаёт ему токен на запуск.
-      let agent: NonNullable<Parameters<typeof handover>[3]['agent']> | undefined;
+      // «Запустить в работу» (R-0100): исполнитель — аккаунт агента. Задачу в работу он берёт сам,
+      // своим токеном, — до модели; отказ сервера на этом шаге запуск останавливает.
+      let agent: PreparedAgent | undefined;
       if (action === 'agent') {
-        if (!authEnabled()) {
-          return fail(event, 409, 'agent_needs_auth', 'Агенты работают на общем сервере со входом (DOCDD_AUTH=on): без входа аккаунтов агентов нет');
-        }
-        const assignee = typeof record.extra['assignee'] === 'string' ? record.extra['assignee'] : '';
-        const choice = agentForAssignee(assignee, await loadUsers(), listAgents(root).agents);
-        if (!choice.ok) return fail(event, 409, choice.code, choice.message);
-        const token = await agentToken(choice.account.login);
-        const baseUrl = getRequestURL(event).origin;
-        agent = {
-          wrap: (prompt) => agentRunPrompt(choice.agent, choice.account, prompt, { baseUrl, projectId: id, taskId: recordId, token }),
-          ...(choice.agent.model ? { model: choice.agent.model } : {}),
-          access: accessFor(choice.agent.access)
-        };
+        const prepared = await prepareAgent(root, id, record);
+        if (!prepared.ok) return fail(event, 409, prepared.code, prepared.message);
+        agent = prepared;
       }
 
       // Работа идёт минутами: экран показывает её ход лентой событий
@@ -77,13 +66,16 @@ export default defineEventHandler(async (event) => {
         actor,
         rework: action === 'rework' ? comment : '',
         template: await template('task.md'),
-        ...(agent ? { agent } : {}),
+        ...(agent ? { agent: agent.handover } : {}),
         signal: stream.signal,
         onEvent: (modelEvent) => stream.send(modelEvent.kind, modelEvent)
       });
 
+      // Действия агента выполняются его токеном после ответа: каждое — с итогом, отказ сервера виден.
+      const report = outcome.ok && agent ? await agent.finish(outcome.answer ?? '') : undefined;
+
       // Заголовки ушли с первым событием — причина едет тем же путём.
-      stream.send(outcome.ok ? 'done' : 'error', outcome.ok ? outcome : { error: outcome });
+      stream.send(outcome.ok ? 'done' : 'error', outcome.ok ? { ...outcome, ...(report ? { agent: report } : {}) } : { error: outcome });
       stream.close();
       return;
     }
