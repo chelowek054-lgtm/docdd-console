@@ -18,6 +18,8 @@ export interface Evidence {
   path: string;
   line: number;
   fragment: string;
+  /** Вид свидетельства; нет поля — текстовая строка. Заложено под другие виды (вектор: бинарные — не сейчас). */
+  kind?: 'text';
 }
 
 /**
@@ -97,7 +99,7 @@ export interface FunctionalPart {
     /** Состояние реализации; нет поля — «не оценено» (docs/07-maps.md). */
     status?: ImplStatus; note?: string;
     /** Насколько важна и когда нужна; нет поля — «без приоритета», «без горизонта» (docs/07-maps.md). */
-    priority?: Priority; horizon?: Horizon;
+    priority?: Priority; horizon?: Horizon; owner?: string; /** Ссылки на панели Grafana (R-0065). */ dashboards?: string[]; /** Ссылки на узлы других карт, `вид:узел` (R-0086). */ mapLinks?: string[]; /** Контракт блока (R-0088). */ inputs?: string[]; outputs?: string[];
     /** След правки курса: какая карта объявила, когда и кто подтвердил (docs/07-maps.md). */
     declaredBy?: string; declaredAt?: string; declaredByRole?: string | null;
     pending?: boolean;

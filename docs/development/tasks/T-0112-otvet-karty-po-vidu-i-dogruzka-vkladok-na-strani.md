@@ -2,10 +2,10 @@
 id: T-0112
 type: task
 title: Ответ карты по виду и догрузка вкладок на странице карт
-status: in_progress
+status: done
 change: feature
 created: 2026-10-20
-updated: 2026-10-20
+updated: 2026-10-21
 links:
   implements: [R-0048]
   affects: [M-0052]
@@ -21,3 +21,5 @@ GET /api/projects/:id/map?kind=… отдаёт один вид плюс сво�
 - 2026-10-20 · заведена из docs/inbox/skorost-otrisovki-otvet-karty-otdaet-vse-vidy-sr.md · приложение
 - 2026-10-20 · готова к работе · architect
 - 2026-10-20 · в разработку · architect
+- 2026-10-21 · на проверку · architect
+- 2026-10-21 · закрыта · architect

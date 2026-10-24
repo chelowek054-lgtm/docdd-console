@@ -4,13 +4,16 @@
  * Вкладка живёт в адресе (`?tab=import`): пункт меню открывает свою.
  */
 const route = useRoute();
-const router = useRouter();
+const router = useRouter(); const { t } = useT();
 
-const TABS = [
-  { label: 'Входящее', value: 'inbox' },
-  { label: 'Импорт', value: 'import' }
-];
-const KNOWN = ['inbox', 'import'];
+const TABS = computed(() => [
+  { label: t('nav.inbox'), value: 'inbox' },
+  { label: t('nav.import'), value: 'import' },
+  { label: t('nav.onboarding'), value: 'onboarding' },
+  { label: 'Jira', value: 'jira' },
+  { label: 'Confluence', value: 'confluence' }
+]);
+const KNOWN = ['inbox', 'import', 'onboarding', 'jira', 'confluence'];
 
 const tab = computed({
   get: () => {
@@ -24,9 +27,11 @@ const tab = computed({
 
 <template>
   <div class="space-y-5">
-    <h1 class="text-xl font-semibold">Наполнение</h1>
-    <UTabs v-model="tab" :items="TABS" :content="false" />
+    <h1 class="text-xl font-semibold">{{ t('nav.fill') }}</h1>
+    <!-- Вкладки группы — строкой под шапкой (docs/04-ui.md, «Навигация»). -->
     <InboxPanel v-if="tab === 'inbox'" />
+    <div v-else-if="tab === 'onboarding'" class="space-y-5"><NewProjectWizard v-if="route.query['scenario'] === 'new'" :project-id="String(route.params['id'] ?? '')" /><AsIsPanel v-else :project-id="String(route.params['id'] ?? '')" /><OnboardingChecklist :project-id="String(route.params['id'] ?? '')" /><SourcesFinder :project-id="String(route.params['id'] ?? '')" /><TestChecksPanel :project-id="String(route.params['id'] ?? '')" /></div>
+    <ExternalImportPanel v-else-if="tab === 'jira' || tab === 'confluence'" :key="tab" :source="tab" />
     <ImportPanel v-else />
   </div>
 </template>

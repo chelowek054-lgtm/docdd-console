@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useModelJobs } from '~/stores/modelJobs';
+const { t } = useT();
 
 /**
  * «Модель работает: N» в шапке (docs/04-ui.md, «Запрос к модели»): запросы живут в
@@ -12,17 +13,10 @@ const open = ref(false);
 const waiting = computed(() => store.visible.filter((job) => !job.running).length);
 
 function minutes(seconds: number): string {
-  return seconds < 60 ? `${seconds} с` : `${Math.floor(seconds / 60)} мин ${seconds % 60} с`;
+  return seconds < 60 ? t('t83.m4.mj.sec', { n: seconds }) : t('t83.m4.mj.min', { m: Math.floor(seconds / 60), s: seconds % 60 });
 }
 
-// Обновление страницы оборвёт идущие запросы: хранилище в памяти браузера.
-function warn(event: BeforeUnloadEvent) {
-  if (store.runningCount === 0) return;
-  event.preventDefault();
-  event.returnValue = '';
-}
-onMounted(() => window.addEventListener('beforeunload', warn));
-onBeforeUnmount(() => window.removeEventListener('beforeunload', warn));
+// Предупреждения при обновлении нет: задание идёт на сервере и переживает перезагрузку (ADR-0034).
 </script>
 
 <template>
@@ -33,8 +27,8 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', warn));
       variant="soft"
       :color="store.runningCount ? 'primary' : 'warning'"
       icon="i-lucide-sparkles"
-      :title="store.runningCount ? `Модель работает: ${store.runningCount}` : `Ответ ждёт: ${waiting}`"
-      :aria-label="store.runningCount ? `Модель работает: ${store.runningCount}` : `Ответ ждёт: ${waiting}`"
+      :title="store.runningCount ? t('t83.m4.mj.running', { n: store.runningCount }) : t('t83.m4.mj.waiting', { n: waiting })"
+      :aria-label="store.runningCount ? t('t83.m4.mj.running', { n: store.runningCount }) : t('t83.m4.mj.waiting', { n: waiting })"
       @click="open = !open"
     >
       {{ store.runningCount || waiting }}
@@ -45,12 +39,12 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', warn));
         <span class="min-w-0 flex-1">
           {{ job.label }}
           <span class="text-xs text-muted">
-            · {{ job.running ? minutes(job.elapsed) : job.outcome?.kind === 'failure' ? 'отказ' : 'ответ готов' }}
+            · {{ job.running ? minutes(job.elapsed) : job.outcome?.kind === 'failure' ? t('t83.m4.mj.failed') : t('t83.m4.mj.ready') }}
           </span>
         </span>
-        <UButton size="xs" variant="ghost" :to="job.to" @click="open = false">Открыть</UButton>
-        <UButton v-if="job.running" size="xs" variant="ghost" color="error" @click="store.cancel(job.key)">Отменить</UButton>
-        <UButton v-else size="xs" variant="ghost" color="neutral" @click="store.acknowledge(job.key); store.drop(job.key)">Сбросить</UButton>
+        <UButton size="xs" variant="ghost" :to="job.to" @click="open = false">{{ t('t83.model-jobs-bar.1') }}</UButton>
+        <UButton v-if="job.running" size="xs" variant="ghost" color="error" @click="store.cancel(job.key)">{{ t('t83.model-jobs-bar.2') }}</UButton>
+        <UButton v-else size="xs" variant="ghost" color="neutral" @click="store.acknowledge(job.key); store.drop(job.key)">{{ t('t83.model-jobs-bar.3') }}</UButton>
       </div>
     </div>
   </div>

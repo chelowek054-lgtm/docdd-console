@@ -5,22 +5,22 @@ const route = useRoute();
 const router = useRouter();
 const projectId = computed(() => String(route.params['id'] ?? ''));
 
-const { index, failure, records, byId, refresh, patchStatuses } = useProjectIndex(projectId);
+const { index, failure, records, byId, refresh, patchStatuses } = useProjectIndex(projectId); const backlinksOf = useBacklinks(projectId); const { t } = useT();
 
 /**
  * Проектные документы, решения и контракты — один экран, а не три: вопрос к
  * ним один (подтверждено ли то, на что опирается работа), и схема статусов
  * одна (docs/04-ui.md, «Документы»).
  */
-const TABS = [
-  { label: 'Все', value: 'all' },
-  { label: 'Требования', value: 'requirement' },
-  { label: 'Проектные документы', value: 'design' },
-  { label: 'Решения', value: 'decision' },
-  { label: 'Контракты', value: 'contract' },
-  { label: 'Справки', value: 'reference' }
-];
-const DOCUMENT_TYPES = ['requirement', 'design', 'decision', 'contract', 'reference'];
+const TABS = computed(() => [
+  { label: t('docs.tab.all'), value: 'all' },
+  { label: t('docs.tab.requirement'), value: 'requirement' },
+  { label: t('docs.tab.design'), value: 'design' },
+  { label: t('docs.tab.decision'), value: 'decision' },
+  { label: t('docs.tab.contract'), value: 'contract' }
+]);
+const DOCUMENT_TYPES = ['requirement', 'design', 'decision', 'contract']; // справки — на своём экране (docs/04-ui.md, «Навигация»): старые ссылки на вкладку ведут туда
+if (route.query['type'] === 'reference') await navigateTo(`/projects/${projectId.value}/reference`, { replace: true });
 
 /** Вкладка живёт в адресе: пункт шапки ведёт сразу на свою, а не на выбор. */
 const type = computed({
@@ -37,8 +37,8 @@ const type = computed({
 });
 
 const heading = computed(() => (type.value === 'all'
-  ? 'Документы'
-  : TABS.find((tab) => tab.value === type.value)?.label ?? 'Документы'));
+  ? t('docs.title')
+  : TABS.value.find((tab) => tab.value === type.value)?.label ?? t('docs.title')));
 
 /**
  * Неподтверждённое наверху: экран открывают, чтобы найти его. Незнакомый
@@ -61,16 +61,16 @@ const status = useStatusFilter(statuses);
 const documents = computed(() => (status.value ? listed.value.filter((record) => record.status === status.value) : listed.value));
 
 const selection = useSelection(documents);
-const chunk = useChunked(documents);
+const chunk = useChunked(documents, 40);
 const onBulkDone = (results?: BulkMoved[]) => { selection.clear(); if (results) patchStatuses(results); else void refresh(); };
 
 
 /** Кто опирается: задачи, которые документ правят, и записи, что его уточняют или стоят на решении. */
 function reliedOnBy(document: IndexRecord): string[] {
   return [...new Set([
-    ...(document.backlinks.documents ?? []),
-    ...(document.backlinks.refines ?? []),
-    ...(document.backlinks.decided_by ?? [])
+    ...(backlinksOf(document).documents ?? []),
+    ...(backlinksOf(document).refines ?? []),
+    ...(backlinksOf(document).decided_by ?? [])
   ])].sort();
 }
 
@@ -84,12 +84,12 @@ const results = computed(() => index.value?.verificationResults ?? {});
 function verificationsOf(requirement: IndexRecord): string[] {
   return [...new Set([
     ...(requirement.links.verified_by ?? []),
-    ...(requirement.backlinks.verifies ?? [])
+    ...(backlinksOf(requirement).verifies ?? [])
   ])];
 }
 
 function tasksOf(requirement: IndexRecord): string[] {
-  return requirement.backlinks.implements ?? [];
+  return backlinksOf(requirement).implements ?? [];
 }
 
 /** Факт — результат прогонов; «подтверждён» в колонке статуса — другое (docs/04-ui.md). */
@@ -97,14 +97,14 @@ function outcome(requirement: IndexRecord) {
   return requirementFact(verificationsOf(requirement), results.value, requirement.status);
 }
 
-const EMPTY: Record<string, string> = {
-  all: 'Требований, проектных документов, решений, контрактов и справок в проекте нет.',
-  requirement: 'Требований в проекте нет.',
-  reference: 'Справок в проекте нет.',
-  design: 'Проектных документов в проекте нет.',
-  decision: 'Решений в проекте нет.',
-  contract: 'Контрактов в проекте нет.'
-};
+const EMPTY = computed<Record<string, string>>(() => ({
+  all: t('docs.empty.all'),
+  requirement: t('docs.empty.requirement'),
+  reference: t('docs.empty.reference'),
+  design: t('docs.empty.design'),
+  decision: t('docs.empty.decision'),
+  contract: t('docs.empty.contract')
+}));
 </script>
 
 <template>
@@ -114,7 +114,7 @@ const EMPTY: Record<string, string> = {
     <template v-else>
       <div class="flex flex-wrap items-center gap-3">
         <h1 class="text-xl font-semibold">{{ heading }}</h1>
-        <p class="text-sm text-muted">{{ documents.length }}<template v-if="status"> из {{ listed.length }}</template></p>
+        <p class="text-sm text-muted">{{ documents.length }}<template v-if="status"> {{ t('docs.of') }} {{ listed.length }}</template></p>
         <!-- Тип выбирается вкладкой, а не полем формы: на «Все» кнопки нет. -->
         <NewRecord
           v-if="type !== 'all'"
@@ -127,9 +127,9 @@ const EMPTY: Record<string, string> = {
         />
       </div>
 
-      <UTabs v-model="type" :items="TABS" :content="false" />
+      <!-- Вкладки группы — строкой под шапкой (docs/04-ui.md, «Навигация»). -->
       <p v-if="type === 'reference'" class="text-sm text-muted">
-        Индекс и устаревшие справки — на экране <NuxtLink :to="`/projects/${projectId}/reference`" class="hover:underline">«Справочник»</NuxtLink>.
+        {{ t('docs.refHint') }} <NuxtLink :to="`/projects/${projectId}/reference`" class="hover:underline">{{ t('docs.refLink') }}</NuxtLink>.
       </p>
 
       <StatusTabs v-model="status" :statuses="statuses" :order="DOCUMENT_STATUS_ORDER" />
@@ -145,32 +145,32 @@ const EMPTY: Record<string, string> = {
 
       <div v-if="listed.length === 0" class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted">
         {{ EMPTY[type] }}
-        <template v-if="type !== 'all'">Завести — кнопкой «Новая запись» выше или через Входящее.</template>
-        <template v-else>Выберите тип на вкладке, чтобы завести запись.</template>
+        <template v-if="type !== 'all'">{{ t('docs.createHint') }}</template>
+        <template v-else>{{ t('docs.pickType') }}</template>
       </div>
 
       <div v-else class="ds-card overflow-x-auto">
-        <table class="w-full text-sm">
+        <table class="ds-table w-full text-sm">
           <thead class="border-b border-default text-left text-muted">
             <tr>
               <th class="w-10 p-3">
                 <UCheckbox
                   :model-value="selection.state.value"
-                  aria-label="Выбрать всё"
+                  :aria-label="t('docs.selectAll')"
                   @update:model-value="selection.toggleAll()"
                 />
               </th>
-              <th class="p-3 font-medium">{{ type === 'requirement' ? 'Требование' : 'Документ' }}</th>
-              <th v-if="type === 'all'" class="p-3 font-medium">Тип</th>
-              <th class="p-3 font-medium">Статус</th>
+              <th class="p-3 font-medium">{{ type === 'requirement' ? t('docs.col.requirement') : t('docs.col.document') }}</th>
+              <th v-if="type === 'all'" class="p-3 font-medium">{{ t('docs.col.type') }}</th>
+              <th class="p-3 font-medium">{{ t('docs.col.status') }}</th>
               <template v-if="type === 'requirement'">
-                <th class="p-3 font-medium">Задачи</th>
-                <th class="p-3 font-medium">Проверки</th>
-                <th class="p-3 font-medium">Факт</th>
+                <th class="p-3 font-medium">{{ t('docs.col.tasks') }}</th>
+                <th class="p-3 font-medium">{{ t('docs.col.checks') }}</th>
+                <th class="p-3 font-medium">{{ t('docs.col.fact') }}</th>
               </template>
               <template v-else>
-                <th class="p-3 font-medium">Кто опирается</th>
-                <th class="p-3 font-medium">Изменён</th>
+                <th class="p-3 font-medium">{{ t('docs.col.relies') }}</th>
+                <th class="p-3 font-medium">{{ t('docs.col.changed') }}</th>
               </template>
             </tr>
           </thead>
@@ -179,7 +179,7 @@ const EMPTY: Record<string, string> = {
               <td class="p-3">
                 <UCheckbox
                   :model-value="selection.has(document.id)"
-                  :aria-label="`Отметить ${document.id}`"
+                  :aria-label="`${t('docs.mark')} ${document.id}`"
                   @update:model-value="selection.set(document.id, $event)"
                 />
               </td>
@@ -188,12 +188,12 @@ const EMPTY: Record<string, string> = {
               </td>
               <td v-if="type === 'all'" class="p-3 text-muted">{{ typeLabel(document.type) }}</td>
               <td class="p-3">
-                <StatusBadge :status="document.status" />
+                <StatusBadge :status="document.status" /><DiffUnviewed :project-id="projectId" :record-id="document.id" :status="document.status" />
                 <!-- От устаревшего до действующего — один щелчок, а не поиск по номерам. -->
-                <span v-if="document.backlinks.supersedes?.length" class="ml-2 text-xs text-muted">
-                  заменён
+                <span v-if="backlinksOf(document).supersedes?.length" class="ml-2 text-xs text-muted">
+                  {{ t('docs.replaced') }}
                   <NuxtLink
-                    v-for="id in document.backlinks.supersedes"
+                    v-for="id in backlinksOf(document).supersedes"
                     :key="id"
                     :to="`/projects/${projectId}/records/${id}`"
                     class="ml-1 font-mono hover:underline"
@@ -210,7 +210,7 @@ const EMPTY: Record<string, string> = {
                       class="mr-2 font-mono text-xs hover:underline"
                     >{{ id }}</NuxtLink>
                   </template>
-                  <span v-else class="text-muted">ни одной</span>
+                  <span v-else class="text-muted">{{ t('docs.noneTasks') }}</span>
                 </td>
                 <td class="p-3">
                   <template v-if="verificationsOf(document).length">
@@ -221,10 +221,10 @@ const EMPTY: Record<string, string> = {
                       class="mr-2 font-mono text-xs hover:underline"
                     >{{ id }}</NuxtLink>
                   </template>
-                  <span v-else class="text-muted">нет</span>
+                  <span v-else class="text-muted">{{ t('docs.noChecks') }}</span>
                 </td>
                 <td class="p-3">
-                  <UBadge :color="outcome(document).color" variant="subtle" size="sm">{{ outcome(document).label }}</UBadge>
+                  <LightBadge :color="outcome(document).color" variant="subtle">{{ outcome(document).label }}</LightBadge>
                 </td>
               </template>
               <template v-else>
@@ -239,7 +239,7 @@ const EMPTY: Record<string, string> = {
                   >{{ id }}</NuxtLink>
                 </template>
                 <!-- Документ, который ничему не служит, — тот же висящий узел, что и в Графе. -->
-                <span v-else class="text-muted">никто</span>
+                <span v-else class="text-muted">{{ t('docs.nobody') }}</span>
               </td>
               <td class="p-3 text-muted">{{ document.updated ?? '—' }}</td>
               </template>
@@ -247,7 +247,7 @@ const EMPTY: Record<string, string> = {
           </tbody>
         </table>
         <div v-if="chunk.rest.value > 0" class="border-t border-default p-3 text-center">
-          <UButton variant="ghost" color="neutral" @click="chunk.more()">Показать ещё {{ Math.min(chunk.step, chunk.rest.value) }}</UButton>
+          <UButton variant="ghost" color="neutral" @click="chunk.more()">{{ t('docs.more') }} {{ Math.min(chunk.step, chunk.rest.value) }}</UButton>
         </div>
       </div>
     </template>

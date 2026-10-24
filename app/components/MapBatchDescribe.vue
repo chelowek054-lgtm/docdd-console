@@ -3,6 +3,7 @@ import type { ApiFailure } from '~/composables/useProjectIndex';
 import { useModelJobs } from '~/stores/modelJobs';
 import { describeBatch, type BatchStep } from '~/utils/batch-describe';
 import { MAX_REQUEST_FILES, batchPlan } from '../../server/lib/inventory';
+const { t, tn } = useT();
 
 /**
  * «Описать пачками» (docs/07-maps.md, «Описать всё пачками»): запустить один раз
@@ -35,7 +36,7 @@ const valid = computed(() => Number.isInteger(size.value) && size.value >= 1 && 
   && Number.isInteger(total.value) && total.value >= 1);
 
 const { data: llm } = useFetch<{ available: boolean; reason: string | null }>('/api/llm', { key: 'llm' });
-const { running: asking, elapsed, outcome, stream, cancel } = useModelRequest(() => `${props.projectId}:maps-batch`, { label: 'Описать пачками' });
+const { running: asking, elapsed, outcome, stream, cancel } = useModelRequest(() => `${props.projectId}:maps-batch`, { label: t('t83.m2.batch.label') });
 
 // Состояние прогона — в хранилище: цикл переживает страницу, и страница, открытая позже, видит его ход.
 const batch = useModelJobs().batchOf(`${props.projectId}:maps-batch`);
@@ -57,17 +58,17 @@ async function step(skip: number, limit: number): Promise<BatchStep> {
   const result = await stream<{ answer: string }>('/api/llm/ask', { prompt, projectId: props.projectId }, { background: true });
   if (!result) {
     const said = outcome.value;
-    if (batch.stop || said?.kind === 'cancelled') return { ok: false, reason: 'остановлено вручную' };
-    return { ok: false, reason: said?.kind === 'failure' ? said.failure.message : 'модель не ответила' };
+    if (batch.stop || said?.kind === 'cancelled') return { ok: false, reason: t('t83.m2.batch.stopped') };
+    return { ok: false, reason: said?.kind === 'failure' ? said.failure.message : t('t83.m2.batch.noAnswer') };
   }
 
   // Ответ сохраняется черновиком — тем же путём, что и «Сохранить черновиком» вручную.
   const draft = await $fetch<{ record?: { id: string } } | { error: ApiFailure }>(
     `/api/projects/${props.projectId}/map/draft`,
-    { method: 'POST', body: { answer: result.answer, title: `Описание кода: заход ${number}` }, ignoreResponseError: true }
+    { method: 'POST', body: { answer: result.answer, title: t('t83.m2.batch.title', { n: number }) }, ignoreResponseError: true }
   );
   const refusal = failureOf(draft);
-  if (refusal) return { ok: false, reason: `ответ не сохранён: ${refusal.message}` };
+  if (refusal) return { ok: false, reason: t('t83.m2.batch.notSaved', { message: refusal.message }) };
   return { ok: true, draft: (draft as { record?: { id: string } }).record?.id ?? '', count };
 }
 
@@ -104,43 +105,41 @@ function stop() {
 const summary = computed(() => {
   const run = finished.value;
   if (!run) return '';
-  const head = `Сделано ${run.done} из ${run.planned} заходов, ${plural(run.files, 'файл', 'файла', 'файлов')}, ${plural(run.drafts.length, 'черновик', 'черновика', 'черновиков')}`;
-  return run.reason ? `${head}. Остановлено: ${run.reason}` : `${head}.`;
+  const head = t('t83.m2.batch.head', { done: run.done, planned: run.planned, files: tn('t83.m2.pl.file', run.files), drafts: tn('t83.m2.pl.draft', run.drafts.length) });
+  return run.reason ? t('t83.m2.batch.stoppedWhy', { head, reason: run.reason }) : `${head}.`;
 });
 </script>
 
 <template>
   <div v-if="left > 0" class="mt-2">
     <UButton size="xs" variant="soft" icon="i-lucide-layers" @click="open = !open">
-      Описать пачками
+      {{ t('t83.map-batch-describe.1') }}
     </UButton>
 
     <div v-if="open" class="mt-2 space-y-3 ds-card p-3 text-sm">
       <div class="flex flex-wrap items-end gap-4">
-        <UFormField label="Файлов в запросе" :description="`от 1 до ${MAX_REQUEST_FILES}`">
+        <UFormField :label="t('t83.map-batch-describe.2')" :description="`от 1 до ${MAX_REQUEST_FILES}`">
           <UInput v-model.number="size" type="number" :min="1" :max="MAX_REQUEST_FILES" class="w-28" :disabled="running" />
         </UFormField>
-        <UFormField label="Файлов за запуск" :description="`в очереди ${left}`">
+        <UFormField :label="t('t83.map-batch-describe.3')" :description="t('t83.m2.batch.queued', { left })">
           <UInput v-model.number="total" type="number" :min="1" class="w-28" :disabled="running" @update:model-value="touched = true" />
         </UFormField>
         <p class="pb-2 text-muted">
           <template v-if="valid">
-            {{ plural(plan.steps, 'запрос', 'запроса', 'запросов') }}, до {{ plural(plan.files, 'файл', 'файла', 'файлов') }}
+            {{ t('t83.m2.batch.upTo', { steps: tn('t83.m2.pl.request', plan.steps), files: tn('t83.m2.pl.file', plan.files) }) }}
           </template>
-          <template v-else>Размер запроса — от 1 до {{ MAX_REQUEST_FILES }}, потолок — не меньше 1.</template>
+          <template v-else>{{ t('t83.map-batch-describe.4', { MAX_REQUEST_FILES: MAX_REQUEST_FILES }) }}</template>
         </p>
       </div>
 
       <div class="flex flex-wrap items-center gap-3">
-        <UButton v-if="!running" size="sm" :disabled="!valid || !llm?.available" @click="start">Запустить</UButton>
-        <UButton v-else size="sm" color="error" variant="soft" icon="i-lucide-square" @click="stop">Остановить</UButton>
+        <UButton v-if="!running" size="sm" :disabled="!valid || !llm?.available" @click="start">{{ t('t83.map-batch-describe.5') }}</UButton>
+        <UButton v-else size="sm" color="error" variant="soft" icon="i-lucide-square" @click="stop">{{ t('t83.map-batch-describe.6') }}</UButton>
         <p v-if="!llm?.available && !running" class="text-muted">{{ llm?.reason }}</p>
       </div>
 
       <p v-if="progress" class="text-muted">
-        Заход {{ Math.min(progress.done + 1, progress.planned) }} из {{ progress.planned }} ·
-        черновиков {{ progress.drafts.length }} ·
-        файлов {{ progress.files }} из {{ plan.files }}<template v-if="asking"> · запрос идёт {{ elapsed }} с</template>
+        {{ t('t83.map-batch-describe.7', { p: Math.min(progress.done + 1, progress.planned), planned: progress.planned, length: progress.drafts.length, files: progress.files, files2: plan.files }) }}<template v-if="asking"> {{ t('t83.map-batch-describe.8', { elapsed: elapsed }) }}</template>
       </p>
 
       <div v-if="finished" class="space-y-1">
@@ -151,8 +150,7 @@ const summary = computed(() => {
           </li>
         </ul>
         <p v-if="finished.drafts.length" class="text-xs text-muted">
-          Это черновики: файлы выйдут из очереди, когда вы подтвердите каждый. Пока они не подтверждены,
-          повторный запуск возьмёт те же файлы.
+          {{ t('t83.map-batch-describe.9') }}
         </p>
       </div>
     </div>

@@ -17,7 +17,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ changed: [] }>();
 
-const query = ref('');
+const query = ref(''); const { t } = useT();
 const newTitle = ref(props.task.title);
 const busy = ref('');
 const failure = ref<ApiFailure | null>(null);
@@ -31,7 +31,7 @@ const titleOf = (id: string) => props.records.find((record) => record.id === id)
 async function link(requirementId: string) {
   const response = await $fetch(`/api/projects/${props.projectId}/records/${props.task.id}`, {
     method: 'PATCH',
-    body: { links: withImplements(props.task.links, requirementId) },
+    body: { links: withImplements(props.task.links, requirementId), version: props.task.version },
     ignoreResponseError: true
   });
   const problem = failureOf(response);
@@ -72,7 +72,7 @@ async function create() {
     if (!id) return;
     // Требование уже заведено: если связать не вышло, называем его, чтобы не создавать второе.
     if (await link(id)) emit('changed');
-    else failure.value = { code: 'link_failed', message: `Требование ${id} заведено, но связать его с задачей не вышло: ${failure.value?.message ?? ''}` };
+    else failure.value = { code: 'link_failed', message: t('tr.linkFailed', { id, msg: failure.value?.message ?? '' }) };
   } finally {
     busy.value = '';
   }
@@ -82,38 +82,38 @@ async function create() {
 <template>
   <UCard v-if="lacks || drafts.length">
     <template #header>
-      <h2 class="font-medium">Привести задачу в порядок</h2>
+      <h2 class="font-medium">{{ t('tr.title') }}</h2>
     </template>
 
     <div v-if="lacks" class="space-y-4">
       <p class="text-sm text-muted">
-        У задачи нет требования: без него она не уйдёт в «готова к работе». Выберите существующее или заведите новое.
+        {{ t('tr.lacks') }}
       </p>
 
       <div class="space-y-2">
-        <UInput v-model="query" size="sm" class="w-full" placeholder="Найти требование по номеру или названию" />
-        <p v-if="choices.length === 0" class="text-sm text-muted">Подходящих требований нет.</p>
+        <UInput v-model="query" size="sm" class="w-full" :placeholder="t('tr.find')" />
+        <p v-if="choices.length === 0" class="text-sm text-muted">{{ t('tr.noneFit') }}</p>
         <ul v-else class="space-y-1">
           <li v-for="item in choices" :key="item.id" class="flex flex-wrap items-center gap-3 text-sm">
             <span class="font-mono text-xs text-muted">{{ item.id }}</span>
             <span class="min-w-0 flex-1">{{ item.title }}</span>
             <StatusBadge :status="item.status" />
             <UButton size="xs" variant="soft" :loading="busy === item.id" :disabled="busy !== ''" @click="choose(item.id)">
-              Привязать
+              {{ t('tr.link') }}
             </UButton>
           </li>
         </ul>
       </div>
 
       <div class="space-y-2 border-t border-default pt-3">
-        <p class="text-sm font-medium">Или завести требование</p>
+        <p class="text-sm font-medium">{{ t('tr.orCreate') }}</p>
         <div class="flex flex-wrap items-center gap-3">
-          <UInput v-model="newTitle" size="sm" class="min-w-64 flex-1" placeholder="Заголовок требования" />
+          <UInput v-model="newTitle" size="sm" class="min-w-64 flex-1" :placeholder="t('tr.newTitle')" />
           <UButton size="sm" :loading="busy === 'new'" :disabled="busy !== '' || !newTitle.trim()" @click="create">
-            Завести и привязать
+            {{ t('tr.createLink') }}
           </UButton>
         </div>
-        <p class="text-xs text-muted">Создаётся черновик из шаблона: текст требования пишете вы.</p>
+        <p class="text-xs text-muted">{{ t('tr.draftNote') }}</p>
       </div>
     </div>
 
@@ -121,10 +121,10 @@ async function create() {
     <p v-if="drafts.length" class="text-sm" :class="{ 'mt-3': lacks }">
       <template v-for="(id, at) in drafts" :key="id">
         <template v-if="at > 0">; </template>
-        Требование
+        {{ t('tr.requirement') }}
         <NuxtLink :to="`/projects/${projectId}/records/${id}`" class="font-mono hover:underline">{{ id }}</NuxtLink>
         <template v-if="titleOf(id)"> «{{ titleOf(id) }}»</template>
-        в черновике: подтвердите его
+        {{ t('tr.inDraft') }}
       </template>
       .
     </p>

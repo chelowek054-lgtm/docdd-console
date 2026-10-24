@@ -1,0 +1,28 @@
+// Агенты ролей (R-0091, ADR-0033).
+export const agents: Record<string, string> = {
+  'ag.section': 'Agents',
+  'ag.sectionShort': 'Role agents: prompt, model, access',
+  'ag.noProject': 'Open a project: agents are project files.',
+  'ag.hint': 'An agent is docs/agents/<id>.md: type, model, access and system prompt. Role and rights belong to the agent account in the project team ("Accounts and access").',
+  'ag.new': 'New agent',
+  'ag.defaults': 'Create default set',
+  'ag.none': 'No agents. Create the default set or add your own.',
+  'ag.edit': 'Edit',
+  'ag.delete': 'Delete',
+  'ag.type': 'Type',
+  'ag.id': 'id',
+  'ag.idHelp': 'Latin, digits, dash; file name',
+  'ag.title': 'Title',
+  'ag.model': 'Model',
+  'ag.modelHelp': 'Empty — by request-kind route',
+  'ag.accessLabel': 'Access',
+  'ag.prompt': 'System prompt',
+  'ag.limits': 'With any access an agent never approves documents, edits their text, merges code or accepts its own work (ADR-0033).',
+  'ag.access.read': 'read',
+  'ag.access.propose': 'propose',
+  'ag.access.statuses': 'move statuses',
+  'ag.access.code': 'work with code',
+  'ppl.isAgent': 'Agent account (no password)',
+  'ppl.agent': 'agent · {type}',
+  'ppl.agentHint': 'An agent never signs in via browser: the console issues it a per-run token. Its role is a line in the project manifest team.'
+};

@@ -1,4 +1,4 @@
-import { batchPlan } from '../../server/lib/inventory';
+import { batchPlan } from '../../server/lib/inventory'; import { tr } from '../i18n/tr';
 
 /**
  * Ход «Описать пачками» (docs/07-maps.md, «Описать всё пачками»): заходы один за
@@ -40,7 +40,7 @@ export async function describeBatch(input: {
 
   for (let at = 0; at < plan.steps; at += 1) {
     if (input.stopped()) {
-      run.reason = 'остановлено вручную';
+      run.reason = tr('t83.m7.stopped');
       break;
     }
     const skip = at * input.size;
@@ -48,7 +48,7 @@ export async function describeBatch(input: {
     const result = await input.step(skip, limit);
     if (!result.ok) {
       // Очередь кончилась раньше потолка — не отказ, а конец работы.
-      if (!result.empty) run.reason = `${result.reason} (заход ${at + 1})`;
+      if (!result.empty) run.reason = tr('t83.m7.passReason', { reason: result.reason, n: at + 1 });
       break;
     }
     run.done += 1;
@@ -57,7 +57,7 @@ export async function describeBatch(input: {
     input.onProgress?.({ ...run });
     // Остановили во время запроса: этот заход уже записан, следующий не начинаем.
     if (input.stopped() && at + 1 < plan.steps) {
-      run.reason = 'остановлено вручную';
+      run.reason = tr('t83.m7.stopped');
       break;
     }
   }

@@ -36,7 +36,7 @@ const savedReport = ref('');
 const { running, elapsed, outcome: modelOutcome, log, stream, cancel } = useModelRequest(
   () => `${props.projectId}:design-screens`,
   {
-    label: 'Проверка экранов проекта',
+    label: t('t83.m7.ds.label'),
     onRecovered: (answer) => afterAnswer(answer as { answer: string })
   }
 );

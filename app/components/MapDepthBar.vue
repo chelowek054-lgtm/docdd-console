@@ -4,6 +4,7 @@
 // дерево считается на клиенте чистыми функциями сервера, в файлы компонент не ходит.
 import { ancestors, maxDepth, type TreeNode } from '~~/server/lib/hierarchy';
 import { groupTree, type DeclaredGroup, type GroupImport, type GroupModule } from '~~/server/lib/groups';
+const { t } = useT();
 
 const props = defineProps<{
   /** Какая карта: от неё зависит имя параметра группы в адресе. */
@@ -59,7 +60,7 @@ const depth = computed(() => {
 });
 const levels = computed(() => [
   ...[1, 2, 3].filter((level) => level <= deepest.value + 1).map((level) => ({ value: String(level), label: String(level) })),
-  { value: 'all', label: 'все' }
+  { value: 'all', get label() { return t('t83.m2.all'); } }
 ]);
 const canOpen = computed(() => !!selected.value && nodes.value.some((node) => node.parent === selected.value));
 const opened = computed(() => String(route.query[openKey.value] ?? '') === selected.value && !!selected.value);
@@ -75,7 +76,7 @@ const openInPlace = () => change({ [openKey.value]: opened.value ? undefined : s
 <template>
   <div v-if="deepest > 0" class="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
     <p class="flex flex-wrap items-center gap-1">
-      <UButton size="xs" variant="link" color="neutral" :disabled="!selected" @click="goGroup(null)">Все</UButton>
+      <UButton size="xs" variant="link" color="neutral" :disabled="!selected" @click="goGroup(null)">{{ t('t83.map-depth-bar.1') }}</UButton>
       <template v-for="(step, i) in trail" :key="step.id">
         <span class="text-muted">›</span>
         <UButton v-if="i < trail.length - 1" size="xs" variant="link" color="neutral" @click="goGroup(step.id)">
@@ -85,7 +86,7 @@ const openInPlace = () => change({ [openKey.value]: opened.value ? undefined : s
       </template>
     </p>
     <div class="flex items-center gap-1">
-      <span class="text-muted">Глубина</span>
+      <span class="text-muted">{{ t('t83.map-depth-bar.2') }}</span>
       <UButton
         v-for="level in levels"
         :key="level.value"
@@ -105,7 +106,7 @@ const openInPlace = () => change({ [openKey.value]: opened.value ? undefined : s
       icon="i-lucide-unfold-vertical"
       @click="openInPlace"
     >
-      Раскрыть на месте
+      {{ t('t83.map-depth-bar.3') }}
     </UButton>
   </div>
 </template>

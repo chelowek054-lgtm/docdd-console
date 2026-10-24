@@ -105,7 +105,7 @@ export function analyze(input: AnalyzeInput): AnalyzeResult {
     rules,
     design,
     ...(input.designReports ? { designReports: input.designReports } : {}),
-    ...(input.manifest?.design?.stacks ? { designStacks: input.manifest.design.stacks } : {}),
+    ...(input.manifest?.design?.stacks ? { designStacks: input.manifest.design.stacks } : {}), ...(input.manifest?.design?.catalog ? { designCatalog: input.manifest.design.catalog } : {}),
     ...(input.sharedReferences ? { sharedReferences: input.sharedReferences } : {}),
     verifications: latestVerificationResults(input.reports ?? []),
     now: input.now ?? new Date(),

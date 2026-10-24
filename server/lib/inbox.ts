@@ -135,7 +135,7 @@ export interface ResolvedLinks {
 }
 
 /** Идентификатор записи: `R-0001` и подобные. */
-const RECORD_ID = /^[RDACTPVMS]-\d{4}$/;
+const RECORD_ID = /^[RDACTPVMSBL]-\d{4}$/;
 
 /**
  * Связи предложенной записи в настоящие идентификаторы. Модель называет

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import type { Vision } from '~~/server/lib/maps';
+const { t } = useT();
 
 /**
  * Вектор проекта — карточка над функциональной картой (docs/04-ui.md,
@@ -17,10 +18,10 @@ const props = defineProps<{
 const emit = defineEmits<{ changed: [] }>();
 
 const FIELDS = [
-  { key: 'problem', label: 'Какую проблему решает продукт', hint: 'Языком того, у кого она есть: что болит и почему это важно' },
-  { key: 'audience', label: 'Для кого', hint: 'Кто пользуется и кому это важно' },
-  { key: 'outcome', label: 'Что считается успехом', hint: 'По чему поймём, что проблема решена' },
-  { key: 'not', label: 'Чего продукт не делает', hint: 'Решения, а не «пока не успели»' }
+  { key: 'problem', get label() { return t('t83.m2.vc.problem'); }, get hint() { return t('t83.m2.vc.problemH'); } },
+  { key: 'audience', get label() { return t('t83.m2.vc.audience'); }, get hint() { return t('t83.m2.vc.audienceH'); } },
+  { key: 'outcome', get label() { return t('t83.m2.vc.outcome'); }, get hint() { return t('t83.m2.vc.outcomeH'); } },
+  { key: 'not', get label() { return t('t83.m2.vc.not'); }, get hint() { return t('t83.m2.vc.notH'); } }
 ] as const;
 
 type Key = (typeof FIELDS)[number]['key'];
@@ -115,7 +116,7 @@ const shown = computed(() => expanded.value || editing.value || draft.value !== 
 const trace = computed(() => {
   const v = props.vision;
   if (!v?.declaredBy) return '';
-  return [v.declaredBy, v.declaredAt, v.declaredByRole ?? 'автор не указан'].filter(Boolean).join(' · ');
+  return [v.declaredBy, v.declaredAt, v.declaredByRole ?? t('t83.m2.anon')].filter(Boolean).join(' · ');
 });
 </script>
 
@@ -131,8 +132,8 @@ const trace = computed(() => {
         >
           <UIcon :name="shown ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" class="mt-1 size-4 shrink-0" />
           <span>
-            <span class="block font-medium">Вектор проекта</span>
-            <span class="block text-sm text-muted">Зачем продукт: к этому сверяется каждая возможность</span>
+            <span class="block font-medium">{{ t('t83.vision-card.1') }}</span>
+            <span class="block text-sm text-muted">{{ t('t83.vision-card.2') }}</span>
           </span>
         </button>
         <UButton
@@ -143,14 +144,14 @@ const trace = computed(() => {
           :icon="vision ? 'i-lucide-pencil' : 'i-lucide-plus'"
           @click="startEdit"
         >
-          {{ vision ? 'Изменить вектор' : 'Записать вектор' }}
+          {{ vision ? t('t83.m2.vc.edit') : t('t83.m2.vc.write') }}
         </UButton>
       </div>
     </template>
 
     <p v-if="draft" class="mb-3 flex flex-wrap items-center gap-2 text-sm text-muted">
-      Черновик {{ draft }} создан: вектор вступит в силу после подтверждения.
-      <UButton size="xs" :loading="confirming" @click="confirm">Подтвердить</UButton>
+      {{ t('t83.vision-card.3', { draft: draft }) }}
+      <UButton size="xs" :loading="confirming" @click="confirm">{{ t('t83.functional-tree.3') }}</UButton>
     </p>
 
     <form v-if="editing" class="space-y-3" @submit.prevent="save">
@@ -158,8 +159,8 @@ const trace = computed(() => {
         <UTextarea v-model="form[field.key]" class="w-full" :rows="2" autoresize />
       </UFormField>
       <div class="flex gap-2">
-        <UButton type="submit" size="sm" :loading="saving" :disabled="!filled">Сохранить черновиком</UButton>
-        <UButton size="sm" variant="ghost" color="neutral" @click="editing = false">Отмена</UButton>
+        <UButton type="submit" size="sm" :loading="saving" :disabled="!filled">{{ t('t83.vision-card.4') }}</UButton>
+        <UButton size="sm" variant="ghost" color="neutral" @click="editing = false">{{ t('t83.functional-tree.11') }}</UButton>
       </div>
     </form>
 
@@ -169,15 +170,13 @@ const trace = computed(() => {
         <dd class="leading-relaxed">{{ vision[field.key] }}</dd>
       </div>
       <p v-if="trace" class="text-xs text-muted">
-        Объявлено картой
+        {{ t('t83.map-inspector.22') }}
         <NuxtLink :to="`/projects/${projectId}/records/${vision.declaredBy}`" class="hover:underline">{{ trace }}</NuxtLink>
       </p>
     </dl>
 
     <p v-else class="text-sm text-muted">
-      Вектор не записан. Без него функциональная карта — список функций без цели: непонятно, что в
-      неё принимать, а что нет. Запишите, какую проблему решает продукт, для кого, по чему поймём успех
-      и чего он не делает.
+      {{ t('t83.vision-card.5') }}
     </p>
 
     <UAlert v-if="failure" class="mt-3" color="error" variant="subtle" :title="failure.message" :description="failure.detail" />

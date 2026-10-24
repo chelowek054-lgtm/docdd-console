@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import type { ArchViolationView, FunctionalMode, MapSelection, MermaidEdge } from '~/utils/map-mermaid';
-import { capabilityViews } from '~/utils/functional-view';
+import { capabilityViews } from '~/utils/functional-view'; import { partitionMapRecords } from '~~/server/lib/course';
 import {
   NO_RELATION_MARKS,
   groupLevel,
@@ -10,7 +10,7 @@ import {
   queueRelationRemove,
   relationMarkCount,
   withMarks,
-  withRelationMarks,
+  withRelationMarks, crossLevelRelations, mapLinkBacklinks, inputsNotReady,
   type CapabilityCoverage,
   type Horizon,
   type ImplStatus,
@@ -32,15 +32,22 @@ import {
 import { ghostNeighbors, groupCard, groupModules, groupScope, portsOf } from '~~/server/lib/groups';
 import { layerOf } from '~~/server/lib/layers';
 import type { ProjectMap } from '~~/server/lib/maps';
-
+import { emptyProjectMap } from '~~/server/lib/maps';
 const route = useRoute();
-const projectId = computed(() => String(route.params['id'] ?? ''));
+/**
+ * Две категории карт (ADR-0035): `strategic` — стратегическая карта (вид `functional`) на экране «Стратегия»,
+ * `working` — рабочие карты (шаблоны с движком и свои) на экране «Карты». Страница одна, потому что
+ * дерево, граф, правка и сверка у них общие.
+ */
+const props = withDefaults(defineProps<{ scope?: 'strategic' | 'working' }>(), { scope: 'working' });
+const strategic = props.scope === 'strategic';
+const projectId = computed(() => String(route.params['id'] ?? '')); const { me: currentUser } = useMe(projectId);
 
-type MapResponse = ProjectMap & { unverified: number };
+type MapResponse = ProjectMap & { unverified: number }; type MapKindName = 'functional' | 'codebase' | 'flows' | 'journeys'; const firstKind: MapKindName = strategic ? 'functional' : route.query['fgroup'] || route.query['fkind'] || route.query['fview'] ? 'flows' : route.query['group'] || route.query['view'] ? 'codebase' : 'functional';
 
 const { data, refresh: refreshMap, status } = useFetch<MapResponse | { error: ApiFailure }>(
-  () => `/api/projects/${projectId.value}/map`,
-  { key: () => `map:${projectId.value}` }
+  () => `/api/projects/${projectId.value}/map?kind=${firstKind}`,
+  { key: () => `map:${projectId.value}:${firstKind}` }
 );
 
 /** Что стоит за возможностями в процессе — отдельный запрос: ему нужны требования, задачи и отчёты (docs/03-server-api.md). */
@@ -80,7 +87,7 @@ const violations = computed<ReadonlyMap<string, ArchViolationView>>(() => {
 
 /** Перечитать карту, покрытие и архитектуру вместе: подтверждённая карта или отметка меняет все три. */
 async function refresh() {
-  await Promise.all([refreshMap(), refreshCoverage(), refreshArchitecture()]);
+  await Promise.all([refreshMap(), refreshCoverage(), refreshArchitecture(), refreshLoadedKinds()]);
 }
 
 const saving = ref(false);
@@ -91,8 +98,8 @@ const taskId = ref('');
 /** Ответ, поправленный моделью: заменяет прошлый, пока его не сохранили. */
 const fixed = ref('');
 
-const { running: fixing, elapsed, outcome, log, stream, cancel } = useModelRequest(() => `${projectId.value}:map-fix`, {
-  label: 'Поправить ответ по картам',
+const { t, tn } = useT(); const { running: fixing, elapsed, outcome, log, stream, cancel } = useModelRequest(() => `${projectId.value}:map-fix`, {
+  label: t('maps.fixLabel'),
   onRecovered: (answer) => acceptFix(answer as { answer: string })
 });
 
@@ -168,7 +175,7 @@ async function createImplementingTask() {
       method: 'POST',
       body: {
         type: 'task',
-        title: `Реализовать карту ${draftId.value}`,
+        title: t('t83.m2.m.task', { id: draftId.value }),
         change: 'feature',
         links: { affects: [draftId.value] }
       },
@@ -204,22 +211,27 @@ const aside = computed(() => {
 });
 
 const failure = computed(() => failureOf(data.value));
-const map = computed(() => (failure.value ? null : (data.value as MapResponse | null)));
+const extraKinds = reactive<Partial<Record<MapKindName, Partial<MapResponse>>>>({}); const map = computed(() => (failure.value ? null : mergedMap(data.value as Partial<MapResponse> | null)));
 
 /**
  * Записи карт видны всегда, а не только когда картина пуста (docs/04-ui.md,
  * «Карты»): черновик от «Обновить карты» не должен находиться только по
  * номеру, мелькнувшему в ответе. Пустая строка не показывается.
  */
+/** Сколько записей — смены курса (их показывает «История курса»). */
+const courseCount = computed(() => map.value?.functional.history?.length ?? 0);
 const mapRecords = computed(() => {
-  const all = (index.value?.records ?? [])
+  const maps = (index.value?.records ?? [])
     .filter((record) => record.type === 'map')
     .sort((a, b) => a.id.localeCompare(b.id));
+  // Смены курса показывает «История курса»; здесь — живые карты и всё, что ждёт подтверждения (R-0095).
+  const course = new Set(partitionMapRecords(maps.filter((record) => record.status === 'approved'), map.value?.functional.history ?? []).course.map((record) => record.id));
+  const all = maps.filter((record) => !course.has(record.id));
   const waiting = (status: string) => status === 'draft' || status === 'review';
   return [
-    { label: 'Подтверждены', records: all.filter((record) => record.status === 'approved') },
-    { label: 'Ждут подтверждения', records: all.filter((record) => waiting(record.status)) },
-    { label: 'Вне суммы', records: all.filter((record) => record.status !== 'approved' && !waiting(record.status)) }
+    { label: t('maps.grp.approved'), records: all.filter((record) => record.status === 'approved') },
+    { label: t('maps.grp.waiting'), records: all.filter((record) => waiting(record.status)) },
+    { label: t('maps.grp.out'), records: all.filter((record) => record.status !== 'approved' && !waiting(record.status)) }
   ].filter((group) => group.records.length > 0);
 });
 
@@ -515,9 +527,9 @@ const hasGroupSwitch = computed(() => {
 const allShown = computed(() => (shown.value === 'dataflow' ? flowMode.value === 'all' : codemapMode.value === 'all'));
 const flowKindLabel = computed(() => {
   const labels: Record<string, string> = {
-    file: 'файлы', http: 'http', db: 'базы данных', queue: 'очереди', env: 'переменные окружения', memory: 'память процесса'
+    file: t('maps.fk.file'), http: 'http', db: t('maps.fk.db'), queue: t('maps.fk.queue'), env: t('maps.fk.env'), memory: t('maps.fk.memory')
   };
-  return labels[flowKindId.value] ?? (flowKindId.value === 'unknown' ? 'не опознаны' : flowKindId.value);
+  return labels[flowKindId.value] ?? (flowKindId.value === 'unknown' ? t('maps.fk.unknown') : flowKindId.value);
 });
 
 /** Узлы-призраки: полупрозрачные (0.65), а не 0.5 — это другое, чем «карта не устоялась». */
@@ -560,6 +572,19 @@ const functionalEffective = computed(() => {
     relations: withRelationMarks(source?.relations ?? [], relationMarks.value)
   };
 });
+/** Сквозные связи функциональной карты — по умолчанию не рисуются, инспектор показывает их у выбранного узла (R-0089). */
+/** Связи между картами (R-0086): ссылки возможностей и обратная сторона для узлов других карт. */
+const mapBacklinks = computed(() => Object.fromEntries(mapLinkBacklinks(functionalEffective.value.capabilities)));
+const capabilityMapLinks = computed(() => Object.fromEntries(functionalEffective.value.capabilities.filter((item) => item.mapLinks?.length).map((item) => [item.id, [...(item.mapLinks ?? [])]])));
+/** Контракт блока (R-0088): входы и выходы возможностей, у входов-записей — готовы ли они. */
+const capabilityContracts = computed(() => {
+  const status = new Map((index.value?.records ?? []).map((record) => [record.id, record.status]));
+  return Object.fromEntries(functionalEffective.value.capabilities.filter((item) => item.inputs?.length || item.outputs?.length).map((item) => [item.id, {
+    inputs: [...(item.inputs ?? [])], outputs: [...(item.outputs ?? [])],
+    notReady: inputsNotReady(item, (id) => status.get(id) ?? null).map((entry) => entry.input)
+  }]));
+});
+const crossLevel = computed(() => crossLevelRelations(functionalEffective.value.capabilities, functionalEffective.value.relations));
 const functionalProgress = computed(() => overallProgress(functionalEffective.value.capabilities));
 
 /**
@@ -594,7 +619,7 @@ const capModeModel = computed<FunctionalMode>({
 const hiddenKinds = ref<string[]>([]);
 const planPriority = ref<Priority | 'none' | null>(null);
 const planHorizon = ref<Horizon | 'none' | null>(null);
-const onlyRisks = ref(false);
+const onlyRisks = ref(false); const myZone = ref(false); // «Моя зона» (T-0044): только возможности, где владелец — вошедший
 /** Выбранная возможность: от неё — соседи-призраки и влияние. */
 const capFocus = ref<string | null>(null);
 const impactOn = ref(false);
@@ -658,30 +683,30 @@ const views = computed(() => {
   const all = [
     {
       key: 'codemap',
-      title: 'Кодовая база',
-      question: 'Из чего состоит проект и что на что опирается',
-      count: `${value.codemap.modules.length} модулей, ${value.codemap.imports.length} связей`,
+      title: t('maps.v.codemap'),
+      question: t('maps.q.codemap'),
+      count: t('maps.c.codemap', { a: value.codemap.modules.length || ((data.value as { summary?: Record<string, number> } | null)?.summary ?? {}).modules || 0, b: value.codemap.imports.length || ((data.value as { summary?: Record<string, number> } | null)?.summary ?? {}).imports || 0 }),
       ...(codemapDepth.value ?? codemapView.value ?? codemapMermaid(value))
     },
     {
       key: 'dataflow',
-      title: 'Потоки данных',
-      question: 'Откуда данные приходят, где лежат и куда уходят',
-      count: `${value.dataflow.sources.length} источников, ${value.dataflow.flows.length} потоков`,
+      title: t('maps.v.dataflow'),
+      question: t('maps.q.dataflow'),
+      count: t('maps.c.dataflow', { a: value.dataflow.sources.length || ((data.value as { summary?: Record<string, number> } | null)?.summary ?? {}).sources || 0, b: value.dataflow.flows.length || ((data.value as { summary?: Record<string, number> } | null)?.summary ?? {}).flows || 0 }),
       ...(dataflowDepth.value ?? dataflowView.value ?? dataflowMermaid(value))
     },
     {
       key: 'userflow',
-      title: 'Пользовательские пути',
-      question: 'Какие экраны есть, как между ними ходят и что каждый дёргает',
-      count: `${value.userflow.screens.length} экранов, ${value.userflow.calls.length} вызовов`,
+      title: t('maps.v.userflow'),
+      question: t('maps.q.userflow'),
+      count: t('maps.c.userflow', { a: value.userflow.screens.length || ((data.value as { summary?: Record<string, number> } | null)?.summary ?? {}).screens || 0, b: value.userflow.calls.length || ((data.value as { summary?: Record<string, number> } | null)?.summary ?? {}).calls || 0 }),
       ...userflowMermaid(value)
     },
     {
       key: 'functional',
-      title: 'Функциональная карта',
-      question: 'Что система умеет на языке предметной области, не кода',
-      count: `${value.functional.capabilities.length} возможностей`,
+      title: t('maps.v.functional'),
+      question: t('maps.q.functional'),
+      count: t('maps.c.functional', { a: value.functional.capabilities.length || ((data.value as { summary?: Record<string, number> } | null)?.summary ?? {}).capabilities || 0 }),
       ...(functionalDepth.value ?? functionalMermaid({ ...value, functional: functionalEffective.value }, statusFilter.value, {
         mode: capMode.value,
         level: capLevel.value,
@@ -696,9 +721,12 @@ const views = computed(() => {
       }))
     }
   ];
-  // Функциональная карта — основной источник правды: первая вкладка и открывается
-  // по умолчанию (docs/04-ui.md, «Карты»).
-  return [...all.filter((view) => view.key === 'functional'), ...all.filter((view) => view.key !== 'functional')];
+  // Стратегическая карта — первой вкладкой и на «Картах», и на «Стратегии» (ADR-0035); рабочие — только заведённые
+  // заведённые шаблоны с движком; пока список не пришёл, показываем все три, чтобы вкладки не мигали.
+  if (strategic) return all.filter((view) => view.key === 'functional');
+  const engines: readonly string[] = customData.value && 'engines' in customData.value ? customData.value.engines : ['codemap', 'dataflow', 'userflow'];
+  const shownViews = all.filter((view) => view.key === 'functional' || engines.includes(view.key));
+  return [...shownViews.filter((view) => view.key === 'functional'), ...shownViews.filter((view) => view.key !== 'functional')];
 });
 
 // Ссылка с группой в адресе ведёт на её вкладку, а не на первую (docs/04-ui.md, «Группы кодовой карты»).
@@ -882,13 +910,13 @@ const FOLD_LOOK: Record<string, { fill: string; stroke: string; dash?: boolean; 
 };
 const FOLD_ARROW: Record<string, string> = { depends: '-->', uses: '-.->', feeds: '==>', triggers: '--o', replaces: '--x' };
 const FOLD_KIND: Record<string, string> = {
-  depends: 'зависит от', uses: 'пользуется', feeds: 'передаёт данные в', triggers: 'запускает', replaces: 'заменяет'
+  get depends() { return t('t83.m2.rel.depends'); }, get uses() { return t('t83.m2.rel.uses'); }, get feeds() { return t('t83.m2.rel.feedsIn'); }, get triggers() { return t('t83.m2.rel.triggers'); }, get replaces() { return t('t83.m2.rel.replaces'); }
 };
 const FOLD_RISK: Record<string, string> = {
-  red: 'Цикл или падающая проверка', orange: 'Отметка расходится с задачами', yellow: 'Ждёт зависимость', none: 'Без признаков'
+  get red() { return t('t83.m2.risk.red'); }, get orange() { return t('t83.m2.risk.orange'); }, get yellow() { return t('t83.m2.risk.yellow'); }, get none() { return t('t83.m2.risk.none'); }
 };
 const FOLD_ORDER: Record<string, string> = {
-  start: 'Можно начинать', wait: 'Ждёт зависимость', done: 'Готово', skip: 'Не берём', unrated: 'Не оценено'
+  get start() { return t('t83.m2.order.start'); }, get wait() { return t('t83.m2.order.wait'); }, get done() { return t('t83.m2.order.done'); }, get skip() { return t('t83.m2.order.skip'); }, get unrated() { return t('t83.m2.order.unrated'); }
 };
 
 interface FoldNode {
@@ -952,7 +980,7 @@ function foldedDiagram(
     const cls = ghost ? 'fold_ghost' : node.cls;
     if (cls) used.add(cls);
     lines.push(`    ${id}["${foldText(node.title)}${tail}"]${cls ? `:::${cls}` : ''}`);
-    out.details[id] = node.expandable ? `${node.title}: свёрнуто ${node.size} ${unit}` : node.title;
+    out.details[id] = node.expandable ? t('t83.m2.fold.collapsed', { title: node.title, size: node.size, unit }) : node.title;
     out.nodes[id] = {
       id: node.key, title: node.title, ...(node.summary ? { summary: node.summary } : {}), ...node.extra,
       ...(ghost ? { ghost: { groupId: node.key, groupTitle: node.title } } : {})
@@ -1024,8 +1052,8 @@ const codemapDepth = computed<DepthOutput | null>(() => {
       expandable: groupIds.has(key),
       summary: titles.get(key)?.summary ?? moduleById.get(key)?.summary
     })),
-    [...folded.values()].map((edge) => ({ ...edge, label: 'импорт' })),
-    'модулей',
+    [...folded.values()].map((edge) => ({ ...edge, label: t('t83.m2.import') })),
+    t('t83.m2.unit.modules'),
     { focus: foldFocus.value, inside: underFn(params.open, treeNodes) }
   );
 });
@@ -1064,7 +1092,7 @@ const dataflowDepth = computed<DepthOutput | null>(() => {
       evidence: link.flows[0]?.evidence ?? NO_EVIDENCE,
       status: link.status
     })),
-    'потоков',
+    t('t83.m2.unit.flows'),
     // Источники — не ветка дерева кода: призраками становятся только группы кода вне раскрытой.
     { focus: foldFocus.value, inside: (key) => key.startsWith('s:') || codeInside(key.slice(2)) }
   );
@@ -1079,11 +1107,11 @@ const functionalDepth = computed<DepthOutput | null>(() => {
   const views = capabilityViews(all, allRelations, coverage.value);
   const plan = planPredicate(all, { priority: planPriority.value, horizon: planHorizon.value });
   const filter = statusFilter.value;
-  const keepLeaf = filter || plan || onlyRisks.value
+  const keepLeaf = filter || plan || onlyRisks.value || myZone.value
     ? (leaf: (typeof all)[number]) => {
       if (filter && !(filter === 'unrated' ? !isImplStatus(leaf.status) : leaf.status === filter)) return false;
       if (plan && !plan(leaf)) return false;
-      if (onlyRisks.value && (views.get(leaf.id)?.flags.length ?? 0) === 0) return false;
+      if (onlyRisks.value && (views.get(leaf.id)?.flags.length ?? 0) === 0) return false; if (myZone.value && views.get(leaf.id)?.owner?.value !== currentUser.value.user?.login) return false;
       return true;
     }
     : null;
@@ -1163,7 +1191,7 @@ const functionalDepth = computed<DepthOutput | null>(() => {
       }))
     }
   }));
-  return foldedDiagram(nodes, edges, 'возможностей', { focus: foldFocus.value, inside: underFn(open, treeNodes) });
+  return foldedDiagram(nodes, edges, t('t83.m2.unit.caps'), { focus: foldFocus.value, inside: underFn(open, treeNodes) });
 });
 
 /** Данные для подсказок дробления открытой группы кодовой карты (`MapSplitHints`, T-0097). */
@@ -1237,6 +1265,10 @@ type CustomMapsResponse = {
   definitions: CustomMapDefinition[];
   problems: string[];
   maps: Record<string, CustomMapContent>;
+  /** Рабочие карты с движком, заведённые в проекте (ADR-0035). */
+  engines: string[];
+  /** Кто завёл строку `maps.custom` (ADR-0036); `null` — неизвестно, удаляет только администратор. */
+  owners?: Record<string, string | null>;
 };
 const { data: customData, refresh: refreshCustom } = useFetch<CustomMapsResponse | { error: ApiFailure }>(
   () => `/api/projects/${projectId.value}/maps/custom`
@@ -1244,7 +1276,7 @@ const { data: customData, refresh: refreshCustom } = useFetch<CustomMapsResponse
 const customMaps = computed<CustomMapsResponse>(() =>
   customData.value && !('error' in customData.value)
     ? customData.value
-    : { definitions: [], problems: [], maps: {} }
+    : { definitions: [], problems: [], maps: {}, engines: [] }
 );
 /** Открытая пользовательская карта; null — показан встроенный вид. */
 // Открытая пользовательская карта живёт в адресе (?cmap=), как и её глубина:
@@ -1258,10 +1290,92 @@ const customShown = computed<string | null>({
 const customFormOpen = ref(false);
 const customCurrent = computed(() => customMaps.value.definitions.find((item) => item.id === customShown.value) ?? null);
 
+/** Открытая рабочая карта, которую этот человек вправе удалить (ADR-0036): создатель или администратор. */
+const deletable = computed(() => {
+  if (strategic) return null;
+  const id = customShown.value ?? (shown.value !== 'functional' ? shown.value : null);
+  const owners = customMaps.value.owners ?? {};
+  if (!id || !(id in owners)) return null;
+  const user = currentUser.value.user;
+  // Без входа учёток нет: местный пользователь распоряжается всем (как на сервере).
+  const allowed = !user || user.admin || (owners[id] !== null && owners[id] === user.login);
+  return allowed ? { id, title: workingTabs.value.find((tab) => tab.value === id || tab.value === `engine:${id}`)?.label ?? id } : null;
+});
+const deletedNote = ref<string | null>(null);
+async function deleteMap() {
+  const target = deletable.value;
+  if (!target || !window.confirm(t('maps.del.confirm', { title: target.title }))) return;
+  const response = await $fetch<{ removed: string; file: string } | { error: ApiFailure }>(
+    `/api/projects/${projectId.value}/maps/custom/${encodeURIComponent(target.id)}`,
+    { method: 'DELETE', ignoreResponseError: true }
+  );
+  if ('error' in response) { deletedNote.value = response.error.message; return; }
+  deletedNote.value = t('maps.del.done', { title: target.title, file: response.file });
+  customShown.value = null;
+  await refreshCustom();
+}
+
 async function onCustomCreated(definition: CustomMapDefinition) {
   await refreshCustom();
   customShown.value = definition.id;
 }
+
+// Догрузка видов (T-0112): первый вид пришёл с `data`, остальные — при переключении вкладки, и держатся в памяти.
+const KIND_OF_TAB = { functional: 'functional', codemap: 'codebase', dataflow: 'flows', userflow: 'journeys' } as const;
+// extraKinds объявлена выше, рядом с `map`: computed читает её раньше, чем доходит этот блок.
+const loadedKinds = new Set<MapKindName>([firstKind]);
+
+async function loadKind(kind: MapKindName, force = false) {
+  if (!force && loadedKinds.has(kind)) return;
+  loadedKinds.add(kind);
+  // Ключ по виду, как у первого запроса: повторное открытие вкладки берёт ответ из памяти Nuxt.
+  const part = await $fetch<Partial<MapResponse> | { error: ApiFailure }>(
+    `/api/projects/${projectId.value}/map?kind=${kind}`,
+    { ignoreResponseError: true }
+  );
+  if (failureOf(part)) loadedKinds.delete(kind);
+  else extraKinds[kind] = part as Partial<MapResponse>;
+}
+
+async function refreshLoadedKinds() {
+  await Promise.all([...loadedKinds].filter((kind) => kind !== firstKind).map((kind) => loadKind(kind, true)));
+}
+
+/** Невыгруженные виды — пустые, не `undefined`: остальной код страницы читает `map.value.codemap.modules` без проверок. */
+function mergedMap(first: Partial<MapResponse> | null): MapResponse | null {
+  if (!first) return null;
+  const empty = emptyProjectMap();
+  const parts = [first, ...Object.values(extraKinds)];
+  const pick = <K extends 'codemap' | 'dataflow' | 'userflow' | 'functional'>(key: K) => parts.find((part) => part && part[key])?.[key] ?? empty[key];
+  return {
+    ...empty,
+    codemap: pick('codemap'),
+    dataflow: pick('dataflow'),
+    userflow: pick('userflow'),
+    functional: pick('functional'),
+    from: first.from ?? [],
+    unverified: first.unverified ?? 0
+  } as MapResponse;
+}
+
+watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true });
+// Вектор лежит в стратегической карте, а карточка вектора видна над любой вкладкой: без неё она писала бы «не записан».
+if (firstKind !== 'functional') void loadKind('functional');
+// Открытая вкладка исчезла из списка (например, карту ещё не завели) — первая из имеющихся.
+/** Рабочие карты одним списком: шаблоны с движком и свои (ADR-0035). */
+const workingTabs = computed(() => [
+  ...views.value.filter((view) => view.key !== 'functional').map((view) => ({ label: view.title, value: `engine:${view.key}`, badge: view.count })),
+  ...customMaps.value.definitions.map((item) => ({ label: item.title, value: item.id, badge: customMaps.value.maps[item.id]?.nodes.length ?? 0 }))
+]);
+function pickWorking(value: string | number) {
+  const key = String(value);
+  if (key.startsWith('engine:')) { shown.value = key.slice(7) as typeof shown.value; customShown.value = null; }
+  else customShown.value = key || null;
+}
+watch(views, (list) => {
+  const first = list[0];
+  if (first && !list.some((view) => view.key === shown.value)) shown.value = first.key as typeof shown.value;
+});
 </script>
 
 <template>
@@ -1270,12 +1384,12 @@ async function onCustomCreated(definition: CustomMapDefinition) {
 
     <template v-else>
       <div class="flex flex-wrap items-center gap-3">
-        <h1 class="text-xl font-semibold">Карты проекта</h1>
+        <h1 v-if="!strategic" class="text-xl font-semibold">{{ t('maps.title') }}</h1>
         <p v-if="map" class="text-sm text-muted">
-          сложено из {{ plural(map.from.length, 'карты', 'карт', 'карт') }}
+          {{ t('t83.m2.m.byMaps', { maps: tn('t83.m2.pl.mapsOf', map.from.length) }) }}
         </p>
         <UBadge v-if="map && map.unverified > 0" color="error" variant="subtle" class="ml-auto">
-          {{ map.unverified }} утверждений не прошли сверку
+          {{ t('maps.unverified', { n: map.unverified }) }}
         </UBadge>
         <UButton
           :class="map && map.unverified > 0 ? '' : 'ml-auto'"
@@ -1286,7 +1400,7 @@ async function onCustomCreated(definition: CustomMapDefinition) {
           :loading="status === 'pending'"
           @click="refresh()"
         >
-          Перечитать
+          {{ t('maps.reload') }}
         </UButton>
       </div>
 
@@ -1298,32 +1412,34 @@ async function onCustomCreated(definition: CustomMapDefinition) {
         @changed="() => refresh()"
       />
 
-      <div v-if="mapRecords.length" class="space-y-1 text-sm">
-        <p v-for="group in mapRecords" :key="group.label" class="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <span class="text-muted">{{ group.label }}:</span>
-          <RecordLink
-            v-for="record in group.records"
-            :key="record.path"
-            :project-id="projectId"
-            :record-id="record.id"
-            :record="record"
-          />
-        </p>
-      </div>
+      <!-- Записи карт — аккордеоном, как вектор (MapRecordsCard): длинный список нужен не всегда. -->
+      <MapRecordsCard
+        v-if="mapRecords.length"
+        :project-id="projectId"
+        :groups="mapRecords"
+        :waiting="mapRecords.find((group) => group.label === t('maps.grp.waiting'))?.records.length ?? 0"
+        :course="courseCount"
+      />
+      <!-- Черновик на подтверждение раскрывает карточку сам: «Обновить карты» -->
+      <!-- не должен оставлять его находимым только по номеру из ответа. -->
+      <!-- Свёрнута ли карточка, помнит браузер (как у вектора). -->
+      <!-- Подписи групп — те же maps.grp.*. -->
+      <!-- Ниже — опись файлов. -->
 
-      <MapInventory :project-id="projectId" @changed="() => refresh()" />
+      <MapInventory v-if="!strategic" :project-id="projectId" @changed="() => refresh()" />
 
       <PromptPanel
+        v-if="!strategic"
         :project-id="projectId"
         kind="maps"
-        label="Обновить карты"
-        hint="Ответ сохраняется черновиком и требует подтверждения"
+        :label="t('maps.updateLabel')"
+        :hint="t('maps.draftHint')"
         @answered="onAnswer"
       >
         <template #answer="{ answer }">
           <div class="mb-3 flex flex-wrap items-center gap-3">
             <UButton size="sm" :loading="saving" @click="saveDraft(fixed || answer)">
-              Сохранить черновиком
+              {{ t('maps.saveDraft') }}
             </UButton>
 
             <!-- Разбор сорока файлов не выбрасывается из-за лишнего ключа. -->
@@ -1334,13 +1450,13 @@ async function onCustomCreated(definition: CustomMapDefinition) {
               icon="i-lucide-wand-sparkles"
               @click="askToFix(fixed || answer)"
             >
-              Попросить поправить
+              {{ t('maps.askFix') }}
             </UButton>
             <NuxtLink
               v-if="draftId"
               :to="`/projects/${projectId}/records/${draftId}`"
               class="text-sm hover:underline"
-            >Черновик {{ draftId }} создан — открыть</NuxtLink>
+            >{{ t('maps.draftCreated', { id: draftId }) }}</NuxtLink>
             <UButton
               v-if="draftId && !taskId"
               size="sm"
@@ -1349,13 +1465,13 @@ async function onCustomCreated(definition: CustomMapDefinition) {
               :loading="creatingTask"
               @click="createImplementingTask"
             >
-              Завести задачу-реализацию
+              {{ t('maps.makeTask') }}
             </UButton>
             <NuxtLink
               v-if="taskId"
               :to="`/projects/${projectId}/records/${taskId}`"
               class="text-sm hover:underline"
-            >Задача {{ taskId }} заведена — открыть</NuxtLink>
+            >{{ t('maps.taskCreated', { id: taskId }) }}</NuxtLink>
             <UAlert
               v-if="draftFailure"
               color="error"
@@ -1375,15 +1491,15 @@ async function onCustomCreated(definition: CustomMapDefinition) {
           <ModelLog class="mb-3" :lines="log" :running="fixing" />
 
           <div v-if="fixed" class="mb-3">
-            <p class="mb-2 text-sm text-muted">Модель поправила форму. Ниже — исправленный ответ:</p>
+            <p class="mb-2 text-sm text-muted">{{ t('maps.fixed') }}</p>
             <pre class="max-h-72 overflow-auto rounded bg-elevated p-3 text-xs whitespace-pre-wrap">{{ fixed }}</pre>
           </div>
         </template>
       </PromptPanel>
 
       <p class="text-sm text-muted">
-        Картина складывается из подтверждённых карт изменений. Черновики сюда не
-        входят: пока человек не подтвердил, это намерение, а не устройство проекта.
+        {{ t('t83.maps.1') }}
+
       </p>
 
       <!-- Пользовательские карты от общей картины не зависят (docs/adr/0028-custom-maps.md):
@@ -1391,26 +1507,38 @@ async function onCustomCreated(definition: CustomMapDefinition) {
       <!-- Все карты — одной строкой с прокруткой: встроенные (плашки), затем
            пользовательские (подчёркнутые) и «Новая карта». Вид разный нарочно:
            встроенные заданы консолью, свои — проектом. -->
-      <div class="ds-scroll flex flex-nowrap items-center gap-3 overflow-x-auto pb-2">
+      <div v-if="!strategic" class="ds-scroll flex flex-nowrap items-center gap-3 overflow-x-auto pb-2">
+        <!-- Две категории (ADR-0035): стратегическая карта — одна, плашкой; все остальные — одним рядом,
+             одинаково: шаблон с движком и своя карта для человека не различаются. -->
+        <UButton
+          v-for="view in (map && map.from.length > 0 ? views.filter((item) => item.key === 'functional') : [])"
+          :key="view.key"
+          class="shrink-0"
+          :variant="!customShown && shown === 'functional' ? 'solid' : 'soft'"
+          @click="() => { shown = 'functional'; customShown = null }"
+        >{{ view.title }} <UBadge size="sm" color="neutral" variant="subtle">{{ view.count }}</UBadge></UButton>
         <UTabs
-          v-if="map && map.from.length > 0"
-          :model-value="customShown ? '' : shown"
-          :items="views.map((view) => ({ label: view.title, value: view.key, badge: view.count }))"
-          :ui="{ root: 'w-auto shrink-0', list: 'w-auto' }"
-          @update:model-value="(value) => { shown = value as typeof shown; customShown = null }"
-        />
-        <UTabs
-          v-if="customMaps.definitions.length"
-          :model-value="customShown ?? ''"
+          v-if="workingTabs.length"
+          :model-value="customShown ?? (shown === 'functional' ? '' : `engine:${shown}`)"
           variant="link"
-          :items="customMaps.definitions.map((item) => ({ label: item.title, value: item.id, badge: customMaps.maps[item.id]?.nodes.length ?? 0 }))"
+          :items="workingTabs"
           :ui="{ root: 'w-auto shrink-0', list: 'w-auto' }"
-          @update:model-value="(value) => (customShown = String(value) || null)"
+          @update:model-value="pickWorking"
         />
-        <UButton class="shrink-0" icon="i-lucide-plus" size="sm" variant="soft" label="Новая карта" @click="customFormOpen = true" />
+        <UButton class="shrink-0" icon="i-lucide-plus" size="sm" variant="soft" :label="t('maps.newMap')" @click="customFormOpen = true" />
+        <UButton v-if="deletable" class="shrink-0" icon="i-lucide-trash-2" size="sm" color="error" variant="ghost" :label="t('maps.del.button')" @click="deleteMap" />
       </div>
       <p v-for="problem in customMaps.problems" :key="problem" class="text-sm text-warning">{{ problem }}</p>
-      <CustomMapForm v-model:open="customFormOpen" :project-id="projectId" @created="onCustomCreated" />
+      <p v-if="deletedNote && !strategic" class="text-sm text-muted">{{ deletedNote }}</p>
+      <p v-if="!strategic && customData && !views.length && !customMaps.definitions.length" class="rounded-lg border border-dashed border-default p-6 text-center text-sm text-muted">{{ t('maps.noWorking') }}</p>
+      <CustomMapForm v-if="!strategic" v-model:open="customFormOpen" :project-id="projectId" :engines="customMaps.engines" @created="onCustomCreated" />
+      <!-- Строка намерения (ADR-0037) — над стратегической картой, и на «Картах», и на «Стратегии». -->
+      <StrategyIntent
+        v-if="map && !customCurrent && shown === 'functional'"
+        :project-id="projectId"
+        :contours="map.functional.capabilities.filter((item) => !item.parent).map((item) => ({ id: item.id, title: item.title }))"
+        @created="() => refresh()"
+      />
       <CustomMapView
         v-if="customCurrent"
         :project-id="projectId"
@@ -1428,23 +1556,23 @@ async function onCustomCreated(definition: CustomMapDefinition) {
         <!-- Пусто — тоже ответ, и он обязан назвать причину (docs/04-ui.md). -->
         <template v-if="aside.superseded.length || aside.drafts.length">
           <p class="font-medium text-default">
-            Карты есть, но в картину не входит ни одна.
+            {{ t('t83.maps.2') }}
           </p>
           <p v-if="aside.superseded.length" class="mt-2">
-            {{ plural(aside.superseded.length, "карта помечена", "карты помечены", "карт помечены") }}
-            заменёнными: <span class="font-mono">{{ aside.superseded.map((record) => record.id).join(", ") }}</span>.
-            Карта — это изменение, а не снимок: картина складывается из суммы подтверждённых.
-            Пометив прежние заменёнными, вы вычли их из суммы.
+            {{ tn('t83.m2.pl.supersededMaps', aside.superseded.length) }}
+            <span class="font-mono">{{ aside.superseded.map((record) => record.id).join(", ") }}</span>{{ t('t83.maps.3') }}
+
+
           </p>
           <p v-if="aside.drafts.length" class="mt-2">
-            {{ plural(aside.drafts.length, "карта ждёт", "карты ждут", "карт ждут") }} подтверждения:
+            {{ tn('t83.m2.pl.draftMaps', aside.drafts.length) }}
             <span class="font-mono">{{ aside.drafts.map((record) => record.id).join(", ") }}</span>.
           </p>
         </template>
 
         <template v-else>
-          Подтверждённых карт нет — складывать нечего. Карта заводится записью типа
-          <code>map</code> и запрашивается у модели по шаблону из <code>docs/prompts/</code>.
+          {{ t('t83.maps.4') }}
+          <code>map</code> {{ t('t83.maps.5') }} <code>docs/prompts/</code>.
         </template>
       </div>
 
@@ -1469,7 +1597,7 @@ async function onCustomCreated(definition: CustomMapDefinition) {
                   v-model="functionalView"
                   class="ml-auto w-40"
                   size="xs"
-                  :items="[{ label: 'Дерево', value: 'tree' }, { label: 'Граф', value: 'graph' }]"
+                  :items="[{ label: t('maps.tree'), value: 'tree' }, { label: t('maps.graph'), value: 'graph' }]"
                 />
                 <template v-else>
                   <!-- Группы или все модули разом — у кодовой базы (docs/04-ui.md, «Группы кодовой карты»). -->
@@ -1481,7 +1609,7 @@ async function onCustomCreated(definition: CustomMapDefinition) {
                       icon="i-lucide-boxes"
                       @click="current.key === 'dataflow' ? showFlowGroups() : showGroups()"
                     >
-                      Группы
+                      {{ t('maps.groups') }}
                     </UButton>
                     <UButton
                       size="xs"
@@ -1490,7 +1618,7 @@ async function onCustomCreated(definition: CustomMapDefinition) {
                       icon="i-lucide-network"
                       @click="current.key === 'dataflow' ? showAllFlows() : showAllModules()"
                     >
-                      {{ current.key === 'dataflow' ? 'Все потоки' : 'Все модули' }}
+                      {{ current.key === 'dataflow' ? t('maps.allFlows') : t('maps.allModules') }}
                     </UButton>
                   </div>
                   <UTabs
@@ -1509,15 +1637,15 @@ async function onCustomCreated(definition: CustomMapDefinition) {
                   icon="i-lucide-copy"
                   @click="copySource"
                 >
-                  {{ copied ? 'Скопировано' : 'Скопировать mermaid' }}
+                  {{ copied ? t('maps.copied') : t('maps.copyMermaid') }}
                 </UButton>
               </div>
             </template>
 
             <template v-if="shown === 'dataflow' && flowMode === 'groups'">
               <p class="mb-3 text-sm text-muted">
-                Кто читает и пишет где: группы кода слева, виды источников справа; стрелка идёт по направлению
-                данных, подпись — число потоков. Клик — карточка, двойной клик — открыть.
+                {{ t('t83.maps.6') }}
+
               </p>
             </template>
 
@@ -1525,25 +1653,25 @@ async function onCustomCreated(definition: CustomMapDefinition) {
               <div class="mb-3 space-y-1 text-sm">
                 <p class="flex flex-wrap items-center gap-1">
                   <UButton size="xs" variant="link" color="neutral" icon="i-lucide-chevron-left" @click="showFlowGroups">
-                    Все группы
+                    {{ t('maps.allGroups') }}
                   </UButton>
                   <span class="text-muted">›</span>
                   <span class="font-medium">{{ flowMode === 'code' ? flowGroupTitle : flowKindLabel }}</span>
                   <span class="text-muted">
-                    · {{ flowMode === 'code' ? 'группа кода' : 'вид источников' }},
-                    {{ plural(flowScopeValue?.sources.length ?? 0, 'источник', 'источника', 'источников') }}
+                    · {{ flowMode === 'code' ? t('maps.codeGroup') : t('maps.sourceKind') }},
+                    {{ tn('t83.m2.pl.source', flowScopeValue?.sources.length ?? 0) }}
                   </span>
                 </p>
                 <p v-if="flowMode === 'code'" class="text-xs text-muted">
-                  Выберите модуль или источник — другие группы, которые трогают те же источники, появятся призраками.
+                  {{ t('t83.maps.7') }}
                 </p>
               </div>
             </template>
 
             <template v-if="shown === 'codemap' && codemapMode === 'groups'">
               <p class="mb-3 text-sm text-muted">
-                Группы выведены из путей к файлам; стрелка — сколько импортов идёт из одной группы в другую.
-                Клик — карточка группы, двойной клик — открыть её целиком.
+                {{ t('t83.maps.8') }}
+
               </p>
             </template>
 
@@ -1551,16 +1679,16 @@ async function onCustomCreated(definition: CustomMapDefinition) {
               <div class="mb-3 space-y-1 text-sm">
                 <p class="flex flex-wrap items-center gap-1">
                   <UButton size="xs" variant="link" color="neutral" icon="i-lucide-chevron-left" @click="showGroups">
-                    Все группы
+                    {{ t('maps.allGroups') }}
                   </UButton>
                   <span class="text-muted">›</span>
                   <span class="font-medium">{{ openGroupInfo.title }}</span>
-                  <UBadge v-if="openGroupInfo.auto" size="xs" color="neutral" variant="subtle">авто</UBadge>
-                  <span class="text-muted">· {{ plural(openGroupInfo.moduleCount, 'модуль', 'модуля', 'модулей') }}</span>
+                  <UBadge v-if="openGroupInfo.auto" size="xs" color="neutral" variant="subtle">{{ t('maps.auto') }}</UBadge>
+                  <span class="text-muted">· {{ tn('t83.m2.pl.module', openGroupInfo.moduleCount) }}</span>
                 </p>
                 <p v-if="openGroupInfo.dependsOn.length || openGroupInfo.usedBy.length" class="flex flex-wrap items-center gap-x-1 text-xs text-muted">
                   <template v-if="openGroupInfo.dependsOn.length">
-                    Зависит от:
+                    {{ t('maps.dependsOn') }}
                     <button
                       v-for="item in openGroupInfo.dependsOn"
                       :key="item.groupId"
@@ -1570,7 +1698,7 @@ async function onCustomCreated(definition: CustomMapDefinition) {
                     >{{ item.title }}</button>
                   </template>
                   <template v-if="openGroupInfo.usedBy.length">
-                    · Используют:
+                    · {{ t('maps.usedBy') }}
                     <button
                       v-for="item in openGroupInfo.usedBy"
                       :key="item.groupId"
@@ -1581,7 +1709,7 @@ async function onCustomCreated(definition: CustomMapDefinition) {
                   </template>
                 </p>
                 <p class="text-xs text-muted">
-                  Толстая рамка — порт: у модуля есть связи за пределами группы. Выберите модуль, чтобы увидеть, куда они ведут.
+                  {{ t('t83.maps.9') }}
                 </p>
                 <MapSplitHints
                   v-if="splitHints"
@@ -1598,8 +1726,8 @@ async function onCustomCreated(definition: CustomMapDefinition) {
               class="mb-3"
               :project-id="projectId"
               kind="architecture"
-              label="Аудит архитектуры"
-              hint="Ответ — таблица замечаний: ничего не пишется, в задачи их превращаете вы"
+              :label="t('maps.audit')"
+              :hint="t('maps.auditHint')"
             >
               <template #answer="{ answer }">
                 <ArchitectureAudit :project-id="projectId" :answer="answer" />
@@ -1612,18 +1740,18 @@ async function onCustomCreated(definition: CustomMapDefinition) {
               class="mb-3"
               :project-id="projectId"
               kind="groups"
-              label="Сгруппировать модули"
-              hint="Ответ сохраняется черновиком карты и требует подтверждения"
+              :label="t('maps.groupModules')"
+              :hint="t('maps.mapDraftHint')"
               @answered="onAnswer"
             >
               <template #answer="{ answer }">
                 <div class="mb-3 flex flex-wrap items-center gap-3">
-                  <UButton size="sm" :loading="saving" @click="saveDraft(answer, 'Группы модулей')">Сохранить черновиком</UButton>
+                  <UButton size="sm" :loading="saving" @click="saveDraft(answer, t('maps.moduleGroups'))">{{ t('maps.saveDraft') }}</UButton>
                   <NuxtLink
                     v-if="draftId"
                     :to="`/projects/${projectId}/records/${draftId}`"
                     class="text-sm hover:underline"
-                  >Черновик {{ draftId }} создан — подтвердите его, и группы вступят в силу</NuxtLink>
+                  >{{ t('maps.draftGroups', { id: draftId }) }}</NuxtLink>
                   <UAlert
                     v-if="draftFailure"
                     color="error"
@@ -1638,8 +1766,8 @@ async function onCustomCreated(definition: CustomMapDefinition) {
             <!-- Слои — только у кодовой базы: у остальных видов узел не несёт слоя. На обзоре групп их нет. -->
             <template v-if="shown === 'codemap' && codemapMode !== 'groups' && allLayers.length > 1">
               <p v-if="isLargeCodemap && hiddenLayers.size > 0" class="mb-2 text-sm text-muted">
-                {{ codemapMode === 'group' ? 'Крупная группа' : 'Крупная кодовая база' }} ({{ scopeCodemap?.modules.length }} модулей) — чтобы не перегружать диаграмму,
-                сначала показан один слой. Выберите другой чипом; чтобы увидеть все разом, кликните по выбранному ещё раз.
+                {{ codemapMode === 'group' ? t('maps.bigGroup') : t('maps.bigCodebase') }} {{ t('t83.m2.m.codemapHint', { n: scopeCodemap?.modules.length ?? 0 }) }}
+
               </p>
               <div class="mb-3 flex flex-wrap gap-1">
                 <UButton
@@ -1660,8 +1788,8 @@ async function onCustomCreated(definition: CustomMapDefinition) {
                 class="mb-3"
                 :project-id="projectId"
                 kind="functional-check"
-                label="Проверить по коду"
-                hint="Модель сама читает код и предлагает состояние — это её мнение, подтверждает человек"
+                :label="t('maps.checkCode')"
+                :hint="t('maps.checkHint')"
               >
                 <template #answer="{ answer }">
                   <FunctionalCheck
@@ -1676,10 +1804,10 @@ async function onCustomCreated(definition: CustomMapDefinition) {
                 class="mb-3"
                 :project-id="projectId"
                 kind="relations"
-                label="Предложить связи"
-                hint="Модель читает дерево и код и предлагает связи — это её мнение, подтверждает человек"
+                :label="t('maps.suggestLinks')"
+                :hint="t('maps.linksHint')"
                 :disabled="map.functional.capabilities.length < 2"
-                disabled-reason="Связывать нечего: в карте меньше двух возможностей."
+                :disabled-reason="t('maps.nothingToLink')"
               >
                 <template #answer="{ answer }">
                   <FunctionalRelations
@@ -1738,8 +1866,9 @@ async function onCustomCreated(definition: CustomMapDefinition) {
                   @show-all="showCapAll"
                 />
                 <FunctionalLegendBar v-if="current.legend" :legend="current.legend" />
+                <UCheckbox v-if="currentUser.user && map.functional.capabilities.length" v-model="myZone" :label="t('maps.myZone')" />
                 <p v-if="!current.text" class="text-sm text-muted">
-                  {{ map.functional.capabilities.length ? 'Под эти фильтры ничего не подошло.' : 'В подтверждённых картах эта структура не описана.' }}
+                  {{ map.functional.capabilities.length ? t('maps.noMatch') : t('maps.notDescribed') }}
                 </p>
                 <template v-else>
                   <!-- Легенда — полоса над схемой (FunctionalLegendBar), вне холста. -->
@@ -1770,7 +1899,7 @@ async function onCustomCreated(definition: CustomMapDefinition) {
               <MapDepthBar v-if="shown !== 'userflow'" :kind="shown === 'dataflow' ? 'dataflow' : 'codemap'" :modules="map.codemap.modules" :imports="map.codemap.imports" :groups="map.codemap.groups" /><ArchitectureNote v-if="shown === 'codemap'":project-id="projectId" :report="architecture" />
               <MapLegendBar v-if="current.mapLegend" :items="current.mapLegend" />
               <p v-if="!current.text" class="text-sm text-muted">
-                В подтверждённых картах эта структура не описана.
+                {{ t('maps.notDescribed') }}
               </p>
               <MermaidDiagram3D
                 v-else-if="viewMode === '3d'"
@@ -1810,6 +1939,10 @@ async function onCustomCreated(definition: CustomMapDefinition) {
             :project-id="projectId"
             :selection="selection"
             :capability-titles="capabilityTitles"
+            :cross-level="crossLevel"
+            :map-backlinks="mapBacklinks"
+            :capability-map-links="capabilityMapLinks"
+            :capability-contracts="capabilityContracts"
             :impact-on="impactOn"
             :to="staged ? stage : null"
             @impact="impactOn = !impactOn"

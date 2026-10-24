@@ -1,0 +1,13 @@
+{
+  "contract": "docdd.workspace/1",
+  "runner": "manual:architect",
+  "started_at": "2026-10-21T17:11:09.725Z",
+  "total": 1,
+  "failed": 0,
+  "checked_by": "Claude Sonnet 5.5 (агент), по поручению пользователя",
+  "note": "Принято по указанию пользователя: тест на 5000 записей и версии записей зелёный, предел времени в проверке не записан.",
+  "verification_kind": "metric",
+  "verifications": {
+    "V-0018": "passed"
+  }
+}

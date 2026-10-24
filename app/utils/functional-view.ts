@@ -1,3 +1,4 @@
+import { tr } from '../i18n/tr';
 import {
   HORIZON_LABEL,
   IMPL_LABEL,
@@ -5,6 +6,7 @@ import {
   consistencyFlags,
   dependsCycle,
   effectiveHorizon,
+  effectiveOwner,
   effectivePriority,
   impactOf,
   replacedBy,
@@ -57,7 +59,7 @@ export interface CapabilityView {
   inCycle: boolean;
   /** Эффективные приоритет и горизонт: свои или унаследованные от родителя. */
   priority: Effective<Priority> | null;
-  horizon: Effective<Horizon> | null;
+  horizon: Effective<Horizon> | null; owner?: { value: string; inherited: boolean; from: string } | null;
   /** Кто её заменяет (входящая `replaces`). */
   replacedBy: string[];
   /** Сколько не реализованных возможностей стоят за ней по цепочке `depends`. */
@@ -107,7 +109,7 @@ export function capabilityViews(
       waiting: own,
       inCycle,
       priority: effectivePriority(item, byId),
-      horizon: effectiveHorizon(item, byId),
+      horizon: effectiveHorizon(item, byId), owner: effectiveOwner(item, byId),
       replacedBy: replaced.get(item.id) ?? [],
       unblocks: unblocks.get(item.id) ?? 0,
       reliesOn: impact.reliesOn.length,
@@ -137,9 +139,9 @@ export function statusText(view: CapabilityView): string {
   const base = IMPL_LABEL[view.status ?? 'unrated'];
   const progress = view.progress;
   if (!progress) return base;
-  const parts = [`${progress.implemented} из ${progress.total} реализовано`];
-  if (progress.partial) parts.push(`${progress.partial} частично`);
-  if (progress.unrated) parts.push(`${progress.unrated} не оценено`);
+  const parts = [tr('t83.m5.fv.done', { implemented: progress.implemented, total: progress.total })];
+  if (progress.partial) parts.push(tr('t83.m5.fv.partial', { n: progress.partial }));
+  if (progress.unrated) parts.push(tr('t83.m5.fv.unrated', { n: progress.unrated }));
   return `${base}: ${parts.join(', ')}`;
 }
 
@@ -153,16 +155,16 @@ export function planText(view: CapabilityView): string {
 
 /** «задачи 3/5» — одним счётом, если за возможностью есть задачи. */
 export function tasksText(cover: CapabilityCoverage | undefined): string {
-  return cover && cover.tasks.total > 0 ? `задачи ${cover.tasks.done}/${cover.tasks.total}` : '';
+  return cover && cover.tasks.total > 0 ? tr('t83.m5.fv.tasks', { done: cover.tasks.done, total: cover.tasks.total }) : '';
 }
 
 /** Слова признаков риска — на узле режима «Риски», в дереве и в карточке. */
 export const RISK_LABEL: Record<RiskFlag, string> = {
-  cycle: 'цикл',
-  waits: 'ждёт зависимость',
-  failing: 'проверка падает',
-  ahead: 'отметка опередила задачи',
-  behind: 'задачи закрыты, отметки нет'
+  get cycle() { return tr('t83.m5.risk.cycle'); },
+  get waits() { return tr('t83.m5.risk.waits'); },
+  get failing() { return tr('t83.m5.risk.failing'); },
+  get ahead() { return tr('t83.m5.risk.ahead'); },
+  get behind() { return tr('t83.m5.risk.behind'); }
 };
 
 /** Худший из признаков: красный — цикл и падающая проверка, оранжевый — расхождение, жёлтый — «ждёт». */

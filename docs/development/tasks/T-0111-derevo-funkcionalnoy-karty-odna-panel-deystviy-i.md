@@ -2,10 +2,10 @@
 id: T-0111
 type: task
 title: 'Дерево функциональной карты: одна панель действий и лёгкие кнопки строки'
-status: in_progress
+status: done
 change: feature
 created: 2026-10-20
-updated: 2026-10-20
+updated: 2026-10-21
 links:
   implements: [R-0047]
   affects: [M-0052]
@@ -21,3 +21,5 @@ FunctionalTreeNode: убрать четыре скрытых UButton «по на
 - 2026-10-20 · заведена из docs/inbox/skorost-otrisovki-funkcionalnaya-karta-risuet-kn.md · приложение
 - 2026-10-20 · готова к работе · architect
 - 2026-10-20 · в разработку · architect
+- 2026-10-21 · на проверку · architect
+- 2026-10-21 · закрыта · architect

@@ -31,6 +31,7 @@ export interface FrontMatterChanges {
   owner?: string | null;
   /** Роль, которая принимает задачу (adr/0030); `null` возвращает правило. */
   reviewer?: string | null;
+  assignee?: string | null;
   phase?: string | null;
   tags?: string[];
   links?: Partial<Record<LinkKind, string[]>>;
@@ -73,6 +74,7 @@ export function applyFrontMatter(file: RecordFile, changes: FrontMatterChanges):
   if (changes.updated !== undefined) lines = setScalar(lines, 'updated', changes.updated);
   if (changes.owner !== undefined) lines = setScalar(lines, 'owner', changes.owner === null ? null : yamlSafe(changes.owner));
   if (changes.reviewer !== undefined) lines = setScalar(lines, 'reviewer', changes.reviewer === null ? null : yamlSafe(changes.reviewer));
+  if (changes.assignee !== undefined) lines = setScalar(lines, 'assignee', changes.assignee === null ? null : yamlSafe(changes.assignee));
   if (changes.phase !== undefined) lines = setScalar(lines, 'phase', changes.phase);
   if (changes.tags !== undefined) lines = setScalar(lines, 'tags', flowList(changes.tags));
   if (changes.links !== undefined) lines = setLinks(lines, changes.links, eol);
@@ -343,7 +345,9 @@ export function splitProse(body: string, eol: string): { prose: string; journal:
 export function replaceProse(file: RecordFile, prose: string): RecordFile {
   const eol = eolOf(file);
   const { journal } = splitProse(file.body, eol);
-  const trimmed = prose.replace(/\s+$/, '');
+  // Журнал, присланный вместе с текстом (копия всего тела), отбрасывается:
+  // иначе в файле окажется второй раздел «Журнал» — журнал ведёт только приложение.
+  const trimmed = splitProse(prose, eol).prose.replace(/\s+$/, '');
   const body = journal.length > 0 ? [trimmed, '', ...journal].join(eol) : `${trimmed}${eol}`;
   return { ...file, body };
 }

@@ -1,0 +1,38 @@
+name: Feature or doc change proposal
+description: Propose a change — in DocDD it starts with the document
+labels: [proposal]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This repository follows its own rule: a change in behaviour starts with an approved change
+        in `docs/`. Describe the intent; the doc change is agreed here before any code.
+        Можно писать по-русски.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is hard or impossible today, and for whom.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour
+      description: What should happen instead. Screens, API, file format — whatever changes.
+    validations:
+      required: true
+  - type: input
+    id: docs
+    attributes:
+      label: Documents affected
+      placeholder: e.g. docs/07-maps.md, docs/04-ui.md
+  - type: textarea
+    id: vision
+    attributes:
+      label: Fit with the project vision
+      description: The vision sits on top of the strategic map. What does this serve? Does it touch anything the product deliberately does not do (docs/00-overview.md)?
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

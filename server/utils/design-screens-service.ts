@@ -29,7 +29,7 @@ import { projectDesign } from './design-service';
  */
 
 /** Файлы каталога рекурсивно, пути от корня проекта с `/`. Нет каталога — пусто. */
-function listFiles(root: string, relative: string): FileStat[] {
+export function listFiles(root: string, relative: string): FileStat[] {
   const out: FileStat[] = [];
   let base: string;
   try {

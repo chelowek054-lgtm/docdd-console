@@ -3,7 +3,7 @@ import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { env, platform } from 'node:process';
 
-import { createStreamParser, type ModelEvent } from '../lib/stream-events';
+import { createStreamParser, type ModelEvent } from '../lib/stream-events'; import { UsageMeter } from '../lib/stream-events';
 
 /**
  * Доступ к модели через Claude Code на машине пользователя
@@ -23,7 +23,7 @@ export interface LlmFailure {
 }
 
 export type LlmResult =
-  | { ok: true; answer: string; ms: number; sessionId?: string }
+  | { ok: true; answer: string; ms: number; sessionId?: string; /** Токены из ленты Claude Code (R-0093); без ленты — нет. */ usage?: { inputTokens?: number; outputTokens?: number; cacheReadTokens?: number; cacheWriteTokens?: number } }
   | { ok: false; failure: LlmFailure };
 
 /** Где искать Claude Code, если его нет в PATH. */
@@ -172,6 +172,8 @@ export interface AskOptions {
    * событий; не задан — как раньше, одним ответом.
    */
   onEvent?: (event: ModelEvent) => void;
+  /** Лимит токенов на запрос (R-0093): превышение по ленте останавливает модель с понятной причиной. */
+  tokenLimit?: number;
   /**
    * Продолжить прошлый разговор вместо нового: сто шагов разбора кодовой
    * базы не проходятся заново ради одной правки (docs/09-execution.md).
@@ -297,7 +299,7 @@ export function looksLikeRefusal(text: string): boolean {
 }
 
 export async function ask(prompt: string, options: AskOptions = {}): Promise<LlmResult> {
-  const found = availability();
+  const found = availability(); const jail = sharedJailFailure(options); if (jail) return { ok: false, failure: jail };
   if (!found.available && !options.run) {
     return { ok: false, failure: { code: 'unavailable', message: found.reason ?? 'Claude Code не найден' } };
   }
@@ -306,6 +308,11 @@ export async function ask(prompt: string, options: AskOptions = {}): Promise<Llm
   const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES;
   const run = options.run ?? spawnClaude;
   const started = Date.now();
+  const meter = new UsageMeter();
+  // Лимит задачи: своя отмена поверх человеческой — превышение останавливает процесс (R-0093).
+  const limiter = new AbortController();
+  let overLimit = false;
+  options.signal?.addEventListener('abort', () => limiter.abort(), { once: true });
 
   try {
     // Аргументы фиксированы: от пользователя приходит только текст запроса.
@@ -314,7 +321,7 @@ export async function ask(prompt: string, options: AskOptions = {}): Promise<Llm
     // Лента событий нужна, только когда её кто-то показывает.
     if (options.onEvent) args.push(...STREAM_ARGS);
     if (options.resume) args.push('--resume', options.resume);
-    if (options.access) args.push(...ACCESS_ARGS[options.access]);
+    if (options.access) args.push(...(process.env.DOCDD_MODE === 'shared' && options.cwd ? scopedAccessArgs(options.access, options.cwd) : ACCESS_ARGS[options.access]));
     if (options.effort) args.push('--effort', options.effort);
 
     const parser = createStreamParser();
@@ -329,6 +336,11 @@ export async function ask(prompt: string, options: AskOptions = {}): Promise<Llm
       // Номер сессии — не для показа: он нужен следующему заходу.
       if (event.kind === 'session') {
         sessionId = event.text;
+        return;
+      }
+      if (event.kind === 'usage') {
+        meter.push(event);
+        if (options.tokenLimit && meter.total > options.tokenLimit && !overLimit) { overLimit = true; limiter.abort(); }
         return;
       }
       options.onEvent?.(event);
@@ -347,7 +359,7 @@ export async function ask(prompt: string, options: AskOptions = {}): Promise<Llm
         maxBytes,
         env: childEnvironment(),
         ...(options.cwd ? { cwd: options.cwd } : {}),
-        ...(options.signal ? { signal: options.signal } : {}),
+        signal: limiter.signal,
         ...(onData ? { onData } : {})
       }
     );
@@ -406,9 +418,13 @@ export async function ask(prompt: string, options: AskOptions = {}): Promise<Llm
       };
     }
 
-    return { ok: true, answer, ms: Date.now() - started, ...(sessionId ? { sessionId } : {}) };
+    const used = meter.tokens;
+    return { ok: true, answer, ms: Date.now() - started, ...(sessionId ? { sessionId } : {}), ...(used ? { usage: { inputTokens: used.input, outputTokens: used.output, cacheReadTokens: used.cacheRead, cacheWriteTokens: used.cacheWrite } } : {}) };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    if (overLimit) {
+      return { ok: false, failure: { code: 'cancelled', message: `Превышен лимит токенов на запрос: ${options.tokenLimit}. Модель остановлена; поднимите лимит в настройках моделей (limits) или сузьте задачу.` } };
+    }
     // Отмена — не поломка: человек передумал ждать, и говорить об ошибке здесь
     // значило бы пугать на ровном месте.
     if (options.signal?.aborted || /aborted|отмен/i.test(message)) {
@@ -530,3 +546,48 @@ export function unfence(answer: string, language?: string): string {
   const match = pattern.exec(answer);
   return (match?.[1] ?? answer).trim();
 }
+
+/**
+ * На общем сервере чтение и правка ограничены корнем проекта правилами прав Claude Code
+ * (`Read(//путь/**)` — абсолютный путь): запрос «прочитай /etc/passwd» получает отказ
+ * инструмента. Остальное — те же белый и чёрный списки, что и в локальном режиме.
+ */
+function scopedAccessArgs(access: Access, cwd: string): string[] {
+  const base = cwd.split(String.fromCharCode(92)).join('/').replace(/^[/]+/, '');
+  const inside = `//${base}/**`;
+  const scoped = (tool: string) => `${tool}(${inside})`;
+  const args = [...ACCESS_ARGS[access]];
+  const at = args.indexOf('--allowed-tools');
+  if (at >= 0) {
+    const end = args.findIndex((item, i) => i > at && item.startsWith('--'));
+    const list = args.slice(at + 1, end === -1 ? undefined : end).map((tool) => (tool === 'Bash' ? tool : scoped(tool)));
+    args.splice(at + 1, list.length, ...list);
+  }
+  return [...args, ...SHARED_DENY];
+}
+
+/**
+ * Явный запрет секретов (T-0009): `.data` (учётки, ключ сессий) и `.env*` недоступны ни
+ * одному инструменту, даже внутри корня проекта и даже при `bypassPermissions`: правила
+ * Deny проверяются раньше любых разрешений.
+ */
+export const SHARED_DENY: readonly string[] = [
+  '--disallowed-tools',
+  ...['Read', 'Edit', 'Write', 'NotebookEdit', 'Glob', 'Grep'].flatMap((tool) => [`${tool}(**/.data/**)`, `${tool}(**/.env*)`])
+];
+
+/**
+ * На общем сервере модель с инструментами запускается только в корне проекта из
+ * списка разрешённых: без `cwd` или с `cwd` вне корней ей нечем ограничить чтение, значит отказ.
+ */
+export function sharedJailFailure(options: { access?: Access; cwd?: string }, shared = process.env.DOCDD_MODE === 'shared', allowed: (root: string) => boolean = rootAllowed, allowFull = process.env['DOCDD_ALLOW_FULL_ACCESS'] === '1'): LlmFailure | null {
+  if (!shared || !options.access || options.access === 'none') return null;
+  // `full` (bypassPermissions) не сужается белым списком: на общем сервере только по явному решению администратора.
+  // Остаётся на системном пользователе: чтение вне корня и сеть/команды Bash; Deny закрывает лишь .data и .env*.
+  if (options.access === 'full' && !allowFull) return { code: 'unauthorized', message: 'На общем сервере полный доступ модели выключен; администратор включает его DOCDD_ALLOW_FULL_ACCESS=1' };
+  if (options.cwd && allowed(options.cwd)) return null;
+  return { code: 'unauthorized', message: 'На общем сервере модель с инструментами работает только в корне проекта' };
+}
+
+// Импорт внизу файла: наверху он сдвинул бы строки, на которые ссылаются свидетельства карты.
+import { rootAllowed } from './mode';

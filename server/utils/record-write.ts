@@ -76,6 +76,8 @@ export function saveRecord(context: RecordContext, outcome: WriteOutcome, root: 
   if (!written.ok) return written;
 
   const index = loadIndex(root, true);
+  // Динамически: хранилище уведомлений тянет рантайм Nitro, которого нет в чистых тестах разбора.
+  void import('./notify-events').then((events) => events.notifyViolations(root, index)).catch(() => undefined);
   const record = index.records.find((item) => item.id === context.record.id);
   return record ? { ok: true, record } : { ok: false, problems: ['Запись не найдена после сохранения.'] };
 }
@@ -147,4 +149,16 @@ export function openRecordWithBlockers(
   const absolute = resolveInside(root, record.source.path);
   const context = { workspace, record, absolute, original: readFileSync(absolute, 'utf8'), rules: result.context };
   return { context, blockers: checkTransition(record, to, result.context) };
+}
+
+/**
+ * Пакетные маршруты: клиент присылает `versions` {номер: версия}; расхождение
+ * хоть у одной записи — отказ всей пачке, чтобы не записать поверх чужой правки.
+ */
+export function staleVersions(root: string, versions: unknown): string[] {
+  if (versions === null || typeof versions !== 'object') return [];
+  const known = new Map(loadIndex(root).records.map((record) => [record.id, record.version]));
+  return Object.entries(versions as Record<string, unknown>)
+    .filter(([id, version]) => typeof version === 'string' && known.has(id) && known.get(id) !== version)
+    .map(([id]) => id);
 }

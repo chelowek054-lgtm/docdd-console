@@ -55,6 +55,8 @@
 
 Главный маршрут: всё состояние проекта одним ответом.
 
+`?issues=0` отдаёт тот же ответ с пустым `issues`: интерфейс просит так при серверной отрисовке, чтобы нарушения не попадали в HTML. Их берёт `GET /api/projects/:id/issues` → `{ "issues": [...] }` (те же `IssueDto`), лениво на клиенте.
+
 ```json
 {
   "project": {
@@ -148,6 +150,14 @@
   }
 }
 ```
+
+### `GET /api/projects/:id/records/:recordId/diff`
+
+«Что меняется» для записи на подтверждении. Ответ: `kind` (`text` | `vision` | `new`), `base` (`{commit, reason: approved | previous}` или `null`), `fields` (`поле · было · стало`), `links` (`+`/`−`, вид, цель), `text` (построчно, `same | add | del`), для карты с вектором — `vision` (поля «проблема, для кого, успех, чего не делает» и задетые возможности), `empty`, `viewed`. «Было» — файл на последнем коммите со статусом `approved`, иначе на предыдущем; своей базы снимков нет.
+
+### `POST /api/projects/:id/records/:recordId/diff/viewed`
+
+Отметка «разницу открывали» (файл `.docdd/diff-viewed.json`, привязан к хэшу файла). Подтверждение (`status` → `approved`) после отметки пишет в журнал «подтверждено после просмотра разницы». `GET /api/projects/:id/diff-unviewed` отдаёт `ids` записей на подтверждении без отметки — по ним список рисует значок «разница не открывалась».
 
 ### `POST /api/projects/:id/records/bulk/status`
 
@@ -285,7 +295,8 @@
 
 Успех меняет тело файла, поле `updated`, добавляет строку в журнал
 («текст отредактирован») и возвращает обновлённую запись — как и у смены
-статуса.
+статуса. Если в `body` пришёл и раздел «Журнал» (например, прислано тело
+целиком), он отбрасывается: журнал в файле один и ведёт его приложение.
 
 ### `POST /api/projects/:id/records`
 
@@ -426,6 +437,15 @@
 Черновики и отменённые карты сюда не входят: пока человек не подтвердил, это
 намерение, а не устройство проекта.
 
+**Параметр `?kind=functional|codebase|flows|journeys|custom`.** Отдаёт только
+один вид — `functional`, `codemap`, `dataflow`, `userflow` или `custom`
+соответственно — плюс `kind`, `from`, `unverified` и лёгкую `summary` с числами
+для ярлыков вкладок (`capabilities`, `relations`, `modules`, `imports`,
+`sources`, `flows`, `screens`, `transitions`, `calls`, `customNodes`). Без
+параметра ответ прежний, целиком. Неизвестный вид — 400 `bad_kind`. Страница карт
+просит открытый вид, остальные догружает при переключении вкладки: полный ответ
+на большом проекте весит сотни килобайт и раздувал HTML.
+
 ### `GET /api/projects/:id/map/coverage`
 
 Что стоит за возможностями в процессе: требования, задачи, проверки и код
@@ -462,15 +482,25 @@
 ### `GET /api/projects/:id/maps/custom`
 
 Пользовательские карты ([adr/0028](adr/0028-custom-maps.md)):
-`{ definitions, problems, maps }`. `definitions` — годные определения из
+`{ definitions, problems, maps, engines }`. `engines` — рабочие карты с движком
+([adr/0035](adr/0035-two-kinds-of-maps.md)): `codemap`, `dataflow`, `userflow`,
+заведённые строкой `maps.custom` с `template` либо уже живущие подтверждёнными
+записями. `definitions` — годные определения из
 `maps.custom` манифеста; `problems` — беды неверных (такое определение
 пропущено, остальные живут); `maps` — по `id` карты её `{ nodes, relations }`
 из той же сложенной картины, что у `GET …/map`. Поля, которых карта в
 `features` не взяла, не приходят.
 
+### `DELETE /api/projects/:id/maps/custom/:mapId`
+
+Убирает строку рабочей карты из `maps.custom` ([adr/0036](adr/0036-delete-working-map.md)); записи `map` не трогаются, строка возвращается из git. Удаляет создатель (`by` определения) или администратор, иначе `403 forbidden`; строку без `by` — только администратор. Ответ — `{ removed, by, file }`. Ошибки: `404 custom_map_not_found`, `422 manifest_form`. При создании (`POST` ниже) в строку пишется `by` — логин создателя.
+
 ### `POST /api/projects/:id/maps/custom`
 
-Тело — определение: `id`, `title`, `summary?`, `node { label, plural }`,
+Тело `{ template: "codemap" | "dataflow" | "userflow" }` заводит рабочую карту
+с движком (ADR-0035): в `project.yaml` дописывается строка `{ id, title, template }`,
+`id` равен шаблону, на проект один экземпляр (`409 custom_map_exists`). Иначе тело —
+определение: `id`, `title`, `summary?`, `node { label, plural }`,
 `relations?` (без них — пять видов функциональной карты), `features`.
 Проверяется тем же отбором, что читает манифест, и дописывается в
 `project.yaml` точечно: остальной файл и комментарии не трогаются. Ответ —
@@ -634,7 +664,10 @@ Decision и design из источников, названных в `sources.sha
 
 Собирает запрос по шаблону из [prompts/](prompts/), подставляя данные проекта:
 для `fix` — отобранные нарушения, для `maps` — состояние карт и список того, что
-перестало сходиться. Возвращает `{ "prompt": "…", "count": 3 }`.
+перестало сходиться. Возвращает `{ "prompt": "…", "count": 3 }`. У `inbox` — `mode: "strategy"` и
+необязательный `contour` (id контура): к разбору добавляется раздел
+[prompts/strategy-intent.md](prompts/strategy-intent.md) — разложить намерение целиком и сверить с
+вектором ([adr/0037](adr/0037-strategy-intent-input.md)).
 
 ### `POST /api/llm/ask`
 
@@ -706,6 +739,8 @@ Claude Code не найден или отказал в доступе — `503`;
 Границу приложение считает по ним же, и считает **заново** на каждом шаге — при
 сборке запроса, при починке и при слиянии. Браузер называет, что чинить, а не
 что можно трогать: иначе граница ничего не значит.
+
+Предпросмотр «закроется / останется» считает экран чистой функцией `server/lib/fix-diff.ts` по плану и отмеченным нарушениям; сервер для него ничего не добавляет.
 
 Состояние починки и три ответа на дифф — `GET`/`POST /api/projects/:id/fix/work`,
 той же формы, что у работы над задачей. Отдельно от неё, потому что у починки
@@ -967,6 +1002,21 @@ Claude Code не найден или отказал в доступе — `503`;
 "missing": 4, "widths": [375, 768, 1280], "themes": ["light","dark"], "script": "…" }`. Экран берётся из
 подтверждённой карты пользовательских путей; `script` — шаблон скрипта снятия, текстом.
 
+### `GET /api/projects/:id/design/catalog`
+
+Матрица историй по выгрузкам каталогов (`design.catalog`, `design.stacks[].catalog`): `{ "report": { "columns":
+[{ "stack": "storybook", "label": "…", "path": "…/index.json", "state": "ok", "stories": 12 }], "rows": [{ "component":
+"Button", "item": "disabled", "kind": "state", "cells": [{ "stack": "storybook", "stories": ["button--disabled"] }] }],
+"findings": [{ "code": "design_story_missing", "stack": "expo", "component": "Button", "message": "…" }] } }`.
+Каталоги в манифесте не объявлены — `{ "report": null }`. Storybook не запускается, файлы только читаются.
+
+### `POST /api/projects/:id/design/port-prompt`
+
+Тело `{ "component": "Button", "stack": "expo", "branch": "port/expo/button" }` (ветка необязательна). Ответ
+`{ "prompt": "…" }` — запрос «перенести компонент на стек» по шаблону `design-port.md`. Компонента нет в
+реестре или стек не объявлен — 422 (`component_unknown`, `stack_unknown`). Запрос Pixel-Perfect
+(`design-pixel`) дополнительно получает пары «эталон истории — снимок стека» из `design.snapshots`.
+
 ### `POST /api/projects/:id/design/findings/preview`
 
 Тело `{ "answer": "…ответ модели с блоком docdd-design-findings…" }`. Разбирает находки, ничего не пишет:
@@ -1073,3 +1123,146 @@ matter. **Текст документа не меняется** — ни стр�
 ### Отметка «Проверено»: кто проверил
 
 Тело `POST …/records/:recordId/verified`: `{ "verified": true, "actor": "architect", "by": "Имя", "note": "что проверено" }`. `by` и `note` необязательны для API, но экран «Принять вручную» требует оба. Они пишутся в отчёт (`checked_by`, `note`) и в строку журнала.
+
+## Оптимистическая блокировка (T-0045)
+
+Запись в индексе несёт `version` (хэш содержания). Маршруты статуса и `PATCH` полей принимают необязательное `version` в теле, пакетные (`bulk/status`, `priority/apply`) — `versions` вида `{номер: версия}`. Если версия не совпала с текущей, ответ `409 record_changed_since_load` и ничего не записано. Версия не передана — проверки нет. Текст записи защищён прежним `baseline` (`body_changed_since_load`).
+
+## Исполнитель задачи (T-0016)
+
+`PATCH /records/:id` принимает `assignee` (строка или `null`) и необязательный `actor`; смена пишет строку в журнал записи. Поле лежит в front matter как есть и приходит в индексе в `extra.assignee`. На экране «Работа» фильтр «Мои задачи» сверяет его с именем, введённым в браузере (без входа) .
+
+## Журнал доступа (T-0018)
+
+Каждый пишущий запрос (`POST`/`PATCH`/`PUT`/`DELETE` под `/api/`) дописывает строку в `.data/audit.jsonl`: `at`, `actor`, `method`, `path`, `project`, `status`. Имя — из входа, а без него из `actor` тела, иначе `local`. `GET /api/audit?actor=&project=&limit=` отдаёт строки новыми сверху; при включённом входе — только администратору. Экран — `/audit`.
+### GET /api/projects/:id/records/:recordId/map-diff
+
+Разница карты на схеме (R-0069). Ответ: `{ recordId, structures: [{ structure, nodes: [{ key, id, title, parent?, mark, fields }], edges: [{ key, from, to, label, mark }] }] }`, где `mark` — `added | removed | changed | same`. «Было» — сложенная картина подтверждённых карт до этой записи, «станет» — вместе с ней; структуры, которых запись не касается, не приходят. Логика — `server/lib/map-diff.ts`.
+
+### GET /api/projects/:id/design/record-diff?record=ID
+
+Разница токенов записи дизайна (R-0073): `{ palette: [{ theme, rows: [{ role, before, after, state }] }], contrast: [{ theme, pair, before, after, okBefore, okAfter, min, regressed }], stacks: [{ id, label, files: [{ key, defaultPath, state, diff }] }] }`. «Было» — подтверждённые записи без этой, «станет» — вместе с ней. Логика — `server/lib/design-diff.ts`.
+
+### GET и PUT /api/notifications/channel
+
+Внешний канал уведомлений (R-0059), только администратор. `GET` → `{ hasUrl, fromEnv }`: адрес наружу не отдаётся. `PUT { url }` сохраняет адрес webhook в `.data/notifications.json` (пустая строка отключает); переменная `DOCDD_NOTIFY_WEBHOOK` главнее файла. Канал подключается лениво при первом уведомлении: `POST` JSON `{text}` (совместимо со Slack/Mattermost), таймаут 5 с, отказ запись не отменяет.
+
+Событие `violation_in_zone`: после записи и пересчёта нарушений новое нарушение по записи, связанной (`covers`/`implements`/`affects`) с возможностью или стоящей в фазе, где человек владелец (`owner` — логин или роль), уходит владельцу. Отпечатки отправленного лежат в `.data/notifications/<проект>-seen.json`: повтор не дублируется, первый пересчёт проекта лишь запоминает текущее, не больше 20 за пересчёт.
+
+### Задания к модели: журнал, очередь, модели, расходы (R-0010, R-0008, R-0009)
+
+- `POST /api/llm/ask` не привязан к соединению браузера: обновление страницы задание не отменяет, отменить можно только `DELETE /api/projects/:id/llm/queue/:jobId`. Первым событием ленты идёт `job` с `{ id }`.
+- Результат задания (`answer`, `error`, `ms`, `state`) хранится в `.data/llm-jobs/<проект>.json`, журнал обрезается до последних 200. Задание, незавершённое на момент перезапуска сервера, при загрузке получает `failed` с пометкой «прервано перезапуском».
+- Все ленты запросов к модели (`/api/llm/ask`, `fix`, `records/:recordId/work`, `records/:recordId/ask`, `progress-question` и прочие) идут через **ленту задания** (ADR-0034): первое событие — `feed` с `{ id }` (номер ленты), закрытие соединения задание не отменяет. Клиент передаёт ключ задания заголовком `X-Model-Job-Key`; другой человек с тем же ключом в том же проекте видит событие `peer` с `{ users: [логины] }`. Тот же человек с тем же ключом — прежнее его задание снимается.
+- `GET /api/projects/:id/llm/feeds/:feedId?from=N` — та же лента с N-го события: накопленное сразу, дальше по мере работы, в конце `done` или `error`. Только автору и администратору (иначе 404 `feed_not_found`, как и для неизвестной ленты: чужое существование не раскрывается). Лента живёт в памяти сервера час после конца; позже или после перезапуска — 404.
+- `DELETE /api/projects/:id/llm/feeds/:feedId` — отмена задания ленты (автор или администратор): `{ ok }`.
+- `GET /api/projects/:id/llm/queue` — живые и недавно завершённые задания (с ответом); `GET /api/projects/:id/llm/queue/:jobId` — `{ job }` или 404 `not_found`.
+- `PUT /api/llm/models`: повторяющиеся `id` провайдеров — 400 `provider_duplicate`. Пустой `apiKey` оставляет прежний ключ; `clearKey: true` у провайдера стирает его.
+- `GET /api/llm/usage`: при включённом входе — только администратору или роли с правом `team` (pm, architect) в проекте из `?projectId=`, иначе 403 `forbidden`; без входа открыто.
+
+### `GET /api/projects/:id/search/semantic?q=…&limit=10`
+
+Смысловой поиск ([adr/0031-semantic-search.md](adr/0031-semantic-search.md)). Пустой `q` — `{ hits: [] }`, без работы.
+Перед поиском индекс `.docdd/embeddings.jsonl` досчитывается для изменившихся блоков. Ответ:
+`{ hits: [{ key, recordId, type, title, heading, snippet, score, to }], model, blocks }`; `score` —
+косинусное сходство (скалярное произведение нормализованных векторов), `to` — адрес записи с якорем раздела.
+`limit` — от 1 до 50.
+
+### GET /api/projects/:id/notifications и POST …/notifications/read
+
+Читателя определяет сервер, а не запрос: при включённом входе — логин вошедшего (не вошёл — 401), без входа — консоль одного человека, ему видны все уведомления проекта. `?to=` и `body.to` больше не принимаются. `POST …/read { ids? }` отмечает прочитанным перечисленное или всё читателя.
+
+Адресаты событий: `assigned` — логин исполнителя; `reviewer_assigned` и `awaiting_acceptance` — ревьюер, явный или по правилу (ADR-0030), роль раскладывается в логины команды проекта (`team`); нет людей с ролью — уходит самой роли.
+
+### Шаблон проекта при заведении (R-0090)
+
+`POST /api/projects/init` принимает необязательное поле `template` — идентификатор шаблона (сейчас `software-core`).
+Шаблон — данные, а не движок: в манифест дописывается секция `maps.custom` с заготовками своих карт по ролям
+(дизайнер, DevOps, архитектор, разработчик), а рядом с вектором ложится черновик карты `M-0002` с контурами проекта —
+возможностями первого уровня («Продукт и требования», «Архитектура и код», «Интерфейс и дизайн», «Инфраструктура и
+выкладка», «Качество и безопасность», «Выпуск и поддержка»). Роли команды — те же, что у любого нового проекта.
+Незнакомый шаблон — `400 template_unknown`. Без поля — прежний пустой формат.
+
+### GET /api/projects/:id/batch-check?capability=<id>
+
+Сверка пачки по возможности (R-0092): задачи, чьи `affects` называют карты, объявившие возможность, и связанные с ними
+требования и проверки. Ответ `{ capability, maps, gaps, clean }`; пробел — `{ kind, id, message }`, `kind` —
+`requirement_no_check`, `requirement_no_task`, `task_no_requirement`, `check_not_runnable`. Нет `capability` — `400`,
+нет возможности — `404`. При `policy.require_batch_check_before_ready: true` те же пробелы — ошибка `task_batch_gap`
+и блокируют переход задачи в `ready` ([05-validation.md](05-validation.md)).
+
+### POST /api/projects/:id/attachments и GET …/attachment (R-0099)
+
+`POST` — `{ name, data }` (`data` — base64): сохраняет файл в `<tests>/attachments/<дата>/` и возвращает `{ path, kind, size }`. Не картинка и не
+txt/log/json — `400 type_not_allowed`; больше 5 МБ — `400 too_large`; пустой — `400 empty`. Право — `edit_draft`. `GET …/attachment?path=` отдаёт
+файл только из папки `attachments/` внутри корня, с `nosniff` и закрытой политикой содержимого; чужой путь — `400 path_invalid`. `POST …/runs` принимает
+`attachments` (`V-номер → [пути]`); пути не из `attachments/` отбрасываются.
+
+### GET /api/projects/git-status и POST /api/projects/git-init (R-0094)
+
+`GET …/git-status?root=<путь>` — `{ repo, branch }`: есть ли git-репозиторий в папке и текущая ветка. Папки нет — `404`, путь вне разрешённых корней — `403`.
+`POST …/git-init { root, consent: true }` — `git init -b main`; без `consent: true` — `400 consent_required`, репозиторий уже есть — `{ repo: true, created: false }`.
+Ничего сверх `git init` (ни коммитов, ни удалённых адресов). Право — `admin`, как у `POST /api/projects/init`.
+
+### Учёт токенов, маршруты по умолчанию и лимиты (R-0093)
+
+- **Учёт.** Строка `.data/llm-usage.jsonl` несёт `tokens` (`input`, `output`, `cacheRead`, `cacheWrite`) — так, как их отдал провайдер: Claude Code в ленте (`usage` сообщений и итог `result`), Anthropic и OpenAI-совместимые API в ответе. Цена по токенам точная; провайдер токенов не отдал — оценка по символам и `estimated: true`. `GET /api/llm/usage` в итогах отдаёт `tokens` и `estimated` (сколько запросов оценено), экран моделей ставит «≈» только при оценке.
+- **Цены.** `prices` в `llm.json`: `[вход, выход]` или `[вход, выход, чтение кэша]` USD за млн токенов; без третьей цены чтение кэша — десятая часть входа, запись в кэш — вход с надбавкой в четверть.
+- **Маршрут по умолчанию.** Вида запроса нет в `routes` — разбор и сверка (`inbox`, `inbox-plan`, `review`, `review-batch`, `analyst`, `batch-check`, `manager`, `ask`, `context`) без инструментов идут первому подключённому чат-провайдеру, всё остальное — Claude Code.
+- **Лимит.** `limits` в `llm.json`: `{ "task": 2000000 }` — предел токенов на запрос этого вида. Claude Code останавливается по ленте, как только сумма превысила предел; ответ — отказ «Превышен лимит токенов на запрос: N…».
+- **Постоянная часть пакета.** Куски вектора, правил, практик, карты, справочника и глоссария идут первыми и в одном порядке — одинаковое начало запроса провайдеры кэшируют.
+
+### Агенты ролей (R-0091, ADR-0033)
+
+- `GET /api/projects/:id/agents` — `{ agents, problems, types, access }`: агенты из `docs/agents/*.md`, нечитаемые файлы с причиной, набор типов по умолчанию.
+- `POST /api/projects/:id/agents` — `{ id, type, title, model?, access, prompt }`: завести или изменить; `DELETE …/agents/:agentId` — удалить файл;
+  `POST …/agents/defaults` — завести недостающих агентов набора по умолчанию. Право всех трёх — `team`.
+- `POST /api/auth/users` с `agent: { type }` заводит аккаунт агента: без пароля, не администратор. Вход паролем для агента закрыт.
+- Агент обращается к API с `Authorization: Bearer <токен>`; токен подписан тем же секретом, что сессии, с префиксом агента, живёт шесть часов,
+  cookie-сессия и токен не взаимозаменяемы. Выдаёт токен консоль при запуске агента (отдельная задача «Запустить в работу»).
+- Сервер поверх прав роли отказывает агенту: `merge`, `team`, `admin` — `403 forbidden`; `…/records/:id/body` — `403 agent_text_edit`;
+  перевод не-задачи в `approved` и массовая смена статуса с документами — `403 agent_document_approve`; закрыть свою задачу или
+  «Проверено» по ней — `403 agent_own_acceptance`. Подпись в журнале — `Имя (роль) · агент`.
+
+### GET /api/projects/:id/onboarding и POST …/onboarding/run (R-0075)
+
+`GET` — `{ state, steps, readiness }`: состояние проекта (вектор, возможности, требования с проверками, глоссарий, источники, карты, контракты,
+справки, проверки из тестов), девять шагов со статусом `not_started`/`awaiting`/`done`, исполнителем `auto`/`model`/`human` и ссылкой, и готовность
+`{ done, total, percent, next }`. Ничего не пишет. `POST …/run { step?, force? }` — выполняет автоматические шаги, что ещё не готовы (`step` — один;
+`force` — и готовые, перезапуск); ответ — `{ ran, left, state, steps, readiness }`: что сделано словами и сколько создано, и шаги, оставшиеся модели или
+человеку. Право — `edit_draft`. Незнакомый шаг — `400 step_unknown`.
+
+### GET /api/projects/:id/sources/detect и POST …/sources/apply (R-0077)
+
+`GET` — `{ folders, files, fresh, named }`: найденные папки (`kind` — `code`/`client`/`docs`/`tests`, `path`, `files`, `why`), файлы
+(`contract`, `dependencies`, `ci_report` с форматом), из папок — ещё не названные (`fresh`) и названное (`named`). Обход неглубокий (пять уровней, до 30 тысяч
+файлов), служебное пропускается. Ничего не пишет. `POST …/apply { folders: [{ kind, path }] }` — записывает подтверждённое в `sources` манифеста:
+объединяет с названным, пишет списки в одну строку; ответ `{ ok, added }`. Нет папки — `404 path_not_found`, путь вне корня — `403 outside_root`,
+манифест записан незнакомой формой (блочный список) — `409 manifest_unsupported`. Право — `edit_draft`. В манифесте появился необязательный `sources.tests`.
+
+### POST /api/projects/:id/onboarding/wizard (R-0076)
+
+`{ vision: { problem, audience, outcome, not }, features, glossary?, phase? }` — `features` и `glossary` строками, по одной записи в строке («Название — требование»,
+«Термин — определение»). Заводит черновики (`createRecords`, номера раздаёт приложение): карту с вектором и возможностями, на каждую — требование, проверку `manual`,
+задачу `feature` со связями `implements`, `verified_by`, `affects`, и фазу с `covers`; пишет `docs/development/glossary.md`, если файла с терминами нет.
+Ответ — `{ created, problems, glossary }` (`written`/`kept`/`skipped`). Нет проблемы или возможностей — `400 wizard_incomplete`. Право — `edit_draft`; подтверждает человек
+обычными маршрутами (`records/bulk/status`).
+
+### Запрос `as-is` и проверка свидетельств (R-0078)
+
+`POST /api/projects/:id/prompt { kind: "as-is" }` собирает запрос по шаблону `docs/prompts/as-is.md`: модули, экраны и источники данных из подтверждённых карт, уже стоящие
+возможности и заведённые требования; в ответе `{ prompt, count }`. Ответ модели — тот же блок `docdd-records`, что у входящего; `POST …/inbox/preview` дополнительно сверяет строки вида
+`путь:строка — фрагмент` в `note` возможностей и в теле требований с файлами проекта и добавляет в `problems` замечания о несуществующих файлах и строках и о чужих фрагментах.
+
+### GET и POST /api/projects/:id/onboarding/tests (R-0079)
+
+`GET` — `{ matches, coverage, found, already }`: найденные тесты (`test` — путь, раннер, команда, `unit`/`integration`), подобранное требование и причина (`null` — не нашлось или несколько),
+покрытие требований (`covered`, `uncovered`, `percent`). Раннер — по `package.json` (`vitest`, `jest`) или расширению (`pytest`, `go`). Номер требования ищется в имени и в первых 2 КБ файла.
+`POST { files? }` — завести проверки-черновики по сопоставленным тестам (все или названные), уже названные в проверках не задваиваются; ответ `{ ok, created, ids }`.
+`POST { report: "путь" }` — подключить отчёт сборки: `{ ok, report, matched, unmatched, format }`; формат не распознан — `422 report_unknown`, файла нет — `404`, ни один файл не совпал с проверками —
+`422 report_no_match`. Право — `edit_draft`. Автошаг «Проверки из существующих тестов» на вкладке «Подключение» делает то же, что первый `POST`.
+
+### Шаги «contracts», «references», «glossary» (R-0080)
+
+Выполняются через `POST /api/projects/:id/onboarding/run` (`{ step }` или весь запуск). `contracts` — файлы OpenAPI/AsyncAPI, proto, GraphQL и JSON-схем вне `docs/development` → черновики `contract`; `references` — прямые зависимости из
+файла зависимостей → черновики `reference` (до 40 за заход); `glossary` — термины из README и папок `sources.docs` → `docs/development/glossary.md`. Файлы больше 512 КБ не читаются. Ответ шага — `{ step, ok, created, summary }`.

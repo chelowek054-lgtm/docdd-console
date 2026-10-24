@@ -170,3 +170,34 @@ export function appendCustomMap(manifestText: string, definition: Record<string,
   while (tail > custom + 1 && (lines[tail - 1] ?? '').trim() === '') tail -= 1;
   return { ok: true, text: [...lines.slice(0, tail), entry, ...lines.slice(tail)].join(eol) };
 }
+
+
+/**
+ * Убирает `index`-ю строку списка `maps.custom` (ADR-0036). Элемент — строка `    - …` и её
+ * продолжение с отступом больше четырёх; остальной файл и комментарии не трогаются.
+ */
+export function removeCustomMap(manifestText: string, index: number): ManifestEdit | ManifestEditFailed {
+  const eol = manifestText.includes('\r\n') ? '\r\n' : NEW_LINE;
+  const lines = manifestText.split(/\r?\n/);
+  const topLevel = (line: string) => /^\S/.test(line) && !line.startsWith('#');
+  const maps = lines.findIndex((line) => /^maps:\s*(#.*)?$/.test(line));
+  if (maps < 0) return { ok: false, message: 'Секции `maps` нет.' };
+  let end = maps + 1;
+  while (end < lines.length && !topLevel(lines[end] ?? '')) end += 1;
+  const custom = lines.findIndex((line, at) => at > maps && at < end && /^\s{2}custom:\s*(#.*)?$/.test(line));
+  if (custom < 0) return { ok: false, message: 'Список `maps.custom` записан не блоком — уберите карту вручную.' };
+  const starts: number[] = [];
+  let stop = custom + 1;
+  while (stop < end && (/^\s{3,}\S/.test(lines[stop] ?? '') || (lines[stop] ?? '').trim() === '')) {
+    if (/^\s{4}- /.test(lines[stop] ?? '')) starts.push(stop);
+    stop += 1;
+  }
+  const from = starts[index];
+  if (from === undefined) return { ok: false, message: 'Карта не найдена в `maps.custom`.' };
+  let to = starts[index + 1] ?? stop;
+  while (to > from + 1 && (lines[to - 1] ?? '').trim() === '') to -= 1;
+  const rest = [...lines.slice(0, from), ...lines.slice(to)];
+  // Список опустел — остаётся `custom: []`, а не висящий ключ.
+  if (starts.length === 1) rest[custom] = '  custom: []';
+  return { ok: true, text: rest.join(eol) };
+}

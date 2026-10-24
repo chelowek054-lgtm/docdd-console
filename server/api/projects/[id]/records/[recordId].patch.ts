@@ -6,6 +6,7 @@ import { LINK_KINDS, type LinkKind } from '../../../../lib/types';
 import { WorkspaceError } from '../../../../lib/workspace';
 import { fail, failWith } from '../../../../utils/http';
 import { findProject } from '../../../../utils/projects';
+import { applyJournalNote } from '../../../../lib/actions';
 import { openRecord, saveRecord, today } from '../../../../utils/record-write';
 
 /**
@@ -21,7 +22,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody<Record<string, unknown>>(event);
-  const unknown = Object.keys(body ?? {}).filter((key) => !['owner', 'reviewer', 'phase', 'tags', 'links', 'change', 'reuse'].includes(key));
+  const unknown = Object.keys(body ?? {}).filter((key) => !['owner', 'reviewer', 'phase', 'tags', 'links', 'change', 'reuse', 'assignee', 'actor', 'version'].includes(key));
   if (unknown.length > 0) {
     return fail(
       event,
@@ -36,6 +37,7 @@ export default defineEventHandler(async (event) => {
   if ('reviewer' in body) fields.reviewer = asStringOrNull(body['reviewer']);
   if ('change' in body) fields.change = asStringOrNull(body['change']);
   if ('reuse' in body) fields.reuse = asStringOrNull(body['reuse']);
+  if ('assignee' in body) fields.assignee = asStringOrNull(body['assignee']);
   if ('phase' in body) fields.phase = asStringOrNull(body['phase']);
   if ('tags' in body) fields.tags = asStrings(body['tags']);
   if ('links' in body) fields.links = asLinks(body['links']);
@@ -46,6 +48,9 @@ export default defineEventHandler(async (event) => {
       return fail(event, 404, 'record_not_found', `Записи \`${recordId}\` в проекте нет`);
     }
 
+    if (versionConflict(context.record, body?.['version'])) {
+      return fail(event, 409, 'record_changed_since_load', 'Запись изменили с тех пор, как вы её открыли: перечитайте и повторите правку');
+    }
     // Ревьюер — роль манифеста (adr/0030): незнакомую роль принять некому.
     const roles = context.workspace.manifest.roles ?? [];
     if (fields.reviewer && roles.length > 0 && !roles.some((role) => role.id === fields.reviewer)) {
@@ -67,7 +72,19 @@ export default defineEventHandler(async (event) => {
       );
     }
 
-    return { record: saved.record };
+    // Смена исполнителя — движение работы: строка в журнале (T-0016).
+    if (fields.assignee !== undefined && fields.assignee !== (context.record.data['assignee'] ?? null)) {
+      const again = openRecord(project.root, recordId);
+      if (again) {
+        const note = applyJournalNote(again.original, {
+          action: fields.assignee ? `исполнитель: ${fields.assignee}` : 'исполнитель снят',
+          actor: typeof body['actor'] === 'string' ? body['actor'] : '',
+          today: today()
+        });
+        saveRecord(again, note, project.root);
+      }
+    }
+    notifyPatched(id, recordId, context.record.data, fields, project.root); return { record: saved.record };
   } catch (error) {
     if (error instanceof OutsideRootError) {
       return fail(event, 403, 'outside_root', error.message, error.requested);
@@ -96,3 +113,5 @@ function asLinks(value: unknown): Partial<Record<LinkKind, string[]>> {
   }
   return links;
 }
+import { versionConflict } from '../../../../lib/version';
+import { notifyPatched } from '../../../../utils/notify-events';

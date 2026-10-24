@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Вкладка «Импорт» экрана «Наполнение»: входящее и импорт на одном экране (docs/04-ui.md, «Навигация»).
 import type { ApiFailure } from '~/composables/useProjectIndex';
-import type { SurveyRow } from '~~/server/lib/import';
+import type { SurveyRow } from '~~/server/lib/import'; const { t } = useT();
 
 const route = useRoute();
 const projectId = computed(() => String(route.params['id'] ?? ''));
@@ -41,13 +41,13 @@ watch(survey, (value) => {
 // Пустого значения в списке быть не может: «тип не выбран» показывается
 // подсказкой, и такая строка в перенос не попадает.
 const TYPES = [
-  { label: 'Требование', value: 'requirement' },
-  { label: 'Документ', value: 'design' },
-  { label: 'Решение', value: 'decision' },
-  { label: 'Контракт', value: 'contract' },
-  { label: 'Задача', value: 'task' },
-  { label: 'Фаза', value: 'phase' },
-  { label: 'Проверка', value: 'verification' }
+  { get label() { return t('t83.m3.type.requirement'); }, value: 'requirement' },
+  { get label() { return t('t83.m3.type.design'); }, value: 'design' },
+  { get label() { return t('t83.m3.type.decision'); }, value: 'decision' },
+  { get label() { return t('t83.m3.type.contract'); }, value: 'contract' },
+  { get label() { return t('t83.m3.type.task'); }, value: 'task' },
+  { get label() { return t('t83.m3.type.phase'); }, value: 'phase' },
+  { get label() { return t('t83.m3.type.verification'); }, value: 'verification' }
 ];
 
 /** «Выбрать всё» трогает только то, что можно перенести: файл с front matter — запись, а не импорт. */
@@ -102,32 +102,33 @@ function size(bytes: number): string {
 
     <template v-else>
       <div class="flex flex-wrap items-center gap-3">
-        <h2 class="text-lg font-semibold">Импорт документации</h2>
+        <h2 class="text-lg font-semibold">{{ t('t83.import-panel.1') }}</h2>
         <p v-if="survey" class="text-sm text-muted">
-          {{ plan.length }} файлов в {{ survey.folders.join(', ') || 'каталогах из sources.docs' }}
+          {{ t('t83.m3.imp.dirs', { n: plan.length, dirs: survey.folders.join(', ') || t('t83.m3.imp.fallback') }) }}
         </p>
       </div>
 
       <p class="text-sm text-muted">
-        Тип — <strong>предположение по пути</strong>, а не решение: правьте его в
-        каждой строке. Приложение не обращается к языковым моделям, его дело —
-        показать найденное и аккуратно применить то, что вы утвердите.
+        {{ t('t83.import-panel.2') }} <strong>{{ t('t83.import-panel.3') }}</strong>{{ t('t83.import-panel.4') }}
+
+
       </p>
 
       <div
         v-if="survey && survey.folders.length === 0"
         class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted"
       >
-        В манифесте не объявлено <code>sources.docs</code> — приложению негде искать
-        старую документацию. Добавьте в <code>docs/development/project.yaml</code> список папок.
+        {{ t('t83.import-panel.5') }} <code>sources.docs</code> {{ t('t83.import-panel.6') }}
+ <code>docs/development/project.yaml</code>.
       </div>
+      <SourcesFinder v-if="survey && survey.folders.length === 0" :project-id="projectId" only="docs" @applied="refreshSurvey()" />
 
       <div
         v-else-if="plan.length === 0 && status !== 'pending'"
         class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted"
       >
-        Ни одного файла <code>.md</code> не нашлось. Либо всё уже перенесено, либо
-        документация лежит в другой папке.
+        {{ t('t83.import-panel.7') }} <code>.md</code> {{ t('t83.import-panel.8') }}
+
       </div>
 
       <div v-else class="ds-card overflow-x-auto">
@@ -138,15 +139,15 @@ function size(bytes: number): string {
                 <UCheckbox
                   :model-value="allState"
                   :disabled="tickable.length === 0"
-                  aria-label="Выбрать всё"
+                  :aria-label="t('t83.inbox-panel.15')"
                   @update:model-value="toggleAll"
                 />
-                <span class="sr-only">Брать</span>
+                <span class="sr-only">{{ t('t83.import-panel.9') }}</span>
               </th>
-              <th class="p-3 font-medium">Файл</th>
-              <th class="p-3 font-medium">Заголовок</th>
-              <th class="p-3 font-medium">Тип</th>
-              <th class="p-3 font-medium">Почему</th>
+              <th class="p-3 font-medium">{{ t('t83.import-panel.10') }}</th>
+              <th class="p-3 font-medium">{{ t('t83.inbox-panel.10') }}</th>
+              <th class="p-3 font-medium">{{ t('t83.import-panel.11') }}</th>
+              <th class="p-3 font-medium">{{ t('t83.import-panel.12') }}</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-default">
@@ -166,14 +167,14 @@ function size(bytes: number): string {
                   v-model="entry.type"
                   size="sm"
                   class="w-40"
-                  placeholder="выберите тип"
+                  :placeholder="t('t83.import-panel.13')"
                   :items="TYPES"
                   :disabled="entry.hasFrontMatter"
                 />
               </td>
               <td class="p-3 text-xs text-muted">
                 <UBadge v-if="entry.hasFrontMatter" color="neutral" variant="subtle" size="sm">
-                  уже запись
+                  {{ t('t83.import-panel.14') }}
                 </UBadge>
                 <span v-else>{{ entry.reason }}</span>
               </td>
@@ -184,11 +185,11 @@ function size(bytes: number): string {
 
       <div v-if="plan.length" class="flex flex-wrap items-center gap-3">
         <UButton :disabled="chosen.length === 0" :loading="applying" @click="apply">
-          Перенести {{ chosen.length }} из {{ plan.length }}
+          {{ t('t83.import-panel.15', { length: chosen.length, length2: plan.length }) }}
         </UButton>
         <p class="text-sm text-muted">
-          Файлы переедут в папки своих разделов и получат front matter.
-          <strong>Текст документов не изменится</strong> — ни строки, ни перевода строки.
+          {{ t('t83.import-panel.16') }}
+          <strong>{{ t('t83.import-panel.17') }}</strong> {{ t('t83.import-panel.18') }}
         </p>
       </div>
 
@@ -204,7 +205,7 @@ function size(bytes: number): string {
       <div v-if="result" class="space-y-3">
         <UCard v-if="result.moved.length">
           <template #header>
-            <h2 class="font-medium">Перенесено: {{ result.moved.length }}</h2>
+            <h2 class="font-medium">{{ t('t83.import-panel.19', { length: result.moved.length }) }}</h2>
           </template>
           <ul class="space-y-1 text-sm">
             <li v-for="item in result.moved" :key="item.from" class="flex flex-wrap gap-2">
@@ -219,7 +220,7 @@ function size(bytes: number): string {
 
         <UCard v-if="result.skipped.length">
           <template #header>
-            <h2 class="font-medium">Пропущено: {{ result.skipped.length }}</h2>
+            <h2 class="font-medium">{{ t('t83.import-panel.20', { length: result.skipped.length }) }}</h2>
           </template>
           <ul class="space-y-1 text-sm">
             <li v-for="item in result.skipped" :key="item.path">

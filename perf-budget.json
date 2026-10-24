@@ -1,0 +1,10 @@
+{
+  "base": "http://127.0.0.1:3000",
+  "project": "docdd-console",
+  "pages": [
+    { "path": "/projects/{id}/maps", "verification": "V-0047", "maxTtfbMs": 600, "maxHtmlKb": 350, "maxPayloadKb": 120 },
+    { "path": "/projects/{id}/maps", "verification": "V-0048", "maxTtfbMs": 600, "maxHtmlKb": 350, "maxPayloadKb": 120 },
+    { "path": "/projects/{id}/records/R-0051", "verification": "V-0049", "maxHtmlKb": 80 },
+    { "path": "/projects/{id}/tasks", "verification": "V-0050", "maxHtmlKb": 200 }
+  ]
+}

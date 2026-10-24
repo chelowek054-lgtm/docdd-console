@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { FunctionalLegend } from '~/utils/map-mermaid';
+const { t } = useT();
 
 /**
  * Легенда графа состояния — полоса над схемой, вне холста (docs/04-ui.md,
@@ -48,13 +49,13 @@ const SAMPLE: Record<string, { color?: string; width: number; dash?: string; end
 
     <span v-if="legend.hints.waits" class="flex items-center gap-1">
       <svg width="30" height="10" viewBox="0 0 30 10" aria-hidden="true"><line x1="1" y1="5" x2="29" y2="5" stroke="#D97706" stroke-width="2" /></svg>
-      жёлтая — ждёт зависимость · {{ legend.hints.waits }}
+      {{ t('t83.functional-legend-bar.1', { waits: legend.hints.waits }) }}
     </span>
     <span v-if="legend.hints.cycles" class="flex items-center gap-1">
       <svg width="30" height="10" viewBox="0 0 30 10" aria-hidden="true"><line x1="1" y1="5" x2="29" y2="5" stroke="#DC2626" stroke-width="3" /></svg>
-      красная — ждут друг друга · {{ legend.hints.cycles }}
+      {{ t('t83.functional-legend-bar.2', { cycles: legend.hints.cycles }) }}
     </span>
 
-    <span v-if="legend.kinds.length === 0">Связей между возможностями пока нет</span>
+    <span v-if="legend.kinds.length === 0">{{ t('t83.functional-legend-bar.3') }}</span>
   </div>
 </template>

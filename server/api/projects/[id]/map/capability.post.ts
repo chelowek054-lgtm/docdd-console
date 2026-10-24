@@ -224,9 +224,15 @@ function text(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 }
 
+/** Список непустых строк под своим именем; пусто — поля нет. */
+function strings(value: unknown, key: string): Record<string, string[]> {
+  const list = Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string' && item.trim() !== '').map((item) => item.trim()) : [];
+  return list.length ? { [key]: list } : {};
+}
+
 function asCapability(value: unknown): {
   id: string; title?: string; parent?: string; summary?: string; status?: string; note?: string;
-  priority?: string; horizon?: string;
+  priority?: string; horizon?: string; dashboards?: string[]; mapLinks?: string[]; inputs?: string[]; outputs?: string[];
 } | null {
   if (!value || typeof value !== 'object') return null;
   const raw = value as Record<string, unknown>;
@@ -243,7 +249,7 @@ function asCapability(value: unknown): {
     ...(text(raw['note']) ? { note: text(raw['note']) as string } : {}),
     // Как и `status`: незнакомое значение схема отвергнет и назовёт причину.
     ...(text(raw['priority']) ? { priority: text(raw['priority']) as string } : {}),
-    ...(text(raw['horizon']) ? { horizon: text(raw['horizon']) as string } : {})
+    ...(text(raw['horizon']) ? { horizon: text(raw['horizon']) as string } : {}), ...(Array.isArray(raw['dashboards']) && raw['dashboards'].some((url) => typeof url === 'string' && /^https?:\/\//.test(url.trim())) ? { dashboards: raw['dashboards'].filter((url): url is string => typeof url === 'string' && /^https?:\/\//.test(url.trim())).map((url) => url.trim()) } : {}), ...(Array.isArray(raw['mapLinks']) && raw['mapLinks'].some((link) => typeof link === 'string' && link.trim()) ? { mapLinks: raw['mapLinks'].filter((link): link is string => typeof link === 'string' && link.trim() !== '').map((link) => link.trim()) } : {}), ...strings(raw['inputs'], 'inputs'), ...strings(raw['outputs'], 'outputs')
   };
 }
 

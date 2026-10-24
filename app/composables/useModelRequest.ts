@@ -1,6 +1,8 @@
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import { useModelJobs, type JobMeta } from '~/stores/modelJobs';
 
+export const MODEL_PEERS: InjectionKey<Ref<string[]>> = Symbol('model-peers');
+
 /**
  * Ожидание ответа модели (docs/04-ui.md, раздел «Запрос к модели»). Модель
  * думает минутами, и всё это время экран обязан отвечать на один вопрос: идёт
@@ -35,6 +37,9 @@ export function useModelRequest(key: MaybeRefOrGetter<string>, options: ModelReq
   const elapsed = computed(() => job.value?.elapsed ?? 0);
   const outcome = computed(() => job.value?.outcome ?? null);
   const log = computed(() => job.value?.log ?? []);
+  /** Кто ещё сейчас выполняет такой же запрос (ADR-0034): строку показывает `ModelProgress` этой страницы. */
+  const peers = computed(() => job.value?.peers ?? []);
+  provide(MODEL_PEERS, peers);
 
   /** Ответ, пришедший без нас: принимаем один раз; итог без ответа (отказ, отмена) только показывается. */
   function recover() {
@@ -81,5 +86,5 @@ export function useModelRequest(key: MaybeRefOrGetter<string>, options: ModelReq
     store.cancel(jobKey.value);
   }
 
-  return { running, elapsed, outcome, log, run, stream, cancel };
+  return { running, elapsed, outcome, log, peers, run, stream, cancel };
 }

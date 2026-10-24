@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script setup lang="ts"> const { t, tn } = useT();
 /**
  * Состояние описи файлов (docs/07-maps.md, раздел «Опись файлов»). Цифра
  * всегда с причиной: за каждой — список файлов, а не общее ощущение.
@@ -18,7 +18,7 @@ interface Inventory {
 }
 
 const { data, refresh } = useFetch<Inventory>(() => `/api/projects/${props.projectId}/map/inventory`, {
-  key: () => `inventory:${props.projectId}`
+  key: () => `inventory:${props.projectId}`, server: false, lazy: true // инвентарь нужен на клиенте, в HTML он не едет
 });
 
 const rebuilding = ref(false);
@@ -64,15 +64,15 @@ function toggle(which: string) {
   <div v-if="data" class="ds-card p-3">
     <!-- Пустой проект — состояние, а не ошибка: говорим о нём словами. -->
     <p v-if="data.total === 0" class="text-sm">
-      В проекте нет файлов кода — описывать нечего. Проверьте <code>sources.code</code> в манифесте:
-      карта строится по нему.
+      {{ t('t83.map-inventory.1') }} <code>sources.code</code> {{ t('t83.map-inventory.2') }}
+
     </p>
 
     <template v-else>
       <div class="flex flex-wrap items-center gap-4 text-sm">
-        <span class="font-medium">Опись: {{ plural(data.total, 'файл', 'файла', 'файлов') }}</span>
+        <span class="font-medium">{{ t('t83.m2.m.inventory', { files: tn('t83.m2.pl.file', data.total) }) }}</span>
 
-        <span class="text-muted">описано {{ data.described }}</span>
+        <span class="text-muted">{{ t('t83.map-inventory.3', { described: data.described }) }}</span>
 
         <UButton
           v-if="data.pending.length"
@@ -81,7 +81,7 @@ function toggle(which: string) {
           color="warning"
           @click="toggle('pending')"
         >
-          ждут очереди: {{ data.pending.length }}
+          {{ t('t83.map-inventory.4', { length: data.pending.length }) }}
         </UButton>
 
         <UButton
@@ -91,7 +91,7 @@ function toggle(which: string) {
           color="error"
           @click="toggle('changed')"
         >
-          изменились после описания: {{ data.changed.length }}
+          {{ t('t83.map-inventory.5', { length: data.changed.length }) }}
         </UButton>
 
         <!-- Посмотрены и в карту не положены: в очередь они не идут. -->
@@ -102,25 +102,25 @@ function toggle(which: string) {
           color="neutral"
           @click="toggle('skipped')"
         >
-          не в карте: {{ data.skipped.length }}
+          {{ t('t83.map-inventory.6', { length: data.skipped.length }) }}
         </UButton>
 
         <UButton v-if="data.gone.length" size="xs" variant="soft" color="neutral" @click="toggle('gone')">
-          исчезли: {{ data.gone.length }}
+          {{ t('t83.map-inventory.7', { length: data.gone.length }) }}
         </UButton>
 
         <span v-if="left === 0 && !data.gone.length" class="text-muted">
-          всё описано и с тех пор не менялось
+          {{ t('t83.map-inventory.8') }}
         </span>
 
         <UButton size="xs" variant="ghost" color="neutral" :loading="rebuilding" @click="rebuild">
-          Пересчитать опись
+          {{ t('t83.map-inventory.9') }}
         </UButton>
       </div>
 
       <p v-if="left > data.portion" class="mt-2 text-sm text-muted">
-        Один заход описывает {{ data.portion }} файлов: за ним останется ещё {{ left - data.portion }}.
-        Большой проект описывается за несколько подходов, а не одним ответом.
+        {{ t('t83.map-inventory.10', { portion: data.portion, p: left - data.portion }) }}
+
       </p>
 
       <ul v-if="files.length" class="mt-2 max-h-48 space-y-1 overflow-y-auto text-xs">

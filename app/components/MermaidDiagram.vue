@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { MermaidEdge } from '../utils/map-mermaid';
+import type { MermaidEdge } from '../utils/map-mermaid'; const { t } = useT();
 
 const props = defineProps<{
   source: string;
@@ -357,7 +357,7 @@ function exportSvg() {
   <div>
     <div
       ref="wrapper"
-      class="relative overflow-hidden rounded border border-default"
+      class="relative overflow-hidden ds-card"
       :class="fullscreen ? (fullscreenTarget ? 'h-[85vh]' : 'h-screen w-screen bg-default') : ''"
     >
       <div class="absolute right-2 top-2 z-10 flex gap-1">
@@ -366,7 +366,7 @@ function exportSvg() {
           size="xs"
           color="neutral"
           variant="subtle"
-          title="Приблизить"
+          :title="t('t83.mermaid-diagram.1')"
           @click="zoomBy(1.25)"
         />
         <UButton
@@ -374,7 +374,7 @@ function exportSvg() {
           size="xs"
           color="neutral"
           variant="subtle"
-          title="Отдалить"
+          :title="t('t83.mermaid-diagram.2')"
           @click="zoomBy(0.8)"
         />
         <UButton
@@ -382,7 +382,7 @@ function exportSvg() {
           size="xs"
           color="neutral"
           variant="subtle"
-          title="Сбросить вид"
+          :title="t('t83.mermaid-diagram.3')"
           @click="resetView"
         />
         <UButton
@@ -390,7 +390,7 @@ function exportSvg() {
           size="xs"
           color="neutral"
           variant="subtle"
-          :title="fullscreen ? 'Выйти из полного экрана' : 'На весь экран'"
+          :title="fullscreen ? t('t83.m2.fs.exit') : t('t83.m2.fs.enter')"
           @click="toggleFullscreen"
         />
         <UButton
@@ -398,7 +398,7 @@ function exportSvg() {
           size="xs"
           color="neutral"
           variant="subtle"
-          title="Сохранить как SVG"
+          :title="t('t83.mermaid-diagram.4')"
           @click="exportSvg"
         />
       </div>
@@ -425,7 +425,7 @@ function exportSvg() {
       color="warning"
       variant="subtle"
       icon="i-lucide-triangle-alert"
-      title="Диаграмма не разобралась"
+      :title="t('t83.mermaid-diagram.5')"
       :description="error"
     />
     <pre v-if="error" class="mt-2 overflow-x-auto rounded bg-elevated p-3 text-xs">{{ props.source }}</pre>

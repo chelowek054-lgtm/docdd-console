@@ -1,6 +1,6 @@
 // Относительный путь, а не алиас Nuxt: этот модуль читает и тест, который
 // собирается без Nuxt.
-import type { IndexRecord, LinkKind } from '../../server/lib/types';
+import type { IndexRecord, LinkKind } from '../../server/lib/types'; import { tr } from '../i18n/tr';
 
 /**
  * Укладка графа по слоям (ADR-0006). Чистая функция: одни и те же записи дают
@@ -17,14 +17,14 @@ const COLUMNS: readonly (readonly string[])[] = [
   ['phase']
 ];
 
-const COLUMN_TITLES = ['Требования', 'Документы и решения', 'Задачи', 'Проверки', 'Фазы'];
+const COLUMN_TITLES = () => [tr('t83.m5.col.req'), tr('t83.m5.col.docs'), tr('t83.m5.col.tasks'), tr('t83.m5.col.checks'), tr('t83.m5.col.phases')];
 
 /**
  * Записи незнакомого типа собираются в последнюю колонку. Спрятать их значило бы
  * нарушить обещание контракта показывать такой файл как есть — а заодно тихо
  * убрать из графа то, о чём приложение уже сказало предупреждением.
  */
-const OTHER_TITLE = 'Прочее';
+const OTHER_TITLE = () => tr('t83.m5.col.other');
 
 export const NODE_WIDTH = 180;
 export const NODE_HEIGHT = 44;
@@ -69,10 +69,10 @@ export function layoutGraph(records: readonly IndexRecord[]): GraphLayout {
   const known = new Set(COLUMNS.flat());
   const groups: { title: string; types: (record: IndexRecord) => boolean }[] = [
     ...COLUMNS.map((types, at) => ({
-      title: COLUMN_TITLES[at] ?? '',
+      title: COLUMN_TITLES()[at] ?? '',
       types: (record: IndexRecord) => types.includes(record.type)
     })),
-    { title: OTHER_TITLE, types: (record: IndexRecord) => !known.has(record.type) }
+    { title: OTHER_TITLE(), types: (record: IndexRecord) => !known.has(record.type) }
   ];
 
   let column = 0;

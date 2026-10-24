@@ -133,7 +133,7 @@ const i18nTrouble = computed(() => locales.value.length < 2 || !locales.value.in
       <h2 class="font-medium">{{ t('dt.palette.title') }}</h2>
       <p class="text-sm text-muted">{{ t('dt.palette.lead') }}</p>
       <div class="overflow-x-auto">
-        <table class="w-full min-w-[34rem] text-left text-sm">
+        <table class="ds-table w-full min-w-[34rem] text-left text-sm">
           <thead class="text-xs text-muted">
             <tr>
               <th class="pr-3">{{ t('dt.col.role') }}</th>
@@ -180,7 +180,7 @@ const i18nTrouble = computed(() => locales.value.length < 2 || !locales.value.in
           <div
             v-for="row in contrast.filter((item) => item.theme === theme)"
             :key="row.pair.join('/')"
-            class="flex items-center justify-between gap-3 rounded border px-3 py-2 text-sm"
+            class="flex items-center justify-between gap-3 ds-card ds-card--bordered px-3 py-2 text-sm"
             :class="row.ok ? 'border-default' : 'border-error'"
             :style="{ backgroundColor: row.bg, color: row.fg }"
           >
@@ -337,14 +337,14 @@ const i18nTrouble = computed(() => locales.value.length < 2 || !locales.value.in
           <span v-if="tokens.grid.columns" class="text-xs">{{ sourceLabel(tokens.grid.columns) }}</span>
         </p>
         <div
-          class="grid rounded border border-default bg-elevated p-2"
+          class="grid ds-card ds-card--bordered bg-elevated p-2"
           :style="{ gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))`, gap: `${gridGutter}rem` }"
           aria-hidden="true"
         >
           <span v-for="count in gridColumns" :key="count" class="h-8 rounded-sm bg-primary/20" />
         </div>
         <div class="overflow-x-auto">
-          <table class="w-full min-w-[24rem] text-left text-sm">
+          <table class="ds-table w-full min-w-[24rem] text-left text-sm">
             <thead class="text-xs text-muted">
               <tr>
                 <th class="pr-3">{{ t('dt.grid.col.point') }}</th>

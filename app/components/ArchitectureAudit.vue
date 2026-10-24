@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import { AUDIT_KIND_LABEL, type AuditResult } from '../../server/lib/architecture';
+const { t } = useT();
 
 /**
  * Ответ «Аудита архитектуры» таблицей: путь, вид, что не так (docs/04-ui.md,
@@ -42,19 +43,19 @@ watch(() => props.answer, parse, { immediate: true });
 
 <template>
   <div class="mb-3">
-    <p v-if="loading" class="text-sm text-muted">Разбираю ответ…</p>
+    <p v-if="loading" class="text-sm text-muted">{{ t('t83.functional-check.1') }}</p>
 
     <!-- Блока нет — это не отказ: ответ остаётся текстом ниже, как раньше. -->
     <p v-else-if="failure" class="text-sm text-muted">{{ failure.message }}</p>
 
     <template v-else-if="result">
       <p v-if="result.findings.length === 0" class="text-sm text-muted">
-        Модель ничего не нашла сверх точной проверки.
+        {{ t('t83.architecture-audit.1') }}
       </p>
       <div v-else class="overflow-x-auto">
         <table class="w-full text-left text-sm">
           <thead class="text-xs text-muted">
-            <tr><th class="pr-3">Путь</th><th class="pr-3">Вид</th><th>Что не так</th></tr>
+            <tr><th class="pr-3">{{ t('t83.architecture-audit.2') }}</th><th class="pr-3">{{ t('t83.functional-relations.2') }}</th><th>{{ t('t83.architecture-audit.3') }}</th></tr>
           </thead>
           <tbody>
             <tr v-for="row in result.findings" :key="`${row.path}|${row.kind}`" class="border-t border-default align-top">
@@ -66,7 +67,7 @@ watch(() => props.answer, parse, { immediate: true });
         </table>
       </div>
       <ul v-if="result.skipped.length" class="mt-2 space-y-0.5 text-xs text-muted">
-        <li v-for="(item, at) in result.skipped" :key="at">Пропущено `{{ item.path }}`: {{ item.reason }}</li>
+        <li v-for="(item, at) in result.skipped" :key="at">{{ t('t83.architecture-audit.4', { path: item.path, reason: item.reason }) }}</li>
       </ul>
     </template>
   </div>

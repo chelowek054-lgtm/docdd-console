@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { LinkKind } from '~~/server/lib/types';
-import type { IndexRecord } from '~~/server/lib/types';
+import type { IndexRecord } from '~~/server/lib/types'; import { VERIFICATION_FIELDS } from '~~/server/lib/verify-desk';
 
 const route = useRoute();
 const projectId = computed(() => String(route.params['id'] ?? ''));
-const recordId = computed(() => String(route.params['recordId'] ?? ''));
+const recordId = computed(() => String(route.params['recordId'] ?? '')); const { t, locale } = useT();
 
 const { detail, failure, refresh } = useRecord(projectId, recordId);
 const { byId, index, patchRecord } = useProjectIndex(projectId);
@@ -15,34 +15,34 @@ async function reload(record?: IndexRecord) {
   await refresh();
 }
 
-const LINK_LABELS: Record<LinkKind, string> = {
-  implements: 'выполняет требование',
-  refines: 'уточняет',
-  decided_by: 'опирается на решение',
-  supersedes: 'заменяет',
-  depends_on: 'зависит от',
-  verified_by: 'проверяется',
-  verifies: 'проверяет',
-  documents: 'правит документ',
-  covers: 'состав',
-  reuses: 'переиспользует справку'
-};
+const LINK_LABELS = computed<Record<LinkKind, string>>(() => ({
+  implements: t('rec.lnk.implements'),
+  refines: t('rec.lnk.refines'),
+  decided_by: t('rec.lnk.decided_by'),
+  supersedes: t('rec.lnk.supersedes'),
+  depends_on: t('rec.lnk.depends_on'),
+  verified_by: t('rec.lnk.verified_by'),
+  verifies: t('rec.lnk.verifies'),
+  documents: t('rec.lnk.documents'),
+  covers: t('rec.lnk.covers'),
+  reuses: t('rec.lnk.reuses')
+}));
 
-const BACKLINK_LABELS: Record<LinkKind, string> = {
-  implements: 'выполняется задачами',
-  refines: 'уточняется',
-  decided_by: 'на решение опираются',
-  supersedes: 'заменено записью',
-  depends_on: 'от него зависят',
-  verified_by: 'проверяет',
-  verifies: 'проверяется',
-  documents: 'правится задачами',
-  covers: 'входит в фазу',
-  reuses: 'переиспользуется задачами'
-};
+const BACKLINK_LABELS = computed<Record<LinkKind, string>>(() => ({
+  implements: t('rec.blnk.implements'),
+  refines: t('rec.blnk.refines'),
+  decided_by: t('rec.blnk.decided_by'),
+  supersedes: t('rec.blnk.supersedes'),
+  depends_on: t('rec.blnk.depends_on'),
+  verified_by: t('rec.blnk.verified_by'),
+  verifies: t('rec.blnk.verifies'),
+  documents: t('rec.blnk.documents'),
+  covers: t('rec.blnk.covers'),
+  reuses: t('rec.blnk.reuses')
+}));
 
-const links = computed(() => entries(detail.value?.record.links ?? {}, LINK_LABELS));
-const backlinks = computed(() => entries(detail.value?.record.backlinks ?? {}, BACKLINK_LABELS));
+const links = computed(() => entries(detail.value?.record.links ?? {}, LINK_LABELS.value));
+const backlinks = computed(() => entries(detail.value?.record.backlinks ?? {}, BACKLINK_LABELS.value));
 
 /** Журнал — часть тела документа; приложение его читает, но не переписывает. */
 const journal = computed(() => {
@@ -56,15 +56,15 @@ const journal = computed(() => {
     .map((line) => line.trim().slice(2));
 });
 
-const extraFields = computed(() => Object.entries(detail.value?.record.extra ?? {}));
+const extraFields = computed(() => Object.entries(detail.value?.record.extra ?? {}).filter(([key]) => !(detail.value?.record.type === 'verification' && VERIFICATION_FIELDS.has(key)))); // поля контракта проверки показывает «Как проверить»
 
-const VERDICTS: Record<string, { label: string; color: BadgeColor }> = {
-  ok: { label: 'сошлось', color: 'success' },
-  pending: { label: 'сверять рано', color: 'neutral' },
-  missing: { label: 'файла нет', color: 'error' },
-  stale: { label: 'строки нет', color: 'error' },
-  still_present: { label: 'на месте', color: 'error' }
-};
+const VERDICTS = computed<Record<string, { label: string; color: BadgeColor }>>(() => ({
+  ok: { label: t('rec.verdict.ok'), color: 'success' },
+  pending: { label: t('rec.verdict.pending'), color: 'neutral' },
+  missing: { label: t('rec.verdict.missing'), color: 'error' },
+  stale: { label: t('rec.verdict.stale'), color: 'error' },
+  still_present: { label: t('rec.verdict.still_present'), color: 'error' }
+}));
 
 /** Блоки из текста рисует сам текст; отдельной карточкой — только файлы `.mmd`. */
 const fileDiagrams = computed(() => (detail.value?.diagrams ?? []).filter((diagram) => diagram.kind === 'file'));
@@ -88,14 +88,16 @@ function entries(
         <span class="font-mono text-sm text-muted">{{ detail.record.id }}</span>
         <h1 class="text-xl font-semibold">{{ detail.record.title }}</h1>
         <UBadge color="neutral" variant="subtle">{{ typeLabel(detail.record.type) }}</UBadge>
-        <StatusBadge :status="detail.record.status" />
+        <StatusBadge :status="detail.record.status" :type="detail.record.type" />
       </div>
 
       <p class="text-sm text-muted">
-        Файл <span class="font-mono">{{ detail.record.path }}</span>
-        <template v-if="detail.record.updated"> · изменён {{ detail.record.updated }}</template>
+        {{ t('rec.file') }} <span class="font-mono">{{ detail.record.path }}</span>
+        <template v-if="detail.record.updated"> · {{ t('rec.changed') }} {{ detail.record.updated }}</template>
         <template v-if="detail.record.owner"> · {{ detail.record.owner }}</template>
       </p>
+
+      <RecordDiff :project-id="projectId" :record-id="recordId" :status="detail.record.status" />
 
       <RecordActions
         :project-id="projectId"
@@ -105,7 +107,7 @@ function entries(
         @changed="reload"
       />
 
-      <!-- Справочник: feature без reuses — выбрать справку или записать «подходящего нет» (docs/13-reference.md). -->
+      <RecordDiscussion :project-id="projectId" :record-id="recordId" /> <RecordAsk :project-id="projectId" :record-id="recordId" /><!-- Справочник: feature без reuses — выбрать справку или записать «подходящего нет» (docs/13-reference.md). --> <RecordCriteria v-if="detail.record.type === 'requirement'" :project-id="projectId" :record-id="recordId" :body="detail.body" :records="index?.records ?? []" @created="refresh" />
       <TaskReuse
         v-if="detail.record.type === 'task'"
         :project-id="projectId"
@@ -134,26 +136,34 @@ function entries(
         @changed="reload"
       />
 
+      <TaskAssignee
+        v-if="detail.record.type === 'task'"
+        :project-id="projectId"
+        :task="detail.record"
+        @changed="reload"
+      />
+
       <!-- Ручная проверка: флажок «Проверено» фиксирует прогон (docs/04-ui.md). -->
-      <UCard v-if="detail.record.type === 'verification'">
-        <template #header>
-          <h2 class="font-medium">Проверено ли</h2>
-        </template>
-        <VerifiedCheck
-          :project-id="projectId"
-          :record="detail.record"
-          :result="index?.verificationResults[detail.record.id]"
-          :roles="index?.project.roles ?? []"
-          @changed="reload"
-        />
-      </UCard>
+      <!-- Карточка «Как проверить»: способ, что проверяет, история прогонов (docs/04-ui.md, «Карточка проверки»). -->
+      <VerificationCard
+        v-if="detail.record.type === 'verification'"
+        :project-id="projectId"
+        :record="detail.record"
+        :index="index"
+        @changed="reload"
+      />
+      <!-- Внутри — прежние «Проверено» и «Дефект из провала»: -->
+      <!-- ручную проверку прогоняет только человек, -->
+      <!-- провал автоматической превращается в дефект одной кнопкой. -->
+      <!-- Данные — из индекса: отчёты, связи, задачи требования. -->
+      <!-- Сам текст проверки (шаги) — ниже, в «Тексте документа». -->
 
       <UCard v-if="detail.map">
         <template #header>
           <div class="flex flex-wrap items-center gap-3">
-            <h2 class="font-medium">Что меняется в устройстве</h2>
+            <h2 class="font-medium">{{ t('rec.structChange') }}</h2>
             <p class="text-sm text-muted">
-              {{ detail.map.structures.length ? detail.map.structures.join(', ') : 'структуры не описаны' }}
+              {{ detail.map.structures.length ? detail.map.structures.join(', ') : t('rec.noStructures') }}
             </p>
           </div>
         </template>
@@ -165,19 +175,19 @@ function entries(
           color="error"
           variant="subtle"
           icon="i-lucide-triangle-alert"
-          title="Карта не разбирается"
+          :title="t('rec.mapUnparsed')"
           :description="problem.message"
         />
 
         <p v-if="detail.map.claims.length === 0" class="text-sm text-muted">
-          Утверждений со свидетельствами нет. Карта без свидетельств — мнение:
-          сверять в ней нечего.
+          {{ t('rec.noClaims') }}
+
         </p>
 
         <ul v-else class="divide-y divide-default">
           <li v-for="(claim, at) in detail.map.claims" :key="at" class="flex flex-wrap items-center gap-3 py-2">
             <UBadge :color="claim.side === 'added' ? 'primary' : 'neutral'" variant="subtle" size="sm">
-              {{ claim.side === 'added' ? 'добавлено' : 'убрано' }}
+              {{ claim.side === 'added' ? t('rec.added') : t('rec.removed') }}
             </UBadge>
             <span class="font-mono text-xs">{{ claim.label }}</span>
             <span class="text-xs text-muted">{{ claim.path }}:{{ claim.line }}</span>
@@ -201,7 +211,7 @@ function entries(
       />
 
       <div v-if="detail.issues.length" class="space-y-2">
-        <h2 class="font-medium">Что не так с этой записью</h2>
+        <h2 class="font-medium">{{ t('rec.problems') }}</h2>
         <IssueList :project-id="projectId" :issues="detail.issues" />
       </div>
 
@@ -218,11 +228,11 @@ function entries(
 
           <UCard v-if="fileDiagrams.length">
             <template #header>
-              <h2 class="font-medium">Диаграммы</h2>
+              <h2 class="font-medium">{{ t('rec.diagrams') }}</h2>
             </template>
             <p class="mb-3 text-sm text-muted">
-              Диаграммы из отдельных файлов <code>.mmd</code>: блоки внутри текста
-              нарисованы там же, где стоят.
+              {{ t('rec.diagFiles') }} <code>.mmd</code>{{ t('rec.diagFiles2') }}
+
             </p>
             <div v-for="(diagram, at) in fileDiagrams" :key="at" class="mb-3">
               <p class="text-xs text-muted">
@@ -233,7 +243,7 @@ function entries(
                 color="warning"
                 variant="subtle"
                 :title="diagram.error"
-                description="Ошибка диаграммы не мешает читать документ."
+                :description="t('rec.diagramErr')"
               />
               <MermaidDiagram v-else :source="diagram.source" :id="`file-${at}`" />
             </div>
@@ -243,29 +253,29 @@ function entries(
         <div class="space-y-4">
           <UCard>
             <template #header>
-              <h2 class="font-medium">Связи</h2>
+              <h2 class="font-medium">{{ t('rec.links') }}</h2>
             </template>
 
             <p v-if="links.length === 0 && backlinks.length === 0" class="text-sm text-muted">
-              Запись ни с чем не связана. В графе это висящий узел.
+              {{ t('rec.noLinks') }}
             </p>
 
             <div v-for="group in links" :key="`out:${group.kind}`" class="mb-3">
               <p class="text-xs uppercase tracking-wide text-muted">{{ group.label }}</p>
               <ul class="mt-1 space-y-1">
                 <li v-for="id in group.ids" :key="id">
-                  <RecordLink :project-id="projectId" :record-id="id" :record="byId.get(id) ?? null" />
+                  <RecordLink :project-id="projectId" :record-id="id" :record="index ? (byId.get(id) ?? null) : undefined" />
                 </li>
               </ul>
             </div>
 
             <div v-if="backlinks.length" class="border-t border-default pt-3">
-              <p class="mb-2 text-xs text-muted">Обратные связи строит приложение — в файле их нет.</p>
+              <p class="mb-2 text-xs text-muted">{{ t('rec.backlinks') }}</p>
               <div v-for="group in backlinks" :key="`in:${group.kind}`" class="mb-3">
                 <p class="text-xs uppercase tracking-wide text-muted">{{ group.label }}</p>
                 <ul class="mt-1 space-y-1">
                   <li v-for="id in group.ids" :key="id">
-                    <RecordLink :project-id="projectId" :record-id="id" :record="byId.get(id) ?? null" />
+                    <RecordLink :project-id="projectId" :record-id="id" :record="index ? (byId.get(id) ?? null) : undefined" />
                   </li>
                 </ul>
               </div>
@@ -274,12 +284,12 @@ function entries(
 
           <UCard v-if="Object.keys(detail.verifications).length">
             <template #header>
-              <h2 class="font-medium">Прогоны</h2>
+              <h2 class="font-medium">{{ t('rec.runs') }}</h2>
             </template>
             <ul class="space-y-2 text-sm">
               <li v-for="(outcome, id) in detail.verifications" :key="id" class="flex items-center justify-between gap-2">
                 <span class="font-mono text-xs">{{ id }}</span>
-                <span class="text-muted">{{ new Date(outcome.at).toLocaleDateString('ru-RU') }} · {{ outcome.runner }}</span>
+                <span class="text-muted">{{ new Date(outcome.at).toLocaleDateString(locale === 'en' ? 'en-GB' : 'ru-RU') }} · {{ outcome.runner }}</span>
                 <UBadge :color="statusColor(outcome.state)" variant="subtle" size="sm">
                   {{ resultLabel(outcome.state) }}
                 </UBadge>
@@ -289,7 +299,7 @@ function entries(
 
           <UCard v-if="journal.length">
             <template #header>
-              <h2 class="font-medium">Журнал</h2>
+              <h2 class="font-medium">{{ t('rec.journal') }}</h2>
             </template>
             <ul class="space-y-1 text-sm text-muted">
               <li v-for="(line, at) in journal" :key="at">{{ line }}</li>
@@ -298,10 +308,10 @@ function entries(
 
           <UCard v-if="extraFields.length">
             <template #header>
-              <h2 class="font-medium">Поля проекта</h2>
+              <h2 class="font-medium">{{ t('rec.projectFields') }}</h2>
             </template>
             <p class="mb-2 text-xs text-muted">
-              Приложение их не понимает, но обязано вернуть и сохранить.
+              {{ t('rec.extraHint') }}
             </p>
             <dl class="space-y-1 text-sm">
               <div v-for="[key, value] in extraFields" :key="key" class="flex gap-2">
@@ -309,7 +319,7 @@ function entries(
                 <dd class="min-w-0 break-words">{{ value }}</dd>
               </div>
             </dl>
-          </UCard>
+          </UCard><UCard v-if="detail.record.type === 'task' && detail.record.status === 'done' && (detail.record.backlinks.ships?.length ?? 0) > 0"><template #header><h2 class="font-medium">{{ t('rec.release') }}</h2></template><p v-for="id in detail.record.backlinks.ships" :key="id" class="text-sm"><RecordLink :project-id="projectId" :record-id="id" :record="index ? (byId.get(id) ?? null) : undefined" /></p></UCard>
         </div>
       </div>
     </template>

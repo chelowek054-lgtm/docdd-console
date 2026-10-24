@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script setup lang="ts"> const { me } = useMe(() => "");
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import type { ProjectEntry } from '~~/server/lib/types';
 
@@ -14,7 +14,7 @@ const offerInit = ref(false);
 const newId = ref('');
 const newName = ref('');
 const initFailure = ref<ApiFailure | null>(null);
-const initializing = ref(false);
+const initializing = ref(false); const gitReady = ref(false); const scenario = ref<'new' | 'existing'>('existing'); const template = ref('none'); /* шаблон проекта (R-0090): none — пустой формат */ const templateItems = computed(() => [{ label: t('home.templateNone'), value: 'none' }, { label: t('home.templateCore'), value: 'software-core' }]);
 
 function suggestFromPath(path: string) {
   // Путь приходит и с прямыми, и с обратными слешами: пользователь копирует его
@@ -30,7 +30,7 @@ async function init() {
   try {
     const response = await $fetch<ProjectEntry | { error: ApiFailure }>('/api/projects/init', {
       method: 'POST',
-      body: { root: root.value.trim(), id: newId.value.trim(), name: newName.value.trim() },
+      body: { root: root.value.trim(), id: newId.value.trim(), name: newName.value.trim(), ...(template.value !== 'none' ? { template: template.value } : {}) },
       ignoreResponseError: true
     });
     const problem = failureOf(response);
@@ -40,8 +40,7 @@ async function init() {
     }
     offerInit.value = false;
     failure.value = null;
-    root.value = '';
-    await refresh();
+    root.value = ''; await refresh(); await navigateTo(`/projects/${(response as ProjectEntry).id}/fill?tab=onboarding&scenario=${scenario.value}`); // сценарий ведёт дальше (R-0075)
   } finally {
     initializing.value = false;
   }
@@ -94,7 +93,7 @@ function shortDate(iso: string): string {
 <template>
   <div class="space-y-6">
     <div>
-      <h1 class="text-xl font-semibold">{{ t('home.title') }}</h1>
+      <h1 class="text-xl font-semibold">{{ t('home.title') }}</h1><NuxtLink v-if="me.user?.admin" to="/people" class="text-sm text-primary hover:underline">{{ t('t83.index.2') }}</NuxtLink>
       <p class="text-sm text-muted">{{ t('home.lead') }}</p>
     </div>
 
@@ -123,14 +122,15 @@ function shortDate(iso: string): string {
       />
 
       <div v-if="offerInit" class="mt-4 space-y-3 ds-card p-4">
-        <p class="text-sm">{{ t('home.initQuestion', { root }) }}</p>
+        <p class="text-sm">{{ t('home.initQuestion', { root }) }}</p><GitGate v-model="gitReady" :root="root" />
         <div class="flex flex-col gap-3 sm:flex-row">
           <UInput v-model="newName" :placeholder="t('home.namePlaceholder')" class="flex-1" />
           <UInput v-model="newId" :placeholder="t('home.idPlaceholder')" class="flex-1" />
-          <UButton :loading="initializing" :disabled="!newId.trim() || !newName.trim()" @click="init">
+          <UButton :loading="initializing" :disabled="!newId.trim() || !newName.trim() || !gitReady" @click="init">
             {{ t('home.initButton') }}
           </UButton>
         </div>
+        <UFormField :label="t('home.scenario')"><URadioGroup v-model="scenario" :items="[{ label: t('home.scenarioNew'), value: 'new' }, { label: t('home.scenarioExisting'), value: 'existing' }]" /></UFormField><UFormField :label="t('home.template')" :help="t('home.templateHelp')"><USelect v-model="template" :items="templateItems" class="w-full sm:w-80" /></UFormField>
         <p class="text-xs text-muted">{{ t('home.initNote') }}</p>
         <UAlert
           v-if="initFailure"

@@ -19,8 +19,9 @@ const RULE = '__rule__';
 const pick = computed(() => reviewerOf(props.task, props.records, props.roles));
 const unknownRole = computed(() => !!pick.value?.explicit && props.roles.length > 0
   && !props.roles.some((role) => role.id === pick.value?.role));
+const { t } = useT();
 const items = computed(() => [
-  { label: 'По правилу', value: RULE },
+  { label: t('rv.rule'), value: RULE },
   ...props.roles.map((role) => ({ label: role.name, value: role.id }))
 ]);
 
@@ -33,7 +34,7 @@ async function choose(value: string) {
   try {
     const response = await $fetch(`/api/projects/${props.projectId}/records/${props.task.id}`, {
       method: 'PATCH',
-      body: { reviewer: value === RULE ? null : value },
+      body: { reviewer: value === RULE ? null : value, version: props.task.version },
       ignoreResponseError: true
     });
     const problem = failureOf(response);
@@ -48,16 +49,16 @@ async function choose(value: string) {
 <template>
   <UCard>
     <template #header>
-      <h2 class="font-medium">Ревьюер</h2>
+      <h2 class="font-medium">{{ t('rv.title') }}</h2>
     </template>
     <div class="flex flex-wrap items-center gap-3 text-sm">
       <p v-if="pick" class="min-w-0 flex-1">
         <span class="font-medium">{{ roleName(pick.role, props.roles) }}</span>
-        <span class="text-muted"> — {{ pick.explicit ? 'назначен явно' : `по правилу: ${pick.why}` }}</span>
-        <span v-if="unknownRole" class="text-warning"> · роли нет в манифесте</span>
+        <span class="text-muted"> — {{ pick.explicit ? t('rv.explicit') : t('rv.byRule', { why: pick.why }) }}</span>
+        <span v-if="unknownRole" class="text-warning"> · {{ t('rv.unknown') }}</span>
       </p>
       <p v-else class="min-w-0 flex-1 text-warning">
-        Ревьюера нет: ни одна роль манифеста не подошла. Назначьте явно.
+        {{ t('rv.none') }}
       </p>
       <USelect
         v-if="props.roles.length"

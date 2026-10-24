@@ -2,6 +2,7 @@
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import { reviewerOf } from '~~/server/lib/reviewer';
 import type { IndexRecord } from '~~/server/lib/types';
+import { parseCheckSteps } from '~~/server/lib/manual-report';
 
 /**
  * «Принять вручную» (docs/04-ui.md): отметка «Проверено» на ручных проверках
@@ -23,10 +24,10 @@ const open = defineModel<boolean>('open', { default: false });
 
 const { index, byId, refresh } = useProjectIndex(() => props.projectId);
 
-const MANUAL = ['manual', 'review'];
+const MANUAL = ['manual', 'review']; const { t } = useT();
 const isManual = (record: IndexRecord) => MANUAL.includes(String(record.extra['kind'] ?? ''));
 /** У автоматических видов приёмка честно помечена: прогона сборки не было (ADR-0029). */
-const kindNote = (record: IndexRecord) => isManual(record) ? '' : `вид ${String(record.extra['kind'] ?? 'без вида')} — прогона сборки не было`;
+const kindNote = (record: IndexRecord) => isManual(record) ? '' : t('ma.kindNote', { kind: String(record.extra['kind'] ?? t('ma.noKind')) });
 
 const tasks = computed(() => (props.taskIds ?? []).map((id) => byId.value.get(id)).filter((r): r is IndexRecord => !!r));
 
@@ -65,7 +66,7 @@ const notReady = computed(() => sharedTasks.value.filter((record) => record.stat
 const skipped = ref<string[]>([]);
 const alsoClose = computed(() => closable.value.filter((record) => !skipped.value.includes(record.id)));
 
-const actor = ref(props.roles[0]?.id ?? '');
+const actor = ref(props.roles[0]?.id ?? ''); const { me } = useMe(() => props.projectId);
 const by = ref('');
 const note = ref('');
 const confirmed = ref(false);
@@ -74,12 +75,24 @@ const busy = ref(false);
 interface Line { id: string; ok: boolean; text: string }
 const outcome = ref<Line[] | null>(null);
 
+// Шаги проверок (R-0061) берутся из тела записи; у проверки без шагов окно прежнее.
+interface StepView { text: string; expected?: string }
+const stepsOf = ref<Record<string, StepView[]>>({});
+const failedSteps = ref<Record<string, number[]>>({});
+watch(() => manual.value.map((check) => check.id).join(','), async () => {
+  for (const check of manual.value) {
+    if (stepsOf.value[check.id]) continue;
+    const detail = await $fetch<{ body?: string }>(`/api/projects/${props.projectId}/records/${check.id}`, { ignoreResponseError: true }).catch(() => null);
+    stepsOf.value = { ...stepsOf.value, [check.id]: parseCheckSteps(detail?.body ?? '') };
+  }
+}, { immediate: true });
+
 const noteProblem = computed(() => {
-  if (note.value.trim().length > 300) return 'Не длиннее 300 знаков.';
-  if (note.value.trim().split('\n').length > 2) return 'Не больше двух строк.';
+  if (note.value.trim().length > 300) return t('ma.note300');
+  if (note.value.trim().split('\n').length > 2) return t('ma.note2');
   return '';
 });
-const byProblem = computed(() => (by.value.trim().length > 80 ? 'Не длиннее 80 знаков.' : ''));
+const byProblem = computed(() => (by.value.trim().length > 80 ? t('ma.by80') : ''));
 const canAccept = computed(() =>
   manual.value.length > 0 && by.value.trim() !== '' && note.value.trim() !== ''
   && confirmed.value && !noteProblem.value && !byProblem.value && !busy.value && outcome.value === null);
@@ -97,20 +110,23 @@ async function accept() {
     for (const check of manual.value) {
       const response = await $fetch<unknown>(`/api/projects/${props.projectId}/records/${check.id}/verified`, {
         method: 'POST',
-        body: { verified: true, actor: actor.value, by: by.value.trim(), note: note.value.trim() },
+        body: {
+          verified: true, actor: actor.value, by: by.value.trim(), note: note.value.trim(),
+          steps: (stepsOf.value[check.id] ?? []).map((_, i) => ((failedSteps.value[check.id] ?? []).includes(i) ? 'failed' : 'passed'))
+        },
         ignoreResponseError: true
       });
       const problem = reason(response);
-      lines.push({ id: check.id, ok: !problem, text: problem ?? 'отмечена вручную' });
+      lines.push({ id: check.id, ok: !problem, text: problem ?? t('ma.marked') });
     }
     for (const task of [...tasks.value, ...alsoClose.value]) {
       const response = await $fetch<unknown>(`/api/projects/${props.projectId}/records/${task.id}/status`, {
         method: 'POST',
-        body: { status: 'done', actor: actor.value },
+        body: { status: 'done', actor: actor.value, version: task.version },
         ignoreResponseError: true
       });
       const problem = reason(response);
-      lines.push({ id: task.id, ok: !problem, text: problem ?? 'переведена в «Готово»' });
+      lines.push({ id: task.id, ok: !problem, text: problem ?? t('ma.done') });
     }
     outcome.value = lines;
     await refresh();
@@ -138,44 +154,54 @@ watch(open, (value) => {
 <template>
   <UModal
     v-model:open="open"
-    title="Принять вручную"
-    description="Отметка «Проверено» на ручных проверках и повторный перевод задач."
+    :title="t('ma.title')"
+    :description="t('ma.desc')"
   >
     <template #body>
       <div class="space-y-4 text-sm">
         <p v-if="tasks.length">
-          Задачи: <span v-for="task in tasks" :key="task.id" class="mr-2 font-mono text-xs">{{ task.id }}</span>
+          {{ t('ma.tasks') }}: <span v-for="task in tasks" :key="task.id" class="mr-2 font-mono text-xs">{{ task.id }}</span>
         </p>
 
         <p v-if="manual.length === 0" class="text-muted">
-          Принимать вручную нечего: непройденных проверок у этих записей нет.
+          {{ t('ma.nothing') }}
         </p>
 
         <div v-if="manual.length">
-          <p class="mb-1 font-medium">Будут отмечены «Проверено»</p>
+          <p class="mb-1 font-medium">{{ t('ma.willMark') }}</p>
           <ul class="space-y-0.5">
             <li v-for="check in manual" :key="check.id">
               <span class="font-mono text-xs">{{ check.id }}</span> {{ check.title }}
               <span v-if="kindNote(check)" class="text-xs text-muted">· {{ kindNote(check) }}</span>
+              <ol v-if="stepsOf[check.id]?.length" class="ml-4 list-decimal text-xs">
+                <li v-for="(step, i) in stepsOf[check.id]" :key="i">
+                  {{ step.text }}<span v-if="step.expected" class="text-muted"> → {{ step.expected }}</span>
+                  <UCheckbox
+                    :model-value="(failedSteps[check.id] ?? []).includes(i)"
+                    :label="t('ma.stepFailed')"
+                    @update:model-value="(v) => (failedSteps[check.id] = v === true ? [...(failedSteps[check.id] ?? []), i] : (failedSteps[check.id] ?? []).filter((n) => n !== i))"
+                  />
+                </li>
+              </ol>
             </li>
           </ul>
         </div>
 
-        <div v-if="manual.length && sharedTasks.length && outcome === null" class="space-y-2 rounded border border-default p-2">
+        <div v-if="manual.length && sharedTasks.length && outcome === null" class="space-y-2 ds-card p-2">
           <div v-if="closable.length">
-            <p class="mb-1 text-muted">Проверка общая: эти задачи тоже на проверке — закроются тем же приёмом.</p>
+            <p class="mb-1 text-muted">{{ t('ma.shared') }}</p>
             <UCheckbox
               v-for="task in closable"
               :key="task.id"
               :model-value="!skipped.includes(task.id)"
-              :label="`Закрыть и ${task.id} — ${task.title}`"
+              :label="t('ma.closeAlso', { id: task.id, title: task.title })"
               @update:model-value="(value) => (skipped = value === true ? skipped.filter((id) => id !== task.id) : [...skipped, task.id])"
             />
           </div>
           <div v-if="notReady.length">
             <p class="mb-1 text-warning">
-              Требование реализовано не полностью: эти задачи не переводятся, а когда дойдут до «на проверке»,
-              пройденная проверка их уже не задержит.
+              {{ t('ma.notReady') }}
+
             </p>
             <ul class="space-y-0.5">
               <li v-for="task in notReady" :key="task.id">
@@ -187,27 +213,27 @@ watch(open, (value) => {
         </div>
 
         <template v-if="manual.length && outcome === null">
-          <UFormField v-if="props.roles.length" label="Кто принял" help="Роль из манифеста; по умолчанию — ревьюер задачи.">
-            <USelect
+          <UFormField v-if="props.roles.length" :label="t('ma.acceptedBy')" :help="t('ma.acceptedHelp')">
+            <USelect v-if="!me.required"
               v-model="actor"
               class="w-full"
               :items="props.roles.map((role) => ({ label: role.name, value: role.id }))"
-            />
+            /><span v-if="me.required && me.user" class="text-sm text-muted">{{ t('tw.signedIn') }}: {{ me.user.name }}</span>
           </UFormField>
-          <UFormField label="Кто проверил" required :error="byProblem || undefined">
-            <UInput v-model="by" class="w-full" placeholder="Имя того, кто проверил" />
+          <UFormField :label="t('ma.checkedBy')" required :error="byProblem || undefined">
+            <UInput v-model="by" class="w-full" :placeholder="t('ma.checkedByHint')" />
           </UFormField>
-          <UFormField label="Что проверено" required :error="noteProblem || undefined" help="Одна-две строки, до 300 знаков.">
+          <UFormField :label="t('ma.what')" required :error="noteProblem || undefined" :help="t('ma.whatHelp')">
             <UTextarea v-model="note" class="w-full" :rows="2" />
           </UFormField>
-          <UCheckbox v-model="confirmed" label="Проверил вручную" />
+          <UCheckbox v-model="confirmed" :label="t('ma.confirmed')" />
         </template>
 
         <div v-if="outcome">
-          <p class="mb-1 font-medium">Итог</p>
+          <p class="mb-1 font-medium">{{ t('ma.result') }}</p>
           <ul class="space-y-0.5">
             <li v-for="line in outcome" :key="line.id" :class="line.ok ? '' : 'text-error'">
-              <span class="font-mono text-xs">{{ line.id }}</span> — {{ line.ok ? line.text : `осталась: ${line.text}` }}
+              <span class="font-mono text-xs">{{ line.id }}</span> — {{ line.ok ? line.text : t('ma.left', { text: line.text }) }}
             </li>
           </ul>
         </div>
@@ -217,9 +243,9 @@ watch(open, (value) => {
     <template #footer>
       <div class="flex w-full justify-end gap-2">
         <UButton variant="ghost" color="neutral" @click="open = false">
-          {{ outcome ? 'Закрыть' : 'Отмена' }}
+          {{ outcome ? t('ma.close') : t('ma.cancel') }}
         </UButton>
-        <UButton v-if="outcome === null" :disabled="!canAccept" :loading="busy" @click="accept">Принять</UButton>
+        <UButton v-if="outcome === null" :disabled="!canAccept" :loading="busy" @click="accept">{{ t('ma.accept') }}</UButton>
       </div>
     </template>
   </UModal>

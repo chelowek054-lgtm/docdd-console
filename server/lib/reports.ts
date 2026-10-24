@@ -31,7 +31,8 @@ export function latestVerificationDetails(reports: readonly Report[]): Map<strin
         runner: report.runner,
         ...(report.checked_by ? { checkedBy: report.checked_by } : {}),
         ...(report.note ? { note: report.note } : {}),
-        ...(report.verification_kind ? { manualKind: report.verification_kind } : {})
+        ...(report.verification_kind ? { manualKind: report.verification_kind } : {}),
+        ...(state === 'blocked' && report.reasons?.[id] ? { reason: report.reasons[id] } : {})
       });
     }
   }

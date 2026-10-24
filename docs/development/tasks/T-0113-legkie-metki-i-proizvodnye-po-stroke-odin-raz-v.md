@@ -2,10 +2,10 @@
 id: T-0113
 type: task
 title: Лёгкие метки и производные по строке один раз в списках
-status: in_progress
+status: done
 change: feature
 created: 2026-10-20
-updated: 2026-10-20
+updated: 2026-10-21
 links:
   implements: [R-0049]
   affects: [M-0052]
@@ -21,3 +21,5 @@ TasksPanel, требования, фазы, проверки, документы
 - 2026-10-20 · заведена из docs/inbox/skorost-otrisovki-spiski-zadach-trebovaniy-faz-i.md · приложение
 - 2026-10-20 · готова к работе · architect
 - 2026-10-20 · в разработку · architect
+- 2026-10-21 · на проверку · architect
+- 2026-10-21 · закрыта · architect

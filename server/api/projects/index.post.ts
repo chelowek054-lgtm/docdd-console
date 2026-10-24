@@ -4,6 +4,7 @@ import { normalizeRoot } from '../../lib/paths';
 import { WorkspaceError, readManifest } from '../../lib/workspace';
 import { fail } from '../../utils/http';
 import { findProject, saveProject } from '../../utils/projects';
+import { rootAllowed } from '../../utils/mode';
 
 export default defineEventHandler(async (event) => {
   const body = await readBody<{ root?: unknown }>(event);
@@ -13,6 +14,10 @@ export default defineEventHandler(async (event) => {
   }
 
   const normalized = normalizeRoot(root);
+  // normalizeRoot разворачивает ссылки, поэтому `..` и симлинк наружу здесь уже видны как есть.
+  if (!rootAllowed(normalized)) {
+    return fail(event, 403, 'root_not_allowed', 'Путь вне каталогов из DOCDD_PROJECT_ROOTS (в режиме shared переменная обязательна)');
+  }
   try {
     const manifest = readManifest(normalized);
     const id = manifest.project.id;

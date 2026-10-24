@@ -4,7 +4,7 @@ type: verification
 title: Блокировки и замер на 5000 записей
 status: approved
 created: 2026-10-10
-updated: 2026-10-11
+updated: 2026-10-21
 kind: metric
 runner: npm
 command: npm run test -- tests/scale.spec.ts
@@ -19,3 +19,4 @@ command: npm run test -- tests/scale.spec.ts
 - 2026-10-10 · заведена: план «Платформа команды вместо Jira и Confluence» (docs/15-team-platform.md) · модель
 - 2026-10-11 · на подтверждение · architect
 - 2026-10-11 · подтверждён · architect
+- 2026-10-21 · проверена вручную (вид metric) · architect · проверил Claude Sonnet 5.5 (агент), по поручению пользователя · Принято по указанию пользователя: тест на 5000 записей и версии записей зелёный, предел времени в проверке не записан. · architect

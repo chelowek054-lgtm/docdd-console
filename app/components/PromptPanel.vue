@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ApiFailure } from '~/composables/useProjectIndex';
+import type { ApiFailure } from '~/composables/useProjectIndex'; const { t } = useT();
 
 /**
  * Запрос к модели: показать, скопировать, отправить. Отправка идёт через Claude
@@ -157,11 +157,11 @@ function accept(result: { answer: string }) {
         :icon="copiedDirect ? 'i-lucide-check' : 'i-lucide-copy'"
         :loading="copying"
         :disabled="props.disabled"
-        :aria-label="`Скопировать запрос: ${props.label}`"
+        :aria-label="t('t83.m3.pp.copy', { label: props.label })"
         :title="props.hint"
         @click="copyDirect"
       >
-        {{ copiedDirect ? 'Скопировано' : 'Скопировать' }}
+        {{ copiedDirect ? t('t83.m3.pp.copied') : t('t83.m3.pp.copyShort') }}
       </UButton>
 
       <!-- Неактивная кнопка обязана назвать причину (docs/04-ui.md). -->
@@ -173,7 +173,7 @@ function accept(result: { answer: string }) {
     <UCard v-if="open" class="mt-3">
       <template #header>
         <div class="flex flex-wrap items-center gap-3">
-          <h2 class="font-medium">Запрос к модели</h2>
+          <h2 class="font-medium">{{ t('t83.prompt-panel.1') }}</h2>
           <p class="text-sm text-muted">{{ props.hint }}</p>
           <UButton
             class="ml-auto"
@@ -181,7 +181,7 @@ function accept(result: { answer: string }) {
             variant="ghost"
             color="neutral"
             icon="i-lucide-x"
-            aria-label="Закрыть"
+            :aria-label="t('t83.prompt-panel.2')"
             @click="open = false"
           />
         </div>
@@ -216,11 +216,11 @@ function accept(result: { answer: string }) {
       <template v-if="prompt">
         <div class="mb-3 flex flex-wrap items-center gap-3">
           <UButton size="sm" variant="outline" color="neutral" icon="i-lucide-copy" @click="copy">
-            {{ copied ? 'Скопировано' : 'Скопировать запрос' }}
+            {{ copied ? t('t83.m3.pp.copied') : t('t83.m3.pp.copyReq') }}
           </UButton>
 
           <UButton v-if="!asking" size="sm" :disabled="!llm?.available" @click="send">
-            Спросить модель
+            {{ t('t83.prompt-panel.3') }}
           </UButton>
 
           <!-- Неактивная кнопка обязана назвать причину (docs/04-ui.md). -->
@@ -234,8 +234,8 @@ function accept(result: { answer: string }) {
 
       <div v-if="answer" class="mt-4">
         <div class="mb-2 flex flex-wrap items-center gap-3">
-          <h3 class="font-medium">Ответ модели</h3>
-          <p class="text-sm text-muted">Предложение, а не решение: применяете вы.</p>
+          <h3 class="font-medium">{{ t('t83.prompt-panel.4') }}</h3>
+          <p class="text-sm text-muted">{{ t('t83.prompt-panel.5') }}</p>
         </div>
         <slot name="answer" :answer="answer" />
         <div class="docdd-answer">

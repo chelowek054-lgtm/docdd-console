@@ -28,7 +28,7 @@ export default defineEventHandler(async (event) => {
 
   const body = await readBody<{
     type?: unknown; title?: unknown; owner?: unknown; links?: unknown; kind?: unknown; change?: unknown; body?: unknown;
-    summary?: unknown; source?: unknown; fetched?: unknown;
+    summary?: unknown; source?: unknown; fetched?: unknown; environment?: unknown; build?: unknown;
   }>(event);
   const type = typeof body?.type === 'string' ? body.type : '';
   const title = typeof body?.title === 'string' ? body.title.trim() : '';
@@ -68,7 +68,9 @@ export default defineEventHandler(async (event) => {
       ...(type === 'reference' && typeof body?.fetched === 'string' && body.fetched ? { fetched: body.fetched } : {}),
       // Готовый текст раздела — только у задачи: так «Починить нарушения» кладёт список из проверки.
       // Проектный документ несёт готовый блок токенов (конструктор тем, импорт из Figma) — тоже.
-      ...((type === 'task' || type === 'design') && typeof body?.body === 'string' && body.body.trim() ? { body: body.body } : {}),
+      ...((type === 'defect' || type === 'release') && typeof body?.environment === 'string' && body.environment ? { environment: body.environment } : {}),
+      ...(type === 'defect' && typeof body?.build === 'string' && body.build ? { build: body.build } : {}),
+      ...((type === 'task' || type === 'design' || type === 'defect') && typeof body?.body === 'string' && body.body.trim() ? { body: body.body } : {}),
       links: asLinks(body?.links)
     });
 

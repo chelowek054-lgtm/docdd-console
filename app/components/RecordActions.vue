@@ -10,7 +10,7 @@ const props = defineProps<{
   roles: { id: string; name: string }[];
 }>();
 
-const emit = defineEmits<{ changed: [record?: IndexRecord] }>();
+const emit = defineEmits<{ changed: [record?: IndexRecord] }>(); const { t } = useT();
 
 const actor = ref(props.roles[0]?.id ?? '');
 const busy = ref('');
@@ -46,15 +46,19 @@ async function run(action: RecordAction) {
     busy.value = '';
   }
 }
+
+// Подпись ставит сервер по входу; без входа список ролей остаётся как был (docs/adr/0020).
+const { me, allowed } = useMe(() => props.projectId);
+const denied = computed(() => allowed('approve'));
 </script>
 
 <template>
   <UCard>
     <template #header>
       <div class="flex flex-wrap items-center gap-3">
-        <h2 class="font-medium">Действия</h2>
+        <h2 class="font-medium">{{ t('rec.actions') }}</h2>
         <USelect
-          v-if="props.roles.length"
+          v-if="props.roles.length && !me.required"
           v-model="actor"
           size="sm"
           class="ml-auto w-48"
@@ -64,14 +68,14 @@ async function run(action: RecordAction) {
     </template>
 
     <p v-if="props.actions.length === 0" class="text-sm text-muted">
-      Из этого статуса переходов нет.
+      {{ t('rec.noTransitions') }}
     </p>
 
     <ul v-else class="space-y-3">
       <li v-for="action in props.actions" :key="action.status">
         <div class="flex flex-wrap items-center gap-3">
           <UButton
-            :disabled="!action.allowed"
+            :disabled="!action.allowed || !denied.allowed"
             :loading="busy === action.status"
             :variant="action.allowed ? 'solid' : 'outline'"
             :color="action.allowed ? 'primary' : 'neutral'"
@@ -82,7 +86,10 @@ async function run(action: RecordAction) {
           </UButton>
           <!-- Пустая серая кнопка без объяснения бесполезна: человек должен
                понимать, что именно чинить (docs/04-ui.md). -->
-          <p v-if="!action.allowed" class="min-w-0 flex-1 text-sm text-muted">
+          <p v-if="!denied.allowed" class="min-w-0 flex-1 text-sm text-muted">
+            {{ denied.reason }}
+          </p>
+          <p v-else-if="!action.allowed" class="min-w-0 flex-1 text-sm text-muted">
             {{ action.blockers.map((blocker) => blocker.message).join(' ') }}
           </p>
           <UButton
@@ -92,7 +99,7 @@ async function run(action: RecordAction) {
             icon="i-lucide-hand-helping"
             @click="acceptOpen = true"
           >
-            Принять вручную…
+            {{ t('rec.acceptManual') }}
           </UButton>
         </div>
       </li>
@@ -114,8 +121,8 @@ async function run(action: RecordAction) {
       color="success"
       variant="subtle"
       icon="i-lucide-check"
-      title="Статус изменён"
-      :description="`В журнал добавлено: ${done}`"
+      :title="t('rec.statusChanged')"
+      :description="`${t('rec.journalAdded')} ${done}`"
     />
     <UButton
       v-if="failure && (failure.code === 'task_done_unverified' || unverified(failure.blockers))"
@@ -125,7 +132,7 @@ async function run(action: RecordAction) {
       icon="i-lucide-hand-helping"
       @click="acceptOpen = true"
     >
-      Принять вручную…
+      {{ t('rec.acceptManual') }}
     </UButton>
 
     <ManualAcceptModal

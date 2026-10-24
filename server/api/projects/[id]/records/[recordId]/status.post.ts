@@ -7,6 +7,7 @@ import { fail, failWith } from '../../../../../utils/http';
 import { markDescribed } from '../../../../../utils/inventory-service';
 import { findProject } from '../../../../../utils/projects';
 import { openRecordWithBlockers, saveRecord, today } from '../../../../../utils/record-write';
+import { wasViewed } from '../../../../../utils/record-diff-service';
 
 /**
  * Смена статуса. Разрешён переход — меняем `status`, обновляем `updated`,
@@ -21,7 +22,7 @@ export default defineEventHandler(async (event) => {
     return fail(event, 404, 'project_not_found', `Проект \`${id}\` не найден в списке`);
   }
 
-  const body = await readBody<{ status?: unknown; actor?: unknown }>(event);
+  const body = await readBody<{ status?: unknown; actor?: unknown; version?: unknown }>(event);
   const status = typeof body?.status === 'string' ? body.status : '';
   const actor = typeof body?.actor === 'string' ? body.actor : '';
   if (!status) {
@@ -34,6 +35,9 @@ export default defineEventHandler(async (event) => {
       return fail(event, 404, 'record_not_found', `Записи \`${recordId}\` в проекте нет`);
     }
     const { context, blockers } = opened;
+    if (versionConflict(context.record, body?.version)) {
+      return fail(event, 409, 'record_changed_since_load', 'Запись изменили с тех пор, как вы её открыли: перечитайте и повторите правку');
+    }
     if (blockers.length > 0) {
       return failWith(
         event,
@@ -44,7 +48,15 @@ export default defineEventHandler(async (event) => {
       );
     }
 
-    const outcome = applyStatusChange(context.original, { status, actor, today: today() });
+    const outcome = applyStatusChange(context.original, {
+      status,
+      actor,
+      today: today(),
+      // Журнал честно различает подтверждение с просмотром разницы и без (R-0068).
+      ...(status === 'approved' && wasViewed(project.root, recordId, context.record.source.path)
+        ? { action: 'подтверждено после просмотра разницы' }
+        : {})
+    });
     const saved = saveRecord(context, outcome, project.root);
     if (!saved.ok) {
       // Сторож не пропустил: документ остаётся таким, каким был.
@@ -63,7 +75,7 @@ export default defineEventHandler(async (event) => {
       markDescribed(project.root, outcome.text);
     }
 
-    return { record: saved.record, journal: outcome.journal };
+    notifyStatus(id, recordId, saved.record.type, status, context.record.data, project.root); return { record: saved.record, journal: outcome.journal };
   } catch (error) {
     if (error instanceof OutsideRootError) {
       return fail(event, 403, 'outside_root', error.message, error.requested);
@@ -74,3 +86,5 @@ export default defineEventHandler(async (event) => {
     return fail(event, 500, 'write_failed', 'Не удалось записать изменение', String(error));
   }
 });
+import { versionConflict } from '../../../../../lib/version';
+import { notifyStatus } from '../../../../../utils/notify-events';

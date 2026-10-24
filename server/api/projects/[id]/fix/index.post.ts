@@ -2,13 +2,12 @@ import { defineEventHandler, getRouterParam, readBody } from 'h3';
 import { useStorage } from 'nitropack/runtime';
 
 import { normalizeRoot } from '../../../../lib/paths';
-import { abortSignalOf } from '../../../../utils/abort';
 import { borderOf, borderOfChosen, startFix } from '../../../../utils/fix-service';
 import { pickedIssues } from '../../../../utils/chosen';
 import { fail } from '../../../../utils/http';
 import { loadIndex } from '../../../../utils/index-service';
 import { findProject } from '../../../../utils/projects';
-import { eventStream } from '../../../../utils/sse';
+import { feedStream } from '../../../../utils/job-feeds';
 
 /**
  * Починка нарушений по подтверждённому плану
@@ -35,12 +34,12 @@ export default defineEventHandler(async (event) => {
   const border = chosen.length ? borderOfChosen(index, chosen) : borderOf(index, codes, severity);
   const files = [...border.keys()];
 
-  const stream = eventStream(event);
+  const stream = feedStream(event, id);
   const outcome = await startFix(root, {
     plan,
     files,
     template: await template('fix-apply.md'),
-    signal: abortSignalOf(event),
+    signal: stream.signal,
     onEvent: (modelEvent) => stream.send(modelEvent.kind, modelEvent)
   });
 

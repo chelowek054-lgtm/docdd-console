@@ -11,11 +11,11 @@
   "properties": {
     "id": {
       "type": "string",
-      "pattern": "^[RDACTPVMS]-[0-9]{4}$",
+      "pattern": "^[RDACTPVMSBL]-[0-9]{4}$",
       "description": "Префикс типа, дефис, четыре цифры. Номера не переиспользуются."
     },
     "type": {
-      "enum": ["requirement", "design", "decision", "contract", "task", "phase", "verification", "map", "reference"]
+      "enum": ["requirement", "design", "decision", "contract", "task", "phase", "verification", "map", "reference", "defect", "release"]
     },
     "title": { "type": "string", "minLength": 1 },
     "status": { "type": "string" },
@@ -39,7 +39,11 @@
         "documents": { "$ref": "#/$defs/idList" },
         "covers": { "$ref": "#/$defs/idList" },
         "affects": { "$ref": "#/$defs/idList" },
-        "reuses": { "$ref": "#/$defs/idList" }
+        "reuses": { "$ref": "#/$defs/idList" },
+        "found_by": { "$ref": "#/$defs/idList" },
+        "fixed_by": { "$ref": "#/$defs/idList" },
+        "breaks": { "$ref": "#/$defs/idList" },
+        "ships": { "$ref": "#/$defs/idList" }
       }
     }
   },
@@ -153,9 +157,37 @@
             "type": "string",
             "description": "Чем запускается: gradle, npm, pytest. Для ручной проверки пусто."
           },
-          "command": { "type": "string" }
+          "command": { "type": "string" },
+          "query": { "type": "string", "description": "Запрос Prometheus для проверки вида metric (R-0066)." },
+          "threshold": { "type": "number", "description": "Порог для значения запроса." },
+          "operator": { "enum": ["lte", "gte"], "description": "lte (по умолчанию) — значение не выше порога, gte — не ниже." }
         },
         "required": ["kind"]
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "defect" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "id": { "pattern": "^B-[0-9]{4}$" },
+          "status": { "enum": ["draft", "review", "approved", "superseded", "dropped"] },
+          "severity": { "enum": ["blocker", "critical", "major", "minor", "trivial"], "description": "Серьёзность дефекта (R-0063)." },
+          "environment": { "type": "string", "description": "Окружение: ОС, браузер, конфигурация." },
+          "build": { "type": "string", "description": "Сборка или релиз, на которых найден дефект." }
+        },
+        "required": ["severity"]
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "release" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "id": { "pattern": "^L-[0-9]{4}$" },
+          "status": { "enum": ["draft", "review", "approved", "superseded", "dropped"] },
+          "version": { "type": "string", "description": "Версия релиза (R-0064)." },
+          "environments": { "type": "array", "items": { "type": "string" }, "description": "Окружения выкладки." }
+        },
+        "required": ["version"]
       }
     }
   ],
@@ -163,7 +195,7 @@
   "$defs": {
     "idList": {
       "type": "array",
-      "items": { "type": "string", "pattern": "^[RDACTPVMS]-[0-9]{4}$" },
+      "items": { "type": "string", "pattern": "^[RDACTPVMSBL]-[0-9]{4}$" },
       "uniqueItems": true
     }
   }

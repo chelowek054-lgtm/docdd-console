@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { IssueDto } from '~~/server/lib/types';
+const { t } = useT();
 
 /**
  * Список нарушений. Флажок у каждого: чинить будут отмеченные, а не всё, что
@@ -18,7 +19,7 @@ const emit = defineEmits<{ pick: [key: string] }>();
 
 <template>
   <div v-if="props.issues.length === 0" class="rounded-lg border border-dashed border-default p-6 text-center text-sm text-muted">
-    {{ props.empty ?? 'Нарушений нет.' }}
+    {{ props.empty ?? t('t83.m4.empty.issues') }}
   </div>
 
   <ul v-else class="divide-y divide-default rounded-lg border border-default">
@@ -27,7 +28,7 @@ const emit = defineEmits<{ pick: [key: string] }>();
         v-if="props.chosen"
         type="button"
         class="shrink-0 self-start pt-0.5"
-        :aria-label="props.chosen.includes(issueKey(issue)) ? `Снять ${issue.code}` : `Отметить ${issue.code}`"
+        :aria-label="props.chosen.includes(issueKey(issue)) ? t('t83.m7.il.unpick', { code: issue.code }) : t('t83.m7.il.pick', { code: issue.code })"
         @click="emit('pick', issueKey(issue))"
       >
         <UIcon

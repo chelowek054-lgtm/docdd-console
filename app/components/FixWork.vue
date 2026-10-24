@@ -17,14 +17,14 @@ const props = defineProps<{
   roles: { id: string; name: string }[];
 }>();
 
-const emit = defineEmits<{ changed: [] }>();
+const emit = defineEmits<{ changed: [] }>(); const { t } = useT();
 
 const { running, elapsed, outcome, log, stream, cancel } = useModelRequest(() => `${props.projectId}:fix`, {
-  label: 'Починка нарушений',
+  label: t('fx.label'),
   onRecovered: (answer) => accept(answer as { state: FixState })
 });
 
-const actor = ref(props.roles[0]?.id ?? '');
+const actor = ref(props.roles[0]?.id ?? ''); const { me } = useMe(() => props.projectId);
 const state = ref<FixState | null>(null);
 const failure = ref<ApiFailure | null>(null);
 const busy = ref('');
@@ -35,10 +35,10 @@ const filter = computed(() => ({ issues: props.issues }));
 const refused = computed(() => {
   if (!state.value) return '';
   if (state.value.foreign.length) {
-    return `Тронуто сверх плана: ${state.value.foreign.join(', ')}. Такую починку приложение не сливает`;
+    return t('fx.foreign', { ids: state.value.foreign.join(', ') });
   }
   if (state.value.approvals.length) {
-    return `Модель подтвердила записи сама: ${state.value.approvals.join(', ')}. Подтверждение — ваше действие`;
+    return t('fx.approvals', { ids: state.value.approvals.join(', ') });
   }
   return '';
 });
@@ -77,26 +77,35 @@ async function decide(action: 'accept' | 'reject') {
     busy.value = '';
   }
 }
+import { fixDiff } from '~~/server/lib/fix-diff';
+
+/** «Было → станет» по плану модели: что закроется, что останется (docs/04-ui.md, «Починка»). */
+const preview = computed(() => fixDiff(props.issues, props.plan));
 </script>
 
 <template>
   <div class="mt-4 space-y-3 border-t border-default pt-4">
+    <div v-if="preview.rows.length" class="space-y-1">
+      <p class="text-xs text-muted">{{ t('t83.fix-work.1', { length: preview.closes.length, length2: preview.stays.length }) }}</p>
+      <OrderDiff :before="preview.before" :after="preview.after" :titles="preview.titles" />
+    </div>
+
     <div class="flex flex-wrap items-center gap-3">
-      <UButton v-if="!running" icon="i-lucide-check" @click="apply">
-        {{ state?.started ? 'Починить заново' : 'Принять ответ' }}
+      <UButton v-can="'work'" v-if="!running" icon="i-lucide-check" @click="apply">
+        {{ state?.started ? t('fx.again') : t('fx.take') }}
       </UButton>
 
       <p v-if="!running && !state?.started" class="min-w-0 flex-1 text-sm text-muted">
-        План выполнит модель — в отдельной ветке. Слить или отклонить решите вы, по диффу.
+        {{ t('fx.plan') }}
       </p>
 
       <USelect
-        v-if="props.roles.length"
+        v-if="(props.roles.length) && !me.required"
         v-model="actor"
         size="sm"
         class="ml-auto w-44"
         :items="props.roles.map((role) => ({ label: role.name, value: role.id }))"
-      />
+      /><span v-if="me.required && me.user" class="text-sm text-muted">{{ t('tw.signedIn') }}: {{ me.user.name }}</span>
     </div>
 
     <ModelProgress :running="running" :elapsed="elapsed" :outcome="outcome" @cancel="cancel" />
@@ -113,9 +122,9 @@ async function decide(action: 'accept' | 'reject') {
 
     <template v-if="state?.started && state.files.length">
       <div class="flex flex-wrap items-center gap-3">
-        <h3 class="font-medium">Изменено файлов: {{ state.files.length }}</h3>
+        <h3 class="font-medium">{{ t('tw.changed', { n: state.files.length }) }}</h3>
         <!-- Предохранитель сработал — это не поломка, а работа (docs/04-ui.md). -->
-        <UBadge v-if="refused" color="error" variant="subtle">починка не сливается</UBadge>
+        <UBadge v-if="refused" color="error" variant="subtle">{{ t('fx.refused') }}</UBadge>
       </div>
 
       <ul class="space-y-1 text-xs">
@@ -132,20 +141,20 @@ async function decide(action: 'accept' | 'reject') {
       <pre class="max-h-96 overflow-auto rounded bg-elevated p-3 text-xs">{{ state.diff }}</pre>
 
       <div class="flex flex-wrap items-center gap-3">
-        <UButton color="primary" :loading="busy === 'accept'" :disabled="!!refused" @click="decide('accept')">
-          Принять и слить
+        <UButton v-can="'work'" color="primary" :loading="busy === 'accept'" :disabled="!!refused" @click="decide('accept')">
+          {{ t('tw.accept') }}
         </UButton>
-        <UButton variant="ghost" color="neutral" :loading="busy === 'reject'" @click="decide('reject')">
-          Отклонить
+        <UButton v-can="'work'" variant="ghost" color="neutral" :loading="busy === 'reject'" @click="decide('reject')">
+          {{ t('tw.reject') }}
         </UButton>
         <p class="min-w-0 flex-1 text-sm text-muted">
-          В журнал каждой починенной записи уйдёт строка: какое нарушение чинили.
+          {{ t('fx.journal') }}
         </p>
       </div>
     </template>
 
     <p v-else-if="state?.started" class="text-sm text-muted">
-      Ветка починки заведена, изменений в ней нет.
+      {{ t('fx.noChanges') }}
     </p>
   </div>
 </template>

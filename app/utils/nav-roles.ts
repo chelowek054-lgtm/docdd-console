@@ -1,0 +1,74 @@
+/**
+ * Какие пункты шапки нужны какой роли (docs/04-ui.md, «Переключатель роли»).
+ * Это вид, а не право: права проверяет сервер (ADR-0020), а здесь шапка лишь
+ * не показывает того, что роли в работе не нужно.
+ */
+
+export const NAV_ROLES = ['architect', 'developer', 'pm', 'analyst', 'domain', 'designer', 'qa', 'devops', 'support', 'viewer'] as const;
+export type NavRole = (typeof NAV_ROLES)[number];
+
+/** Пустая строка — «Все роли»: видно всё. */
+export type NavRoleChoice = NavRole | '';
+
+export type NavKey =
+  | 'overview' | 'strategy' | 'requirements' | 'designDocs' | 'decisions' | 'contracts' | 'reference' | 'glossary'
+  | 'tasks' | 'phases' | 'manager' | 'releases'
+  | 'checks' | 'run' | 'results' | 'issues' | 'graph'
+  | 'maps' | 'inbox' | 'import' | 'onboarding'
+  | 'design' | 'analyst' | 'practices';
+
+const BY_ROLE: Record<NavRole, readonly NavKey[]> = {
+  architect: ['strategy', 'requirements', 'designDocs', 'decisions', 'contracts', 'reference', 'glossary', 'tasks', 'phases', 'manager', 'checks', 'run', 'results', 'issues', 'graph', 'maps', 'import', 'onboarding', 'design', 'practices'],
+  developer: ['strategy', 'designDocs', 'decisions', 'contracts', 'reference', 'tasks', 'checks', 'run', 'results', 'issues', 'maps', 'design'],
+  pm: ['strategy', 'requirements', 'tasks', 'phases', 'manager', 'releases', 'maps', 'inbox', 'import', 'onboarding'],
+  analyst: ['strategy', 'requirements', 'glossary', 'maps', 'inbox', 'import', 'analyst'],
+  domain: ['strategy', 'requirements', 'glossary', 'inbox'],
+  designer: ['strategy', 'designDocs', 'tasks', 'design'],
+  qa: ['strategy', 'requirements', 'contracts', 'tasks', 'releases', 'checks', 'run', 'results', 'issues', 'graph'],
+  devops: ['strategy', 'tasks', 'releases', 'run', 'results'],
+  support: ['strategy', 'glossary', 'releases', 'inbox'],
+  viewer: ['strategy', 'requirements', 'designDocs', 'manager', 'releases']
+};
+
+/** Обзор нужен всем: это первый экран проекта. */
+const ALWAYS: readonly NavKey[] = ['overview'];
+
+export function navVisible(key: NavKey, role: NavRoleChoice): boolean {
+  if (!role || ALWAYS.includes(key)) return true;
+  return BY_ROLE[role]?.includes(key) ?? true;
+}
+
+export function isNavRole(value: unknown): value is NavRole {
+  return typeof value === 'string' && (NAV_ROLES as readonly string[]).includes(value);
+}
+
+/**
+ * Слова, по которым глобальный поиск находит пункт меню, если человек потерялся
+ * (docs/04-ui.md, «Поиск»): синонимы и то, что на экране делают, а не только подпись.
+ */
+export const NAV_HINTS: Record<NavKey, string> = {
+  overview: 'обзор главная сводка дашборд прогресс overview dashboard',
+  strategy: 'стратегия контуры здоровье светофор руководитель проекта strategy health contours',
+  requirements: 'требования требование фичи что должно быть requirements',
+  designDocs: 'проектные документы дизайн документ архитектура design docs',
+  decisions: 'решения adr решение почему decisions',
+  contracts: 'контракты api openapi схема формат contracts',
+  reference: 'справочник справки библиотеки зависимости переиспользование reference',
+  glossary: 'глоссарий термины словарь glossary terms',
+  tasks: 'задачи тикеты задача jira бэклог tasks backlog',
+  phases: 'фазы этапы спринты план порядок phases sprints',
+  manager: 'менеджер доска канбан дорожная карта вехи сводка заказчику board roadmap',
+  releases: 'релизы версии выкладка окружения прод деплой releases deploy',
+  checks: 'проверки тесты приёмка тестирование checks tests qa',
+  run: 'прогон запуск отметить прошла провалена сборка тестировщик run',
+  results: 'результаты прогоны отчёты тестов results runs',
+  issues: 'нарушения ошибки предупреждения проблемы баги issues errors',
+  graph: 'граф связи зависимости graph',
+  maps: 'карты карта кода модули потоки пути функциональная карта maps architecture',
+  inbox: 'входящее заметки идеи сырые inbox notes',
+  onboarding: 'подключение готовность чек-лист новый проект источники onboarding',
+  import: 'импорт документации перенос jira confluence import',
+  design: 'дизайн токены палитра темы компоненты storybook design tokens',
+  analyst: 'помощник аналитика критерии противоречия analyst',
+  practices: 'практики общие правила другие проекты practices'
+};

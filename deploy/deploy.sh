@@ -231,6 +231,8 @@ WorkingDirectory=${APP_DIR}
 Environment=NODE_ENV=production
 Environment=NITRO_HOST=127.0.0.1
 Environment=NITRO_PORT=${APP_PORT}
+Environment=DOCDD_MODE=shared
+Environment=DOCDD_PROJECT_ROOTS=${PROJECTS_DIR}
 Environment=PATH=${APP_HOME}/.local/bin:${NODE_ROOT}/node/bin:/usr/local/bin:/usr/bin:/bin
 ExecStart=${NODE_ROOT}/node/bin/node .output/server/index.mjs
 Restart=on-failure

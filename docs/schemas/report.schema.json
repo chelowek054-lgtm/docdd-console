@@ -16,11 +16,19 @@
     "failed": { "type": "integer", "minimum": 0 },
     "checked_by": { "type": "string", "description": "Ручная отметка: имя того, кто проверил." },
     "note": { "type": "string", "description": "Ручная отметка: что именно проверено (одна-две строки)." },
+    "build": { "type": "string", "description": "Версия сборки или релиза, на котором шёл прогон (R-0062)." },
+    "attachments": { "type": "object", "description": "Вложения к проверкам (скриншоты, логи): идентификатор проверки → пути файлов в attachments/ (R-0099).", "propertyNames": { "pattern": "^V-[0-9]{4}$" }, "additionalProperties": { "type": "array", "items": { "type": "string", "pattern": "/attachments/[^/]+/[^/]+$" } } },
+    "reasons": { "type": "object", "description": "Причины итога blocked: идентификатор проверки → что мешает (R-0098).", "propertyNames": { "pattern": "^V-[0-9]{4}$" }, "additionalProperties": { "type": "string", "minLength": 1 } },
+    "steps": {
+      "type": "array",
+      "description": "Ручная приёмка: результат по шагам проверки (R-0061).",
+      "items": { "type": "object", "required": ["text", "state"], "properties": { "text": { "type": "string" }, "expected": { "type": "string" }, "state": { "enum": ["passed", "failed"] } } }
+    },
     "verifications": {
       "type": "object",
       "description": "Идентификатор проверки → результат последнего прогона.",
       "propertyNames": { "pattern": "^V-[0-9]{4}$" },
-      "additionalProperties": { "enum": ["passed", "failed", "skipped"] }
+      "additionalProperties": { "enum": ["passed", "failed", "skipped", "blocked"] }
     }
   }
 }

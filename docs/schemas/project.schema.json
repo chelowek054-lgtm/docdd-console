@@ -68,6 +68,14 @@
         "reference": {
           "type": "string",
           "description": "Справочник: справки типа reference и индекс INDEX.md (docs/13-reference.md). Нет ключа — справочника в проекте нет."
+        },
+        "defects": {
+          "type": "string",
+          "description": "Дефекты: записи типа defect (R-0063). Нет ключа — в проекте дефектов нет, старые проекты не ломаются."
+        },
+        "releases": {
+          "type": "string",
+          "description": "Релизы: записи типа release (R-0064). Нет ключа — релизов в проекте нет."
         }
       }
     },
@@ -94,6 +102,13 @@
             "type": "string"
           },
           "description": "Где живёт клиентская часть: по ней строится карта пользовательских путей."
+        },
+        "tests": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Где лежат тестовые файлы: по ним подбираются проверки из существующих тестов (R-0079)."
         },
         "inbox": {
           "type": "array",
@@ -124,6 +139,19 @@
               }
             }
           }
+        }
+      }
+    },
+    "team": {
+      "type": "array",
+      "description": "Команда проекта: логин человека и его роли здесь. Незнакомый логин — предупреждение, не отказ (docs/adr/0020-people-roles-permissions.md).",
+      "items": {
+        "type": "object",
+        "required": ["login", "roles"],
+        "properties": {
+          "login": { "type": "string", "minLength": 1 },
+          "roles": { "type": "array", "items": { "type": "string" } },
+          "deny": { "type": "array", "items": { "type": "string" }, "description": "Действия, которые проект у этого человека отнимает: права можно только сузить." }
         }
       }
     },
@@ -213,10 +241,13 @@
                 "description": "Ключ файла темы → путь от корня проекта; нет ключа — умолчание стека.",
                 "additionalProperties": { "type": "string", "minLength": 1 }
               },
-              "package": { "type": "string", "description": "Пакет Kotlin для compose; по умолчанию ui.theme." }
+              "package": { "type": "string", "description": "Пакет Kotlin для compose; по умолчанию ui.theme." },
+              "catalog": { "type": "string", "minLength": 1, "description": "Выгрузка каталога историй стека из CI (index.json или каталог с ним): Storybook RN, Showkase, SwiftUI Previews." }
             }
           }
         },
+        "catalog": { "type": "string", "minLength": 1, "description": "Выгрузка Storybook проекта: index.json сборки или каталог с ним, от корня проекта." },
+        "snapshots": { "type": "string", "minLength": 1, "description": "Каталог снимков историй от CI: <каталог>/<стек>/<id истории>.png; опорный Storybook лежит в storybook/." },
         "screens": { "type": "string", "minLength": 1, "description": "Каталог снимков экранов от корня проекта." },
         "mockups": { "type": "string", "minLength": 1, "description": "Каталог эталонных макетов экранов." },
         "widths": { "type": "array", "items": { "type": "integer", "minimum": 240 }, "description": "Ширины снимков; по умолчанию 375, 768, 1280." },
@@ -236,6 +267,11 @@
           "type": "boolean",
           "default": true,
           "description": "Задача не закрывается, пока её проверки не прошли."
+        },
+        "require_batch_check_before_ready": {
+          "type": "boolean",
+          "default": false,
+          "description": "Задача не уходит в ready, пока у реализуемых ею требований есть пробелы: нет проверки, проверку нечем прогнать, у самой задачи нет требования (R-0092)."
         },
         "stale_in_progress_days": {
           "type": "integer",
@@ -261,6 +297,30 @@
       "description": "Карты проекта. custom — определения пользовательских карт (docs/adr/0028-custom-maps.md). Схема здесь нарочно свободная: неверное определение — проблема одной карты, а не всего проекта; подробно его проверяет customDefinitions (server/lib/custom-maps.ts).",
       "properties": {
         "custom": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "observability": {
+      "type": "object",
+      "description": "Метрики продукта из Prometheus для обзора проекта (docs/04-ui.md, «Наблюдаемость»). url — адрес Prometheus (иначе DOCDD_PROMETHEUS_URL), dashboard — ссылка на панель Grafana.",
+      "additionalProperties": false,
+      "properties": {
+        "url": { "type": "string" },
+        "dashboard": { "type": "string" },
+        "queries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "label", "query"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "type": "string" },
+              "label": { "type": "string" },
+              "query": { "type": "string" },
+              "unit": { "type": "string" },
+              "warn": { "type": "number" }
+            }
+          }
+        }
       }
     }
   }

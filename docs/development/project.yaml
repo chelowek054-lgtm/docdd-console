@@ -53,3 +53,8 @@ policy:
   require_approved_docs_before_dev: true
   require_verification_before_done: true
   stale_in_progress_days: 14
+maps:
+  custom:
+    - {"id":"codemap","title":"Кодовая база","template":"codemap"}
+    - {"id":"dataflow","title":"Потоки данных","template":"dataflow"}
+    - {"id":"userflow","title":"Пользовательские пути","template":"userflow"}

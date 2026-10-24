@@ -484,3 +484,175 @@ tbody tr:first-child td, tbody tr:first-child th { border-top: 0; }
   background-color: var(--ds-color-surface);
   box-shadow: var(--ds-shadow-card);
 }
+
+/* Модификаторы карточки: перенос с «rounded border» не меняет вида — рамка и отступ задаются явно, по токенам. */
+.ds-card--bordered { border: var(--ds-border-thin) solid var(--ui-border); }
+.ds-card--warn { border: var(--ds-border-thin) solid var(--ui-warning); }
+.ds-card--error { border: var(--ds-border-thin) solid var(--ui-error); }
+.ds-card--dashed { border: var(--ds-border-thin) dashed var(--ui-border); }
+.ds-card--pad { padding: var(--ds-space-md); }
+
+/* Таблица проекта: те же правила, что у голого table, но применимы к конкретной таблице. */
+.ds-table { border-collapse: collapse; width: 100%; }
+.ds-table thead th {
+  font-size: var(--ds-font-kicker);
+  letter-spacing: var(--ds-tracking-kicker);
+  text-transform: uppercase;
+  color: var(--ds-color-muted);
+  border-bottom: var(--ds-border-thick) solid var(--ds-color-line);
+}
+.ds-table tbody td, .ds-table tbody th { border-top: var(--ds-border-thin) solid var(--ds-color-surface-alt); }
+
+/* Зона нажатия не меньше 44x44 на узких экранах (кнопки-иконки строк). */
+@media (max-width: 47.99rem) {
+  .ds-hit { min-width: 2.75rem; min-height: 2.75rem; display: inline-flex; align-items: center; justify-content: center; }
+}
+
+/*
+ * Движение и курсор — глобально (docs/04-ui.md, «Движение и курсор»): новые
+ * компоненты и страницы получают их без своего кода. Длительности — токены
+ * --ds-motion-*, при prefers-reduced-motion они нулевые (выше).
+ */
+
+/* Переходы страниц и раскладок: Vue <Transition> через app.pageTransition / layoutTransition. */
+/* Только прозрачность: сдвиг вместе со сменой высоты страницы давал дребезжание. */
+.page-enter-active,
+.page-leave-active,
+.layout-enter-active,
+.layout-leave-active {
+  transition: opacity var(--ds-motion-fast) ease;
+}
+.page-enter-from,
+.page-leave-to,
+.layout-enter-from,
+.layout-leave-to {
+  opacity: 0;
+}
+
+/* Место под полосу прокрутки занято всегда: короткая и длинная страницы одной ширины. */
+html {
+  scrollbar-gutter: stable;
+}
+
+/* Общие переходы для своих <Transition name="ds-fade"> и <TransitionGroup name="ds-list">. */
+.ds-fade-enter-active,
+.ds-fade-leave-active,
+.ds-list-enter-active,
+.ds-list-leave-active,
+.ds-list-move {
+  transition: opacity var(--ds-motion-fast) ease, transform var(--ds-motion-fast) ease;
+}
+.ds-fade-enter-from,
+.ds-fade-leave-to,
+.ds-list-enter-from,
+.ds-list-leave-to {
+  opacity: 0;
+  transform: translateY(0.25rem);
+}
+
+/* Появление карточек (UCard получает класс через app.config) и строк списков. */
+/* Только прозрачность: сдвиг сотен строк (дерево карты) дёргал экран. */
+@keyframes ds-appear {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.ds-appear,
+ul.divide-y > li {
+  animation: ds-appear var(--ds-motion-slow) ease both;
+}
+
+@layer base {
+  /* Всё, что нажимается, — с курсором-рукой; выпадающие меню и вкладки тоже. */
+  button:not(:disabled),
+  a[href],
+  summary,
+  select:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  [role='tab']:not([aria-disabled='true']),
+  [role='menuitem']:not([data-disabled]),
+  [role='menuitemcheckbox']:not([data-disabled]),
+  [role='menuitemradio']:not([data-disabled]),
+  [role='option']:not([data-disabled]),
+  [role='switch'],
+  [role='checkbox'],
+  [aria-haspopup]:not([aria-disabled='true']),
+  input[type='checkbox'],
+  input[type='radio'],
+  input[type='range'],
+  label:has(> input[type='checkbox']),
+  label[for] {
+    cursor: pointer;
+  }
+  /* Недоступное — явно недоступно. */
+  :disabled,
+  [aria-disabled='true'],
+  [data-disabled] {
+    cursor: not-allowed;
+  }
+}
+
+/*
+ * Мягче, а не резко: наведение и смена состояния у всего нажимаемого плавные,
+ * переходы страниц и блоков — на базовой длительности, а не на быстрой.
+ */
+@layer base {
+  button,
+  a[href],
+  [role='tab'],
+  [role='menuitem'],
+  [role='option'],
+  input,
+  select,
+  textarea {
+    transition-property: color, background-color, border-color, box-shadow, opacity;
+    transition-duration: var(--ds-motion-base);
+    transition-timing-function: ease;
+  }
+}
+.page-enter-active,
+.page-leave-active,
+.layout-enter-active,
+.layout-leave-active,
+.ds-fade-enter-active,
+.ds-fade-leave-active {
+  transition-duration: var(--ds-motion-base);
+}
+
+/* Строка вкладок группы: при смене группы — плавно, с лёгким масштабом; внутри группы не мигает (ключ — группа). */
+.ds-tabs-enter-active,
+.ds-tabs-leave-active {
+  transition: opacity var(--ds-motion-base) ease, transform var(--ds-motion-base) ease;
+}
+.ds-tabs-enter-from,
+.ds-tabs-leave-to {
+  opacity: 0;
+  transform: scale(0.98);
+}
+
+/* Масштаб: нажатие чуть вдавливает кнопку, окна и всплывающие меню раскрываются из 96%. */
+@layer base {
+  button,
+  a[href] {
+    transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  }
+  button:not(:disabled):active,
+  a[href]:active {
+    transform: scale(0.97);
+  }
+}
+@keyframes ds-scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes ds-scale-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.96); }
+}
+[role='dialog'][data-state='open'],
+[data-reka-popper-content-wrapper] > [data-state='open'] {
+  animation: ds-scale-in var(--ds-motion-base) ease both;
+}
+[role='dialog'][data-state='closed'],
+[data-reka-popper-content-wrapper] > [data-state='closed'] {
+  animation: ds-scale-out var(--ds-motion-fast) ease both;
+}

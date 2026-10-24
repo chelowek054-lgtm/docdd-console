@@ -255,6 +255,13 @@ describe('replaceProse', () => {
     expect(next.body).not.toContain('Текст задачи, который принадлежит человеку.');
     expect(next.body).toContain('- 2026-08-01 · готова к работе · architect');
   });
+
+  it('журнал, присланный вместе с текстом, не задваивается', () => {
+    const whole = file().body.replace('Текст задачи, который принадлежит человеку.', 'Новый текст.');
+    const next = replaceProse(file(), whole);
+    expect(next.body.match(/^## Журнал/gm)).toHaveLength(1);
+    expect(next.body).toContain('Новый текст.');
+  });
 });
 
 describe('applyBodyEdit', () => {

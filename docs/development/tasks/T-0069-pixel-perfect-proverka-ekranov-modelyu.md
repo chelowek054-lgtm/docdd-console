@@ -2,7 +2,7 @@
 id: T-0069
 type: task
 title: Pixel-Perfect-проверка экранов моделью против эталона
-status: in_review
+status: done
 change: feature
 links:
   implements: [R-0033]
@@ -10,7 +10,7 @@ links:
   depends_on: [T-0067, T-0061]
   affects: [M-0030]
 created: 2026-10-11
-updated: 2026-10-11
+updated: 2026-10-21
 ---
 
 # Pixel-Perfect-проверка экранов моделью против эталона
@@ -23,3 +23,4 @@ updated: 2026-10-11
 - 2026-10-11 · готова к работе · architect
 - 2026-10-11 · в разработку · architect
 - 2026-10-11 · на проверку · architect
+- 2026-10-21 · закрыта · architect

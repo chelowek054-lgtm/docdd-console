@@ -4,15 +4,15 @@
 import usage from '~~/docs/08-usage.md?raw';
 
 /** Front matter у этого документа нет — он не запись, а документация инструмента. */
-const body = computed(() => usage);
+const body = computed(() => usage); const { t } = useT();
 </script>
 
 <template>
   <div class="space-y-5">
     <div class="flex flex-wrap items-center gap-3">
-      <h1 class="text-xl font-semibold">Как пользоваться</h1>
+      <h1 class="text-xl font-semibold">{{ t('nav.usage') }}</h1>
       <p class="text-sm text-muted">
-        Тот же текст лежит в репозитории: <code>docs/08-usage.md</code>
+        {{ t('usage.sameText') }} <code>docs/08-usage.md</code>
       </p>
     </div>
 

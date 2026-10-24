@@ -1,0 +1,13 @@
+{
+  "contract": "docdd.workspace/1",
+  "runner": "perf",
+  "started_at": "2026-10-21T16:37:22.771Z",
+  "total": 4,
+  "failed": 0,
+  "verifications": {
+    "V-0047": "passed",
+    "V-0048": "passed",
+    "V-0049": "passed",
+    "V-0050": "passed"
+  }
+}

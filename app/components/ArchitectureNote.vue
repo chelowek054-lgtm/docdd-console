@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import { fixTaskOf, selectionState } from '../../server/lib/architecture';
+const { t } = useT();
 
 /**
  * Строка проверки архитектуры над схемой кода (docs/04-ui.md, «Архитектура на
@@ -32,9 +33,9 @@ const props = defineProps<{
 }>();
 
 const UNCHECKED_LABEL: Record<string, string> = {
-  missing: 'файл не найден',
-  unknown: 'язык не опознан',
-  ignored: 'вне проверки границ (тесты, скрипты, миграции, ignore)'
+  get missing() { return t('t83.m2.arch.missing'); },
+  get unknown() { return t('t83.m2.arch.unknown'); },
+  get ignored() { return t('t83.m2.arch.ignored'); }
 };
 
 const violations = computed(() => (props.report?.findings ?? []).filter((item) => item.code !== 'arch_promote'));
@@ -92,24 +93,23 @@ const uncheckedText = computed(() => Object.entries(props.report?.unchecked ?? {
 <template>
   <div v-if="report" class="mb-2 text-xs text-muted">
     <p v-if="!report.enabled">
-      Правила архитектуры не заданы: заведите в подтверждённом решении блок <code>docdd-rules</code> (экран «Практики») —
-      тогда импорты карты проверятся на «через вход», слои и общий код.
-      <NuxtLink :to="`/projects/${projectId}/shared`" class="hover:underline">Открыть «Практики»</NuxtLink>
+      {{ t('t83.architecture-note.1') }} <code>docdd-rules</code> {{ t('t83.architecture-note.2') }}
+      <NuxtLink :to="`/projects/${projectId}/shared`" class="hover:underline">{{ t('t83.architecture-note.3') }}</NuxtLink>
     </p>
     <template v-else>
       <p>
-        Архитектура: проверено {{ report.checked ?? 0 }} из {{ report.total ?? 0 }} импортов ·
-        <span :class="violations.length ? 'font-semibold text-violet-600' : ''">нарушений {{ violations.length }}</span>
-        <template v-if="hints.length"> · подсказок «поднять» {{ hints.length }}</template>
-        <template v-if="uncheckedText"> · не проверено: {{ uncheckedText }}</template>
+        {{ t('t83.architecture-note.4', { p: report.checked ?? 0, p2: report.total ?? 0 }) }}
+        <span :class="violations.length ? 'font-semibold text-violet-600' : ''">{{ t('t83.architecture-note.5', { length: violations.length }) }}</span>
+        <template v-if="hints.length"> {{ t('t83.architecture-note.6', { length: hints.length }) }}</template>
+        <template v-if="uncheckedText"> {{ t('t83.architecture-note.7', { uncheckedText: uncheckedText }) }}</template>
       </p>
       <!-- По каким правилам судили: запись-источник, а не безымянное «нарушение» (docs/04-ui.md). -->
       <p v-if="report.rules">
-        Правила:
+        {{ t('t83.architecture-note.8') }}
         <template v-if="report.rules.sources.length">{{ report.rules.sources.map((source) => source.id).join(', ') }}</template>
-        <template v-else-if="report.rules.manifest === 'used'">секция architecture манифеста</template>
-        <template v-else>встроенный минимум</template>
-        — <NuxtLink :to="`/projects/${projectId}/shared`" class="hover:underline">подробнее на экране «Практики»</NuxtLink>
+        <template v-else-if="report.rules.manifest === 'used'">{{ t('t83.architecture-note.9') }}</template>
+        <template v-else>{{ t('t83.architecture-note.10') }}</template>
+        — <NuxtLink :to="`/projects/${projectId}/shared`" class="hover:underline">{{ t('t83.architecture-note.11') }}</NuxtLink>
       </p>
       <!-- Замечания сверки с функциональной картой — не нарушения: связь идёт через группы кода с полем capability. -->
       <details
@@ -117,19 +117,17 @@ const uncheckedText = computed(() => Object.entries(props.report?.unchecked ?? {
         class="mt-1"
       >
         <summary class="cursor-pointer">
-          Сверка с функциональной картой:
-          модулей без возможности — {{ report.reconcile.modulesWithoutCapability.length }},
-          возможностей без модуля — {{ report.reconcile.capabilitiesWithoutModule.length }}
+          {{ t('t83.architecture-note.12', { length: report.reconcile.modulesWithoutCapability.length, length2: report.reconcile.capabilitiesWithoutModule.length }) }}
         </summary>
         <div class="mt-1 grid gap-x-6 gap-y-2 sm:grid-cols-2">
           <div v-if="report.reconcile.modulesWithoutCapability.length">
-            <p class="font-medium">Модули без возможности</p>
+            <p class="font-medium">{{ t('t83.architecture-note.13') }}</p>
             <ul class="mt-0.5 max-h-48 overflow-y-auto font-mono">
               <li v-for="dir in report.reconcile.modulesWithoutCapability" :key="dir">{{ dir }}</li>
             </ul>
           </div>
           <div v-if="report.reconcile.capabilitiesWithoutModule.length">
-            <p class="font-medium">Возможности без модуля</p>
+            <p class="font-medium">{{ t('t83.architecture-note.14') }}</p>
             <ul class="mt-0.5 max-h-48 overflow-y-auto">
               <li v-for="item in report.reconcile.capabilitiesWithoutModule" :key="item.id">{{ item.title }}</li>
             </ul>
@@ -137,20 +135,20 @@ const uncheckedText = computed(() => Object.entries(props.report?.unchecked ?? {
         </div>
       </details>
       <details v-if="violations.length || hints.length" class="mt-1">
-        <summary class="cursor-pointer">Показать находки</summary>
+        <summary class="cursor-pointer">{{ t('t83.architecture-note.15') }}</summary>
         <ul class="mt-1 space-y-1">
           <li v-for="(item, at) in [...violations, ...hints]" :key="at" class="flex items-start gap-2">
             <UCheckbox
               v-if="item.code !== 'arch_promote'"
               :model-value="!unchecked.has(keyOf(item))"
-              :aria-label="`Починить: ${item.code}`"
+              :aria-label="t('t83.m2.arch.fix', { code: item.code })"
               @update:model-value="toggle(item, $event)"
             />
             <span v-else class="w-4 shrink-0" />
             <span><code>{{ item.code }}</code>
             <span v-if="item.evidence" class="font-mono"> {{ item.evidence.path }}:{{ item.evidence.line }}</span>
             — {{ item.message }}
-            <span v-if="item.rule" class="text-violet-600"> · нарушает {{ item.rule.source }}</span></span>
+            <span v-if="item.rule" class="text-violet-600"> {{ t('t83.architecture-note.16', { source: item.rule.source }) }}</span></span>
           </li>
         </ul>
       </details>
@@ -158,16 +156,16 @@ const uncheckedText = computed(() => Object.entries(props.report?.unchecked ?? {
         <UCheckbox
           v-if="violations.length"
           :model-value="allState"
-          label="Выбрать все"
+          :label="t('t83.architecture-note.17')"
           @update:model-value="toggleAll"
         />
         <UButton size="xs" variant="soft" icon="i-lucide-wrench" :loading="creating" :disabled="chosen.length === 0" @click="fix">
-          Починить нарушения · {{ chosen.length }}
+          {{ t('t83.architecture-note.18', { length: chosen.length }) }}
         </UButton>
         <!-- Неактивная кнопка обязана назвать причину (docs/04-ui.md). -->
-        <span v-if="chosen.length === 0">{{ violations.length === 0 ? 'Нарушений нет — чинить нечего.' : 'Ни одно нарушение не отмечено.' }}</span>
+        <span v-if="chosen.length === 0">{{ violations.length === 0 ? t('t83.m2.arch.noViol') : t('t83.m2.arch.noneChosen') }}</span>
         <NuxtLink v-if="taskId" :to="`/projects/${projectId}/records/${taskId}`" class="font-medium hover:underline">
-          Задача {{ taskId }} заведена — открыть
+          {{ t('t83.architecture-note.19', { taskId: taskId }) }}
         </NuxtLink>
         <span v-if="failure" class="text-red-600">{{ failure.message }}</span>
       </div>

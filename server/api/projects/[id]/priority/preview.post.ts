@@ -5,6 +5,7 @@ import { parsePriority } from '../../../../lib/work-order';
 import { WorkspaceError } from '../../../../lib/workspace';
 import { fail } from '../../../../utils/http';
 import { loadIndex } from '../../../../utils/index-service';
+import { priorityInput } from '../../../../utils/priority-service';
 import { findProject } from '../../../../utils/projects';
 
 /**
@@ -30,7 +31,9 @@ export default defineEventHandler(async (event) => {
     if (!parsed) {
       return fail(event, 422, 'priority_unparsed', 'В ответе нет блока `docdd-order` с порядком — показываю его текстом');
     }
-    return { phases: parsed.plan.phases, problems: parsed.problems, fixed: parsed.fixed };
+    // «Было» — порядок, как он записан сейчас: на нём строится вид «было → станет» (R-0072).
+    const before = priorityInput(project.root).phases.map((phase) => ({ id: phase.id, items: phase.tasks.map((task) => task.id) }));
+    return { phases: parsed.plan.phases, problems: parsed.problems, fixed: parsed.fixed, before };
   } catch (error) {
     if (error instanceof OutsideRootError) {
       return fail(event, 403, 'outside_root', error.message, error.requested);

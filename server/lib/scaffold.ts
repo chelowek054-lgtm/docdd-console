@@ -19,7 +19,8 @@ export const DEFAULT_PATHS: Readonly<Record<SectionKey, string>> = {
   tests: 'tests',
   diagrams: 'diagrams',
   maps: 'maps',
-  reference: 'reference'
+  reference: 'reference',
+  defects: 'defects', releases: 'releases'
 };
 
 const CYRILLIC: Readonly<Record<string, string>> = {
@@ -78,7 +79,7 @@ export interface TemplateInput {
   owner?: string;
   links?: Partial<Record<LinkKind, string[]>>;
   /** Вид проверки: схема требует его у записей типа `verification`; у справки — вид (`component`, `api`, `technique`, `data`). */
-  kind?: string;
+  kind?: string; environment?: string; build?: string; /* у дефекта `kind` — серьёзность (R-0063) */
   /** Только у справки: одна строка — что решает; она попадает в индекс (docs/13-reference.md). */
   summary?: string;
   /** Только у справки: откуда взято. */
@@ -152,6 +153,23 @@ function bodyWithCapabilities(
  * Текст новой записи. Тело — подсказка человеку о том, что в нём должно быть;
  * дальше оно принадлежит только ему.
  */
+/** Заготовка проверки — канон тест-кейса (ISO/IEC/IEEE 29119-3): без шагов и ожидаемого её не прогнать. */
+const VERIFICATION_BODY = [
+  'Что проверяем и по какому критерию требования.',
+  '',
+  '## Предусловия',
+  '',
+  '- Что должно быть готово до начала.',
+  '',
+  '## Шаги',
+  '',
+  '1. Действие — ожидаемый результат.',
+  '',
+  '## Ожидаемый результат',
+  '',
+  'Что считается «прошла».'
+].join('\n');
+
 export function recordTemplate(input: TemplateInput, eol = '\n'): string {
   const lines = [
     '---',
@@ -166,6 +184,12 @@ export function recordTemplate(input: TemplateInput, eol = '\n'): string {
   lines.push(`created: ${input.today}`, `updated: ${input.today}`);
   if (input.type === 'map' && input.intent) lines.push('intent: true');
   if (input.type === 'verification') lines.push(`kind: ${yamlSafe(input.kind ?? 'manual')}`);
+  if (input.type === 'release') { lines.push(`version: ${yamlSafe(input.kind ?? '')}`); if (input.environment) lines.push(`environments: [${input.environment.split(',').map((e) => yamlSafe(e.trim())).filter(Boolean).join(', ')}]`); }
+  if (input.type === 'defect') {
+    lines.push(`severity: ${yamlSafe(input.kind ?? 'major')}`);
+    if (input.environment) lines.push(`environment: ${yamlSafe(input.environment)}`);
+    if (input.build) lines.push(`build: ${yamlSafe(input.build)}`);
+  }
   if (input.type === 'reference') {
     lines.push(`summary: ${yamlSafe(input.summary ?? '')}`);
     if (input.kind) lines.push(`kind: ${yamlSafe(input.kind)}`);
@@ -189,7 +213,7 @@ export function recordTemplate(input: TemplateInput, eol = '\n'): string {
   const body = capabilities.length > 0 || relations.length > 0 || input.vision
     ? bodyWithCapabilities(said, capabilities, input.vision, relations)
     : (said === ''
-      ? (input.type === 'reference' ? 'Что это, когда брать, ограничения, примеры использования.' : 'Зачем это, что делаем, чего не делаем, как понять, что готово.')
+      ? (input.type === 'reference' ? 'Что это, когда брать, ограничения, примеры использования.' : input.type === 'verification' ? VERIFICATION_BODY : 'Зачем это, что делаем, чего не делаем, как понять, что готово.')
       : said);
 
   const sources = input.sources ?? [];
@@ -249,7 +273,7 @@ export function manifestYaml(input: ManifestInput, eol = '\n'): string {
     `  inbox: [${input.inbox ?? DEFAULT_INBOX}]`,
     'roles:',
     '  - id: architect',
-    '    name: Архитектор',
+    '    name: Архитектор', ...EXTRA_ROLE_LINES,
     'policy:',
     '  require_approved_docs_before_dev: true',
     '  require_verification_before_done: true',
@@ -415,9 +439,45 @@ export function claudeMd(input: ManifestInput, eol = NEW_LINE): string {
     'пересказывает код.',
     ''
   ];
-  return lines.join(eol);
+  return [...lines, ...TEAM_LINES].join(eol);
 }
 
 export function isRecordType(value: string): value is RecordType {
   return (RECORD_TYPES as readonly string[]).includes(value);
 }
+
+/**
+ * Роли команды сверх архитектора (R-0058). Вынесены в конец файла и вставлены в
+ * ту же строку шаблона: так не сдвигаются строки, на которые ссылаются карты.
+ */
+const EXTRA_ROLE_LINES: readonly string[] = [
+  '  - id: developer', '    name: Разработчик',
+  '  - id: designer', '    name: Дизайнер',
+  '  - id: qa', '    name: Тестировщик',
+  '  - id: devops', '    name: Девопс',
+  '  - id: support', '    name: Сопровождение',
+  '  - id: pm', '    name: Менеджер проекта',
+  '  - id: analyst', '    name: Аналитик',
+  '  - id: domain', '    name: Доменный специалист',
+  '  - id: viewer', '    name: Наблюдатель'
+];
+
+/**
+ * Выжимка правил команды для CLAUDE.md нового проекта (T-0043): роли и
+ * практики. Вынесена в конец файла, чтобы шаблон выше не сдвигался.
+ */
+const TEAM_LINES: readonly string[] = [
+  '## Команда и практики',
+  '',
+  'Роли заданы в `project.yaml`: архитектор, разработчик, дизайнер, тестировщик, девопс,',
+  'сопровождение, менеджер проекта, аналитик, доменный специалист, наблюдатель. У каждой',
+  'роли своя часть записей; чужую часть без подтверждения её владельца не правим.',
+  '',
+  'Встроенные практики консоли подключены по умолчанию (`builtin`, тег `general`):',
+  'стиль кода, стек, архитектура. Они уходят в запрос на задачу — читай их, а не',
+  'выдумывай своих.',
+  ''
+];
+
+/** Заготовка вектора для первой карты нового проекта: человек заменит её своими словами. */
+export const VISION_STUB = { problem: 'Какую проблему решает продукт.', audience: 'Для кого он.', outcome: 'Как понять, что получилось.', not: 'Чего он не делает.' };

@@ -1,10 +1,11 @@
 import { defineEventHandler, readBody } from 'h3';
 
-import { abortSignalOf } from '../../utils/abort';
+import { askRouted } from '../../utils/llm-gateway';
 import { ask } from '../../utils/llm';
-import { eventStream } from '../../utils/sse';
+import { feedStream } from '../../utils/job-feeds';
 import { fail } from '../../utils/http';
 import { findProject } from '../../utils/projects';
+import { sharedDenied } from '../../utils/mode';
 
 /**
  * Один запрос к модели через Claude Code. Ответ идёт лентой событий: видно, что
@@ -13,7 +14,7 @@ import { findProject } from '../../utils/projects';
  * (docs/adr/0008-llm-through-claude-code.md).
  */
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ prompt?: unknown; projectId?: unknown; tools?: unknown }>(event);
+  const denied = sharedDenied(event, 'Свободный запрос к модели'); if (denied) return denied; const body = await readBody<{ prompt?: unknown; projectId?: unknown; tools?: unknown }>(event);
   const prompt = typeof body?.prompt === 'string' ? body.prompt.trim() : '';
   const projectId = typeof body?.projectId === 'string' ? body.projectId : '';
 
@@ -27,12 +28,11 @@ export default defineEventHandler(async (event) => {
   // Модель работает в корне проекта, а не в папке сервера: иначе она разберёт
   // не тот код. Путь берётся из списка проектов, а не из запроса браузера.
   const project = await findProject(projectId);
-  const stream = eventStream(event);
-  const signal = abortSignalOf(event);
+  const stream = feedStream(event, projectId);
 
-  const result = await ask(prompt, {
+  const result: Awaited<ReturnType<typeof ask>> = await askRouted('ask', { projectId, user: ((event.context as { user?: { login?: string } }).user?.login) ?? 'local', onJob: (id) => stream.queued(id) }, prompt, {
     ...(project ? { cwd: project.root } : {}),
-    signal,
+    // Сигнал соединения не передаём: обновление страницы не отменяет задание (ADR-0034), отмена — DELETE ленты или очереди.
     // Этот запрос спрашивает, а не чинит: до подтверждения человеком в
     // проекте не должно измениться ничего (adr/0010).
     // Запрос, которому всё нужное уже подставлено (порядок по важности), идёт без инструментов.

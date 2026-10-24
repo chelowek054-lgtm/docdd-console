@@ -35,7 +35,7 @@ function withoutFrontNote(template: string): string {
   return match ? template.slice(match.index + match[0].length).trimStart() : template;
 }
 
-export function fixPrompt(template: string, issues: readonly IssueDto[]): string {
+export function fixPrompt(template: string, issues: readonly IssueDto[], context = ''): string {
   const body = withoutFrontNote(template);
 
   const list = issues.length === 0
@@ -49,7 +49,7 @@ export function fixPrompt(template: string, issues: readonly IssueDto[]): string
       issue.message
     ].join(LF)).join(LF + LF);
 
-  return body.replace(ISSUES_MARKER, list).replace(CONTRACT_MARKER, contractDigest());
+  return body.replace(ISSUES_MARKER, list).replace(CONTRACT_MARKER, contractDigest()) + (context.trim() ? LF + LF + context.trim() + LF : '');
 }
 
 export interface MapsState {
@@ -89,7 +89,7 @@ export function inboxPrompt(
   notes: readonly { path: string; title: string; text: string }[],
   known: readonly { id: string; type: string; title: string }[],
   capabilities: readonly { id: string; title?: string; parent?: string }[] = [],
-  referenceIndex: string | null = null
+  referenceIndex: string | null = null, context = ''
 ): string {
   const said = notes.length
     ? notes.map((note) => [`### ${note.title}`, '', `Файл: \`${note.path}\``, '', note.text.trim()].join(LF)).join(LF + LF)
@@ -109,7 +109,7 @@ export function inboxPrompt(
     .replace(NOTES_MARKER, said)
     .replace(KNOWN_MARKER, already)
     .replace(CAPABILITIES_MARKER, map)
-    .replace(REFERENCE_MARKER, () => referenceIndexBlock(referenceIndex));
+    .replace(REFERENCE_MARKER, () => referenceIndexBlock(referenceIndex)) + (context.trim() ? LF + LF + context.trim() + LF : '');
 }
 
 /** Места, куда подставляется прошлый ответ и претензии схемы к нему. */
@@ -292,7 +292,7 @@ export interface TaskContext {
   practices: { label: string; id: string; title: string; body: string }[];
   /** Что человек сказал по прошлому заходу. Пусто — заход первый. */
   rework: string;
-  round: number;
+  round: number; pack?: string /* дополнение из пакета контекста */;
 }
 
 /**
@@ -329,7 +329,7 @@ export function taskPrompt(template: string, task: TaskContext): string {
 
   lines.push(...referenceSection(task.referenceIndex, task.reused ?? []));
 
-  lines.push(...practicesSection(task.practices));
+  lines.push(...practicesSection(task.practices)); if (task.pack?.trim()) lines.push(task.pack.trim(), '');
 
   if (task.rework.trim()) {
     lines.push(
@@ -699,4 +699,95 @@ export function reviewBatchPrompt(template: string, settings: ReviewBatchSetting
     .replace(REVIEW_SETTINGS_MARKER, () => settingLines)
     .replace(REVIEW_TASKS_MARKER, () => tasks.map(reviewTaskLines).join(LF + LF))
     .split(REVIEW_BRANCH_MARKER).join(settings.branch);
+}
+
+export const AS_IS_MARKERS = { device: '<!-- УСТРОЙСТВО -->', map: '<!-- КАРТА -->', requirements: '<!-- ТРЕБОВАНИЯ -->' } as const;
+
+export interface AsIsInput {
+  /** Модули кодовой карты, экраны и источники данных — что уже известно об устройстве (docs/07-maps.md). */
+  modules: readonly { id: string; title?: string | undefined; layer?: string | undefined; summary?: string | undefined }[];
+  screens: readonly { id: string; title?: string | undefined }[];
+  sources: readonly { id: string; kind: string; title?: string | undefined }[];
+  /** Возможности, что уже стоят, и заголовки заведённых требований — чтобы не задваивать. */
+  capabilities: readonly { id: string; title?: string | undefined }[];
+  requirements: readonly { id: string; title: string }[];
+}
+
+/**
+ * Запрос «как есть» (R-0078, docs/prompts/as-is.md): возможности и требования для готовой кодовой базы.
+ * Модели уходят устройство из карт и то, что уже заведено; код она читает сама. Ответ — блок `docdd-records`.
+ */
+export function asIsPrompt(template: string, input: AsIsInput): string {
+  const lines = (rows: readonly string[], empty: string) => (rows.length ? rows.join('\n') : empty);
+  const device = [
+    ...input.modules.map((item) => `- модуль \`${item.id}\`${item.title ? ` — ${item.title}` : ''}${item.layer ? ` (${item.layer})` : ''}${item.summary ? `: ${item.summary}` : ''}`),
+    ...input.screens.map((item) => `- экран \`${item.id}\`${item.title ? ` — ${item.title}` : ''}`),
+    ...input.sources.map((item) => `- источник данных \`${item.id}\` (${item.kind})${item.title ? ` — ${item.title}` : ''}`)
+  ];
+  return withoutFrontNote(template)
+    .replace(AS_IS_MARKERS.device, lines(device, 'Карт устройства ещё нет: читай код и сам определи, из чего он состоит.'))
+    .replace(AS_IS_MARKERS.map, lines(input.capabilities.map((item) => `- \`${item.id}\`${item.title ? ` — ${item.title}` : ''}`), 'Возможностей пока нет.'))
+    .replace(AS_IS_MARKERS.requirements, lines(input.requirements.map((item) => `- ${item.id}: ${item.title}`), 'Требований пока нет.'));
+}
+
+/**
+ * Свидетельства в предложении (R-0078): строки «путь:строка» в `note` возможностей и в теле требований
+ * сверяются с файлами проекта. Выдуманный путь — замечание человеку, а не молчаливая запись.
+ * `read` отдаёт строки файла или `null`, если файла нет; `fragment` — кусок строки, он ищется в строке и трёх соседних.
+ */
+export function evidenceProblems(
+  records: readonly { key: string; type: string; title: string; body?: string | undefined; capabilities?: readonly { id: string; title?: string | undefined; note?: string | undefined }[] | undefined }[],
+  read: (path: string) => string[] | null
+): string[] {
+  const problems: string[] = [];
+  const check = (owner: string, text: string) => {
+    for (const match of text.matchAll(/([\w./\-]+\.[A-Za-z0-9]+):(\d+)(?:\s*[—-]\s*([^\n]+))?/g)) {
+      const path = (match[1] as string).replace(/\\/g, '/');
+      const line = Number(match[2]);
+      const rows = read(path);
+      if (rows === null) { problems.push(`${owner}: свидетельство ссылается на \`${path}\`, а такого файла нет.`); continue; }
+      if (line < 1 || line > rows.length) { problems.push(`${owner}: в \`${path}\` нет строки ${line}.`); continue; }
+      const fragment = (match[3] ?? '').trim();
+      if (fragment.length >= 3) {
+        const near = rows.slice(Math.max(0, line - 4), line + 3).join('\n');
+        if (!near.includes(fragment)) problems.push(`${owner}: в \`${path}\` рядом со строкой ${line} нет «${fragment.slice(0, 40)}».`);
+      }
+    }
+  };
+  for (const record of records) {
+    for (const capability of record.capabilities ?? []) if (capability.note) check(`возможность \`${capability.id}\``, capability.note);
+    if (record.type === 'requirement' && record.body) check(`требование «${record.title}»`, record.body);
+  }
+  return problems;
+}
+
+
+/**
+ * Раздел режима «стратегия» к разбору входящего (ADR-0037, docs/prompts/strategy-intent.md):
+ * куда встают новые возможности и вектор проекта, против которого модель сверяет намерение.
+ */
+export function strategyIntentBlock(
+  template: string,
+  contour: { id: string; title?: string } | null,
+  vision: { problem?: string; audience?: string; outcome?: string; not?: string } | null
+): string {
+  const place = contour
+    ? `под контуром \`${contour.id}\`${contour.title ? ` — ${contour.title}` : ''} (\`parent\` верхней новой возможности — \`${contour.id}\`).`
+    : 'под подходящим контуром из карты выше, а если ни один не подходит — новым контуром (возможность без `parent`).';
+  const said = vision && (vision.problem || vision.audience || vision.outcome || vision.not)
+    ? [
+        vision.problem ? `- Проблема: ${vision.problem}` : '',
+        vision.audience ? `- Для кого: ${vision.audience}` : '',
+        vision.outcome ? `- Успех: ${vision.outcome}` : '',
+        vision.not ? `- Чего не делает: ${vision.not}` : ''
+      ].filter(Boolean).join(LF)
+    : 'Вектор проекта не записан — сверять не с чем.';
+  return withoutFrontNote(template).replace('<!-- КОНТУР -->', place).replace('<!-- ВЕКТОР -->', said);
+}
+
+/** «ВНЕ ВЕКТОРА: …» первой строкой ответа (ADR-0037, п. 5): причина или `null`. */
+export function offVector(answer: string): string | null {
+  const first = answer.trimStart().split(/\r?\n/, 1)[0] ?? '';
+  const match = /^ВНЕ ВЕКТОРА:\s*(.*)$/.exec(first.trim());
+  return match ? (match[1] ?? '').trim() || 'без причины' : null;
 }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ApiFailure } from '~/composables/useProjectIndex';
+const { t } = useT();
 
 /**
  * Ответ «Сортировать по важности» таблицей: фаза → задачи с причиной у каждой строки
@@ -8,7 +9,7 @@ import type { ApiFailure } from '~/composables/useProjectIndex';
  */
 interface PlanTask { id: string; why: string }
 interface PlanPhase { id: string; why: string; tasks: PlanTask[] }
-interface Preview { phases: PlanPhase[]; problems: string[]; fixed: string[] }
+interface Preview { phases: PlanPhase[]; problems: string[]; fixed: string[]; before?: { id: string; items: string[] }[] }
 
 const props = defineProps<{ projectId: string; answer: string; titles: Record<string, string>; roles: { id: string; name: string }[] }>();
 const emit = defineEmits<{ applied: [] }>();
@@ -18,7 +19,7 @@ const failure = ref<ApiFailure | null>(null);
 const loading = ref(false);
 const applying = ref(false);
 const done = ref<string[] | null>(null);
-const actor = ref(props.roles[0]?.id ?? '');
+const actor = ref(props.roles[0]?.id ?? ''); const { me } = useMe(() => props.projectId);
 
 async function parse() {
   loading.value = true;
@@ -67,11 +68,12 @@ const title = (id: string) => props.titles[id] ?? id;
 
 <template>
   <div class="mb-3 space-y-3">
-    <p v-if="loading" class="text-sm text-muted">Разбираю ответ…</p>
+    <p v-if="loading" class="text-sm text-muted">{{ t('t83.functional-check.1') }}</p>
     <!-- Блока нет — это не отказ: ответ остаётся текстом ниже, как раньше. -->
     <p v-else-if="failure && !preview" class="text-sm text-muted">{{ failure.message }}</p>
 
     <template v-else-if="preview">
+      <OrderDiff v-if="preview.before" :before="preview.before" :after="preview.phases.map((phase) => ({ id: phase.id, items: phase.tasks.map((task) => task.id) }))" :titles="titles" />
       <ol class="space-y-3">
         <li v-for="(phase, at) in preview.phases" :key="phase.id" class="ds-card p-3">
           <p class="text-sm font-medium">
@@ -90,17 +92,17 @@ const title = (id: string) => props.titles[id] ?? id;
       </ol>
 
       <ul v-if="preview.fixed.length" class="space-y-0.5 text-xs text-warning">
-        <li v-for="(line, at) in preview.fixed" :key="at">Поправлено по зависимостям: {{ line }}</li>
+        <li v-for="(line, at) in preview.fixed" :key="at">{{ t('t83.priority-preview.1', { line: line }) }}</li>
       </ul>
       <ul v-if="preview.problems.length" class="space-y-0.5 text-xs text-muted">
         <li v-for="(line, at) in preview.problems" :key="at">{{ line }}</li>
       </ul>
 
       <div class="flex flex-wrap items-center gap-3">
-        <USelect v-if="roles.length" v-model="actor" size="sm" class="w-44" :items="roles.map((role) => ({ label: role.name, value: role.id }))" />
-        <UButton size="sm" icon="i-lucide-list-ordered" :loading="applying" :disabled="done !== null" @click="apply">Применить порядок</UButton>
-        <p v-if="done" class="text-sm text-success">Записан порядок: фаз изменено {{ done.length }}.</p>
-        <p v-else class="text-xs text-muted">Запишет rank у фаз и порядок covers; в журнале каждой изменённой фазы — строка.</p>
+        <USelect v-if="(roles.length) && !me.required" v-model="actor" size="sm" class="w-44" :items="roles.map((role) => ({ label: role.name, value: role.id }))" /><span v-if="me.required && me.user" class="text-sm text-muted">{{ t('t83.priority-preview.2', { name: me.user.name }) }}</span>
+        <UButton v-can="'reorder'" size="sm" icon="i-lucide-list-ordered" :loading="applying" :disabled="done !== null" @click="apply">{{ t('t83.priority-preview.3') }}</UButton>
+        <p v-if="done" class="text-sm text-success">{{ t('t83.priority-preview.4', { length: done.length }) }}</p>
+        <p v-else class="text-xs text-muted">{{ t('t83.priority-preview.5') }}</p>
       </div>
       <UAlert v-if="failure" color="error" variant="subtle" icon="i-lucide-triangle-alert" :title="failure.message" :description="failure.detail" />
     </template>

@@ -57,7 +57,7 @@ describe('кодовая база — модули', () => {
     const modules = Array.from({ length: 11 }, (_, at) => ({ id: `m${at}.ts`, layer: `слой${at}` }));
     const items = text(codemapMermaid(withMap({ codemap: { modules, imports: [], groups: [] } })).mapLegend);
     expect(items.filter((item) => item.startsWith('слой «'))).toHaveLength(8);
-    expect(items).toContain('…и ещё 3 слоёв · 3');
+    expect(items).toContain('…и ещё 3 слоя · 3');
   });
 
   it('пустая карта — легенды нет', () => {

@@ -4,7 +4,7 @@ import { applyJournalNote } from '../lib/actions';
 import { branchName, commitMessage, worktreePath } from '../lib/branch';
 import { parseMapRecord } from '../lib/maps';
 import { normalizeRoot } from '../lib/paths';
-import { taskPrompt, type TaskContext } from '../lib/prompt';
+import { taskPrompt, type TaskContext } from '../lib/prompt'; import { packExtra } from './context-service';
 import type { IndexRecord, ProjectIndex } from '../lib/types';
 import { withoutJournal } from '../lib/write';
 import { readWorkspace } from '../lib/workspace';
@@ -21,7 +21,7 @@ import {
   worktreeRoot,
   type WorkChanges
 } from './git';
-import { ask } from './llm';
+import { askRouted } from './llm-gateway';
 import type { ModelEvent } from '../lib/stream-events';
 import { buildProjectMap } from './map-service';
 import { openRecord, saveRecord, today } from './record-write';
@@ -29,6 +29,7 @@ import { forgetSession, rememberSession, sessionOf } from './sessions';
 import { withBuiltin } from '../lib/builtin';
 import { referenceIndexText } from './reference-service';
 import { connectedPractices } from './shared-service';
+import { authorFromSignature } from '../lib/auth';
 
 /**
  * Выполнение задачи через клиент (docs/09-execution.md). Приложение заводит
@@ -128,7 +129,7 @@ export async function handover(
   // Модель работает в дереве задачи, а не в вашем каталоге. Повторный заход
   // продолжает прошлый разговор: разбор кодовой базы не идёт заново.
   const resume = sessionOf(normalized, record.id);
-  const answer = await ask(prompt, {
+  const answer = await askRouted('task', { projectId: normalized, user: options.actor ?? 'local' }, prompt, {
     cwd: worktreeRoot(normalized, record.id),
     // Работа над задачей — это правки, тесты и сборка, и всё это в своём
     // рабочем дереве. Результат человек читает диффом.
@@ -179,7 +180,8 @@ export async function accept(root: string, record: IndexRecord, actor: string): 
 
   const committed = await commitAll(
     worktreeRoot(normalized, record.id),
-    commitMessage(record.id, record.title, state.round)
+    commitMessage(record.id, record.title, state.round),
+    authorFromSignature(actor)
   );
   if (!committed.ok) {
     return { ok: false, code: 'commit_failed', message: 'Не удалось закоммитить изменения задачи', detail: committed.stderr.trim() };
@@ -266,7 +268,7 @@ export function taskContext(
     documents: [...(record.links.documents ?? []), ...(record.links.refines ?? [])].map(linked),
     map: mapId ? mapChange(root, index, mapId) : '',
     // Сжатая карта: где что лежит — вместо обхода всех файлов проекта.
-    modules: buildProjectMap(root).codemap.modules,
+    modules: [] as ReturnType<typeof buildProjectMap>['codemap']['modules'], pack: packExtra(root, record.id, 'task'), /* карта кода едет куском пакета */
     // Что уже есть (docs/13-reference.md): индекс целиком, справки задачи — текстом.
     referenceIndex: referenceIndexText(root),
     reused: (record.links.reuses ?? []).map(linked),

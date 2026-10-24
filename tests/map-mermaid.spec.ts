@@ -633,7 +633,7 @@ describe('группы на потоках данных', () => {
 
   it('обзор: группы кода и виды источников, стрелки по направлению данных, подпись — число потоков', () => {
     const { text, nodes, edges } = flowOverviewMermaid(grouping, new Map());
-    expect(text).toContain('gf_server_lib["server/lib<br/>2 потоков"]');
+    expect(text).toContain('gf_server_lib["server/lib<br/>2 потока"]');
     expect(text).toContain('gk_db[("база данных<br/>1 источник")]');
     // server/lib: чтение и запись к db — «оба», жирная; server/api только читает — от источника к коду.
     expect(text).toContain('gf_server_lib ==>|2| gk_db');

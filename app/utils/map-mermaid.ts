@@ -31,7 +31,7 @@ import {
   type Grouping
 } from '../../server/lib/groups';
 // Слой по папке файла, когда карта его не назвала: docs/07-maps.md, «`layer` не обязателен».
-import { layerOf } from '../../server/lib/layers';
+import { layerOf } from '../../server/lib/layers'; import { tr, trn } from '../i18n/tr';
 import type { ApiItem, Evidence, EvidenceVerdict, ProjectMap } from '../../server/lib/maps';
 import {
   RISK_LABEL,
@@ -305,7 +305,7 @@ export function codemapMermaid(map: ProjectMap, options: CodemapOptions = {}): M
     for (const module of items) {
       const node = nodeId('m', module.id);
       lines.push(`        ${node}["${label(module.title ?? module.id)}"]:::${nodeId('layer', layer)}`);
-      details[node] = [module.id, module.title, `слой: ${layer}`].filter(Boolean).join(LF);
+      details[node] = [module.id, module.title, tr('t83.m6.layer', { layer })].filter(Boolean).join(LF);
       if (module.path) paths[node] = module.path;
       nodes[node] = {
         id: module.id, title: module.title, layer, path: module.path,
@@ -320,12 +320,12 @@ export function codemapMermaid(map: ProjectMap, options: CodemapOptions = {}): M
   const ghosts = options.ghosts ?? [];
   if (ghosts.length > 0) {
     lines.push('    classDef ghost fill:#F3F4F6,stroke:#6B7280,color:#111827,stroke-dasharray:5 4;');
-    lines.push('    subgraph ghosts["Из других групп"]');
+    lines.push(`    subgraph ghosts["${tr('t83.m6.ghosts')}"]`);
     for (const ghost of ghosts) {
       const node = nodeId('m', ghost.id);
-      const name = ghost.collapsed ? `${ghost.groupTitle} · ${ghost.collapsed} модулей` : (ghost.title ?? ghost.id);
-      lines.push(`        ${node}["${label(name)}<br/>из группы ${label(ghost.groupTitle, 28)}"]:::ghost`);
-      details[node] = [ghost.id, ghost.title, `из группы ${ghost.groupTitle}`].filter(Boolean).join(LF);
+      const name = ghost.collapsed ? tr('t83.m6.collapsedMods', { group: ghost.groupTitle, n: ghost.collapsed }) : (ghost.title ?? ghost.id);
+      lines.push(`        ${node}["${label(name)}<br/>${tr('t83.m6.fromGroup', { group: label(ghost.groupTitle, 28) })}"]:::ghost`);
+      details[node] = [ghost.id, ghost.title, tr('t83.m6.fromGroup', { group: ghost.groupTitle })].filter(Boolean).join(LF);
       nodes[node] = {
         id: ghost.id, title: ghost.collapsed ? ghost.groupTitle : ghost.title,
         ghost: { groupId: ghost.groupId, groupTitle: ghost.groupTitle },
@@ -399,10 +399,10 @@ const badEdge = (edge: { status?: EvidenceVerdict | undefined }) => !!edge.statu
 function commonLegend(pendingNodes: number, edges: readonly MermaidEdge[]): MapLegendItem[] {
   const items: MapLegendItem[] = [];
   const red = edges.filter(badEdge).length;
-  if (red) items.push({ kind: 'arrow', label: 'свидетельство не сошлось с файлом', count: red, line: 'solid', color: RED });
+  if (red) items.push({ kind: 'arrow', label: tr('t83.m6.a1'), count: red, line: 'solid', color: RED });
   const faded = pendingNodes + edges.filter((edge) => edge.pending).length;
   if (faded) {
-    items.push({ kind: 'swatch', label: 'полупрозрачный — карта, что его объявила, ещё не устоялась', count: faded, faded: true, ...NEUTRAL });
+    items.push({ kind: 'swatch', label: tr('t83.m6.a2'), count: faded, faded: true, ...NEUTRAL });
   }
   return items;
 }
@@ -417,11 +417,11 @@ function groupOverviewLegend(
   const autos = groups.filter((group) => group.auto).length;
   const cycles = links.filter((link) => link.cycle && !badEdge(link)).length;
   return present([
-    { kind: 'swatch', label: 'группа; число внутри — модулей, цвет только отличает группы друг от друга', count: groups.length, fill: '#DBEAFE', stroke: '#6B7280' },
-    { kind: 'note', label: '«авто» — группа выведена из путей к файлам, а не объявлена картой', count: autos },
-    { kind: 'arrow', label: 'число на стрелке — сколько импортов идёт из группы в группу', count: links.length, line: 'solid' },
-    { kind: 'arrow', label: 'группы зависят друг от друга по кругу', count: cycles, line: 'thick', color: AMBER },
-    { kind: 'arrow', label: 'нарушение архитектуры', count: edges.filter((edge) => edge.arch && !badEdge(edge)).length, line: 'thick', color: VIOLET },
+    { kind: 'swatch', label: tr('t83.m6.a3'), count: groups.length, fill: '#DBEAFE', stroke: '#6B7280' },
+    { kind: 'note', label: tr('t83.m6.a4'), count: autos },
+    { kind: 'arrow', label: tr('t83.m6.a5'), count: links.length, line: 'solid' },
+    { kind: 'arrow', label: tr('t83.m6.a6'), count: cycles, line: 'thick', color: AMBER },
+    { kind: 'arrow', label: tr('t83.m6.a7'), count: edges.filter((edge) => edge.arch && !badEdge(edge)).length, line: 'thick', color: VIOLET },
     ...commonLegend(0, edges)
   ]);
 }
@@ -440,21 +440,21 @@ function codemapLegend(
   const modules = [...layers.values()].flat();
   return present([
     ...named.map(([layer, items]): MapLegendItem => ({
-      kind: 'swatch', label: `слой «${layer}»`, count: items.length, fill: colorOf(layer), stroke: '#6B7280'
+      kind: 'swatch', label: tr('t83.m6.layerOf', { layer }), count: items.length, fill: colorOf(layer), stroke: '#6B7280'
     })),
-    { kind: 'note', label: `…и ещё ${rest} ${rest === 1 ? 'слой' : 'слоёв'}`, count: rest > 0 ? rest : 0 },
-    { kind: 'swatch', label: 'толстая рамка — порт: у модуля есть связи за пределами группы', count: ports, thick: true, ...NEUTRAL },
-    { kind: 'swatch', label: 'пунктир — сосед из другой группы', count: ghosts, dash: true, ...NEUTRAL },
-    { kind: 'arrow', label: 'импорт: кто → кого', count: edges.filter((edge) => !badEdge(edge) && !edge.arch).length, line: 'solid' },
-    { kind: 'arrow', label: 'нарушение архитектуры', count: edges.filter((edge) => edge.arch && !badEdge(edge)).length, line: 'thick', color: VIOLET },
+    { kind: 'note', label: tr('t83.m6.moreLayers', { n: trn('t83.m6.pl.layer', rest) }), count: rest > 0 ? rest : 0 },
+    { kind: 'swatch', label: tr('t83.m6.a8'), count: ports, thick: true, ...NEUTRAL },
+    { kind: 'swatch', label: tr('t83.m6.a9'), count: ghosts, dash: true, ...NEUTRAL },
+    { kind: 'arrow', label: tr('t83.m6.a10'), count: edges.filter((edge) => !badEdge(edge) && !edge.arch).length, line: 'solid' },
+    { kind: 'arrow', label: tr('t83.m6.a7'), count: edges.filter((edge) => edge.arch && !badEdge(edge)).length, line: 'thick', color: VIOLET },
     ...commonLegend(modules.filter((module) => module.pending).length, edges)
   ]).filter((item) => item.kind !== 'note' || (item.count ?? 0) > 0);
 }
 
 const directionLegend = (flows: readonly { direction: string }[]): MapLegendItem[] => [
-  { kind: 'arrow', label: 'чтение: данные идут от источника', count: flows.filter((flow) => flow.direction === 'read').length, line: 'solid' },
-  { kind: 'arrow', label: 'запись: данные идут к источнику', count: flows.filter((flow) => flow.direction === 'write').length, line: 'dashed' },
-  { kind: 'arrow', label: 'и чтение, и запись', count: flows.filter((flow) => flow.direction === 'both').length, line: 'thick' }
+  { kind: 'arrow', label: tr('t83.m6.a11'), count: flows.filter((flow) => flow.direction === 'read').length, line: 'solid' },
+  { kind: 'arrow', label: tr('t83.m6.a12'), count: flows.filter((flow) => flow.direction === 'write').length, line: 'dashed' },
+  { kind: 'arrow', label: tr('t83.m6.a13'), count: flows.filter((flow) => flow.direction === 'both').length, line: 'thick' }
 ];
 
 function dataflowLegend(
@@ -475,8 +475,8 @@ function dataflowLegend(
       stroke: '#6B7280',
       shape: kind === 'db' || kind === 'file' ? 'cylinder' : 'box'
     })),
-    { kind: 'swatch', label: 'модуль или экран, что читает и пишет', count: readers, fill: '#FFFFFF', stroke: '#6B7280' },
-    { kind: 'swatch', label: 'пунктир — сосед из другой группы', count: ghosts, dash: true, ...NEUTRAL },
+    { kind: 'swatch', label: tr('t83.m6.a14'), count: readers, fill: '#FFFFFF', stroke: '#6B7280' },
+    { kind: 'swatch', label: tr('t83.m6.a9'), count: ghosts, dash: true, ...NEUTRAL },
     ...directionLegend(flows),
     ...commonLegend(sources.filter((source) => source.pending).length, edges)
   ]);
@@ -487,16 +487,16 @@ function flowOverviewLegend(
   edges: readonly MermaidEdge[]
 ): MapLegendItem[] {
   return present([
-    { kind: 'swatch', label: 'группа кода (слева); число внутри — потоков, цвет только отличает группы', count: grouping.codeGroups.length, fill: '#DBEAFE', stroke: '#6B7280' },
+    { kind: 'swatch', label: tr('t83.m6.a15'), count: grouping.codeGroups.length, fill: '#DBEAFE', stroke: '#6B7280' },
     ...grouping.kinds.map((item): MapLegendItem => ({
       kind: 'swatch',
-      label: `вид источников: ${kindLabel(item.kind)}`,
+      label: tr('t83.m6.kindOf', { kind: kindLabel(item.kind) }),
       count: item.sources,
       fill: colorOf(item.kind),
       stroke: '#6B7280',
       shape: item.kind === 'db' || item.kind === 'file' ? 'cylinder' : 'box'
     })),
-    ...directionLegend(grouping.links).map((item) => ({ ...item, label: `${item.label}; число — потоков` })),
+    ...directionLegend(grouping.links).map((item) => ({ ...item, label: tr('t83.m6.flowsCount', { label: item.label }) })),
     ...commonLegend(0, edges)
   ]);
 }
@@ -510,22 +510,22 @@ function userflowLegend(
   pendingScreens: number
 ): MapLegendItem[] {
   return present([
-    { kind: 'swatch', label: 'экран', count: screens, fill: '#DBEAFE', stroke: '#2563EB' },
-    { kind: 'swatch', label: 'маршрут API', count: routes, fill: '#F3E8FF', stroke: '#7C3AED', shape: 'stadium' },
-    { kind: 'arrow', label: 'переход по действию; подпись — что его вызывает', count: transitions.filter((step) => step.trigger).length, line: 'solid' },
-    { kind: 'arrow', label: 'пунктир к экрану — переход, чем он вызывается, карта не говорит', count: transitions.filter((step) => !step.trigger).length, line: 'dashed' },
-    { kind: 'arrow', label: 'пунктир к маршруту — вызов API', count: calls, line: 'dashed' },
+    { kind: 'swatch', label: tr('t83.m6.a16'), count: screens, fill: '#DBEAFE', stroke: '#2563EB' },
+    { kind: 'swatch', label: tr('t83.m6.a17'), count: routes, fill: '#F3E8FF', stroke: '#7C3AED', shape: 'stadium' },
+    { kind: 'arrow', label: tr('t83.m6.a18'), count: transitions.filter((step) => step.trigger).length, line: 'solid' },
+    { kind: 'arrow', label: tr('t83.m6.a19'), count: transitions.filter((step) => !step.trigger).length, line: 'dashed' },
+    { kind: 'arrow', label: tr('t83.m6.a20'), count: calls, line: 'dashed' },
     ...commonLegend(pendingScreens, edges)
   ]);
 }
 
 const SOURCE_KIND_LABEL: Record<string, string> = {
-  file: 'файл',
+  get file() { return tr('t83.m6.sk.file'); },
   http: 'http',
-  db: 'база данных',
-  queue: 'очередь',
-  env: 'переменная окружения',
-  memory: 'память процесса'
+  get db() { return tr('t83.m6.sk.db'); },
+  get queue() { return tr('t83.m6.sk.queue'); },
+  get env() { return tr('t83.m6.sk.env'); },
+  get memory() { return tr('t83.m6.sk.memory'); }
 };
 
 /** Вид группы потоков поверх обычной карты: кликабельные модули и призраки выбранного узла. */
@@ -569,8 +569,8 @@ export function dataflowMermaid(map: ProjectMap, options: DataflowOptions = {}):
     details[node] = [
       source.id,
       source.title,
-      `вид: ${SOURCE_KIND_LABEL[source.kind] ?? source.kind}`,
-      source.where ? `где: ${source.where}` : ''
+      tr('t83.m6.kindWord', { kind: SOURCE_KIND_LABEL[source.kind] ?? source.kind }),
+      source.where ? tr('t83.m6.where', { where: source.where }) : ''
     ].filter(Boolean).join(LF);
     // Открыть можно только буквальный файл — адрес БД, очереди или имя
     // переменной окружения клик никуда не поведёт (04-ui.md, «Карты»).
@@ -598,12 +598,12 @@ export function dataflowMermaid(map: ProjectMap, options: DataflowOptions = {}):
   const ghosts = options.ghosts ?? [];
   if (ghosts.length > 0) {
     lines.push('    classDef ghost fill:#F3F4F6,stroke:#6B7280,color:#111827,stroke-dasharray:5 4;');
-    lines.push('    subgraph ghosts["Из других групп"]');
+    lines.push(`    subgraph ghosts["${tr('t83.m6.ghosts')}"]`);
     for (const ghost of ghosts) {
       const node = nodeId('f', ghost.id);
-      const name = ghost.collapsed ? `${ghost.groupTitle} · ${ghost.collapsed} модулей` : ghost.id;
-      lines.push(`        ${node}["${label(name)}<br/>из группы ${label(ghost.groupTitle, 28)}"]:::ghost`);
-      details[node] = [ghost.id, `из группы ${ghost.groupTitle}`].join(LF);
+      const name = ghost.collapsed ? tr('t83.m6.collapsedMods', { group: ghost.groupTitle, n: ghost.collapsed }) : ghost.id;
+      lines.push(`        ${node}["${label(name)}<br/>${tr('t83.m6.fromGroup', { group: label(ghost.groupTitle, 28) })}"]:::ghost`);
+      details[node] = [ghost.id, tr('t83.m6.fromGroup', { group: ghost.groupTitle })].join(LF);
       nodes[node] = {
         id: ghost.id, title: ghost.collapsed ? ghost.groupTitle : ghost.id,
         ghost: { groupId: ghost.groupId, groupTitle: ghost.groupTitle },
@@ -638,13 +638,13 @@ export function dataflowMermaid(map: ProjectMap, options: DataflowOptions = {}):
   };
 }
 
-const UNKNOWN_KIND_LABEL = 'не опознан';
-const kindLabel = (kind: string) => (kind === UNKNOWN_KIND ? UNKNOWN_KIND_LABEL : SOURCE_KIND_LABEL[kind] ?? kind);
+const UNKNOWN_KIND_LABEL = () => tr('t83.m6.unknown');
+const kindLabel = (kind: string) => (kind === UNKNOWN_KIND ? UNKNOWN_KIND_LABEL() : SOURCE_KIND_LABEL[kind] ?? kind);
 
 const DIRECTION_TEXT: Record<FlowDirection, string> = {
-  read: 'читают',
-  write: 'пишут',
-  both: 'читают и пишут'
+  get read() { return tr('t83.m6.dir.read'); },
+  get write() { return tr('t83.m6.dir.write'); },
+  get both() { return tr('t83.m6.dir.both'); }
 };
 
 /**
@@ -665,7 +665,7 @@ export function flowOverviewMermaid(grouping: FlowGrouping, cards: ReadonlyMap<s
 
   for (const group of grouping.codeGroups) {
     const node = nodeId('gf', group.id);
-    const tail = `${group.flows} ${group.flows === 1 ? 'поток' : 'потоков'}`;
+    const tail = trn('t83.m2.pl.flow', group.flows);
     lines.push(`    ${node}["${label(group.title, 34)}<br/>${tail}"]:::${nodeId('grp', group.id)}`);
     details[node] = [group.title, tail].join(LF);
     const card = cards.get(group.id);
@@ -678,7 +678,7 @@ export function flowOverviewMermaid(grouping: FlowGrouping, cards: ReadonlyMap<s
   for (const item of grouping.kinds) {
     // Хранилище — цилиндром, как на обычной диаграмме потоков.
     const node = nodeId('gk', item.kind);
-    const text = `${label(kindLabel(item.kind))}<br/>${item.sources} ${item.sources === 1 ? 'источник' : 'источников'}`;
+    const text = `${label(kindLabel(item.kind))}<br/>${trn('t83.m2.pl.source', item.sources)}`;
     const shape = item.kind === 'db' || item.kind === 'file' ? `[("${text}")]` : `["${text}"]`;
     lines.push(`    ${node}${shape}:::${nodeId('kind', item.kind)}`);
     details[node] = text.replace('<br/>', LF);
@@ -735,7 +735,7 @@ export function userflowMermaid(map: ProjectMap): MermaidOutput {
   for (const screen of screens) {
     const node = nodeId('u', screen.id);
     lines.push(`    ${node}["${label(screen.title ?? screen.id)}"]:::screen`);
-    details[node] = [screen.id, screen.title, screen.file ? `файл: ${screen.file}` : ''].filter(Boolean).join(LF);
+    details[node] = [screen.id, screen.title, screen.file ? tr('t83.m6.file', { file: screen.file }) : ''].filter(Boolean).join(LF);
     if (screen.file) paths[node] = screen.file;
     nodes[node] = {
       id: screen.id, title: screen.title, path: screen.file, declaredBy: screen.declaredBy, pending: screen.pending
@@ -795,10 +795,10 @@ export type FunctionalLevel = 'all' | 'groups' | 'group';
 
 /** Слова на переключателе режимов окраски (docs/04-ui.md, «Режимы окраски»). */
 export const FUNCTIONAL_MODE_LABEL: Record<FunctionalMode, string> = {
-  state: 'Состояние',
-  coverage: 'Покрытие',
-  risks: 'Риски',
-  order: 'Порядок'
+  get state() { return tr('t83.m6.mode.state'); },
+  get coverage() { return tr('t83.m6.mode.coverage'); },
+  get risks() { return tr('t83.m6.mode.risks'); },
+  get order() { return tr('t83.m6.mode.order'); }
 };
 
 /** Вид графа состояния поверх карты: уровень, режим окраски, фильтры и выбранная возможность. */
@@ -819,6 +819,12 @@ export interface FunctionalGraphOptions {
   /** Выбранная возможность: соседи из других групп «призраками» и влияние. */
   selected?: string | null | undefined;
   impact?: boolean | undefined;
+  /**
+   * Сколько уровней рисовать от верхних узлов (ADR-0027): глубже ветка
+   * сворачивается в узел со своим состоянием, а связи поднимаются к видимому
+   * предку. Нет — без предела.
+   */
+  maxDepth?: number | undefined;
 }
 
 interface Look {
@@ -857,8 +863,8 @@ const MODE_PREFIX = { state: 'st', coverage: 'cv', risks: 'rk', order: 'or' } as
 
 const MODE_LABEL: Record<'coverage' | 'risks' | 'order', Record<string, string>> = {
   coverage: COVERAGE_LABEL,
-  risks: { red: 'Цикл или падающая проверка', orange: 'Отметка расходится с задачами', yellow: 'Ждёт зависимость', none: 'Без признаков' },
-  order: { start: 'Можно начинать', wait: 'Ждёт зависимость', done: 'Готово', skip: 'Не берём', unrated: 'Не оценено' }
+  risks: { get red() { return tr('t83.m2.risk.red'); }, get orange() { return tr('t83.m2.risk.orange'); }, get yellow() { return tr('t83.m2.risk.yellow'); }, get none() { return tr('t83.m2.risk.none'); } },
+  order: { get start() { return tr('t83.m2.order.start'); }, get wait() { return tr('t83.m2.order.wait'); }, get done() { return tr('t83.m2.order.done'); }, get skip() { return tr('t83.m2.order.skip'); }, get unrated() { return tr('t83.m2.order.unrated'); } }
 };
 
 /** Образцы и стрелки видов связи: сплошная, пунктир, толстая, с кружком, с крестом. */
@@ -905,31 +911,31 @@ function placement(
     key = cover?.level ?? 'none';
     lines.push(COVERAGE_LABEL[cover?.level ?? 'none']);
     const counts = [
-      cover?.requirements.total ? `треб. ${cover.requirements.total}` : '',
-      cover?.tasks.total ? `задачи ${cover.tasks.done}/${cover.tasks.total}` : '',
-      cover?.verifications.ids.length ? `проверки ${cover.verifications.passed}/${cover.verifications.ids.length}` : ''
+      cover?.requirements.total ? tr('t83.m6.cov.req', { n: cover.requirements.total }) : '',
+      cover?.tasks.total ? tr('t83.m6.cov.tasks', { done: cover.tasks.done, total: cover.tasks.total }) : '',
+      cover?.verifications.ids.length ? tr('t83.m6.cov.checks', { passed: cover.verifications.passed, total: cover.verifications.ids.length }) : ''
     ].filter(Boolean);
     if (counts.length > 0) lines.push(counts.join(' · '));
   } else if (mode === 'risks') {
     const flags = view?.flags ?? [];
     key = riskLevel(flags);
     lines.push(flags.length > 0
-      ? flags.map((flag) => (flag === 'waits' ? `ждёт: ${names(view?.waiting ?? [])}` : RISK_LABEL[flag])).join(' · ')
+      ? flags.map((flag) => (flag === 'waits' ? tr('t83.m6.waits', { list: names(view?.waiting ?? []) }) : RISK_LABEL[flag])).join(' · ')
       : IMPL_LABEL[stateKey]);
   } else {
     if (view?.priority?.value === 'wont') key = 'skip';
     else if (stateKey === 'implemented') key = 'done';
     else if (view && view.waiting.length > 0) key = 'wait';
     else key = stateKey === 'unrated' ? 'unrated' : 'start';
-    if (key === 'start') lines.push(view && view.unblocks > 0 ? `Можно начинать · освободит ${view.unblocks}` : 'Можно начинать');
-    else if (key === 'wait') lines.push(`Ждёт: ${names(view?.waiting ?? [])}`);
+    if (key === 'start') lines.push(view && view.unblocks > 0 ? tr('t83.m6.startUnblocks', { n: view.unblocks }) : tr('t83.m6.start'));
+    else if (key === 'wait') lines.push(tr('t83.m6.waitList', { list: names(view?.waiting ?? []) }));
     else lines.push(MODE_LABEL.order[key] ?? key);
     const plan = view ? planText(view) : '';
     // У «готово» и «не берём» приоритет уже сказан словом или ничего не решает.
     if (plan && key !== 'done' && key !== 'skip') lines.push(plan);
   }
 
-  if (view && view.replacedBy.length > 0) lines.push(`заменяется на ${names(view.replacedBy)}`);
+  if (view && view.replacedBy.length > 0) lines.push(tr('t83.m6.replaced', { list: names(view.replacedBy) }));
   return { key, lines };
 }
 
@@ -1002,15 +1008,33 @@ export function functionalMermaid(
 
   const lines = [mode === 'order' ? 'flowchart RL' : 'flowchart LR', ...classDefsOf(mode)];
 
+  // Глубина от верхних узлов и видимый представитель каждого узла при пределе `maxDepth`.
+  const depthLimit = options.maxDepth && options.maxDepth > 0 ? options.maxDepth : Number.POSITIVE_INFINITY;
+  const visibleAs = new Map<string, string>();
+  const walkDepth = (item: (typeof capabilities)[number], depth: number, shownAs: string | null) => {
+    if (visibleAs.has(item.id)) return;
+    const as = shownAs ?? item.id;
+    visibleAs.set(item.id, as);
+    for (const kid of index.get(item.id) ?? []) walkDepth(kid, depth + 1, shownAs ?? (depth + 1 >= depthLimit ? as : null));
+  };
+  for (const top of index.get(null) ?? []) walkDepth(top, 0, null);
+  function descendantsOf(id: string): string[] {
+    return [...visibleAs].filter(([item, as]) => as === id && item !== id).map(([item]) => item);
+  }
+
   const placed = new Set<string>();
   // Сколько нижних возможностей каждого класса нарисовано — для легенды.
   const classCount = new Map<string, number>();
   const leafNodes = new Map<string, string>();
 
-  function leaf(item: (typeof capabilities)[number], pad: string): void {
+  /** `folded` — ветка, свёрнутая глубиной: узел-группа со счётом, двойной клик открывает её (ADR-0027, п. 5). */
+  function leaf(item: (typeof capabilities)[number], pad: string, folded = false): void {
     placed.add(item.id);
     const view = views.get(item.id);
-    const { key, lines: text } = placement(mode, view, titles);
+    const placedText = placement(mode, view, titles);
+    const { key } = placedText;
+    const progress = folded ? view?.progress : undefined;
+    const text = progress ? [`${progress.implemented} из ${progress.total}`, ...placedText.lines] : placedText.lines;
     classCount.set(key, (classCount.get(key) ?? 0) + 1);
     const node = shown(item.id);
     leafNodes.set(item.id, node);
@@ -1020,7 +1044,8 @@ export function functionalMermaid(
     nodes[node] = {
       id: item.id, title: item.title, summary: item.summary, declaredBy: (item as { declaredBy?: string }).declaredBy,
       declaredAt: (item as { declaredAt?: string }).declaredAt, declaredByRole: (item as { declaredByRole?: string | null }).declaredByRole,
-      pending: (item as { pending?: boolean }).pending, capability: true, note: item.note, ...(view ? { capabilityView: view } : {})
+      pending: (item as { pending?: boolean }).pending, capability: true, note: item.note, ...(view ? { capabilityView: view } : {}),
+      ...(folded ? { capabilityGroup: item.id } : {})
     };
   }
 
@@ -1031,8 +1056,10 @@ export function functionalMermaid(
     const pad = '    '.repeat(depth + 1);
     // Уже стоящие на месте не считаем: рамка без единого содержимого ничего не рисует.
     const kids = (index.get(item.id) ?? []).filter((kid) => !placed.has(kid.id));
-    if (kids.length === 0) {
-      leaf(item, pad);
+    if (kids.length === 0 || depth + 1 >= depthLimit) {
+      // Свёрнутая ветка: узел с состоянием всей ветки, подпункты считаются нарисованными в нём.
+      for (const under of descendantsOf(item.id)) placed.add(under);
+      leaf(item, pad, kids.length > 0);
       return;
     }
     placed.add(item.id);
@@ -1057,7 +1084,7 @@ export function functionalMermaid(
     : [];
   if (ghosts.length > 0 && leafNodes.has(options.selected as string)) {
     lines.push('    classDef ghost fill:#F3F4F6,stroke:#6B7280,color:#111827,stroke-dasharray:5 4;');
-    lines.push('    subgraph ghosts["Из других групп"]');
+    lines.push(`    subgraph ghosts["${tr('t83.m6.ghosts')}"]`);
     const collapse = ghosts.length > FUNCTIONAL_GHOST_LIMIT;
     const drawnGhosts = collapse
       ? [...new Map(ghosts.map((ghost) => [ghost.groupId, ghost])).values()]
@@ -1065,9 +1092,9 @@ export function functionalMermaid(
     for (const ghost of drawnGhosts) {
       const node = collapse ? nodeId('fgg', ghost.groupId) : shown(ghost.id);
       const members = ghosts.filter((other) => other.groupId === ghost.groupId);
-      const name = collapse ? `${ghost.groupTitle} · ${members.length} ${members.length === 1 ? 'возможность' : 'возможностей'}` : ghost.title;
-      lines.push(`        ${node}["${label(name, 34)}<br/>из группы ${label(ghost.groupTitle, 28)}"]:::ghost`);
-      details[node] = [collapse ? ghost.groupId : ghost.id, name, `из группы ${ghost.groupTitle}`].join(LF);
+      const name = collapse ? tr('t83.m6.collapsedCaps', { group: ghost.groupTitle, n: trn('t83.m2.pl.cap', members.length) }) : ghost.title;
+      lines.push(`        ${node}["${label(name, 34)}<br/>${tr('t83.m6.fromGroup', { group: label(ghost.groupTitle, 28) })}"]:::ghost`);
+      details[node] = [collapse ? ghost.groupId : ghost.id, name, tr('t83.m6.fromGroup', { group: ghost.groupTitle })].join(LF);
       const view = views.get(collapse ? ghost.groupId : ghost.id);
       nodes[node] = {
         id: collapse ? ghost.groupId : ghost.id, title: collapse ? ghost.groupTitle : ghost.title,
@@ -1097,7 +1124,7 @@ export function functionalMermaid(
       }
     }
   }
-  const { drawn } = drawableRelations(relations, capabilities);
+  const { drawn } = drawableRelations(Number.isFinite(depthLimit) ? liftRelations(relations, visibleAs) : relations, capabilities);
   const waiting = new Set(drawn.filter((relation) => (views.get(relation.from)?.waiting ?? []).includes(relation.to)));
   const drawnLinks: DrawnLink[] = drawn.map((relation) => {
     const cyclic = relation.type === 'depends' && views.get(relation.from)?.inCycle && views.get(relation.to)?.inCycle;
@@ -1164,8 +1191,8 @@ export function functionalMermaid(
   }));
   entries.sort((a, b) => order(mode, a.key) - order(mode, b.key));
   if (options.impact && impactCount.up + impactCount.down > 0) {
-    if (impactCount.up > 0) entries.push({ key: 'impact_up', cls: 'imp_up', label: 'На чём стоит', count: impactCount.up });
-    if (impactCount.down > 0) entries.push({ key: 'impact_down', cls: 'imp_down', label: 'Что заденет', count: impactCount.down });
+    if (impactCount.up > 0) entries.push({ key: 'impact_up', cls: 'imp_up', label: tr('t83.m6.a21'), count: impactCount.up });
+    if (impactCount.down > 0) entries.push({ key: 'impact_down', cls: 'imp_down', label: tr('t83.m6.a22'), count: impactCount.down });
   }
   if (options.legendInside !== false) lines.push(...functionalLegend(entries, kindCount, { waits, cycles }, everyLink.length));
 
@@ -1178,6 +1205,27 @@ export function functionalMermaid(
     edges: [],
     neighbors: neighborsOf(everyLink.map((link) => ({ from: link.from, to: link.to })))
   };
+}
+
+/**
+ * Связи свёрнутых веток — к видимым предкам концов (ADR-0027): одинаковые
+ * стрелки сливаются в одну с числом исходных, связь внутри одного узла уходит.
+ */
+function liftRelations<R extends { from: string; to: string; type: string; summary?: string | undefined }>(
+  relations: readonly R[],
+  visibleAs: ReadonlyMap<string, string>
+): R[] {
+  const merged = new Map<string, { relation: R; count: number }>();
+  for (const relation of relations) {
+    const from = visibleAs.get(relation.from) ?? relation.from;
+    const to = visibleAs.get(relation.to) ?? relation.to;
+    if (from === to) continue;
+    const key = `${from}>${to}:${relation.type}`;
+    const seen = merged.get(key);
+    if (seen) seen.count += 1;
+    else merged.set(key, { relation: { ...relation, from, to }, count: 1 });
+  }
+  return [...merged.values()].map(({ relation, count }) => (count > 1 ? { ...relation, summary: `×${count}` } : relation));
 }
 
 /** Порядок строк легенды: как на переключателе, а не как встретились в карте. */
@@ -1238,7 +1286,7 @@ function functionalOverview(
   let waits = 0;
   edges.forEach((edge, at) => {
     kindCount[edge.type] = (kindCount[edge.type] ?? 0) + 1;
-    lines.push(`    ${node(edge.from)} ${KIND_ARROW[edge.type]}|"${edge.count > 1 ? `${edge.count} связей` : '1 связь'}"| ${node(edge.to)}`);
+    lines.push(`    ${node(edge.from)} ${KIND_ARROW[edge.type]}|"${edge.count > 1 ? tr('t83.m6.edgeLinks', { n: edge.count }) : tr('t83.m6.edgeLink')}"| ${node(edge.to)}`);
     const cyclic = edge.type === 'depends' && level.cycle.has(edge.from) && level.cycle.has(edge.to);
     if (cyclic) {
       cycles += 1;
@@ -1261,7 +1309,7 @@ function functionalOverview(
 }
 
 const KIND_NAME: Record<string, string> = {
-  depends: 'зависит от', uses: 'пользуется', feeds: 'передаёт данные в', triggers: 'запускает', replaces: 'заменяет'
+  get depends() { return tr('t83.m2.rel.depends'); }, get uses() { return tr('t83.m2.rel.uses'); }, get feeds() { return tr('t83.m2.rel.feedsIn'); }, get triggers() { return tr('t83.m2.rel.triggers'); }, get replaces() { return tr('t83.m2.rel.replaces'); }
 };
 
 /** Цвет класса узла: тот же, что в `classDef`, — по префиксу класса. */
@@ -1303,14 +1351,14 @@ function functionalLegend(
   hints: { waits: number; cycles: number },
   drawnEdges: number
 ): string[] {
-  const lines = ['    classDef legend_blank fill:none,stroke:none,color:#6B7280;', '    subgraph legend["Легенда"]'];
+  const lines = ['    classDef legend_blank fill:none,stroke:none,color:#6B7280;', `    subgraph legend["${tr('t83.m6.legend')}"]`];
   for (const entry of entries) {
     lines.push(`        legend_s_${entry.key}["${entry.label} · ${entry.count}"]:::${entry.cls}`);
   }
 
   const samples: { arrow: string; text: string; style?: string }[] = [];
   const names: Record<string, string> = {
-    depends: 'зависит от', uses: 'пользуется', feeds: 'передаёт данные в', triggers: 'запускает', replaces: 'заменяет'
+    get depends() { return tr('t83.m2.rel.depends'); }, get uses() { return tr('t83.m2.rel.uses'); }, get feeds() { return tr('t83.m2.rel.feedsIn'); }, get triggers() { return tr('t83.m2.rel.triggers'); }, get replaces() { return tr('t83.m2.rel.replaces'); }
   };
   for (const kind of KIND_ORDER) {
     if (!kinds[kind]) continue;
@@ -1321,14 +1369,14 @@ function functionalLegend(
     });
   }
   if (hints.waits) {
-    samples.push({ arrow: '-->', text: `жёлтая — ждёт зависимость · ${hints.waits}`, style: 'stroke:#D97706,stroke-width:2px' });
+    samples.push({ arrow: '-->', text: tr('t83.m6.yellow', { n: hints.waits }), style: 'stroke:#D97706,stroke-width:2px' });
   }
   if (hints.cycles) {
-    samples.push({ arrow: '-->', text: `красная — ждут друг друга · ${hints.cycles}`, style: 'stroke:#DC2626,stroke-width:3px' });
+    samples.push({ arrow: '-->', text: tr('t83.m6.red', { n: hints.cycles }), style: 'stroke:#DC2626,stroke-width:3px' });
   }
 
   if (samples.length === 0) {
-    lines.push('        legend_note["Связей между возможностями пока нет"]:::legend_blank');
+    lines.push(`        legend_note["${tr('t83.m6.noLinks')}"]:::legend_blank`);
   }
   const styled: string[] = [];
   samples.forEach((sample, at) => {
@@ -1340,11 +1388,11 @@ function functionalLegend(
 }
 
 function modulesWord(count: number): string {
-  const last = count % 10;
-  const tens = count % 100;
-  if (last === 1 && tens !== 11) return 'модуль';
-  if (last >= 2 && last <= 4 && (tens < 12 || tens > 14)) return 'модуля';
-  return 'модулей';
+  // Число и форма слова — по правилам выбранного языка (t83.m2.pl.module.*).
+  return trn(
+    't83.m2.pl.module',
+    count
+  );
 }
 
 /**
@@ -1366,7 +1414,7 @@ export function groupOverviewMermaid(grouping: Grouping, violations?: ReadonlyMa
   for (const group of groups) {
     const node = nodeId('g', group.id);
     const count = group.members.length;
-    const tail = `${count} ${modulesWord(count)}${group.auto ? ' · авто' : ''}`;
+    const tail = `${modulesWord(count)}${group.auto ? tr('t83.m6.auto') : ''}`;
     lines.push(`    ${node}["${label(group.title, 34)}<br/>${tail}"]:::${nodeId('grp', group.id)}`);
     details[node] = [group.title, group.summary, tail].filter(Boolean).join(LF);
     const card = groupCard(grouping, group.id);
@@ -1397,7 +1445,7 @@ export function groupOverviewMermaid(grouping: Grouping, violations?: ReadonlyMa
         imports: link.imports.map((item) => ({ from: item.from, to: item.to, evidence: item.evidence, status: item.status })),
         ...(archCount > 0 ? { archCount } : {})
       },
-      ...(archCount > 0 ? { arch: { code: 'arch_group', message: `${archCount} из ${link.imports.length} импортов этой связи нарушают правила архитектуры: откройте группу и найдите фиолетовые стрелки.` } } : {})
+      ...(archCount > 0 ? { arch: { code: 'arch_group', message: tr('t83.m6.archGroup', { archCount, total: link.imports.length }) } } : {})
     });
     const bad = link.status !== 'ok' && link.status !== 'pending';
     if (bad) styled.push(`    linkStyle ${at} stroke:#DC2626,stroke-width:3px;`);

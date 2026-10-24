@@ -75,7 +75,7 @@ export interface CapabilityLike {
   status?: string | undefined;
   note?: string | undefined;
   priority?: string | undefined;
-  horizon?: string | undefined;
+  horizon?: string | undefined; owner?: string | undefined; /* зона ответственности (T-0044) */ dashboards?: readonly string[] | undefined; /** Ссылки на узлы других карт, `вид:узел` (R-0086). */ mapLinks?: readonly string[] | undefined; /** Контракт блока: что принимает и что выдаёт (R-0088). */ inputs?: readonly string[] | undefined; outputs?: readonly string[] | undefined;
 }
 
 export interface RelationLike {
@@ -805,7 +805,7 @@ export interface StatusItem {
 export interface StatusDeclarations {
   declarations: {
     id: string; title?: string; parent?: string; summary?: string;
-    status?: ImplStatus; note?: string; priority?: Priority; horizon?: Horizon;
+    status?: ImplStatus; note?: string; priority?: Priority; horizon?: Horizon; owner?: string; dashboards?: string[]; mapLinks?: string[]; inputs?: string[]; outputs?: string[];
   }[];
   /** id, которых нет в картине: ничего не записывается, пока они есть. */
   unknown: string[];
@@ -844,7 +844,7 @@ export function statusDeclarations(
       ...(item.status ? { status: item.status } : {}),
       ...(note ? { note } : {}),
       ...(isPriority(current.priority) ? { priority: current.priority } : {}),
-      ...(isHorizon(current.horizon) ? { horizon: current.horizon } : {})
+      ...(isHorizon(current.horizon) ? { horizon: current.horizon } : {}), ...(current.owner ? { owner: current.owner } : {}), ...(current.dashboards?.length ? { dashboards: [...current.dashboards] } : {}), ...(current.mapLinks?.length ? { mapLinks: [...current.mapLinks] } : {}), ...(current.inputs?.length ? { inputs: [...current.inputs] } : {}), ...(current.outputs?.length ? { outputs: [...current.outputs] } : {})
     });
   }
   return { declarations, unknown };
@@ -1194,4 +1194,145 @@ export function openGroupOverview(
   openId: string
 ): Overview {
   return overviewAt(capabilities, relations, openId, 1);
+}
+
+/**
+ * Владелец возможности (T-0044): как приоритет, не складывается из подпунктов —
+ * действует собственный, а нет его — ближайшего родителя. Логин берётся из
+ * поля `owner` объявления; незнакомый приложению логин не отвергается.
+ */
+export function effectiveOwner(
+  item: CapabilityLike,
+  byId: ReadonlyMap<string, CapabilityLike>
+): { value: string; inherited: boolean; from: string } | null {
+  const seen = new Set<string>();
+  let at: CapabilityLike | undefined = item;
+  while (at && !seen.has(at.id)) {
+    seen.add(at.id);
+    if (typeof at.owner === 'string' && at.owner.trim() !== '') return { value: at.owner.trim(), inherited: at.id !== item.id, from: at.id };
+    const parent = parentOf(at, byId);
+    at = parent ? byId.get(parent) : undefined;
+  }
+  return null;
+}
+
+// --- сквозные связи (R-0089, docs/07-maps.md): в конце файла — карта хранит номера строк ---
+
+/** Связь, что минует уровни: оба узла в разных ветках и на разной глубине. */
+export interface CrossLevelRelation {
+  from: string;
+  to: string;
+  type: string;
+  /** На сколько уровней отличаются концы (>= 1). */
+  gap: number;
+}
+
+/**
+ * Сквозные связи функциональной карты: ни один конец не предок другого (это
+ * ответ дерева, а не связь) и глубины разные. По умолчанию на схеме их нет;
+ * при выборе узла показываются его сквозные связи пунктиром.
+ */
+export function crossLevelRelations(capabilities: readonly CapabilityLike[], relations: readonly RelationLike[]): CrossLevelRelation[] {
+  const byId = new Map(capabilities.map((item) => [item.id, item]));
+  const depth = (id: string): number => {
+    const seen = new Set<string>();
+    let at = byId.get(id);
+    let steps = 0;
+    while (at && !seen.has(at.id)) {
+      seen.add(at.id);
+      const parent = parentOf(at, byId);
+      if (!parent) break;
+      steps += 1;
+      at = byId.get(parent);
+    }
+    return steps;
+  };
+  const found: CrossLevelRelation[] = [];
+  for (const relation of relations) {
+    if (!byId.has(relation.from) || !byId.has(relation.to)) continue;
+    if (isTreeLink(relation.from, relation.to, capabilities)) continue;
+    const gap = Math.abs(depth(relation.from) - depth(relation.to));
+    if (gap >= 1) found.push({ from: relation.from, to: relation.to, type: relation.type, gap });
+  }
+  return found;
+}
+
+/** Сквозные связи одного узла — с обеих сторон. */
+export function crossLinksOf(id: string, all: readonly CrossLevelRelation[]): CrossLevelRelation[] {
+  return all.filter((link) => link.from === id || link.to === id);
+}
+
+// --- связи между картами (R-0086, docs/07-maps.md) ---
+
+/** Ссылка возможности на узел другой карты: `вид:узел` — `codemap:cache`, `userflow:login`, `godot-client:player`. */
+export interface MapLink {
+  kind: string;
+  node: string;
+}
+
+export function parseMapLink(text: string): MapLink | null {
+  const match = /^([a-z][a-z0-9-]*):(.+)$/.exec(text.trim());
+  return match ? { kind: match[1] as string, node: (match[2] as string).trim() } : null;
+}
+
+/** Возможности, у которых есть ссылки на узлы других карт. */
+export interface MapLinkOwner { id: string; mapLinks?: readonly string[] | undefined }
+
+/** Обратная сторона: у узла другой карты — «реализует возможность …». Ключ — `вид:узел`. */
+export function mapLinkBacklinks(capabilities: readonly MapLinkOwner[]): Map<string, string[]> {
+  const index = new Map<string, string[]>();
+  for (const item of capabilities) {
+    for (const raw of item.mapLinks ?? []) {
+      const link = parseMapLink(raw);
+      if (!link) continue;
+      const key = `${link.kind}:${link.node}`;
+      index.set(key, [...(index.get(key) ?? []), item.id]);
+    }
+  }
+  return index;
+}
+
+/** Ссылки на несуществующие узлы или записанные не по форме. `known` — множество `вид:узел` существующих узлов. */
+export function brokenMapLinks(capabilities: readonly MapLinkOwner[], known: ReadonlySet<string>): { capability: string; link: string; reason: 'format' | 'missing' }[] {
+  const broken: { capability: string; link: string; reason: 'format' | 'missing' }[] = [];
+  for (const item of capabilities) {
+    for (const raw of item.mapLinks ?? []) {
+      const link = parseMapLink(raw);
+      if (!link) broken.push({ capability: item.id, link: raw, reason: 'format' });
+      else if (!known.has(`${link.kind}:${link.node}`)) broken.push({ capability: item.id, link: raw, reason: 'missing' });
+    }
+  }
+  return broken;
+}
+
+// --- контракт блока: входы и выходы (R-0088, docs/07-maps.md) ---
+
+export interface BlockContractOwner {
+  id: string;
+  inputs?: readonly string[] | undefined;
+  outputs?: readonly string[] | undefined;
+}
+
+/** Вход, который указывает на запись процесса (`R-0001`, `D-0003`…): только такие можно проверить на готовность. */
+const RECORD_ID = /^[A-Z]{1,2}-\d{4}$/;
+
+/** Состояния записи, при которых вход считается подтверждённым. */
+const READY_STATUSES = new Set(['approved', 'done']);
+
+export interface NotReadyInput { input: string; why: 'missing' | 'unconfirmed'; status?: string }
+
+/**
+ * Входы блока, что ещё не готовы: запись-вход, которой нет или которая не
+ * подтверждена статусом. Вход, не похожий на номер записи (текст, имя
+ * возможности), не проверяется — это описание, а не ссылка.
+ */
+export function inputsNotReady(owner: BlockContractOwner, statusOf: (recordId: string) => string | null): NotReadyInput[] {
+  const found: NotReadyInput[] = [];
+  for (const input of owner.inputs ?? []) {
+    if (!RECORD_ID.test(input.trim())) continue;
+    const status = statusOf(input.trim());
+    if (status === null) found.push({ input, why: 'missing' });
+    else if (!READY_STATUSES.has(status)) found.push({ input, why: 'unconfirmed', status });
+  }
+  return found;
 }

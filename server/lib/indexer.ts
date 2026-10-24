@@ -83,7 +83,8 @@ export function buildIndex(root: string, now = new Date(), generalRules: readonl
         name: workspace.manifest.project.name,
         contract: workspace.manifest.contract,
         // Роль — подпись в журнале, а не доступ: экрану нужен их список.
-        roles: workspace.manifest.roles ?? []
+        roles: workspace.manifest.roles ?? [],
+        team: workspace.manifest.team
       },
       builtAt: now.toISOString(),
       fingerprint: workspace.fingerprint,
@@ -127,7 +128,7 @@ function toIndexRecord(record: WorkRecord, graph: Parameters<typeof incomingEdge
     section: record.source.section ?? null,
     links,
     backlinks,
-    extra
+    extra, version: versionOf(record)
   };
 }
 
@@ -153,3 +154,5 @@ function cachedWorkState(root: string): ReturnType<typeof workState> {
   workStates.set(key, { at: Date.now(), state });
   return state;
 }
+
+import { versionOf } from './version';

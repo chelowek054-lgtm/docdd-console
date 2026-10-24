@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import { IMPL_LABEL, type FunctionalCheckResult, type ImplStatus } from '../../server/lib/functional';
+const { t } = useT();
 
 /**
  * Ответ «Проверить по коду» таблицей: возможность, что в карте сейчас, что
@@ -72,14 +73,14 @@ const BADGE_COLOR = { implemented: 'success', partial: 'warning', not_implemente
 
 <template>
   <div class="mb-3">
-    <p v-if="loading" class="text-sm text-muted">Разбираю ответ…</p>
+    <p v-if="loading" class="text-sm text-muted">{{ t('t83.functional-check.1') }}</p>
 
     <!-- Блока нет — это не отказ: ответ остаётся текстом ниже, как раньше. -->
     <p v-else-if="failure" class="text-sm text-muted">{{ failure.message }}</p>
 
     <template v-else-if="result">
       <p v-if="result.checks.length === 0" class="text-sm text-muted">
-        Предложений по состоянию в ответе нет.
+        {{ t('t83.functional-check.2') }}
       </p>
 
       <template v-else>
@@ -88,10 +89,10 @@ const BADGE_COLOR = { implemented: 'success', partial: 'warning', not_implemente
             <thead class="bg-elevated text-left text-xs text-muted">
               <tr>
                 <th class="w-8 p-2" />
-                <th class="p-2">Возможность</th>
-                <th class="p-2">Сейчас</th>
-                <th class="p-2">По мнению модели</th>
-                <th class="p-2">Что нашла</th>
+                <th class="p-2">{{ t('t83.functional-check.3') }}</th>
+                <th class="p-2">{{ t('t83.functional-check.4') }}</th>
+                <th class="p-2">{{ t('t83.functional-check.5') }}</th>
+                <th class="p-2">{{ t('t83.functional-check.6') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -99,7 +100,7 @@ const BADGE_COLOR = { implemented: 'success', partial: 'warning', not_implemente
                 <td class="p-2">
                   <UCheckbox
                     :model-value="picked.has(row.id)"
-                    :aria-label="`Занести отметку: ${row.title}`"
+                    :aria-label="t('t83.m2.markRow', { title: row.title })"
                     @update:model-value="(value) => toggle(row.id, value)"
                   />
                 </td>
@@ -122,18 +123,18 @@ const BADGE_COLOR = { implemented: 'success', partial: 'warning', not_implemente
 
         <div class="mt-2 flex flex-wrap items-center gap-3">
           <UButton size="sm" :disabled="picked.size === 0" @click="apply">
-            Занести отметки ({{ picked.size }})
+            {{ t('t83.functional-check.7', { size: picked.size }) }}
           </UButton>
           <p class="text-xs text-muted">
-            Они попадут в несохранённые отметки дерева, а не в карту: проверьте и сохраните.
+            {{ t('t83.functional-check.8') }}
           </p>
-          <p v-if="applied" class="text-sm text-success">Занесено — смотрите дерево.</p>
+          <p v-if="applied" class="text-sm text-success">{{ t('t83.functional-check.9') }}</p>
         </div>
       </template>
 
       <ul v-if="result.skipped.length" class="mt-2 space-y-0.5 text-xs text-muted">
         <li v-for="row in result.skipped" :key="row.id">
-          <span class="font-mono">{{ row.id }}</span> — пропущено: {{ row.reason }}
+          <span class="font-mono">{{ row.id }}</span> {{ t('t83.functional-check.10', { reason: row.reason }) }}
         </li>
       </ul>
     </template>

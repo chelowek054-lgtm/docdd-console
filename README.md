@@ -1,111 +1,132 @@
 # DocDD Console
 
-Браузерный инструмент контроля разработки: показывает, в каком состоянии работа
-по проекту, и не даёт начать задачу раньше, чем подтверждены её документы.
+**English** · [Русский](README.ru.md)
 
-Работает с любым проектом, который ведёт процесс по контракту
-`docdd.workspace/1`: пользователь указывает корень проекта, приложение читает
-папку `docs/development` и строит по ней граф требований, документов, задач и
-проверок.
+**Documentation Driven Development, enforced.** A local web console that reads your project's
+process records — requirements, tasks, checks, decisions and system maps, all plain markdown in
+git — and refuses to start a task until the documents behind it are approved by a human.
 
-## Состояние
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+![Node](https://img.shields.io/badge/node-%5E20.19%20%7C%7C%20%3E%3D22.12-339933)
+![Status](https://img.shields.io/badge/status-early%20but%20used%20daily-orange)
 
-| Фаза | Что сделано |
+![Strategy screen: project contours with computed health](docs/assets/strategy.png)
+
+## Why
+
+Docs drift from code because the order is wrong: code changes first, the doc is updated
+"later". AI coding makes the drift faster. DocDD flips the order and makes it machine-checkable:
+
+```
+intent → doc change → human approval → code → verification
+```
+
+- A task can't move to **ready** until its requirement is **approved** — not shown, approved.
+- AI agents can write code in a task branch, but **can't approve documents** or accept their own
+  work. A human merges (fast-forward only, no history rewrites, no push).
+- After merge, the code is **verified against system maps**: every edge on a map points to a file
+  and a line.
+
+It's close in spirit to spec-driven development (Spec Kit, Kiro), with two additions: a human
+approval gate before work starts, and verification of the code against the maps after it ends.
+
+## What's inside
+
+- **Process records as files.** Requirements, tasks, checks, phases, decisions, contracts and
+  references live in `docs/development` of *your* repository (contract `docdd.workspace/1`). No
+  database: delete the cache and nothing is lost ([ADR-0001](docs/adr/0001-files-are-the-truth.md)).
+- **Validation.** Schemas, referential integrity and process rules — "task in progress with an
+  unapproved document", "requirement without a single check", "closed task with a failed test".
+- **Strategic map.** One per project: the project vision on top, contours below, a capability tree
+  of any depth. Health of every contour is computed from progress, deadlines, check quality and
+  violations — never set by hand.
+- **Working maps.** Codebase, data flows, user paths — or your own maps from templates. Edges carry
+  evidence (`file:line` + fragment) and are re-checked against the code.
+- **"What do we want?"** One phrase on the strategic map is broken down by a model into a place on
+  the map, requirements, checks and tasks — as drafts you approve.
+- **Work through the console.** A task gets its own branch and worktree; the model writes code; you
+  review the diff and merge.
+- **Role agents with limits.** Agents are accounts with roles: no approving, no accepting their own
+  work, signed log entries, token budgets per task.
+- **CLI check for CI.** `npm run check -- <project>` fails the build on process violations.
+
+| Strategic map | Codebase map |
 |---|---|
-| 1. Ядро | Разбор, схемы, граф, правила — чистые функции, 21 код нарушения |
-| 2. Чтение и экраны | Маршруты чтения и шесть экранов: проекты, обзор, задачи, требования, запись, нарушения |
-| 3. Действия процесса | Смена статуса и правка полей под сторожем тела документа; кнопки с причиной отказа |
-| 4. Граф и диаграммы | Разметка документов, mermaid из текста и из `.mmd`, граф записей с поиском висящих узлов |
-| 5. Заведение и импорт | Формат в пустой папке, обзор старой документации, план переноса и его применение, новая запись из шаблона |
-| 6. Проверка из командной строки | `docdd check` для сборки: код возврата 1 на ошибках, `--json` для конвейера |
-| 7. Карты проекта | Кодовая база, потоки данных и пользовательские пути: карту строит модель снаружи, приложение сверяет свидетельства и по ней блокирует работу |
-| 8. Выполнение через клиент | Задача отдаётся модели в своей ветке и рабочем дереве, дифф разбирает и сливает человек |
-| 9–13. Знания и функциональная карта | Реестр видов карты, функциональная карта, входящее как база знаний, общие практики между проектами |
-| 14–17. Карта как ядро | Группы на картах, состояние реализации, вектор и история курса, связи и покрытие процессом |
-| 18–19. Архитектура и практики | Модули с публичным входом, слои, правила в практиках, встроенный набор |
-| 20. Справочник | Тип `reference` и индекс: что уже есть, прежде чем писать своё |
-| 21–23. Работа и навигация | Экран «Работа» и порядок по важности, запросы к модели не теряются между страницами, вкладки «Сверки» и «Наполнения» |
-| Развёртывание | Скрипт установки на общий сервер Ubuntu ([docs/14-deploy.md](docs/14-deploy.md)) — написан, на сервере не запускался |
+| ![Strategic map tree](docs/assets/strategic-map.png) | ![Codebase map with layers](docs/assets/codebase.png) |
 
-Дальше — фазы 24–32: платформа команды вместо Jira и Confluence. План ведётся записями самой
-консоли, обоснование и аудит — [docs/15-team-platform.md](docs/15-team-platform.md).
+![Overview: project readiness and progress](docs/assets/overview.png)
 
-Приложение меняет только front matter и дописывает строку в журнал. Дифф в git
-после смены статуса — три строки; всё остальное в файле остаётся байт в байт
-([docs/02-workspace-contract.md](docs/02-workspace-contract.md)).
+> The screenshots show DocDD managing its own development. The project's records are written in
+> Russian, so record titles appear in Russian; the interface itself is available in English and
+> Russian.
 
-## Что внутри
+## Quick start
 
-| Документ | О чём |
-|---|---|
-| [docs/00-overview.md](docs/00-overview.md) | Зачем приложение, границы, чего оно не делает |
-| [docs/01-architecture.md](docs/01-architecture.md) | Из чего состоит: серверная часть Nitro и интерфейс |
-| [docs/02-workspace-contract.md](docs/02-workspace-contract.md) | Формат файлов, которые приложение читает и пишет |
-| [docs/03-server-api.md](docs/03-server-api.md) | Внутренний HTTP-контракт между интерфейсом и сервером |
-| [docs/04-ui.md](docs/04-ui.md) | Экраны, состояния, навигация |
-| [docs/05-validation.md](docs/05-validation.md) | Проверки, коды нарушений, серьёзность |
-| [docs/06-phases.md](docs/06-phases.md) | Фазы реализации и признаки готовности |
-| [docs/07-maps.md](docs/07-maps.md) | Три карты проекта, свидетельства и порядок подтверждения |
-| [docs/08-usage.md](docs/08-usage.md) | Как пользоваться и как организовать базу знаний |
-| [docs/09-execution.md](docs/09-execution.md) | Выполнение задачи через клиент: ветка, дифф, слияние |
-| [docs/prompts/](docs/prompts/) | Шаблоны запросов к модели: приложение подставляет данные и спрашивает модель через Claude Code, решает человек |
-| [docs/14-deploy.md](docs/14-deploy.md) | Установка на общий сервер Ubuntu: Node, сервис, nginx с авторизацией |
-| [docs/16-design-system.md](docs/16-design-system.md) | Единый дизайн: токены `docdd-design`, выгрузка в стеки, проверка экранов моделью |
-| [docs/15-team-platform.md](docs/15-team-platform.md) | Курс на платформу команды вместо Jira и Confluence: аудит, вектор, роли, план фаз 24–32 |
-| [docs/adr/](docs/adr/) | Решения с причинами и отвергнутыми вариантами |
-| [docs/schemas/](docs/schemas/) | JSON Schema, по которым идёт проверка |
-
-## Стек
-
-Nuxt 4 (TypeScript), серверная часть Nitro для доступа к файлам, Nuxt UI как
-дизайн-система, Ajv для проверки схем, `gray-matter` и `js-yaml` для разбора
-файлов, mermaid для диаграмм. Базы данных нет: источником правды остаются файлы
-проекта.
-
-## Запуск
+Requires Node.js `^20.19` or `>=22.12`.
 
 ```bash
+git clone https://github.com/chelowek054-lgtm/docdd-console.git
+cd docdd-console
 npm install
-npm run dev
+npm run build
+npm run start:built
 ```
 
-Проверки самого инструмента:
+Open `http://127.0.0.1:3000`, add a project folder, and either point it at an existing
+`docs/development` or let the console scaffold one. For hacking on the console itself use
+`npm run dev` (slower page loads — Vite serves ~240 modules per full reload).
+
+**Model features are optional.** Everything that reads, validates and shows works without a model.
+Breaking down intents, describing maps and working on tasks use [Claude Code](https://claude.com/claude-code)
+installed on the same machine, or a chat provider (Anthropic or an OpenAI-compatible API)
+configured in the console.
+
+The server listens on `127.0.0.1` only and never reads or writes outside the declared project root.
+For a shared Ubuntu server there is an install script with nginx and authentication in front —
+see [docs/14-deploy.md](docs/14-deploy.md).
+
+## Check a project from the command line
+
+The same validator without a browser, so the build fails on a process violation before anyone
+opens a screen:
 
 ```bash
-npm run typecheck && npm run test && npm run lint
+npm run check -- /path/to/your/project
+npm run check -- /path/to/your/project --json
 ```
 
-## Репозиторий о самом себе
+Exit code `1` — errors, `2` — the project could not be read, `0` — clean. Warnings are printed but
+don't fail the build. The check writes nothing.
 
-Инструмент заведён в собственном формате: `docs/development/project.yaml` и
-карта устройства в `docs/development/maps/`. Проверить его же средствами:
+## The repository describes itself
+
+DocDD is developed with DocDD: `docs/development` holds this project's own requirements, tasks,
+checks and maps, and `tests/self-map.spec.ts` fails the build if the code drifts from the map.
 
 ```bash
 npm run check -- .
+npm run typecheck && npm run test && npm run lint
 ```
 
-Карта составлена разбором всех 61 файла из `sources.code`; каждое ребро несёт
-файл, строку и фрагмент, и тест `tests/self-map.spec.ts` роняет сборку, если код
-уехал из-под карты.
+## Documentation
 
-## Проверка проекта из командной строки
+The design docs are currently written in Russian; English translations are welcome.
 
-Тот же валидатор без браузера — чтобы сборка падала на нарушении процесса
-раньше, чем кто-нибудь откроет экран:
+| Document | About |
+|---|---|
+| [docs/00-overview.md](docs/00-overview.md) | Purpose, scope, what it deliberately doesn't do |
+| [docs/02-workspace-contract.md](docs/02-workspace-contract.md) | The file format the console reads and writes |
+| [docs/07-maps.md](docs/07-maps.md) | Strategic and working maps, evidence, verification |
+| [docs/08-usage.md](docs/08-usage.md) | How to use it and the implementation rules |
+| [docs/09-execution.md](docs/09-execution.md) | Working on a task: branch, diff, merge |
+| [docs/adr/](docs/adr/) | Architecture decisions with rejected alternatives |
 
-```bash
-npm run check -- D:\work\fishForecast
-```
+## Contributing
 
-```bash
-npm run check -- D:\work\fishForecast --json
-```
+Issues and pull requests are welcome — please read [CONTRIBUTING.md](CONTRIBUTING.md) first: this
+repository follows its own rule, so a change in behaviour starts with a change in the docs.
+Security issues: see [SECURITY.md](SECURITY.md).
 
-Код возврата `1` — есть ошибка, `2` — проект не прочитан, `0` — чисто.
-Предупреждения выводятся, но сборку не валят. Проверка ничего не пишет: ни
-файлов, ни кэша.
+## License
 
-Приложение открывается на `http://localhost:3000`. Серверная часть сама наружу не
-смотрит: слушает только `127.0.0.1`. На общий сервер Ubuntu его ставят скриптом, и
-тогда перед ним стоит nginx с авторизацией — см.
-[docs/14-deploy.md](docs/14-deploy.md).
+[Apache License 2.0](LICENSE).

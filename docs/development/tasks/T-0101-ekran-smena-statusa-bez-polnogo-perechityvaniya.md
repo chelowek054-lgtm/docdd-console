@@ -2,10 +2,10 @@
 id: T-0101
 type: task
 title: 'Экран: смена статуса без полного перечитывания индекса, ленивые данные страниц, длинные списки порциями'
-status: in_progress
+status: done
 change: fix
 created: 2026-10-19
-updated: 2026-10-19
+updated: 2026-10-21
 links:
   implements: [R-0041]
   affects: [M-0047]
@@ -20,3 +20,5 @@ links:
 - 2026-10-19 · заведена · приложение
 - 2026-10-19 · готова к работе · architect
 - 2026-10-19 · в разработку · architect
+- 2026-10-20 · на проверку · architect
+- 2026-10-21 · закрыта · architect

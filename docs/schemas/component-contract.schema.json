@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "docdd-console/component-contract.schema.json",
+  "title": "Компонент в блоке docdd-design: контракт",
+  "description": "Запись списка `components` блока `docdd-design` (docs/16-design-system.md, «Контракт компонента»). Бизнес-логики в контракте нет; если она неотделима — поле `logic` с пояснением. Незнакомые поля сохраняются.",
+  "type": "object",
+  "required": ["name"],
+  "properties": {
+    "name": { "type": "string", "minLength": 1 },
+    "summary": { "type": "string" },
+    "status": { "enum": ["draft", "stable", "deprecated"] },
+    "kind": { "enum": ["base", "composite"], "description": "Базовый или составной." },
+    "composedOf": { "type": "array", "items": { "type": "string", "minLength": 1 }, "description": "Из каких компонентов реестра собран составной." },
+    "variants": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "states": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "parts": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "props": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "type"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "type": { "type": "string", "minLength": 1 },
+          "default": { "type": ["string", "number", "boolean"] },
+          "values": { "type": "array", "items": { "type": "string" } },
+          "required": { "type": "boolean" }
+        }
+      }
+    },
+    "slots": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "events": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "logic": { "type": "string", "minLength": 1, "description": "Почему логика неотделима от компонента." }
+  }
+}

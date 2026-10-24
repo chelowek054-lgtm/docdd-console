@@ -4,24 +4,26 @@ import { join } from 'node:path';
 import { defineEventHandler, readBody } from 'h3';
 
 import { normalizeRoot } from '../../lib/paths';
-import { claudeMd, DEFAULT_PATHS, fileNameFor, gitignoreWithDocdd, manifestYaml, recordTemplate } from '../../lib/scaffold';
+import { claudeMd, DEFAULT_PATHS, fileNameFor, gitignoreWithDocdd, manifestYaml, recordTemplate, VISION_STUB } from '../../lib/scaffold';
 import type { SectionKey } from '../../lib/types';
 import { developmentDir, hasWorkspace, MANIFEST_FILE } from '../../lib/workspace';
 import { fail } from '../../utils/http';
 import { findProject, saveProject } from '../../utils/projects';
 import { today } from '../../utils/record-write';
+import { rootAllowed } from '../../utils/mode'; import { contourCapabilities, customMapsYaml, projectTemplate } from '../../lib/project-templates';
 
 /**
  * Заведение формата в пустом проекте: манифест, папки разделов и первая
  * запись. Дальше наполняет человек — приложение записей за него не пишет.
  */
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ root?: unknown; id?: unknown; name?: unknown }>(event);
+  const body = await readBody<{ root?: unknown; id?: unknown; name?: unknown; template?: unknown }>(event);
   const root = typeof body?.root === 'string' ? body.root.trim() : '';
   const id = typeof body?.id === 'string' ? body.id.trim() : '';
   const name = typeof body?.name === 'string' ? body.name.trim() : '';
 
   if (!root) return fail(event, 400, 'root_required', 'Не указан путь к корню проекта');
+  if (!rootAllowed(normalizeRoot(root))) return fail(event, 403, 'root_not_allowed', 'Путь вне каталогов из DOCDD_PROJECT_ROOTS (в режиме shared переменная обязательна)');
   if (!/^[a-z0-9][a-z0-9-]*$/.test(id)) {
     return fail(
       event,
@@ -31,6 +33,7 @@ export default defineEventHandler(async (event) => {
     );
   }
   if (!name) return fail(event, 400, 'project_name_required', 'Не указано имя проекта');
+  const templateId = typeof body?.template === 'string' ? body.template.trim() : ''; const template = templateId ? projectTemplate(templateId) : null; if (templateId && !template) return fail(event, 400, 'template_unknown', `Шаблона \`${templateId}\` нет`); // шаблон проекта (R-0090) необязателен
 
   const normalized = normalizeRoot(root);
   if (!existsSync(normalized)) {
@@ -59,7 +62,7 @@ export default defineEventHandler(async (event) => {
       mkdirSync(join(development, folder), { recursive: true });
     }
 
-    writeFileSync(join(development, MANIFEST_FILE), manifestYaml({ id, name }), 'utf8');
+    writeFileSync(join(development, MANIFEST_FILE), manifestYaml({ id, name }) + (template ? customMapsYaml(template.customMaps).join('\n') + '\n' : ''), 'utf8');
 
     // Первая запись — требование: с него начинается всё остальное.
     const first = { id: 'R-0001', type: 'requirement' as const, title: 'Первое требование', today: today() };
@@ -69,6 +72,11 @@ export default defineEventHandler(async (event) => {
       recordTemplate(first),
       'utf8'
     );
+
+    // Вектор-заготовка: функциональная карта с `vision` (черновик, подтверждает человек).
+    writeFileSync(join(development, DEFAULT_PATHS.maps, fileNameFor('M-0001', 'Функциональная карта')), recordTemplate({ id: 'M-0001', type: 'map', title: 'Функциональная карта', today: today(), vision: VISION_STUB }), 'utf8');
+    // Контуры шаблона — черновик карты: подтверждает человек, как любую запись.
+    if (template) writeFileSync(join(development, DEFAULT_PATHS.maps, fileNameFor('M-0002', 'Контуры проекта')), recordTemplate({ id: 'M-0002', type: 'map', title: 'Контуры проекта', today: today(), capabilities: contourCapabilities(template) }), 'utf8');
 
     // Правила для модели — в корень проекта. Файл уже есть — не трогаем его
     // вовсе: это чужие правила, и заводить формат не значит их переписывать.

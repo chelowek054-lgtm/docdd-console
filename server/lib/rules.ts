@@ -3,6 +3,7 @@ import { checkArchitecture } from './architecture';
 import { buildReferenceIndex, sameIndex, type ReferenceEntry } from './reference';
 import type { RulesResolution } from './practice-rules';
 import { capabilityFindings } from './coverage';
+import { taskGaps } from './batch-check'; import { brokenMapLinks, inputsNotReady, effectiveHorizon, effectiveOwner, effectivePriority } from './functional';
 import { approvedMaps, checkEvidence, evidenceClaims, foldMaps, parseMapRecord, type MapChange } from './maps';
 import { firstHeading } from './parse';
 import {
@@ -23,7 +24,7 @@ import {
   type WorkRecord
 } from './types';
 import { plainTokens, type DesignResolution } from './design';
-import { PASS_LABEL, latestReports, type DesignReport } from './design-screens';
+import { PASS_LABEL, latestReports, type DesignReport } from './design-screens'; import { buildCatalogReport, catalogSources } from './design-catalog';
 import {
   STACK_LABEL,
   compareFile,
@@ -45,7 +46,7 @@ export interface RuleContext {
   /** Токены дизайна после сложения «общее → локальное» (docs/16-design-system.md). */
   design?: DesignResolution;
   /** Стеки и файлы темы проекта из манифеста: по ним сверяется выгрузка (docs/16-design-system.md). */
-  designStacks?: NonNullable<ProjectManifest['design']>['stacks'];
+  designStacks?: NonNullable<ProjectManifest['design']>['stacks']; /** Выгрузка Storybook проекта (`design.catalog`). */ designCatalog?: string;
   /** Принятые отчёты проверки экранов моделью. */
   designReports?: readonly DesignReport[];
   /** Справочник включён (`paths.reference`): путь к индексу и порог устаревания (docs/13-reference.md). */
@@ -91,7 +92,10 @@ const LINK_RULES: Readonly<Record<LinkKind, { from: readonly RecordType[]; to: r
   documents: { from: ['task'], to: ['design', 'contract'] },
   covers: { from: ['phase'], to: ['task'] },
   affects: { from: ['task'], to: ['map'] },
-  reuses: { from: ['task', 'design'], to: ['reference'] }
+  reuses: { from: ['task', 'design'], to: ['reference'] },
+  found_by: { from: ['defect'], to: ['verification'] },
+  fixed_by: { from: ['defect'], to: ['task'] },
+  breaks: { from: ['defect'], to: ['requirement'] }, ships: { from: ['release'], to: ['task'] }
 };
 
 const LINK_TITLES: Readonly<Record<LinkKind, string>> = {
@@ -105,7 +109,10 @@ const LINK_TITLES: Readonly<Record<LinkKind, string>> = {
   documents: 'правит документ',
   covers: 'входит в состав',
   affects: 'меняет карту',
-  reuses: 'переиспользует справку'
+  reuses: 'переиспользует справку',
+  found_by: 'найден проверкой',
+  fixed_by: 'чинится задачей',
+  breaks: 'нарушает требование', ships: 'выкладывает задачу'
 };
 
 // Из любого статуса, кроме начального `draft`, есть путь назад
@@ -160,7 +167,7 @@ export function checkRecordIdentity(record: WorkRecord): Violation[] {
     ));
   }
 
-  if (isRecordType(type) && /^[RDACTPVM]-\d{4}$/.test(record.id)) {
+  if (isRecordType(type) && /^[RDACTPVMSBL]-\d{4}$/.test(record.id)) {
     const expectedPrefix = PREFIX_BY_TYPE[type];
     if (!record.id.startsWith(expectedPrefix + '-')) {
       found.push(violation(
@@ -209,7 +216,7 @@ export function checkAll(ctx: RuleContext): Violation[] {
     ...architectureRules(ctx),
     ...rulesConflict(ctx),
     ...designRules(ctx),
-    ...designDrift(ctx),
+    ...designDrift(ctx), ...designCatalogRules(ctx),
     ...designScreenFindings(ctx),
     ...referenceRules(ctx),
     ...taskReuseUnchecked(ctx),
@@ -224,7 +231,9 @@ export function checkAll(ctx: RuleContext): Violation[] {
     ...docChangedAfterTask(ctx),
     ...taskStale(ctx),
     ...verificationNeverRun(ctx),
-    ...taskNoVerification(ctx)
+    ...taskNoVerification(ctx),
+    ...capabilityNoOwner(ctx),
+    ...mapLinksBroken(ctx), ...taskBatchGaps(ctx), ...blockInputsNotReady(ctx)
   ];
 }
 
@@ -1015,6 +1024,7 @@ function transitionsFor(type: string): Readonly<Record<string, readonly string[]
     case 'contract':
     case 'verification':
     case 'reference':
+    case 'defect': case 'release':
     // Карта подтверждается тем же порядком, что документ: без этого её нельзя
     // утвердить, а без утверждения не начинается работа (docs/07-maps.md).
     case 'map':
@@ -1121,6 +1131,108 @@ export function taskNoVerification(ctx: RuleContext): Violation[] {
       task.source.path,
       'Задача ' + task.id + ' в статусе `' + task.status + '`: ' + NO_VERIFICATION_TEXT + '. Заведите проверку и свяжите её с требованием (`verified_by`).'
     ));
+  }
+  return found;
+}
+
+/**
+ * Каталоги историй против контракта (docs/16-design-system.md, «Storybook как
+ * контракт»): пробелы — `design_story_missing`, расхождение свойств и лишние
+ * истории — `design_contract_drift`. Включается манифестом: нет `design.catalog`
+ * и `stacks[].catalog` — нет проверки. Файлы выгрузок читает `readSource`.
+ */
+export function designCatalogRules(ctx: RuleContext): Violation[] {
+  const design = ctx.design;
+  if (!design || design.empty || !ctx.readSource) return [];
+  const sources = catalogSources(
+    { ...(ctx.designCatalog ? { catalog: ctx.designCatalog } : {}), stacks: ctx.designStacks },
+    STACK_LABEL,
+    ctx.readSource
+  );
+  if (sources.length === 0) return [];
+  const components = design.tokens.components.map((item) => item.value);
+  return buildCatalogReport(components, sources).findings.map((finding) => violation(finding.code, null, '', finding.message));
+}
+
+/**
+ * Возможность must/now без владельца при включённой политике
+ * `require_capability_owner` (T-0044). Только нижние возможности: владелец
+ * родителя наследуется, а спрашивать с группы незачем. Политика выключена —
+ * проверки нет, старые проекты не получают новых предупреждений.
+ */
+export function capabilityNoOwner(ctx: RuleContext): Violation[] {
+  if (!ctx.policy.require_capability_owner) return [];
+  const picture = foldMaps(approvedMaps(ctx.records).map((record) => ({ id: record.id, change: parseMapRecord(record.body).change })));
+  const capabilities: (typeof picture.functional.capabilities[number] & { declaredBy?: string | undefined })[] = picture.functional.capabilities;
+  const byId = new Map(capabilities.map((item) => [item.id, item]));
+  const parents = new Set(capabilities.map((item) => item.parent).filter(Boolean));
+  const pathOf = new Map(ctx.records.map((record) => [record.id, record.source.path]));
+  return capabilities
+    .filter((item) => item.declaredBy && !parents.has(item.id))
+    .filter((item) => effectivePriority(item, byId)?.value === 'must' || effectiveHorizon(item, byId)?.value === 'now')
+    .filter((item) => effectiveOwner(item, byId) === null)
+    .map((item) => violation('capability_no_owner', item.declaredBy as string, pathOf.get(item.declaredBy as string) ?? '',
+      `У возможности «${item.title ?? item.id}» (\`${item.id}\`) приоритет must или горизонт now, а владельца нет ни у неё, ни у родителей: укажите \`owner\` новой картой.`));
+}
+
+/**
+ * Ссылки возможностей на узлы других карт (R-0086): узел должен существовать.
+ * Предупреждение, а не ошибка: карту могли подтвердить раньше, чем появился узел.
+ */
+export function mapLinksBroken(ctx: RuleContext): Violation[] {
+  const picture = foldMaps(approvedMaps(ctx.records).map((record) => ({ id: record.id, change: parseMapRecord(record.body).change })));
+  const capabilities: (typeof picture.functional.capabilities[number] & { declaredBy?: string | undefined })[] = picture.functional.capabilities;
+  if (!capabilities.some((item) => item.mapLinks?.length)) return [];
+  const known = new Set<string>([
+    ...picture.codemap.modules.map((item) => `codemap:${item.id}`),
+    ...picture.dataflow.sources.map((item) => `dataflow:${item.id}`),
+    ...picture.userflow.screens.map((item) => `userflow:${item.id}`),
+    ...picture.custom.nodes.map((item) => `${item.map}:${item.id}`)
+  ]);
+  const owner = new Map(capabilities.map((item) => [item.id, item.declaredBy ?? '']));
+  const pathOf = new Map(ctx.records.map((record) => [record.id, record.source.path]));
+  return brokenMapLinks(capabilities, known).map((found) => violation('map_link_broken', owner.get(found.capability) ?? '', pathOf.get(owner.get(found.capability) ?? '') ?? '',
+    found.reason === 'format'
+      ? `У возможности \`${found.capability}\` ссылка «${found.link}» записана не по форме \`вид:узел\`.`
+      : `У возможности \`${found.capability}\` ссылка «${found.link}» ведёт на узел, которого нет ни в одной подтверждённой карте.`));
+}
+
+/**
+ * Контракт блока (R-0088): задача в работе затрагивает возможность, чей вход —
+ * запись, не подтверждённая статусом. «Документ ведёт код» на уровне блока.
+ */
+export function blockInputsNotReady(ctx: RuleContext): Violation[] {
+  const picture = foldMaps(approvedMaps(ctx.records).map((record) => ({ id: record.id, change: parseMapRecord(record.body).change })));
+  const capabilities: (typeof picture.functional.capabilities[number] & { declaredBy?: string | undefined })[] = picture.functional.capabilities;
+  const withInputs = capabilities.filter((item) => item.inputs?.length);
+  if (withInputs.length === 0) return [];
+  const status = new Map(ctx.records.map((record) => [record.id, record.status]));
+  const found: Violation[] = [];
+  for (const task of ctx.records) {
+    if (task.type !== 'task' || (task.status !== 'in_progress' && task.status !== 'in_review')) continue;
+    const touched = new Set(task.links.affects ?? []);
+    for (const item of withInputs) {
+      if (!item.declaredBy || !touched.has(item.declaredBy)) continue;
+      const notReady = inputsNotReady(item, (id) => status.get(id) ?? null);
+      if (notReady.length === 0) continue;
+      found.push(violation('block_inputs_not_ready', task.id, task.source.path,
+        `Задача ${task.id} в работе, а у возможности \`${item.id}\` входы не готовы: ${notReady.map((entry) => entry.why === 'missing' ? `${entry.input} (записи нет)` : `${entry.input} (${entry.status})`).join(', ')}.`));
+    }
+  }
+  return found;
+}
+
+/**
+ * Сверка пачки как правило перехода (R-0092): при `policy.require_batch_check_before_ready`
+ * задача не уходит в `ready` и дальше, пока у реализуемых ею требований есть пробелы.
+ * Ошибка попадает в «блокеры» перехода, как и прочие правила задач.
+ */
+export function taskBatchGaps(ctx: RuleContext): Violation[] {
+  if (!ctx.policy.require_batch_check_before_ready) return [];
+  const found: Violation[] = [];
+  for (const task of tasks(ctx)) {
+    if (!TASK_READY_AND_BEYOND.includes(task.status) || task.status === 'done') continue;
+    for (const gap of taskGaps(task, ctx.records)) found.push(violation('task_batch_gap', task.id, task.source.path, `Сверка пачки: ${gap.message}`));
   }
   return found;
 }

@@ -1,5 +1,6 @@
 import { designTokens } from '~/design-tokens';
 import { messages } from '~/i18n/index';
+import { setTrLocale } from '~/i18n/tr';
 
 /**
  * i18n интерфейса консоли (docs/16-design-system.md, «i18n»). Языки, основной
@@ -30,13 +31,22 @@ export function useT() {
   const locale = useState<string>('locale', () => DEFAULT_LOCALE);
   const cookie = useCookie<string | null>(COOKIE, { maxAge: 60 * 60 * 24 * 365, sameSite: 'lax' });
 
+  setTrLocale(locale.value);
+
   function t(key: string, params?: Record<string, string | number>): string {
     return translate(locale.value, key, params);
+  }
+
+  /** Число с существительным: форма берётся по правилам языка из ключей `<ключ>.one|few|many`, `{n}` — число. */
+  function tn(key: string, n: number, params?: Record<string, string | number>): string {
+    const form = new Intl.PluralRules(tag.value).select(n);
+    return translate(locale.value, `${key}.${form === 'other' || form === 'zero' || form === 'two' ? 'many' : form}`, { ...params, n });
   }
 
   function setLocale(next: string) {
     if (!LOCALES.includes(next)) return;
     locale.value = next;
+    setTrLocale(next);
     cookie.value = next;
   }
 
@@ -47,5 +57,5 @@ export function useT() {
     return new Date(iso).toLocaleString(tag.value, { dateStyle: 'short', timeStyle: 'short' });
   }
 
-  return { t, locale, setLocale, locales: LOCALES, tag, dateTime };
+  return { t, tn, locale, setLocale, locales: LOCALES, tag, dateTime };
 }

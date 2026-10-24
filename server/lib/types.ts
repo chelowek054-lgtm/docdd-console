@@ -16,7 +16,8 @@ export type RecordType =
   | 'phase'
   | 'verification'
   | 'map'
-  | 'reference';
+  | 'reference'
+  | 'defect' | 'release';
 
 export const RECORD_TYPES: readonly RecordType[] = [
   'requirement',
@@ -27,7 +28,8 @@ export const RECORD_TYPES: readonly RecordType[] = [
   'phase',
   'verification',
   'map',
-  'reference'
+  'reference',
+  'defect', 'release'
 ];
 
 /**
@@ -49,7 +51,8 @@ export type SectionKey =
   | 'tests'
   | 'diagrams'
   | 'maps'
-  | 'reference';
+  | 'reference'
+  | 'defects' | 'releases';
 
 export type LinkKind =
   | 'implements'
@@ -62,7 +65,10 @@ export type LinkKind =
   | 'documents'
   | 'covers'
   | 'affects'
-  | 'reuses';
+  | 'reuses'
+  | 'found_by'
+  | 'fixed_by'
+  | 'breaks' | 'ships';
 
 export const LINK_KINDS: readonly LinkKind[] = [
   'implements',
@@ -75,7 +81,10 @@ export const LINK_KINDS: readonly LinkKind[] = [
   'documents',
   'covers',
   'affects',
-  'reuses'
+  'reuses',
+  'found_by',
+  'fixed_by',
+  'breaks', 'ships'
 ];
 
 export type Severity = 'error' | 'warning';
@@ -106,6 +115,7 @@ export type ViolationCode =
   | 'capability_ahead'
   | 'capability_behind'
   | 'capability_verification_failed'
+  | 'capability_no_owner' | 'task_batch_gap' | 'map_link_broken' | 'block_inputs_not_ready'
   // архитектура (docs/05-validation.md, «Архитектура»)
   | 'arch_entry_bypassed'
   | 'arch_parent_import'
@@ -135,6 +145,8 @@ export type ViolationCode =
   | 'design_theme_drift'
   | 'design_component_missing'
   | 'design_screen_finding'
+  | 'design_story_missing'
+  | 'design_contract_drift'
   // выполнение
   | 'work_unreviewed'
   | 'work_branch_orphan'
@@ -161,7 +173,8 @@ export const PREFIX_BY_TYPE: Readonly<Record<RecordType, string>> = {
   phase: 'P',
   verification: 'V',
   map: 'M',
-  reference: 'S'
+  reference: 'S',
+  defect: 'B', release: 'L'
 };
 
 /** Раздел, в котором живёт тип. Имя папки берётся из манифеста, ключ — отсюда. */
@@ -174,7 +187,8 @@ export const SECTION_BY_TYPE: Readonly<Record<RecordType, SectionKey>> = {
   phase: 'phases',
   verification: 'tests',
   map: 'maps',
-  reference: 'reference'
+  reference: 'reference',
+  defect: 'defects', release: 'releases'
 };
 
 /** Что за изменение вносит задача (docs/02-workspace-contract.md). */
@@ -206,6 +220,7 @@ export const VIOLATION_LEVELS: Readonly<Record<ViolationCode, Severity>> = {
   capability_ahead: 'warning',
   capability_behind: 'warning',
   capability_verification_failed: 'warning',
+  capability_no_owner: 'warning', task_batch_gap: 'error', map_link_broken: 'warning', block_inputs_not_ready: 'warning',
   arch_entry_bypassed: 'warning',
   arch_parent_import: 'warning',
   arch_sibling_import: 'warning',
@@ -233,6 +248,8 @@ export const VIOLATION_LEVELS: Readonly<Record<ViolationCode, Severity>> = {
   design_theme_drift: 'warning',
   design_component_missing: 'warning',
   design_screen_finding: 'warning',
+  design_story_missing: 'warning',
+  design_contract_drift: 'warning',
   work_unreviewed: 'warning',
   work_branch_orphan: 'warning',
   task_not_ready_docs: 'error',
@@ -282,7 +299,7 @@ export interface WorkRecord {
   source: RecordSource;
 }
 
-export type VerificationResult = 'passed' | 'failed' | 'skipped';
+export type VerificationResult = 'passed' | 'failed' | 'skipped' | 'blocked';
 
 export interface Report {
   contract: string;
@@ -295,6 +312,14 @@ export interface Report {
   note?: string;
   /** Вид проверки, принятой вручную без прогона сборки (unit, integration, metric…). */
   verification_kind?: string;
+  /** Шаги ручной проверки с результатом по каждому (R-0061). */
+  steps?: { text: string; expected?: string; state: string }[];
+  /** Версия сборки или релиза, на котором шёл прогон (R-0062). */
+  build?: string;
+  /** Причины итога `blocked`: V-номер → «что мешает» (R-0098). */
+  reasons?: Record<string, string>;
+  /** Вложения к проверкам: V-номер → пути файлов в `attachments/` (R-0099). */
+  attachments?: Record<string, string[]>;
   verifications: Record<string, VerificationResult>;
 }
 
@@ -306,6 +331,8 @@ export interface Policy {
   map_portion_files?: number;
   /** Через сколько дней справка считается устаревшей (docs/13-reference.md); по умолчанию 180. */
   reference_stale_days?: number;
+  /** Требовать владельца у возможностей must/now (T-0044); по умолчанию выключено. */
+  require_capability_owner?: boolean; /** Сверка пачки: задача не идёт в ready с пробелами в требованиях и проверках (R-0092); по умолчанию выключено. */ require_batch_check_before_ready?: boolean;
 }
 
 /**
@@ -351,8 +378,10 @@ export interface ProjectManifest {
   contract: string;
   project: { id: string; name: string; description?: string };
   paths: Partial<Record<SectionKey, string>>;
-  sources?: { code?: string[]; docs?: string[]; client?: string[]; inbox?: string[]; shared?: SharedSource[] };
+  sources?: { code?: string[]; docs?: string[]; client?: string[]; tests?: string[]; inbox?: string[]; shared?: SharedSource[] };
   roles?: { id: string; name: string }[];
+  /** Команда проекта: логин и роли человека в этом проекте (docs/adr/0020-people-roles-permissions.md). */
+  team?: { login: string; roles: string[]; deny?: string[] }[]; /** Метрики продукта из Prometheus для обзора (docs/04-ui.md, «Наблюдаемость»). */ observability?: { url?: string; dashboard?: string; queries?: { id: string; label: string; query: string; unit?: string; warn?: number }[] };
   policy?: Policy;
   architecture?: ArchitectureConfig;
   /** Стеки и снимки экранов (docs/16-design-system.md). */
@@ -360,7 +389,7 @@ export interface ProjectManifest {
 }
 
 export interface DesignManifest {
-  stacks?: { id: 'nuxt-ui' | 'expo' | 'compose' | 'swiftui'; files?: Record<string, string>; package?: string }[];
+  stacks?: { id: 'nuxt-ui' | 'expo' | 'compose' | 'swiftui'; files?: Record<string, string>; package?: string; /** Выгрузка каталога историй стека из CI. */ catalog?: string }[]; /** Выгрузка Storybook проекта: `index.json` или каталог с ним. */ catalog?: string; /** Каталог снимков историй: `<каталог>/<стек>/<id истории>.png`. */ snapshots?: string;
   /** Каталог снимков экранов от корня проекта. */
   screens?: string;
   /** Каталог эталонных макетов экранов. */
@@ -400,6 +429,8 @@ export interface VerificationOutcome {
   note?: string;
   /** Вид проверки в ручной приёмке автоматической проверки: экран подписывает «прогона сборки не было». */
   manualKind?: string;
+  /** Причина итога `blocked` — что мешает проверить (R-0098). */
+  reason?: string;
 }
 
 export interface IndexRecord {
@@ -419,6 +450,8 @@ export interface IndexRecord {
   backlinks: Partial<Record<LinkKind, string[]>>;
   /** Незнакомые поля front matter: приложение их не понимает, но обязано вернуть. */
   extra: Record<string, unknown>;
+  /** Версия содержания записи: клиент возвращает её при правке (оптимистическая блокировка). */
+  version?: string;
 }
 
 export interface IssueDto {
@@ -430,7 +463,7 @@ export interface IssueDto {
 }
 
 export interface ProjectIndex {
-  project: { id: string; name: string; contract: string; roles: { id: string; name: string }[] };
+  project: { id: string; name: string; contract: string; roles: { id: string; name: string }[]; team?: { login: string; roles: string[] }[] };
   builtAt: string;
   /** Отпечаток файлов, по которому кэш понимает, что устарел. */
   fingerprint: string;

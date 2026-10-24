@@ -2,10 +2,10 @@
 id: T-0115
 type: task
 title: Скрипт бюджета скорости страниц с отчётом проверок-метрик
-status: in_progress
+status: done
 change: feature
 created: 2026-10-20
-updated: 2026-10-20
+updated: 2026-10-21
 links:
   implements: [R-0051]
   affects: [M-0052]
@@ -21,3 +21,5 @@ cli/perf.ts: обход страниц, замер первого байта и 
 - 2026-10-20 · заведена из docs/inbox/skorost-otrisovki-byudzhet-stranic-kak-proverka.md · приложение
 - 2026-10-20 · готова к работе · architect
 - 2026-10-20 · в разработку · architect
+- 2026-10-20 · на проверку · architect
+- 2026-10-21 · закрыта · architect

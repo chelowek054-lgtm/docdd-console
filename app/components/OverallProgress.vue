@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { IndexRecord } from '../../server/lib/types';
+const { t } = useT();
 
 /**
  * Две общие шкалы проекта: задачи и фазы (docs/04-ui.md, «Общие шкалы»).
@@ -11,8 +12,8 @@ const props = defineProps<{ records: readonly IndexRecord[] }>();
 const overall = computed(() => overallProgress(props.records));
 
 const bars = computed(() => [
-  { key: 'tasks', label: 'Задачи', empty: 'задач нет', share: overall.value.tasks },
-  { key: 'phases', label: 'Фазы', empty: 'фаз нет', share: overall.value.phases }
+  { key: 'tasks', label: t('t83.m4.op.tasks'), empty: t('t83.m4.op.noTasks'), share: overall.value.tasks },
+  { key: 'phases', label: t('t83.m4.op.phases'), empty: t('t83.m4.op.noPhases'), share: overall.value.phases }
 ]);
 </script>
 
@@ -23,7 +24,7 @@ const bars = computed(() => [
         <span class="text-sm font-medium">{{ bar.label }}</span>
         <span class="text-sm text-muted">
           <template v-if="bar.share.total">
-            закрыто {{ bar.share.done }} из {{ bar.share.total }} · {{ percent(bar.share.done, bar.share.total) }}%
+            {{ t('t83.overall-progress.1', { done: bar.share.done, total: bar.share.total, p: percent(bar.share.done, bar.share.total) }) }}
           </template>
           <template v-else>{{ bar.empty }}</template>
         </span>

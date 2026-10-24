@@ -6,9 +6,9 @@ import { checkEvidence, evidenceClaims, parseMapRecord } from '../../../../lib/m
 import {
   architecturePrompt,
   fixPrompt,
-  functionalCheckPrompt,
+  functionalCheckPrompt, asIsPrompt,
   groupsPrompt,
-  inboxPrompt,
+  inboxPrompt, strategyIntentBlock,
   mapFixPrompt,
   mapsPrompt,
   phasesPrompt,
@@ -38,7 +38,7 @@ import { findProject } from '../../../../utils/projects';
 import { plainTokens } from '../../../../lib/design';
 import { designPrompt } from '../../../../lib/prompt';
 import { projectDesign } from '../../../../utils/design-service';
-import { projectScreens } from '../../../../utils/design-screens-service';
+import { projectScreens } from '../../../../utils/design-screens-service'; import { projectStoryPairs } from '../../../../utils/design-catalog-service'; import { withStoryPairs } from '../../../../lib/design-port'; import { packExtra } from '../../../../utils/context-service';
 import { reviewerOf, roleName } from '../../../../lib/reviewer';
 
 /**
@@ -60,7 +60,7 @@ export default defineEventHandler(async (event) => {
     issues?: unknown;
     answer?: unknown;
     problems?: unknown;
-    notes?: unknown;
+    notes?: unknown; mode?: unknown; contour?: unknown;
     tasks?: unknown;
     skip?: unknown;
     limit?: unknown;
@@ -82,7 +82,7 @@ export default defineEventHandler(async (event) => {
         if (picked.length === 0) {
           return fail(event, 422, 'issues_gone', 'Отмеченных нарушений больше нет: перечитайте список');
         }
-        return { prompt: fixPrompt(await template('fix-plan.md'), picked), count: picked.length };
+        return { prompt: fixPrompt(await template('fix-plan.md'), picked, packExtra(project.root, '', 'fix', picked.map((issue) => issue.message).join(String.fromCharCode(10)))), count: picked.length };
       }
 
       const codes = Array.isArray(body?.codes)
@@ -96,7 +96,7 @@ export default defineEventHandler(async (event) => {
         // Ошибки первыми: запрос читается сверху, и чинить надо тоже сверху.
         .sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'error' ? -1 : 1));
 
-      return { prompt: fixPrompt(await template('fix-plan.md'), issues), count: issues.length };
+      return { prompt: fixPrompt(await template('fix-plan.md'), issues, packExtra(project.root, '', 'fix', issues.map((issue) => issue.message).join(String.fromCharCode(10)))), count: issues.length };
     }
 
     if (kind === 'maps') {
@@ -155,10 +155,15 @@ export default defineEventHandler(async (event) => {
       // задваивало то, что в ней уже есть (docs/06-phases.md, фаза 12).
       const capabilities = buildProjectMap(project.root).functional.capabilities;
 
-      return {
-        prompt: inboxPrompt(await template('inbox-plan.md'), notes, known, capabilities, referenceIndexText(project.root)),
-        count: notes.length
-      };
+      let prompt = inboxPrompt(await template('inbox-plan.md'), notes, known, capabilities, referenceIndexText(project.root), packExtra(project.root, '', 'inbox', notes.map((note) => note.text).join(String.fromCharCode(10))));
+      // Намерение со стратегической карты (ADR-0037): тот же разбор, но разложить целиком.
+      if (body?.mode === 'strategy') {
+        const contourId = typeof body?.contour === 'string' ? body.contour : '';
+        const contour = capabilities.find((item) => item.id === contourId && !item.parent) ?? null;
+        const vision = buildProjectMap(project.root).functional.vision;
+        prompt += String.fromCharCode(10, 10) + strategyIntentBlock(await template('strategy-intent.md'), contour, vision);
+      }
+      return { prompt, count: notes.length };
     }
 
     if (kind === 'phases') {
@@ -214,6 +219,20 @@ export default defineEventHandler(async (event) => {
         return fail(event, 422, 'no_practices', 'Ни один источник в `sources.shared` не подключает ни одного тега: сверять код не с чем');
       }
       return { prompt: verifyPrompt(await template('verify-plan.md'), practices), count: practices.length };
+    }
+
+    if (kind === 'as-is') {
+      // «Как есть» (R-0078): устройство из подтверждённых карт и то, что уже заведено, — модель читает код сама.
+      const picture = buildProjectMap(project.root);
+      const index = loadIndex(project.root);
+      return {
+        prompt: asIsPrompt(await template('as-is.md'), {
+          modules: picture.codemap.modules, screens: picture.userflow.screens, sources: picture.dataflow.sources,
+          capabilities: picture.functional.capabilities,
+          requirements: index.records.filter((record) => record.type === 'requirement').map((record) => ({ id: record.id, title: record.title }))
+        }),
+        count: picture.codemap.modules.length + picture.userflow.screens.length
+      };
     }
 
     if (kind === 'functional-check') {
@@ -294,7 +313,7 @@ export default defineEventHandler(async (event) => {
         return fail(event, 422, 'design_no_shots', `Нет ни одного снимка из ${screens.total} нужных: положите их в \`${screens.screensDir}\` — шаблон скрипта снятия на экране «Дизайн», вкладка «Экраны»`);
       }
       const name = kind === 'design-responsive' ? 'design-responsive.md' : 'design-pixel-perfect.md';
-      return { prompt: designPrompt(await template(name), plainTokens(design.tokens), screens), count: present };
+      return { prompt: kind === 'design-pixel' ? withStoryPairs(designPrompt(await template(name), plainTokens(design.tokens), screens), projectStoryPairs(project.root)) : designPrompt(await template(name), plainTokens(design.tokens), screens), count: present };
     }
 
     if (kind === 'review-batch') {
@@ -333,7 +352,7 @@ export default defineEventHandler(async (event) => {
             requirements: requirements.map((id) => ({ id, title: byId.get(id)?.title ?? 'не найдено' })),
             verifications: index.records
               .filter((record) => record.type === 'verification'
-                && (record.links.verifies ?? []).some((id) => requirements.includes(id)))
+                && ((record.links.verifies ?? []).some((id) => requirements.includes(id)) || requirements.some((id) => (byId.get(id)?.links.verified_by ?? []).includes(record.id))))
               .map((record) => {
                 const outcome = index.verificationResults[record.id];
                 const recordKind = record.extra['kind'];
@@ -358,7 +377,7 @@ export default defineEventHandler(async (event) => {
       };
     }
 
-    return fail(event, 400, 'kind_invalid', 'Известны запросы: `fix`, `maps`, `map-fix`, `inbox`, `verify`, `functional-check`, `relations`, `phases`, `groups`, `architecture`, `priority`, `design-responsive`, `design-pixel`, `review-batch`');
+    return fail(event, 400, 'kind_invalid', 'Известны запросы: `fix`, `maps`, `as-is`, `map-fix`, `inbox`, `verify`, `functional-check`, `relations`, `phases`, `groups`, `architecture`, `priority`, `design-responsive`, `design-pixel`, `review-batch`');
   } catch (error) {
     if (error instanceof WorkspaceError) {
       return fail(event, 422, error.code, error.message, error.detail);

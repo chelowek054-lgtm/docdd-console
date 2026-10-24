@@ -1,6 +1,6 @@
 import { defineEventHandler, getRouterParam } from 'h3';
 
-import { customDefinitions, customMapView, type CustomMapView } from '../../../../../lib/custom-maps';
+import { customDefinitions, customMapView, engineMaps, type CustomMapView } from '../../../../../lib/custom-maps';
 import { OutsideRootError, normalizeRoot } from '../../../../../lib/paths';
 import { WorkspaceError, readWorkspace } from '../../../../../lib/workspace';
 import { fail } from '../../../../../utils/http';
@@ -22,11 +22,19 @@ export default defineEventHandler(async (event) => {
 
   try {
     const root = normalizeRoot(project.root);
-    const { definitions, problems } = customDefinitions(readWorkspace(root).manifest);
+    const manifest = readWorkspace(root).manifest;
+    const { definitions, problems } = customDefinitions(manifest);
     const projectMap = memoByFingerprint(project.root, 'map', () => fingerprintProject(project.root), () => buildProjectMap(project.root));
     const maps: Record<string, CustomMapView> = {};
     for (const def of definitions) maps[def.id] = customMapView(projectMap, def);
-    return { definitions, problems, maps };
+    // Рабочие карты с движком (ADR-0035): объявленные и уже живущие записями.
+    // Кто завёл каждую строку (ADR-0036): экран показывает «Удалить карту» создателю и администратору.
+    const owners: Record<string, string | null> = {};
+    for (const item of Array.isArray(manifest.maps?.custom) ? manifest.maps.custom : []) {
+      const entry = item as { id?: unknown; by?: unknown } | null;
+      if (typeof entry?.id === 'string') owners[entry.id] = typeof entry.by === 'string' ? entry.by : null;
+    }
+    return { definitions, problems, maps, engines: engineMaps(manifest, projectMap), owners };
   } catch (error) {
     if (error instanceof WorkspaceError) {
       return fail(event, 422, error.code, error.message, error.detail);

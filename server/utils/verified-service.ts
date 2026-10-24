@@ -8,10 +8,16 @@ import {
   type ManualExtra,
   manualReportName,
   manualReportText,
+  parseCheckSteps,
+  runReportName,
+  runReportText,
+  type RunState,
+  type ReportStep,
   verifiedJournalAction,
   type ManualState
 } from '../lib/manual-report';
 import { resolveInside } from '../lib/paths';
+import { passesThreshold, prometheusValue } from '../lib/metrics';
 import { invalidateWorkspace } from '../lib/workspace';
 import { DEVELOPMENT_DIR, type VerificationOutcome } from '../lib/types';
 import { loadIndex } from './index-service';
@@ -43,7 +49,11 @@ export function markVerified(root: string, recordId: string, verified: boolean, 
   if (verified && autoKind && !(extra?.note ?? '').trim()) {
     return { ok: false, status: 400, code: 'note_required', message: 'Принимая проверку без прогона сборки, напишите, что проверено' };
   }
-  const withKind: ManualExtra | undefined = autoKind ? { ...extra, kind: autoKind } : extra;
+  // Шаги берутся из тела проверки; человек может отметить шаг проваленным (R-0061).
+  const stepStates = extra?.steps ?? [];
+  const steps: ReportStep[] = parseCheckSteps(context.record.body).map((step, i) => ({ ...step, state: stepStates[i]?.state ?? 'passed' }));
+  const withSteps: ManualExtra | undefined = steps.length ? { ...extra, steps } : extra;
+  const withKind: ManualExtra | undefined = autoKind ? { ...withSteps, kind: autoKind } : withSteps;
 
   const testsFolder = context.workspace.manifest.paths?.tests;
   if (!testsFolder) {
@@ -59,7 +69,7 @@ export function markVerified(root: string, recordId: string, verified: boolean, 
   const base = manualReportName(recordId, now);
   let name = base;
   for (let n = 2; existsSync(join(dir, name)); n += 1) name = base.replace(/\.json$/, `-${n}.json`);
-  writeFileSync(join(dir, name), manualReportText(recordId, state, actor, now, verified ? withKind : undefined), 'utf8');
+  writeFileSync(join(dir, name), manualReportText(recordId, state, actor, now, verified ? withKind : (extra?.login ? { login: extra.login } : undefined)), 'utf8');
   dropCache(root);
   invalidateWorkspace(root);
 
@@ -78,4 +88,80 @@ export function markVerified(root: string, recordId: string, verified: boolean, 
     journal: written.ok ? (outcome.journal ?? null) : null,
     ...(written.ok ? {} : { warning: `Отчёт записан, а строка в журнале — нет: ${written.problems.join(' ')}` })
   };
+}
+
+export type RunOutcome =
+  | { ok: true; report: string; total: number; failed: number }
+  | { ok: false; status: number; code: string; message: string };
+
+/** Прогон набора проверок на сборке (R-0062): один отчёт с полем `build` на весь набор. */
+export function recordRun(root: string, build: string, results: Record<string, RunState>, actor: string, extra?: { by?: string; note?: string; login?: string; reasons?: Record<string, string>; attachments?: Record<string, string[]> }): RunOutcome {
+  if (!build.trim()) return { ok: false, status: 400, code: 'build_required', message: 'Не названа сборка или релиз' };
+  // «Заблокирована» без причины — не факт, а жалоба: что мешает, называет тестировщик (R-0098).
+  const noReason = Object.entries(results).filter(([id, state]) => state === 'blocked' && !extra?.reasons?.[id]?.trim()).map(([id]) => id);
+  if (noReason.length) return { ok: false, status: 400, code: 'blocked_reason_required', message: `Не названа причина блокировки: ${noReason.join(', ')}` };
+  const ids = Object.keys(results);
+  if (ids.length === 0) return { ok: false, status: 400, code: 'run_empty', message: 'В прогоне нет ни одной проверки' };
+  const index = loadIndex(root, true);
+  const unknown = ids.filter((id) => !index.records.some((record) => record.id === id && record.type === 'verification'));
+  if (unknown.length) return { ok: false, status: 404, code: 'record_not_found', message: `Не проверки или нет в проекте: ${unknown.join(', ')}` };
+  const testsFolder = openRecord(root, ids[0] ?? '')?.workspace.manifest.paths?.tests;
+  if (!testsFolder) return { ok: false, status: 409, code: 'tests_not_configured', message: 'В манифесте не назван раздел `paths.tests`: отчёту некуда лечь' };
+  const now = new Date();
+  const dir = resolveInside(root, join(DEVELOPMENT_DIR, testsFolder, 'reports'));
+  mkdirSync(dir, { recursive: true });
+  const base = runReportName(build, now);
+  let name = base;
+  for (let n = 2; existsSync(join(dir, name)); n += 1) name = base.replace(/\.json$/, `-${n}.json`);
+  writeFileSync(join(dir, name), runReportText(build, results, actor, now, extra), 'utf8');
+  dropCache(root);
+  invalidateWorkspace(root);
+  return { ok: true, report: name, total: ids.length, failed: Object.values(results).filter((state) => state === 'failed').length };
+}
+
+export type MetricOutcome =
+  | { ok: true; state: 'passed' | 'failed' | 'skipped'; value: number | null; report: string; note: string }
+  | { ok: false; status: number; code: string; message: string };
+
+/**
+ * Прогон проверки-метрики (R-0066): значение берётся запросом Prometheus
+ * (`DOCDD_PROMETHEUS_URL`), порог — из front matter проверки. Нет адреса или
+ * запроса или сервис не ответил — честное `skipped`, а не выдуманный успех.
+ */
+export async function runMetricCheck(root: string, recordId: string, actor: string): Promise<MetricOutcome> {
+  const context = openRecord(root, recordId);
+  if (!context) return { ok: false, status: 404, code: 'record_not_found', message: `Записи \`${recordId}\` в проекте нет` };
+  const data = context.record.data;
+  if (context.record.type !== 'verification' || data['kind'] !== 'metric') {
+    return { ok: false, status: 409, code: 'not_a_metric', message: `${recordId} — не проверка вида metric` };
+  }
+  const query = typeof data['query'] === 'string' ? data['query'].trim() : '';
+  const threshold = typeof data['threshold'] === 'number' ? data['threshold'] : Number.NaN;
+  if (!query || !Number.isFinite(threshold)) {
+    return { ok: false, status: 409, code: 'metric_not_configured', message: 'У проверки нет `query` или числового `threshold` в front matter' };
+  }
+
+  let state: 'passed' | 'failed' | 'skipped' = 'skipped';
+  let value: number | null = null;
+  let note = '';
+  const base = (process.env['DOCDD_PROMETHEUS_URL'] ?? '').trim().replace(/\/+$/, '');
+  if (!base) {
+    note = 'Пропущено: не задан DOCDD_PROMETHEUS_URL';
+  } else {
+    try {
+      const response = await fetch(`${base}/api/v1/query?query=${encodeURIComponent(query)}`, { signal: AbortSignal.timeout(10_000) });
+      value = response.ok ? prometheusValue(await response.json()) : null;
+      if (value === null) note = `Пропущено: Prometheus не вернул значения (HTTP ${response.status})`;
+      else {
+        state = passesThreshold(value, threshold, data['operator']) ? 'passed' : 'failed';
+        note = `${query} = ${value}, порог ${data['operator'] === 'gte' ? '>=' : '<='} ${threshold}`;
+      }
+    } catch (error) {
+      note = `Пропущено: Prometheus недоступен (${error instanceof Error ? error.message : String(error)})`;
+    }
+  }
+
+  const run = recordRun(root, `metric-${recordId}`, { [recordId]: state }, actor, { note: note.slice(0, 300) });
+  if (!run.ok) return run;
+  return { ok: true, state, value, report: run.report, note };
 }

@@ -26,6 +26,7 @@ import {
   type RelationType,
   type StatusFilter
 } from '../../server/lib/functional';
+const { t } = useT();
 
 /**
  * Функциональная карта — дерево, а не диаграмма: читает её часто не
@@ -57,6 +58,15 @@ const props = defineProps<{
    * оттуда же, где его видно (docs/04-ui.md, «Отметки состояния — пачкой»).
    */
   treeHidden?: boolean;
+  /**
+   * Куда писать правки; по умолчанию — стратегическая карта. Рабочая карта
+   * (ADR-0028, п. 3) рисуется этим же деревом и пишет в свой маршрут.
+   */
+  endpoint?: string;
+  /** Свои виды связей рабочей карты; стиль переводит вид в один из пяти для «ждёт» и циклов. */
+  relationKinds?: readonly { id: string; label: string; style: RelationType }[];
+  /** id нового узла из названия; у рабочей карты id — только латиница (custommap.schema.json). */
+  idOf?: (title: string) => string;
 }>();
 
 /** Несохранённые отметки живут у родителя: их же кладёт «Проверить по коду» и рисует граф. */
@@ -69,7 +79,12 @@ const emit = defineEmits<{
   changed: [];
 }>();
 
-const views = computed(() => capabilityViews(props.capabilities, props.relations, props.coverage));
+const styleOf = computed(() => new Map((props.relationKinds ?? []).map((kind) => [kind.id, kind.style])));
+const views = computed(() => capabilityViews(
+  props.capabilities,
+  props.relationKinds ? props.relations.map((item) => ({ ...item, type: styleOf.value.get(item.type) ?? item.type })) : props.relations,
+  props.coverage
+));
 const visible = computed(() => filterByStatus(props.capabilities, props.filter) as Capability[]);
 
 function childrenOf(id: string): Capability[] {
@@ -90,13 +105,13 @@ const roots = computed(() => visible.value.filter(
 ));
 
 /** Раскрыто по умолчанию — первые два уровня; глубже читатель разворачивает сам. */
-const expanded = ref<Set<string>>(new Set());
+const expanded = ref<Set<string>>(new Set()); const deepOpen = ref(false); onMounted(() => { deepOpen.value = true; }); // в HTML — только первый уровень, второй раскрывается после показа
 // Смотрим на состав, а не на сам список: отметка состояния пересобирает массив,
 // и раскрытые ветки не должны схлопываться от каждого клика.
-watch(() => props.capabilities.map((item) => `${item.id}>${item.parent ?? ''}`).join('|'), () => {
+watch(() => props.capabilities.map((item) => `${item.id}>${item.parent ?? ''}`).join('|') + deepOpen.value, () => {
   const next = new Set<string>();
   for (const item of props.capabilities) {
-    if (depthOf(item) < 2) next.add(item.id);
+    if (depthOf(item) < (deepOpen.value ? 2 : 1)) next.add(item.id);
   }
   expanded.value = next;
 }, { immediate: true });
@@ -157,11 +172,11 @@ const failure = ref<ApiFailure | null>(null);
 const statusItems = (['unrated', 'implemented', 'partial', 'not_implemented'] as const)
   .map((value) => ({ label: IMPL_LABEL[value], value }));
 const priorityItems = [
-  { label: 'Без приоритета', value: 'none' as const },
+  { get label() { return t('t83.m2.NoPriority'); }, value: 'none' as const },
   ...PRIORITIES.map((value) => ({ label: PRIORITY_LABEL[value], value }))
 ];
 const horizonItems = [
-  { label: 'Без горизонта', value: 'none' as const },
+  { get label() { return t('t83.m2.NoHorizon'); }, value: 'none' as const },
   ...HORIZONS.map((value) => ({ label: HORIZON_LABEL[value], value }))
 ];
 
@@ -218,7 +233,7 @@ async function post(body: Record<string, unknown>, label: string): Promise<boole
   saving.value = true;
   failure.value = null;
   try {
-    const response = await $fetch(`/api/projects/${props.projectId}/map/capability`, {
+    const response = await $fetch(props.endpoint ?? `/api/projects/${props.projectId}/map/capability`, {
       method: 'POST',
       body,
       ignoreResponseError: true
@@ -259,13 +274,13 @@ function onSubmit() {
         ...(formPriority.value !== 'none' ? { priority: formPriority.value } : {}),
         ...(formHorizon.value !== 'none' ? { horizon: formHorizon.value } : {})
       },
-      `изменена «${title}»`
+      t('t83.m2.ft.changed', { title })
     );
   } else {
-    const id = slugify(title);
+    const id = props.idOf ? props.idOf(title) : slugify(title);
     void saveCapability(
       { id, title, parent: formParent.value ?? undefined, summary },
-      `добавлена «${title}»`
+      t('t83.m2.ft.added', { title })
     );
   }
 }
@@ -273,11 +288,11 @@ function onSubmit() {
 async function removeCapability(item: Capability) {
   const kids = childrenOf(item.id);
   const question = kids.length > 0
-    ? `Убрать «${item.title ?? item.id}»? У неё ${kids.length} подпунктов — они останутся, но станут отдельными.`
-    : `Убрать «${item.title ?? item.id}»?`;
+    ? t('t83.m2.ft.confirmKids', { title: item.title ?? item.id, n: kids.length })
+    : t('t83.m2.ft.confirm', { title: item.title ?? item.id });
   // eslint-disable-next-line no-alert -- то же подтверждение, что и на удаление где угодно в браузере; своё модальное окно ради одной кнопки не оправдано.
   if (!confirm(question)) return;
-  await post({ action: 'remove', capability: { id: item.id } }, `убрана «${item.title ?? item.id}»`);
+  await post({ action: 'remove', capability: { id: item.id } }, t('t83.m2.ft.removed', { title: item.title ?? item.id }));
 }
 
 async function saveMarks() {
@@ -287,7 +302,7 @@ async function saveMarks() {
     ...(value.note !== undefined ? { note: value.note } : {})
   }));
   if (statuses.length === 0) return;
-  if (await post({ action: 'status', statuses }, `отметки состояния (${statuses.length})`)) marks.value = {};
+  if (await post({ action: 'status', statuses }, t('t83.m2.ft.marks', { n: statuses.length }))) marks.value = {};
 }
 
 // --- форма: связать ---
@@ -300,7 +315,7 @@ function openRelate(item: Capability) {
   formOpen.value = false;
   relateFrom.value = item;
   relateTo.value = '';
-  relateType.value = 'depends';
+  relateType.value = (relationItems.value[0]?.value ?? 'depends') as RelationType;
   relateSummary.value = '';
   failure.value = null;
 }
@@ -336,11 +351,13 @@ async function saveRelations() {
     action: 'relations',
     ...(add.length ? { add: add.map(({ from, to, type, summary }) => ({ from, to, type, ...(summary ? { summary } : {}) })) } : {}),
     ...(remove.length ? { remove } : {})
-  }, `связи (+${add.length} −${remove.length})`);
+  }, t('t83.m2.ft.links', { add: add.length, remove: remove.length }));
   if (ok) relationMarks.value = NO_RELATION_MARKS;
 }
 
-const relationItems = RELATION_TYPES.map((value) => ({ label: RELATION_LABEL[value], value }));
+const relationItems = computed(() => props.relationKinds
+  ? props.relationKinds.map((kind) => ({ label: kind.label, value: kind.id }))
+  : RELATION_TYPES.map((value) => ({ label: RELATION_LABEL[value], value })));
 
 /**
  * Подтверждение прямо здесь, без похода на экран записи: `draft → review →
@@ -371,18 +388,38 @@ async function confirmDraft() {
     confirming.value = false;
   }
 }
+
+// Одна панель действий на всё дерево: по кнопке на каждую строку давали сотни
+// скрытых компонентов. Панель встаёт к строке под курсором или в фокусе.
+const wrapRef = ref<HTMLElement | null>(null);
+const panel = ref<{ item: Capability; top: number; left: number } | null>(null);
+
+function showPanel(item: Capability, anchor: HTMLElement) {
+  const wrap = wrapRef.value;
+  if (!wrap) return;
+  const base = wrap.getBoundingClientRect();
+  const rect = anchor.getBoundingClientRect();
+  panel.value = { item, top: rect.top - base.top, left: rect.right - base.left };
+}
+
+function hidePanel(event?: FocusEvent) {
+  const next = event?.relatedTarget as Node | null | undefined;
+  if (next && wrapRef.value?.contains(next)) return;
+  panel.value = null;
+}
+
 </script>
 
 <template>
   <div>
     <div class="mb-3 flex flex-wrap items-center gap-3">
       <UButton v-show="!treeHidden" size="xs" icon="i-lucide-plus" variant="soft" @click="openAdd(null)">
-        Добавить возможность
+        {{ t('t83.functional-tree.1') }}
       </UButton>
 
       <p v-if="pendingDraft" class="flex flex-wrap items-center gap-2 text-sm text-muted">
-        Черновик {{ pendingDraft.id }} создан: {{ pendingDraft.label }}.
-        <UButton size="xs" :loading="confirming" @click="confirmDraft">Подтвердить</UButton>
+        {{ t('t83.functional-tree.2', { id: pendingDraft.id, label: pendingDraft.label }) }}
+        <UButton size="xs" :loading="confirming" @click="confirmDraft">{{ t('t83.functional-tree.3') }}</UButton>
       </p>
     </div>
 
@@ -391,19 +428,19 @@ async function confirmDraft() {
     <div v-if="markCount > 0 || relationCount > 0" class="sticky top-0 z-10 mb-3 space-y-2">
       <div
         v-if="markCount > 0"
-        class="flex flex-wrap items-center gap-3 rounded border border-warning bg-default p-2 text-sm"
+        class="flex flex-wrap items-center gap-3 ds-card ds-card--warn p-2 text-sm"
       >
-        <span>Отметок: {{ markCount }} — пока не сохранены</span>
-        <UButton size="xs" :loading="saving" @click="saveMarks">Сохранить отметки</UButton>
-        <UButton size="xs" variant="ghost" color="neutral" @click="marks = {}">Сбросить</UButton>
+        <span>{{ t('t83.functional-tree.4', { markCount: markCount }) }}</span>
+        <UButton size="xs" :loading="saving" @click="saveMarks">{{ t('t83.functional-tree.5') }}</UButton>
+        <UButton size="xs" variant="ghost" color="neutral" @click="marks = {}">{{ t('t83.functional-tree.6') }}</UButton>
       </div>
       <div
         v-if="relationCount > 0"
-        class="flex flex-wrap items-center gap-3 rounded border border-warning bg-default p-2 text-sm"
+        class="flex flex-wrap items-center gap-3 ds-card ds-card--warn p-2 text-sm"
       >
-        <span>Связей: +{{ relationMarks.add.length }} −{{ relationMarks.remove.length }} — пока не сохранены</span>
-        <UButton size="xs" :loading="saving" @click="saveRelations">Сохранить связи</UButton>
-        <UButton size="xs" variant="ghost" color="neutral" @click="relationMarks = NO_RELATION_MARKS">Сбросить</UButton>
+        <span>{{ t('t83.functional-tree.7', { length: relationMarks.add.length, length2: relationMarks.remove.length }) }}</span>
+        <UButton size="xs" :loading="saving" @click="saveRelations">{{ t('t83.functional-tree.8') }}</UButton>
+        <UButton size="xs" variant="ghost" color="neutral" @click="relationMarks = NO_RELATION_MARKS">{{ t('t83.functional-tree.6') }}</UButton>
       </div>
     </div>
     <UAlert
@@ -417,24 +454,24 @@ async function confirmDraft() {
 
     <UCard v-if="formOpen" v-show="!treeHidden" class="mb-3">
       <p class="mb-2 text-sm text-muted">
-        {{ editingId ? 'Название, описание, состояние, приоритет и горизонт' : 'Название возможности' }}
+        {{ editingId ? t('t83.m2.ft.editTitle') : t('t83.m2.ft.newTitle') }}
       </p>
       <div class="flex flex-wrap items-center gap-3">
         <UInput
           v-model="formTitle"
           class="min-w-64 flex-1"
-          placeholder="Как это назовёт доменный специалист, не разработчик"
+          :placeholder="t('t83.functional-tree.9')"
           @keyup.enter="onSubmit"
         />
-        <UButton :loading="saving" :disabled="!formTitle.trim()" @click="onSubmit">Сохранить</UButton>
-        <UButton variant="ghost" color="neutral" @click="closeForm">Отмена</UButton>
+        <UButton :loading="saving" :disabled="!formTitle.trim()" @click="onSubmit">{{ t('t83.functional-tree.10') }}</UButton>
+        <UButton variant="ghost" color="neutral" @click="closeForm">{{ t('t83.functional-tree.11') }}</UButton>
       </div>
       <UTextarea
         v-model="formSummary"
         class="mt-3 w-full"
         :rows="3"
         autoresize
-        placeholder="Описание — необязательно: зачем это в системе и что даёт пользователю, простыми словами"
+        :placeholder="t('t83.functional-tree.12')"
       />
       <!-- У родителя состояние производное — поле показывать нечем и незачем. -->
       <div v-if="editingId && !editingIsParent" class="mt-3 flex flex-wrap items-start gap-3">
@@ -443,7 +480,7 @@ async function confirmDraft() {
           v-model="formNote"
           class="min-w-64 flex-1"
           :disabled="formStatus === 'unrated'"
-          placeholder="Что сделано и чего не хватает — одна-две фразы"
+          :placeholder="t('t83.functional-tree.13')"
         />
       </div>
       <!-- Приоритет и горизонт — и у родителя: это решение о ветке целиком, в подпунктах оно наследуется. -->
@@ -463,7 +500,7 @@ async function confirmDraft() {
 
     <UCard v-if="relateFrom" v-show="!treeHidden" class="mb-3">
       <p class="mb-2 text-sm text-muted">
-        Связать «{{ relateFrom.title ?? relateFrom.id }}» с другой возможностью — связь отложится в пачку
+        {{ t('t83.functional-tree.14', { p: relateFrom.title ?? relateFrom.id }) }}
       </p>
       <div class="flex flex-wrap items-center gap-3">
         <USelect v-model="relateType" class="w-44" :items="relationItems" />
@@ -471,15 +508,15 @@ async function confirmDraft() {
           v-model="relateTo"
           class="min-w-64 flex-1"
           :items="relateTargets"
-          placeholder="С какой возможностью"
+          :placeholder="t('t83.functional-tree.15')"
         />
-        <UButton :disabled="!relateTo" @click="submitRelate">Связать</UButton>
-        <UButton variant="ghost" color="neutral" @click="relateFrom = null">Отмена</UButton>
+        <UButton :disabled="!relateTo" @click="submitRelate">{{ t('t83.functional-tree.16') }}</UButton>
+        <UButton variant="ghost" color="neutral" @click="relateFrom = null">{{ t('t83.functional-tree.11') }}</UButton>
       </div>
       <UInput
         v-model="relateSummary"
         class="mt-3 w-full"
-        placeholder="Чем именно связаны — одна фраза, необязательно"
+        :placeholder="t('t83.functional-tree.17')"
       />
       <UAlert
         v-if="failure"
@@ -492,13 +529,14 @@ async function confirmDraft() {
     </UCard>
 
     <p v-if="allPending" v-show="!treeHidden" class="mb-3 text-sm text-muted">
-      Карта ещё не подтверждена, поэтому всё на ней помечено как план.
+      {{ t('t83.functional-tree.18') }}
     </p>
 
-    <p v-if="roots.length === 0" v-show="!treeHidden" class="rounded border border-dashed border-default p-6 text-center text-sm text-muted">
-      {{ capabilities.length === 0 ? 'Возможностей пока нет — добавьте первую.' : 'Под этот фильтр ничего не подошло.' }}
+    <p v-if="roots.length === 0" v-show="!treeHidden" class="ds-card ds-card--dashed p-6 text-center text-sm text-muted">
+      {{ capabilities.length === 0 ? t('t83.m2.ft.none') : t('t83.m2.ft.noMatch') }}
     </p>
-    <ul v-else v-show="!treeHidden" class="space-y-0.5">
+    <div v-else v-show="!treeHidden" ref="wrapRef" class="relative" @mouseleave="hidePanel()" @focusout="hidePanel">
+    <ul class="space-y-0.5">
       <FunctionalTreeNode
         v-for="item in roots"
         :key="item.id"
@@ -516,7 +554,19 @@ async function confirmDraft() {
         @relate="openRelate"
         @remove="removeCapability"
         @mark="mark"
+        @hover="showPanel"
       />
     </ul>
+    <div
+      v-if="panel"
+      class="absolute z-10 flex -translate-x-full gap-1 rounded bg-elevated"
+      :style="{ top: panel.top + 'px', left: panel.left + 'px' }"
+    >
+      <UButton icon="i-lucide-plus" size="xs" variant="ghost" color="neutral" :title="t('t83.functional-tree.19')" @click="openAdd(panel.item.id)" />
+      <UButton icon="i-lucide-pencil" size="xs" variant="ghost" color="neutral" :title="t('t83.functional-tree.20')" @click="openEdit(panel.item)" />
+      <UButton icon="i-lucide-link" size="xs" variant="ghost" color="neutral" :title="t('t83.functional-tree.21')" @click="openRelate(panel.item)" />
+      <UButton icon="i-lucide-trash-2" size="xs" variant="ghost" color="neutral" :title="t('t83.functional-tree.22')" @click="removeCapability(panel.item)" />
+    </div>
+    </div>
   </div>
 </template>
