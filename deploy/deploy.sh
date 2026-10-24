@@ -197,7 +197,8 @@ build_app() {
   log "Сборка"
   cd "$APP_DIR"
   as_app npm ci --no-audit --no-fund
-  as_app npm run build
+  # Сборке Nuxt не хватает 2 ГБ кучи Node по умолчанию (проверено на чистой Ubuntu 24.04): поднимаем предел.
+  as_app env "NODE_OPTIONS=${BUILD_NODE_OPTIONS:---max-old-space-size=4096}" npm run build
   [ -f "$APP_DIR/.output/server/index.mjs" ] || die "сборка не создала .output/server/index.mjs"
 }
 
