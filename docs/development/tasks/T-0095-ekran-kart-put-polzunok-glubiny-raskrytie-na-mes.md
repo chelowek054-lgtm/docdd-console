@@ -5,10 +5,11 @@ title: 'Экран карт: путь, ползунок глубины, раск
 status: done
 change: feature
 created: 2026-10-19
-updated: 2026-10-20
+updated: 2026-10-24
 links:
   implements: [R-0040]
   affects: [M-0046]
+reuse: none
 ---
 
 # Экран карт: путь, ползунок глубины, раскрытие на месте, адрес ?group=а/б

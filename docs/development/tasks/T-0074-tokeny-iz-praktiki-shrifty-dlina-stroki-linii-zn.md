@@ -5,10 +5,11 @@ title: 'Токены из практики: шрифты, длина строк�
 status: done
 change: feature
 created: 2026-10-11
-updated: 2026-10-20
+updated: 2026-10-24
 links:
   implements: [R-0035]
   affects: [M-0036]
+reuse: none
 ---
 
 # Токены из практики: шрифты, длина строки, линии, значки, движение

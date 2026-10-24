@@ -5,10 +5,11 @@ title: 'Конструктор тем: выбор цветов с живым к�
 status: done
 change: feature
 created: 2026-10-11
-updated: 2026-10-20
+updated: 2026-10-24
 links:
   implements: [R-0035]
   affects: [M-0037]
+reuse: none
 ---
 
 # Конструктор тем: выбор цветов с живым контролем контраста, запись черновиком блока

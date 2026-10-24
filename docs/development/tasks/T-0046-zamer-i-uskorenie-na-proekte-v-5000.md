@@ -5,11 +5,12 @@ title: Замер и ускорение на проекте в 5000 записе
 status: done
 change: feature
 created: 2026-10-10
-updated: 2026-10-21
+updated: 2026-10-24
 owner: developer
 links:
   implements: [R-0018]
   affects: [M-0016]
+reuse: none
 ---
 
 # Замер и ускорение на проекте в 5000 записей

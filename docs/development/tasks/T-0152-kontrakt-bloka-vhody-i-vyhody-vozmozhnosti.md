@@ -5,11 +5,12 @@ title: 'Контракт блока: входы и выходы возможно
 status: done
 change: feature
 created: 2026-10-22
-updated: 2026-10-22
+updated: 2026-10-24
 links:
   implements: [R-0088]
   verified_by: [V-0088]
   affects: [M-0066]
+reuse: none
 ---
 
 # Контракт блока: входы и выходы возможности

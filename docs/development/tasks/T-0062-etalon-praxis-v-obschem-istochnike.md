@@ -10,7 +10,8 @@ links:
   depends_on: [T-0061]
   affects: [M-0030]
 created: 2026-10-11
-updated: 2026-10-20
+updated: 2026-10-24
+reuse: none
 ---
 
 # Эталон PRAXIS — первая запись docdd-design в общем источнике

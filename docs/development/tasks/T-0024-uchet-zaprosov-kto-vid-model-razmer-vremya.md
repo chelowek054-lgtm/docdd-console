@@ -5,12 +5,13 @@ title: 'Учёт запросов: кто, вид, модель, размер, �
 status: done
 change: feature
 created: 2026-10-10
-updated: 2026-10-21
+updated: 2026-10-24
 owner: developer
 links:
   implements: [R-0009]
   depends_on: [T-0023, T-0012]
   affects: [M-0012]
+reuse: none
 ---
 
 # Учёт запросов: кто, вид, модель, размер, время, цена

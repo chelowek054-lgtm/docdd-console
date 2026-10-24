@@ -10,6 +10,7 @@ links:
   implements: [R-0096]
   verified_by: [V-0096]
   affects: [M-0072]
+reuse: none
 ---
 
 # Границы продукта в векторе

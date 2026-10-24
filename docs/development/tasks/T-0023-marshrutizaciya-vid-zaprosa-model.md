@@ -5,12 +5,13 @@ title: 'Маршрутизация: вид запроса → модель'
 status: done
 change: feature
 created: 2026-10-10
-updated: 2026-10-21
+updated: 2026-10-24
 owner: developer
 links:
   implements: [R-0009]
   depends_on: [T-0022]
   affects: [M-0012]
+reuse: none
 ---
 
 # Маршрутизация: вид запроса → модель

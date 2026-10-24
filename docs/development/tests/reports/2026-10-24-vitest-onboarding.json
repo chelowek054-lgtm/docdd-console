@@ -1,0 +1,15 @@
+{
+  "contract": "docdd.workspace/1",
+  "runner": "vitest",
+  "started_at": "2026-10-24T20:54:16Z",
+  "total": 92,
+  "failed": 0,
+  "verifications": {
+    "V-0075": "passed",
+    "V-0076": "passed",
+    "V-0077": "passed",
+    "V-0079": "passed",
+    "V-0080": "passed"
+  },
+  "note": "V-0075 — tests/onboarding.spec.ts; V-0076 — tests/new-project.spec.ts, tests/project-templates.spec.ts; V-0077 — tests/source-detect.spec.ts; V-0079 — tests/test-checks.spec.ts; V-0080 — tests/contracts-import.spec.ts, tests/reference.spec.ts"
+}

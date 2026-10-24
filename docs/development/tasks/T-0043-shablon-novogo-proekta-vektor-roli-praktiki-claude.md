@@ -5,11 +5,12 @@ title: 'Шаблон нового проекта: вектор, роли, пра
 status: done
 change: feature
 created: 2026-10-10
-updated: 2026-10-21
+updated: 2026-10-24
 owner: architect
 links:
   implements: [R-0017]
   affects: [M-0016]
+reuse: none
 ---
 
 # Шаблон нового проекта: вектор, роли, практики, CLAUDE.md

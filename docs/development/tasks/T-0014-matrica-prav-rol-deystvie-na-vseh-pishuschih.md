@@ -5,12 +5,13 @@ title: Матрица прав роль → действие на всех пи�
 status: done
 change: feature
 created: 2026-10-10
-updated: 2026-10-21
+updated: 2026-10-24
 owner: developer
 links:
   implements: [R-0006]
   depends_on: [T-0012, T-0013]
   affects: [M-0011]
+reuse: none
 ---
 
 # Матрица прав роль → действие на всех пишущих маршрутах

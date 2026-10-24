@@ -5,10 +5,11 @@ title: 'Окно «Настройки» в шапке: поиск, модели,
 status: done
 change: feature
 created: 2026-10-22
-updated: 2026-10-22
+updated: 2026-10-24
 links:
   implements: [R-0083]
   affects: [M-0061]
+reuse: none
 ---
 
 # Окно «Настройки» в шапке: поиск, модели, аккаунты и доступ

@@ -5,10 +5,11 @@ title: 'Доступность в формате: видимый фокус, к�
 status: done
 change: feature
 created: 2026-10-11
-updated: 2026-10-20
+updated: 2026-10-24
 links:
   implements: [R-0035]
   affects: [M-0036]
+reuse: none
 ---
 
 # Доступность в формате: видимый фокус, контрастная тема 7:1, состояния и слои компонентов

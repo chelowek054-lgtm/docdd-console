@@ -5,11 +5,12 @@ title: Режим общего сервера DOCDD_MODE=shared
 status: done
 change: feature
 created: 2026-10-10
-updated: 2026-10-21
+updated: 2026-10-24
 owner: developer
 links:
   implements: [R-0003]
   affects: [M-0010]
+reuse: none
 ---
 
 # Режим общего сервера DOCDD_MODE=shared

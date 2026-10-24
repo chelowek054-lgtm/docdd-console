@@ -5,12 +5,13 @@ title: Модель на сервере не читает и не пишет з�
 status: done
 change: feature
 created: 2026-10-10
-updated: 2026-10-21
+updated: 2026-10-24
 owner: developer
 links:
   implements: [R-0004]
   depends_on: [T-0007]
   affects: [M-0010]
+reuse: none
 ---
 
 # Модель на сервере не читает и не пишет за пределами проекта

@@ -10,7 +10,8 @@ links:
   depends_on: [T-0065]
   affects: [M-0030]
 created: 2026-10-11
-updated: 2026-10-20
+updated: 2026-10-24
+reuse: none
 ---
 
 # Сверка проекта с токенами: файл темы и компоненты реестра

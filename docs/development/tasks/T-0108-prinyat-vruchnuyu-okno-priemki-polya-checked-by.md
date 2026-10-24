@@ -5,10 +5,11 @@ title: 'Принять вручную: окно приёмки, поля checked
 status: done
 change: feature
 created: 2026-10-20
-updated: 2026-10-21
+updated: 2026-10-24
 links:
   implements: [R-0044]
   affects: [M-0050]
+reuse: none
 ---
 
 # Принять вручную: окно приёмки, поля checked_by и note, вызов из блокировки

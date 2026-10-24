@@ -5,11 +5,12 @@ title: 'Здоровье узла: четыре сигнала и свёртка
 status: done
 change: feature
 created: 2026-10-22
-updated: 2026-10-22
+updated: 2026-10-24
 links:
   implements: [R-0085]
   verified_by: [V-0085]
   affects: [M-0063]
+reuse: none
 ---
 
 # Здоровье узла: четыре сигнала и свёртка снизу вверх

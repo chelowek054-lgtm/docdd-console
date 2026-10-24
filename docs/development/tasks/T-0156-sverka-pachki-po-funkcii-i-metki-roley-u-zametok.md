@@ -5,11 +5,12 @@ title: Сверка пачки по функции и метки ролей у �
 status: done
 change: feature
 created: 2026-10-22
-updated: 2026-10-22
+updated: 2026-10-24
 links:
   implements: [R-0092]
   verified_by: [V-0092]
   affects: [M-0069]
+reuse: none
 ---
 
 # Сверка пачки по функции и метки ролей у заметок

@@ -5,11 +5,12 @@ title: 'Экран «Стратегия»: контуры верхнего ур�
 status: done
 change: feature
 created: 2026-10-22
-updated: 2026-10-22
+updated: 2026-10-24
 links:
   implements: [R-0084]
   verified_by: [V-0084]
   affects: [M-0062]
+reuse: none
 ---
 
 # Экран «Стратегия»: контуры верхнего уровня функциональной карты

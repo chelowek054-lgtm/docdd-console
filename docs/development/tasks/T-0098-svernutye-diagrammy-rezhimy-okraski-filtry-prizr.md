@@ -5,10 +5,11 @@ title: 'Свёрнутые диаграммы: режимы окраски, фи
 status: done
 change: feature
 created: 2026-10-19
-updated: 2026-10-20
+updated: 2026-10-24
 links:
   implements: [R-0040]
   affects: [M-0046]
+reuse: none
 ---
 
 # Свёрнутые диаграммы: режимы окраски, фильтры, призраки-соседи и свидетельство стрелки

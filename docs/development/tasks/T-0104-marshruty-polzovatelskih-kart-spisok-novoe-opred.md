@@ -5,10 +5,11 @@ title: 'Маршруты пользовательских карт: список
 status: done
 change: feature
 created: 2026-10-20
-updated: 2026-10-20
+updated: 2026-10-24
 links:
   implements: [R-0042]
   affects: [M-0048]
+reuse: none
 ---
 
 # Маршруты пользовательских карт: список, новое определение, черновик узла или связи

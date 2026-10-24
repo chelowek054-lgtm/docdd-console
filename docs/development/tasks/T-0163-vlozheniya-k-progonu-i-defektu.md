@@ -5,11 +5,12 @@ title: Вложения к прогону и дефекту
 status: done
 change: feature
 created: 2026-10-22
-updated: 2026-10-22
+updated: 2026-10-24
 links:
   implements: [R-0099]
   verified_by: [V-0099]
   affects: [M-0075]
+reuse: none
 ---
 
 # Вложения к прогону и дефекту

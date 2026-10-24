@@ -5,10 +5,11 @@ title: 'Экран: кнопка и форма «Новая карта», вкл
 status: done
 change: feature
 created: 2026-10-20
-updated: 2026-10-20
+updated: 2026-10-24
 links:
   implements: [R-0042]
   affects: [M-0048]
+reuse: none
 ---
 
 # Экран: кнопка и форма «Новая карта», вкладки пользовательских карт деревом и графом

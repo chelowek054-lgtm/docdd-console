@@ -5,10 +5,11 @@ title: 'Практика цвета: проверка design_color_practice, aud
 status: done
 change: feature
 created: 2026-10-11
-updated: 2026-10-20
+updated: 2026-10-24
 links:
   implements: [R-0036]
   affects: [M-0043]
+reuse: none
 ---
 
 # Практика цвета: проверка design_color_practice, audience, тема oled, prefers-contrast

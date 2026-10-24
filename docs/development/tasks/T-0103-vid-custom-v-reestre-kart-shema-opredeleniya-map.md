@@ -5,10 +5,11 @@ title: Вид custom в реестре карт, схема, определен�
 status: done
 change: feature
 created: 2026-10-20
-updated: 2026-10-20
+updated: 2026-10-24
 links:
   implements: [R-0042]
   affects: [M-0048]
+reuse: none
 ---
 
 # Вид custom в реестре карт, схема, определения maps.custom в манифесте

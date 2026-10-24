@@ -5,12 +5,13 @@ title: 'Журнал, ручные отчёты и коммиты — от им�
 status: done
 change: feature
 created: 2026-10-10
-updated: 2026-10-21
+updated: 2026-10-24
 owner: developer
 links:
   implements: [R-0005]
   depends_on: [T-0012]
   affects: [M-0011]
+reuse: none
 ---
 
 # Журнал, ручные отчёты и коммиты — от имени вошедшего человека
