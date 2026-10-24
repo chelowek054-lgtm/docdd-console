@@ -2,11 +2,11 @@
 id: T-0165
 type: task
 title: 'Отметить по фактам: GET /map/behind и кнопка на «Стратегии»'
-status: in_progress
+status: in_review
 change: feature
+reuse: none
 created: 2026-10-24
 updated: 2026-10-24
-reuse: 'server/lib/coverage.ts (capabilityFindings, capabilityCoverage); POST /map/capability action status'
 links:
   implements: [R-0101]
   verified_by: [V-0107]
@@ -22,3 +22,4 @@ links:
 - 2026-10-24 · заведена черновиком · модель
 - 2026-10-24 · готова к работе · architect
 - 2026-10-24 · в разработку · developer
+- 2026-10-24 · на проверку: строка и окно проверены на этом репозитории (84 отставшие отметки), черновик не заводился · developer
