@@ -5,12 +5,13 @@ title: 'Роль «Наблюдатель»: только чтение'
 status: done
 change: feature
 created: 2026-10-10
-updated: 2026-10-21
+updated: 2026-10-24
 owner: developer
 links:
   implements: [R-0007]
   depends_on: [T-0014]
   affects: [M-0011]
+reuse: none
 ---
 
 # Роль «Наблюдатель»: только чтение

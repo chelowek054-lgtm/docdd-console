@@ -10,6 +10,7 @@ links:
   implements: [R-0094]
   verified_by: [V-0094]
   affects: [M-0058]
+reuse: none
 ---
 
 # Подключение: проверка git, согласие на init, выбор шаблона, обучение

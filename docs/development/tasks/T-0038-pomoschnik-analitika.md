@@ -5,12 +5,13 @@ title: Помощник аналитика
 status: done
 change: feature
 created: 2026-10-10
-updated: 2026-10-21
+updated: 2026-10-24
 owner: developer
 links:
   implements: [R-0015]
   depends_on: [T-0029]
   affects: [M-0015]
+reuse: none
 ---
 
 # Помощник аналитика

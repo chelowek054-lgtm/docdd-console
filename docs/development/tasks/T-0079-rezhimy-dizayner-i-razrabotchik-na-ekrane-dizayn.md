@@ -5,10 +5,11 @@ title: Режимы «дизайнер» и «разработчик» на эк
 status: done
 change: feature
 created: 2026-10-11
-updated: 2026-10-20
+updated: 2026-10-24
 links:
   implements: [R-0035]
   affects: [M-0039]
+reuse: none
 ---
 
 # Режимы «дизайнер» и «разработчик» на экране «Дизайн»

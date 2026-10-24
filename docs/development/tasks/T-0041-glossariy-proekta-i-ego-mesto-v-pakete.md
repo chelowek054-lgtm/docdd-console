@@ -5,12 +5,13 @@ title: Глоссарий проекта и его место в пакете к
 status: done
 change: feature
 created: 2026-10-10
-updated: 2026-10-21
+updated: 2026-10-24
 owner: analyst
 links:
   implements: [R-0016]
   depends_on: [T-0027]
   affects: [M-0015]
+reuse: none
 ---
 
 # Глоссарий проекта и его место в пакете контекста

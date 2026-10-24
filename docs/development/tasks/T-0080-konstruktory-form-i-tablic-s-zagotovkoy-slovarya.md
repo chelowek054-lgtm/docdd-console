@@ -5,10 +5,11 @@ title: Конструкторы форм и таблиц с заготовкой
 status: done
 change: feature
 created: 2026-10-11
-updated: 2026-10-20
+updated: 2026-10-24
 links:
   implements: [R-0035]
   affects: [M-0038]
+reuse: none
 ---
 
 # Конструкторы форм и таблиц с заготовкой словаря на два языка

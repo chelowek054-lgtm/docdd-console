@@ -5,10 +5,11 @@ title: Версия токенов и список изменений между
 status: done
 change: feature
 created: 2026-10-11
-updated: 2026-10-20
+updated: 2026-10-24
 links:
   implements: [R-0035]
   affects: [M-0041]
+reuse: none
 ---
 
 # Версия токенов и список изменений между версиями

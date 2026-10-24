@@ -5,10 +5,11 @@ title: 'Глобальный смысловой поиск: окно, JSONL-ин
 status: done
 change: feature
 created: 2026-10-22
-updated: 2026-10-22
+updated: 2026-10-24
 links:
   implements: [R-0081]
   affects: [M-0059]
+reuse: none
 ---
 
 # Глобальный смысловой поиск: окно, JSONL-индекс эмбеддингов, косинусное сходство, актуальность

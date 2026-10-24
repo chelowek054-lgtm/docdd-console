@@ -5,11 +5,12 @@ title: Сквозные связи через уровни и режим «Ре�
 status: done
 change: feature
 created: 2026-10-22
-updated: 2026-10-22
+updated: 2026-10-24
 links:
   implements: [R-0089]
   verified_by: [V-0089]
   affects: [M-0067]
+reuse: none
 ---
 
 # Сквозные связи через уровни и режим «Рентген»

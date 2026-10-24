@@ -10,7 +10,8 @@ links:
   depends_on: [T-0067, T-0061]
   affects: [M-0030]
 created: 2026-10-11
-updated: 2026-10-21
+updated: 2026-10-24
+reuse: none
 ---
 
 # Pixel-Perfect-проверка экранов моделью против эталона

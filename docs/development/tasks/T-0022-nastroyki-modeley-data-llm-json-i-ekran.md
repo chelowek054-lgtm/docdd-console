@@ -5,12 +5,13 @@ title: 'Настройки моделей: .data/llm.json и экран «Мод
 status: done
 change: feature
 created: 2026-10-10
-updated: 2026-10-21
+updated: 2026-10-24
 owner: developer
 links:
   implements: [R-0008]
   depends_on: [T-0019, T-0014]
   affects: [M-0012]
+reuse: none
 ---
 
 # Настройки моделей: .data/llm.json и экран «Модели»

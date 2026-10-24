@@ -5,11 +5,12 @@ title: История курса отдельно от живых карт
 status: done
 change: feature
 created: 2026-10-22
-updated: 2026-10-22
+updated: 2026-10-24
 links:
   implements: [R-0095]
   verified_by: [V-0095]
   affects: [M-0071]
+reuse: none
 ---
 
 # История курса отдельно от живых карт

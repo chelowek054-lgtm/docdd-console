@@ -5,11 +5,12 @@ title: Портфель проектов
 status: done
 change: feature
 created: 2026-10-10
-updated: 2026-10-21
+updated: 2026-10-24
 owner: developer
 links:
   implements: [R-0017]
   affects: [M-0016]
+reuse: none
 ---
 
 # Портфель проектов

@@ -5,11 +5,12 @@ title: Итог прогона «заблокирована» с причино�
 status: done
 change: feature
 created: 2026-10-22
-updated: 2026-10-22
+updated: 2026-10-24
 links:
   implements: [R-0098]
   verified_by: [V-0098]
   affects: [M-0074]
+reuse: none
 ---
 
 # Итог прогона «заблокирована» с причиной

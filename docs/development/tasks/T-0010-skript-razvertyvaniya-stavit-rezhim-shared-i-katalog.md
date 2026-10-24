@@ -5,12 +5,13 @@ title: Скрипт развёртывания ставит режим shared и
 status: done
 change: feature
 created: 2026-10-10
-updated: 2026-10-21
+updated: 2026-10-24
 owner: developer
 links:
   implements: [R-0003, R-0020]
   depends_on: [T-0007, T-0008]
   affects: [M-0010, M-0007]
+reuse: none
 ---
 
 # Скрипт развёртывания ставит режим shared и каталог проектов

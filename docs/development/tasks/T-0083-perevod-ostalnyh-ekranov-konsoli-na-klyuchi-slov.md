@@ -5,10 +5,11 @@ title: Перевод остальных экранов консоли на кл
 status: done
 change: feature
 created: 2026-10-11
-updated: 2026-10-22
+updated: 2026-10-24
 links:
   implements: [R-0035]
   affects: [M-0042]
+reuse: none
 ---
 
 # Перевод остальных экранов консоли на ключи словаря (ru, en)

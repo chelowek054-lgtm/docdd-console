@@ -5,12 +5,13 @@ title: 'Шаблоны запросов по ролям: docs/prompts/roles'
 status: done
 change: feature
 created: 2026-10-10
-updated: 2026-10-21
+updated: 2026-10-24
 owner: analyst
 links:
   implements: [R-0012]
   depends_on: [T-0027]
   affects: [M-0013]
+reuse: none
 ---
 
 # Шаблоны запросов по ролям: docs/prompts/roles

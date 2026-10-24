@@ -5,11 +5,12 @@ title: 'Пакет контекста: server/lib/context-pack.ts'
 status: done
 change: feature
 created: 2026-10-10
-updated: 2026-10-21
+updated: 2026-10-24
 owner: developer
 links:
   implements: [R-0011]
   affects: [M-0013]
+reuse: none
 ---
 
 # Пакет контекста: server/lib/context-pack.ts

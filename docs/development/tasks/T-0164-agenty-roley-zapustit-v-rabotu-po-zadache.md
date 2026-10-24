@@ -10,6 +10,7 @@ links:
   implements: [R-0100]
   verified_by: [V-0100]
   affects: [M-0068]
+reuse: none
 ---
 
 # Агенты ролей: «Запустить в работу» по задаче

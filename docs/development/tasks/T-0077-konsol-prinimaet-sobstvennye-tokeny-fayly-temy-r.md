@@ -5,10 +5,11 @@ title: 'Консоль принимает собственные токены: �
 status: done
 change: feature
 created: 2026-10-11
-updated: 2026-10-20
+updated: 2026-10-24
 links:
   implements: [R-0035]
   affects: [M-0042]
+reuse: none
 ---
 
 # Консоль принимает собственные токены: файлы темы, rem, сетка, ru/en в интерфейсе

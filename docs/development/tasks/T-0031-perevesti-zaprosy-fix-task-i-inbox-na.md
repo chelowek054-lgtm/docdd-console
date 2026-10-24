@@ -5,12 +5,13 @@ title: 'Перевести запросы fix, task и inbox на пакет к�
 status: done
 change: feature
 created: 2026-10-10
-updated: 2026-10-21
+updated: 2026-10-24
 owner: developer
 links:
   implements: [R-0011]
   depends_on: [T-0027]
   affects: [M-0013]
+reuse: none
 ---
 
 # Перевести запросы fix, task и inbox на пакет контекста

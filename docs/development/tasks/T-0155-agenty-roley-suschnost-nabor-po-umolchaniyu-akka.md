@@ -5,11 +5,12 @@ title: 'Агенты ролей: сущность, набор по умолча�
 status: done
 change: feature
 created: 2026-10-22
-updated: 2026-10-22
+updated: 2026-10-24
 links:
   implements: [R-0091]
   verified_by: [V-0091]
   affects: [M-0068]
+reuse: none
 ---
 
 # Агенты ролей: сущность, набор по умолчанию, аккаунт агента

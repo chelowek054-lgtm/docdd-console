@@ -5,10 +5,11 @@ title: Импорт токенов из Figma Variables и сверка с ни�
 status: done
 change: feature
 created: 2026-10-11
-updated: 2026-10-20
+updated: 2026-10-24
 links:
   implements: [R-0035]
   affects: [M-0040]
+reuse: none
 ---
 
 # Импорт токенов из Figma Variables и сверка с ними

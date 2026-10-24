@@ -5,11 +5,12 @@ title: Самопроверка процесса в тестах
 status: done
 change: feature
 created: 2026-10-10
-updated: 2026-10-21
+updated: 2026-10-24
 owner: developer
 links:
   implements: [R-0001]
   affects: [M-0009]
+reuse: none
 ---
 
 # Самопроверка процесса в тестах

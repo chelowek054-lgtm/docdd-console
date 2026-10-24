@@ -5,11 +5,12 @@ title: 'Экономия токенов: учёт по факту, кэш пос
 status: done
 change: feature
 created: 2026-10-22
-updated: 2026-10-22
+updated: 2026-10-24
 links:
   implements: [R-0093]
   verified_by: [V-0093]
   affects: [M-0070]
+reuse: none
 ---
 
 # Экономия токенов: учёт по факту, кэш постоянной части, лимит

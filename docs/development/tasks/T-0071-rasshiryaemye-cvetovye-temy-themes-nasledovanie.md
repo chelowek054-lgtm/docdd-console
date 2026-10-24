@@ -5,10 +5,11 @@ title: 'Расширяемые цветовые темы: themes, наследо
 status: done
 change: feature
 created: 2026-10-11
-updated: 2026-10-20
+updated: 2026-10-24
 links:
   implements: [R-0034]
   affects: [M-0035]
+reuse: none
 ---
 
 # Расширяемые цветовые темы: themes, наследование от светлой и тёмной, контраст у каждой

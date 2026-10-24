@@ -5,11 +5,12 @@ title: 'Учётные записи и вход: .data/users.json, сессия,
 status: done
 change: feature
 created: 2026-10-10
-updated: 2026-10-21
+updated: 2026-10-24
 owner: developer
 links:
   implements: [R-0005]
   affects: [M-0011]
+reuse: none
 ---
 
 # Учётные записи и вход: .data/users.json, сессия, экран входа

@@ -5,11 +5,12 @@ title: Оптимистическая блокировка на всех пиш�
 status: done
 change: feature
 created: 2026-10-10
-updated: 2026-10-21
+updated: 2026-10-24
 owner: developer
 links:
   implements: [R-0018]
   affects: [M-0016]
+reuse: none
 ---
 
 # Оптимистическая блокировка на всех пишущих маршрутах

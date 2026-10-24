@@ -5,10 +5,11 @@ title: Единица rem и глобальная сетка в формате d
 status: done
 change: feature
 created: 2026-10-11
-updated: 2026-10-20
+updated: 2026-10-24
 links:
   implements: [R-0034]
   affects: [M-0035]
+reuse: none
 ---
 
 # Единица rem и глобальная сетка в формате docdd-design и выгрузке

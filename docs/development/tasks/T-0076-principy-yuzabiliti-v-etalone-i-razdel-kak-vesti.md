@@ -5,10 +5,11 @@ title: Принципы юзабилити в эталоне и раздел «�
 status: done
 change: feature
 created: 2026-10-11
-updated: 2026-10-20
+updated: 2026-10-24
 links:
   implements: [R-0035]
   affects: [M-0036]
+reuse: none
 ---
 
 # Принципы юзабилити в эталоне и раздел «Как вести дизайн-систему»

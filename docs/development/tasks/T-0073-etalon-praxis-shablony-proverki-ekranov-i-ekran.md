@@ -5,10 +5,11 @@ title: Эталон PRAXIS, шаблоны проверки экранов и э
 status: done
 change: feature
 created: 2026-10-11
-updated: 2026-10-20
+updated: 2026-10-24
 links:
   implements: [R-0034]
   affects: [M-0035]
+reuse: none
 ---
 
 # Эталон PRAXIS, шаблоны проверки экранов и экран «Дизайн» — на rem, сетку и темы

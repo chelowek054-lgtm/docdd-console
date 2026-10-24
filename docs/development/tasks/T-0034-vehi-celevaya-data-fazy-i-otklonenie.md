@@ -5,12 +5,13 @@ title: 'Вехи: целевая дата фазы и отклонение'
 status: done
 change: feature
 created: 2026-10-10
-updated: 2026-10-21
+updated: 2026-10-24
 owner: pm
 links:
   implements: [R-0013]
   depends_on: [T-0033]
   affects: [M-0014]
+reuse: none
 ---
 
 # Вехи: целевая дата фазы и отклонение

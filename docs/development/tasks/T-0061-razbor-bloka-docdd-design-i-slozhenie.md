@@ -10,7 +10,8 @@ links:
   depends_on: [T-0060]
   affects: [M-0030]
 created: 2026-10-11
-updated: 2026-10-20
+updated: 2026-10-24
+reuse: none
 ---
 
 # Разбор блока docdd-design и сложение «общее → локальное», GET /design

@@ -5,11 +5,12 @@ title: Поиск по всем записям и знаниям проекта
 status: done
 change: feature
 created: 2026-10-10
-updated: 2026-10-21
+updated: 2026-10-24
 owner: developer
 links:
   implements: [R-0016]
   affects: [M-0015]
+reuse: none
 ---
 
 # Поиск по всем записям и знаниям проекта

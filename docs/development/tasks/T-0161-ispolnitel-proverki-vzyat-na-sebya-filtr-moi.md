@@ -5,11 +5,12 @@ title: Исполнитель проверки, «Взять на себя», ф
 status: done
 change: feature
 created: 2026-10-22
-updated: 2026-10-22
+updated: 2026-10-24
 links:
   implements: [R-0097]
   verified_by: [V-0097]
   affects: [M-0073]
+reuse: none
 ---
 
 # Исполнитель проверки, «Взять на себя», фильтр «Мои»

@@ -5,10 +5,11 @@ title: 'Функциональная карта: свёртка связей и 
 status: done
 change: feature
 created: 2026-10-19
-updated: 2026-10-20
+updated: 2026-10-24
 links:
   implements: [R-0040]
   affects: [M-0046]
+reuse: none
 ---
 
 # Функциональная карта: свёртка связей и обзор на любой глубине вместо rootOf

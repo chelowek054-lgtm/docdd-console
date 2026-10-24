@@ -5,12 +5,13 @@ title: 'Зоны ответственности: владелец возможн
 status: done
 change: feature
 created: 2026-10-10
-updated: 2026-10-21
+updated: 2026-10-24
 owner: developer
 links:
   implements: [R-0017]
   depends_on: [T-0013]
   affects: [M-0016]
+reuse: none
 ---
 
 # Зоны ответственности: владелец возможности и фазы

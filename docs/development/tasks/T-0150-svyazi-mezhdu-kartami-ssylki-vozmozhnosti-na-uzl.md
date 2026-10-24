@@ -5,11 +5,12 @@ title: 'Связи между картами: ссылки возможност�
 status: done
 change: feature
 created: 2026-10-22
-updated: 2026-10-22
+updated: 2026-10-24
 links:
   implements: [R-0086]
   verified_by: [V-0086]
   affects: [M-0064]
+reuse: none
 ---
 
 # Связи между картами: ссылки возможности на узлы других карт
