@@ -15,7 +15,7 @@ import { recordUsage } from './llm-usage-store';
  * напрямую, и таблица маршрутов, очередь и учёт лежали отдельно от реального пути.
  */
 
-export interface RouteContext { projectId: string; user: string; /** Идентификатор задания: по нему клиент найдёт ответ после обновления страницы. */ onJob?: (id: string) => void }
+export interface RouteContext { projectId: string; user: string; /** Модель агента (R-0100): перекрывает модель маршрута. */ model?: string; /** Идентификатор задания: по нему клиент найдёт ответ после обновления страницы. */ onJob?: (id: string) => void }
 
 /** Одна очередь на сервер: лимиты модели общие у всей команды. Предел — DOCDD_LLM_PARALLEL, по умолчанию 2. */
 export const llmQueue = new LlmQueue(Math.max(1, Number(process.env.DOCDD_LLM_PARALLEL) || 2), 200, (job) => saveJob(job), BOOT_ID);
@@ -44,7 +44,8 @@ export async function askRouted(kind: string, ctx: RouteContext, prompt: string,
   const route = resolveRoute(routes, kind, needsTools, (id) => { const p = getProvider(id); return p ? { tools: p.kind === 'agent' } : undefined; }, defaultRoute(kind, needsTools, chat));
   const tokenLimit = limits[kind] ?? options.tokenLimit;
   if (!route.ok) return { ok: false, failure: { code: 'unavailable', message: route.reason } };
-  const { providerId, model } = route.target;
+  const { providerId } = route.target;
+  const model = ctx.model ?? route.target.model;
   const provider = getProvider(providerId);
   if (!provider) return { ok: false, failure: { code: 'unavailable', message: `Провайдер «${providerId}» не подключён` } };
 

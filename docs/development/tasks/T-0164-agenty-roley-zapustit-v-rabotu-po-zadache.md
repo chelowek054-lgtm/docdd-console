@@ -2,10 +2,10 @@
 id: T-0164
 type: task
 title: 'Агенты ролей: «Запустить в работу» по задаче'
-status: ready
+status: in_review
 change: feature
 created: 2026-10-22
-updated: 2026-10-22
+updated: 2026-10-24
 links:
   implements: [R-0100]
   verified_by: [V-0100]
@@ -20,3 +20,5 @@ links:
 
 - 2026-10-22 · заведена · приложение
 - 2026-10-22 · готова к работе · architect
+- 2026-10-24 · в разработку · developer
+- 2026-10-24 · на проверку · developer
