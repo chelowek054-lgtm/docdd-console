@@ -2,7 +2,7 @@
 id: M-0080
 type: map
 title: Опись клиента и командной строки
-status: draft
+status: approved
 created: 2026-10-24
 updated: 2026-10-24
 ---
@@ -3313,7 +3313,7 @@ updated: 2026-10-24
         "to": "server/lib/hierarchy.ts",
         "evidence": {
           "path": "app/pages/projects/[id]/maps.vue",
-          "line": 841,
+          "line": 850,
           "fragment": "import { ancestors, visibleAt, type Edge as HierarchyEdge, t"
         }
       },
@@ -3322,7 +3322,7 @@ updated: 2026-10-24
         "to": "server/lib/custom-maps.ts",
         "evidence": {
           "path": "app/pages/projects/[id]/maps.vue",
-          "line": 1261,
+          "line": 1272,
           "fragment": "import type { CustomMapView as CustomMapContent } from '~~/s"
         }
       },
@@ -3331,7 +3331,7 @@ updated: 2026-10-24
         "to": "server/lib/types.ts",
         "evidence": {
           "path": "app/pages/projects/[id]/maps.vue",
-          "line": 1262,
+          "line": 1273,
           "fragment": "import type { CustomMapDefinition } from '~~/server/lib/type"
         }
       },
@@ -3999,6 +3999,8 @@ updated: 2026-10-24
 ## Журнал
 
 - 2026-10-24 · заведена черновиком · модель
+- 2026-10-24 · на подтверждение · architect
+- 2026-10-24 · подтверждён · architect
 
 ## Журнал
 

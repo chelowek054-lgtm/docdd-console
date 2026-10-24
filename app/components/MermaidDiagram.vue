@@ -67,7 +67,19 @@ let edgeElements: { edge: MermaidEdge; el: SVGPathElement }[] = [];
  * его показать (docs/02-workspace-contract.md).
  */
 let drawnOnce = false;
-async function draw() {
+/**
+ * Отрисовки по очереди и только последняя: текст схемы может смениться дважды подряд (догрузились группы
+ * кода), а два `mermaid.render` с одним id параллельно затирают друг друга — на холсте оставался пустой SVG.
+ */
+let drawing: Promise<void> = Promise.resolve();
+let generation = 0;
+function draw(): Promise<void> {
+  const mine = ++generation;
+  drawing = drawing.then(() => (mine === generation ? render() : undefined));
+  return drawing;
+}
+
+async function render() {
   if (!import.meta.client || !container.value) return;
   error.value = '';
   focused.value = props.focusKey ?? null;

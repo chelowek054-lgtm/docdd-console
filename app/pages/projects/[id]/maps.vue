@@ -700,7 +700,16 @@ const views = computed(() => {
       title: t('maps.v.userflow'),
       question: t('maps.q.userflow'),
       count: t('maps.c.userflow', { a: value.userflow.screens.length || ((data.value as { summary?: Record<string, number> } | null)?.summary ?? {}).screens || 0, b: value.userflow.calls.length || ((data.value as { summary?: Record<string, number> } | null)?.summary ?? {}).calls || 0 }),
-      ...userflowMermaid(value)
+      ...userflowMermaid(value, {
+        showCalls: route.query['calls'] === '1',
+        // Раздел экрана — группа кода его файла: «Общие экраны», «Экраны проекта».
+        sectionOf: (file) => {
+          const tree = codemapTree();
+          if (!file || !tree) return undefined;
+          const node = tree.nodes.find((item) => !item.auto && item.members.some((member) => member.id === file));
+          return node?.title;
+        }
+      })
     },
     {
       key: 'functional',
@@ -1062,14 +1071,18 @@ const dataflowDepth = computed<DepthOutput | null>(() => {
   const value = map.value;
   const ctx = flowCtx.value;
   if (!value || !ctx) return null;
-  const tree = codeTree(ctx);
-  if (!tree.some((node) => node.parent)) return null;
-  const params = depthParams(new Set(tree.map((node) => node.id)));
+  // Дерево групп то же, что у кодовой базы (с вложенностью объявленных групп), а не плоские группы обзора.
+  const groups = codemapTree();
+  const tree = groups ? [...groups.nodes.map((node) => ({ id: node.id, parent: node.parent })), ...groups.nodes.flatMap((node) => node.members.filter((member) => !groups.nodes.some((other) => other.id === member.id)).map((member) => ({ id: member.id, parent: node.id })))] : codeTree(ctx);
+  // Есть дерево — потоки открываются свёрнутыми до второго уровня; плоский вид — «Все» (docs/07-maps.md, «Деревом по умолчанию»).
+  if (!tree.some((node) => node.parent) && !value.dataflow.sources.some((source) => (source as { parent?: string }).parent)) return null;
+  const flat = route.query['fview'] || route.query['fgroup'] || route.query['fkind'];
+  const params = depthParams(new Set(tree.map((node) => node.id))) ?? (flat ? null : { level: 1, open: null });
   if (!params) return null;
   const result = foldFlows(value.dataflow.flows as FlowItem[], ctx, {
-    codeLevel: params.level, sourceLevel: params.level, openCode: params.open
+    codeLevel: params.level, sourceLevel: params.level, openCode: params.open, ...(groups ? { groupTree: groups } : {})
   });
-  const groupTitles = new Map(ctx.grouping.groups.map((group) => [group.id, group.title ?? group.id]));
+  const groupTitles = new Map(groups ? groups.nodes.map((node) => [node.id, node.title ?? node.id]) : ctx.grouping.groups.map((group) => [group.id, group.title ?? group.id]));
   const sourceTitles = new Map(value.dataflow.sources.map((source) => [source.id, source.title ?? source.id]));
   const nodes = new Map<string, FoldNode>();
   const touch = (key: string, title: string, expandable: boolean, flows: number) => {
@@ -1358,7 +1371,11 @@ function mergedMap(first: Partial<MapResponse> | null): MapResponse | null {
   } as MapResponse;
 }
 
-watch(shown, (tab) => { void loadKind(KIND_OF_TAB[tab]); }, { immediate: true });
+watch(shown, (tab) => {
+  void loadKind(KIND_OF_TAB[tab]);
+  // Потокам и путям нужны группы кода: из них — дерево потоков и разделы экранов (docs/07-maps.md).
+  if (tab === 'dataflow' || tab === 'userflow') void loadKind('codebase');
+}, { immediate: true });
 // Вектор лежит в стратегической карте, а карточка вектора видна над любой вкладкой: без неё она писала бы «не записан».
 if (firstKind !== 'functional') void loadKind('functional');
 // Открытая вкладка исчезла из списка (например, карту ещё не завели) — первая из имеющихся.
@@ -1896,6 +1913,17 @@ watch(views, (list) => {
 
             <template v-else>
               <!-- Легенда — полоса над схемой, вне холста (docs/04-ui.md, «Легенда кодовой базы, потоков и путей»). -->
+              <UButton
+                v-if="shown === 'userflow' && map.userflow.calls.length"
+                size="xs"
+                variant="soft"
+                color="neutral"
+                class="mb-2"
+                :icon="route.query['calls'] === '1' ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+                @click="router.push({ query: { ...route.query, calls: route.query['calls'] === '1' ? undefined : '1' } })"
+              >
+                {{ t(route.query['calls'] === '1' ? 'maps.callsHide' : 'maps.callsShow', { n: map.userflow.calls.length }) }}
+              </UButton>
               <MapDepthBar v-if="shown !== 'userflow'" :kind="shown === 'dataflow' ? 'dataflow' : 'codemap'" :modules="map.codemap.modules" :imports="map.codemap.imports" :groups="map.codemap.groups" /><ArchitectureNote v-if="shown === 'codemap'":project-id="projectId" :report="architecture" />
               <MapLegendBar v-if="current.mapLegend" :items="current.mapLegend" />
               <p v-if="!current.text" class="text-sm text-muted">

@@ -587,9 +587,11 @@ export function dataflowMermaid(map: ProjectMap, options: DataflowOptions = {}):
   }
 
   declareImplicit(lines, details, 's', new Set(sources.map((source) => source.id)), flows.map((flow) => flow.to));
+  // Цвет текста задан явно: без него в тёмной теме mermaid рисует светлый текст на светлом узле.
+  lines.push('    classDef code fill:#E5E7EB,stroke:#6B7280,color:#111827;');
   for (const name of [...new Set(flows.map((flow) => flow.from))]) {
     const node = nodeId('f', name);
-    lines.push(`    ${node}["${label(name)}"]`);
+    lines.push(`    ${node}["${label(name)}"]:::code`);
     details[node] = name;
     if (options.selectableFrom) nodes[node] = { id: name, title: name };
   }
@@ -721,20 +723,42 @@ export function flowOverviewMermaid(grouping: FlowGrouping, cards: ReadonlyMap<s
   };
 }
 
-export function userflowMermaid(map: ProjectMap): MermaidOutput {
+export interface UserflowOptions {
+  /** Раздел экрана по его файлу — рамка на схеме (docs/07-maps.md, «Разделы и вызовы на экране»). */
+  sectionOf?: (file: string | undefined) => string | undefined;
+  /** Показывать вызовы API; экран скрывает их по умолчанию, функция без опций — показывает. */
+  showCalls?: boolean;
+}
+
+export function userflowMermaid(map: ProjectMap, options: UserflowOptions = {}): MermaidOutput {
   const { screens, transitions, calls } = map.userflow;
   if (screens.length === 0 && transitions.length === 0 && calls.length === 0) return EMPTY;
+  const shownCalls = options.showCalls === false ? [] : calls;
 
   const details: Record<string, string> = {};
   const paths: Record<string, string> = {};
   const nodes: Record<string, MermaidNode> = {};
   const lines = ['flowchart TD'];
-  lines.push('    classDef screen fill:#DBEAFE,stroke:#2563EB;');
-  lines.push('    classDef api fill:#F3E8FF,stroke:#7C3AED;');
+  lines.push('    classDef screen fill:#DBEAFE,stroke:#2563EB,color:#111827;');
+  lines.push('    classDef api fill:#F3E8FF,stroke:#7C3AED,color:#111827;');
 
+  const sections = new Map<string, typeof screens>();
+  const loose: typeof screens = [];
   for (const screen of screens) {
+    const section = options.sectionOf?.(screen.file);
+    if (section) sections.set(section, [...(sections.get(section) ?? []), screen]);
+    else loose.push(screen);
+  }
+  const ordered = [...loose, ...[...sections.values()].flat()];
+  const lineOf = (screen: (typeof screens)[number]) => `${nodeId('u', screen.id)}["${label(screen.title ?? screen.id)}"]:::screen`;
+  for (const screen of loose) lines.push(`    ${lineOf(screen)}`);
+  for (const [section, members] of sections) {
+    lines.push(`    subgraph ${nodeId('sec', section)}["${label(section)}"]`);
+    for (const screen of members) lines.push(`        ${lineOf(screen)}`);
+    lines.push('    end');
+  }
+  for (const screen of ordered) {
     const node = nodeId('u', screen.id);
-    lines.push(`    ${node}["${label(screen.title ?? screen.id)}"]:::screen`);
     details[node] = [screen.id, screen.title, screen.file ? tr('t83.m6.file', { file: screen.file }) : ''].filter(Boolean).join(LF);
     if (screen.file) paths[node] = screen.file;
     nodes[node] = {
@@ -746,7 +770,7 @@ export function userflowMermaid(map: ProjectMap): MermaidOutput {
     details,
     'u',
     new Set(screens.map((screen) => screen.id)),
-    [...transitions.flatMap((step) => [step.from, step.to]), ...calls.map((call) => call.from)]
+    [...transitions.flatMap((step) => [step.from, step.to]), ...shownCalls.map((call) => call.from)]
   );
 
   // Порядок здесь и порядок `edges` ниже должны совпасть: сначала переходы,
@@ -765,7 +789,7 @@ export function userflowMermaid(map: ProjectMap): MermaidOutput {
       from, to, evidence: step.evidence, status: step.status, declaredBy: step.declaredBy, pending: step.pending
     });
   }
-  for (const call of calls) {
+  for (const call of shownCalls) {
     const node = nodeId('api', call.to);
     lines.push(`    ${node}(["${label(call.to)}"]):::api`);
     details[node] = call.to;
@@ -776,14 +800,21 @@ export function userflowMermaid(map: ProjectMap): MermaidOutput {
       from, to: node, evidence: call.evidence, status: call.status, declaredBy: call.declaredBy, pending: call.pending
     });
   }
+  // Экраны раздела без переходов mermaid ставит в одну строку на всю ширину; невидимые связи по шесть
+  // складывают их столбцами. Идут после настоящих связей, чтобы не сдвинуть номера linkStyle.
+  for (const members of sections.values()) {
+    for (let at = 0; at + 1 < members.length; at += 1) {
+      if ((at + 1) % 6 !== 0) lines.push(`    ${nodeId('u', members[at]!.id)} ~~~ ${nodeId('u', members[at + 1]!.id)}`);
+    }
+  }
   styleUnverified(lines, edges);
   return {
     text: lines.join(LF), details, paths, nodes, edges, neighbors: neighborsOf(edges),
     mapLegend: userflowLegend(
       screens.length,
-      new Set(calls.map((call) => call.to)).size,
+      new Set(shownCalls.map((call) => call.to)).size,
       transitions,
-      calls.length,
+      shownCalls.length,
       edges,
       screens.filter((screen) => screen.pending).length
     )
