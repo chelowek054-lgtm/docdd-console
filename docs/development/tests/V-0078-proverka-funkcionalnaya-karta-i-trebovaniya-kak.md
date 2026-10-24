@@ -4,7 +4,7 @@ type: verification
 title: 'Проверка: Функциональная карта и требования «как есть» для готовой кодовой базы'
 status: superseded
 created: 2026-10-22
-updated: 2026-10-22
+updated: 2026-10-24
 kind: manual
 links:
   verifies: [R-0078]
@@ -21,3 +21,4 @@ links:
 - 2026-10-22 · на подтверждение · architect
 - 2026-10-22 · подтверждён · architect
 - 2026-10-22 · заменён · architect
+- 2026-10-24 · проверена вручную · architect · проверил модель по поручению владельца · Временный проект (src/store.ts, src/server.ts, подтверждённая карта кода), изолированный сервер, настоящий Claude Code:… · architect
