@@ -2,9 +2,9 @@
 id: D-0001
 type: design
 title: Единый дизайн PRAXIS — токены для всех проектов консоли
-status: approved
+status: superseded
 created: 2026-10-11
-updated: 2026-10-11
+updated: 2026-10-24
 tags: [design]
 ---
 
@@ -436,3 +436,4 @@ Expo, Kotlin/Compose и Swift/SwiftUI ([docs/16-design-system.md](../../../../..
 - 2026-10-11 · возвращён в черновик · architect
 - 2026-10-11 · на подтверждение · architect
 - 2026-10-11 · подтверждён · architect
+- 2026-10-24 · заменена преемником D-0003 (подпись на акценте в светлой теме) · claude

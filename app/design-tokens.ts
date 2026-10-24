@@ -1,4 +1,4 @@
-// Сгенерировано консолью DocDD из токенов дизайна v1.9.0 (docs/16-design-system.md). Не правьте руками: меняются токены.
+// Сгенерировано консолью DocDD из токенов дизайна v1.10.0 (docs/16-design-system.md). Не правьте руками: меняются токены.
 // Размеры в rem. Языки — точка подключения словарей (@nuxtjs/i18n и подобные).
 
 export const designTokens = {
@@ -102,7 +102,7 @@ export const designTokens = {
       "line": "#D8DDEA",
       "accent": "#22C55E",
       "accentText": "#15703A",
-      "onAccent": "#FFFFFF",
+      "onAccent": "#04150B",
       "core": "#7336DE",
       "ok": "#15703A",
       "info": "#1F57D6",

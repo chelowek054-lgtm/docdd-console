@@ -912,7 +912,7 @@ export function componentsMissing(
  * библиотека обязательных компонентов не закрывает, и они ищутся в коде.
  */
 export const STACK_PROVIDES: Readonly<Record<StackId, readonly string[]>> = {
-  'nuxt-ui': ['TopBar', 'Card', 'Button', 'Field', 'Pill', 'Progress', 'Empty'],
+  'nuxt-ui': ['TopBar', 'Card', 'Button', 'Field', 'Pill', 'Progress', 'Empty', 'Table'],
   expo: [],
   compose: [],
   swiftui: []
