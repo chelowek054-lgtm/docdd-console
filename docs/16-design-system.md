@@ -257,7 +257,7 @@ v1.9.0), а не «на глаз»:
 | `design_i18n_missing` | Нет блока `i18n`, языков меньше двух или нет `en`, `default` или `fallback` не из списка |
 | `design_conflict` | Блоки спорят (см. «Сложение») |
 | `design_theme_drift` | Файл темы проекта расходится с выгрузкой токенов |
-| `design_component_missing` | Компонента из реестра нет в коде проекта. Для стека `nuxt-ui` обязательные компоненты даёт библиотека (`UButton`, `UCard`, `UFormField`, `UBadge`, `UProgress`, `UEmpty`, `UHeader`): свой файл им не нужен |
+| `design_component_missing` | Компонента из реестра нет в коде проекта. Для стека `nuxt-ui` обязательные компоненты даёт библиотека (`UButton`, `UCard`, `UFormField`, `UBadge`, `UProgress`, `UEmpty`, `UHeader`, `UTable`): свой файл им не нужен |
 | `design_screen_finding` | Находка проверки экранов моделью: экран, ширина, тема |
 
 Контраст — WCAG 2.x: относительная яркость sRGB, отношение `(L1 + 0.05) / (L2 + 0.05)`.

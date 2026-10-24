@@ -735,21 +735,34 @@ export function asIsPrompt(template: string, input: AsIsInput): string {
  * сверяются с файлами проекта. Выдуманный путь — замечание человеку, а не молчаливая запись.
  * `read` отдаёт строки файла или `null`, если файла нет; `fragment` — кусок строки, он ищется в строке и трёх соседних.
  */
+/**
+ * Что из фрагмента свидетельства сверять с кодом. Модель пишет «кусок строки» по-разному: два
+ * свидетельства в одной строке через «и» или «;», склеенные строки кода, многоточие в конце.
+ * Берём фрагмент до следующего свидетельства, без многоточия, и сверяем его начало — первые
+ * 30 знаков: этого хватает, чтобы выдуманное не прошло, а честное не спотыкалось о склейку.
+ */
+function fragmentProbe(raw: string): string {
+  const own = raw.split(/\s+(?:и|;)\s+[\w./\-]+\.[A-Za-z0-9]+:\d+/)[0] ?? '';
+  return own.replace(/\s*(?:\.\.\.|…).*$/, '').replace(/\s+/g, ' ').trim().slice(0, 30).trim();
+}
+
 export function evidenceProblems(
   records: readonly { key: string; type: string; title: string; body?: string | undefined; capabilities?: readonly { id: string; title?: string | undefined; note?: string | undefined }[] | undefined }[],
   read: (path: string) => string[] | null
 ): string[] {
   const problems: string[] = [];
   const check = (owner: string, text: string) => {
-    for (const match of text.matchAll(/([\w./\-]+\.[A-Za-z0-9]+):(\d+)(?:\s*[—-]\s*([^\n]+))?/g)) {
+    for (const match of text.matchAll(/([\w./\-]+\.[A-Za-z0-9]+):(\d+)(?:[-–](\d+))?(?:\s*[—-]\s*([^\n]+))?/g)) {
       const path = (match[1] as string).replace(/\\/g, '/');
       const line = Number(match[2]);
+      // Диапазон `путь:5-9` — свидетельство на нескольких строках: ищем во всём диапазоне.
+      const last = match[3] ? Math.max(line, Number(match[3])) : line;
       const rows = read(path);
       if (rows === null) { problems.push(`${owner}: свидетельство ссылается на \`${path}\`, а такого файла нет.`); continue; }
       if (line < 1 || line > rows.length) { problems.push(`${owner}: в \`${path}\` нет строки ${line}.`); continue; }
-      const fragment = (match[3] ?? '').trim();
+      const fragment = fragmentProbe(match[4] ?? '');
       if (fragment.length >= 3) {
-        const near = rows.slice(Math.max(0, line - 4), line + 3).join('\n');
+        const near = rows.slice(Math.max(0, line - 4), last + 3).map((row) => row.trim()).join(' ');
         if (!near.includes(fragment)) problems.push(`${owner}: в \`${path}\` рядом со строкой ${line} нет «${fragment.slice(0, 40)}».`);
       }
     }

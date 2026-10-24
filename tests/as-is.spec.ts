@@ -59,6 +59,13 @@ describe('свидетельства в предложении', () => {
     expect(evidenceProblems(cap('Свидетельство: src/a.ts:99'), read)[0]).toMatch(/нет строки 99/);
     expect(evidenceProblems(cap('Свидетельство: src/a.ts:2 — dropDatabase('), read)[0]).toMatch(/нет «dropDatabase/);
   });
+  it('два свидетельства в одной строке, диапазон строк и склеенные строки кода — честные, замечаний нет', () => {
+    expect(evidenceProblems(cap('Свидетельство: src/a.ts:2 — export function login() { и src/a.ts:3 — return verifyPassword('), read)).toEqual([]);
+    expect(evidenceProblems(cap('Свидетельство: src/a.ts:2-3 — export function login() { return verifyPassword(a, b); ... }'), read)).toEqual([]);
+  });
+  it('выдуманное начало фрагмента не проходит и после склейки', () => {
+    expect(evidenceProblems(cap('Свидетельство: src/a.ts:2-3 — export function logout() { return dropDatabase(); }'), read)[0]).toMatch(/нет «export function logout/);
+  });
   it('требование — по телу; запись без свидетельств замечаний не даёт', () => {
     expect(evidenceProblems([{ key: 'r', type: 'requirement', title: 'Т', body: 'Готово. Свидетельство: src/b.ts:3' }], read)[0]).toMatch(/требование «Т»/);
     expect(evidenceProblems([{ key: 'r', type: 'requirement', title: 'Т', body: 'Просто текст' }], read)).toEqual([]);
