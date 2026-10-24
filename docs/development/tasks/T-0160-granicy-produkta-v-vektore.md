@@ -2,10 +2,10 @@
 id: T-0160
 type: task
 title: Границы продукта в векторе
-status: in_review
+status: done
 change: feature
 created: 2026-10-22
-updated: 2026-10-22
+updated: 2026-10-24
 links:
   implements: [R-0096]
   verified_by: [V-0096]
@@ -22,3 +22,4 @@ links:
 - 2026-10-22 · готова к работе · architect
 - 2026-10-22 · в разработку · developer
 - 2026-10-22 · на проверку · developer
+- 2026-10-24 · закрыта после проверки: вектор M-0076 подтверждён и перечисляет все пять границ R-0096 · architect

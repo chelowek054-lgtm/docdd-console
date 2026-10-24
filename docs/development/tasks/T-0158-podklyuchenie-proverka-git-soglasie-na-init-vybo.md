@@ -2,10 +2,10 @@
 id: T-0158
 type: task
 title: 'Подключение: проверка git, согласие на init, выбор шаблона, обучение'
-status: in_review
+status: done
 change: feature
 created: 2026-10-22
-updated: 2026-10-22
+updated: 2026-10-24
 links:
   implements: [R-0094]
   verified_by: [V-0094]
@@ -22,3 +22,4 @@ links:
 - 2026-10-22 · готова к работе · architect
 - 2026-10-22 · в разработку · developer
 - 2026-10-22 · на проверку · developer
+- 2026-10-24 · закрыта после проверки: проверка git и согласие на init (git-init требует consent: true), выбор шаблона, обучение из трёх шагов с «Пропустить» и памятью по проекту — в коде на месте · architect
