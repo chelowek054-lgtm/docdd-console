@@ -22,6 +22,7 @@ import {
   type WorkChanges
 } from './git';
 import { askRouted } from './llm-gateway';
+import type { Access } from './llm';
 import type { ModelEvent } from '../lib/stream-events';
 import { buildProjectMap } from './map-service';
 import { openRecord, saveRecord, today } from './record-write';
@@ -100,6 +101,8 @@ export async function handover(
     signal?: AbortSignal;
     /** Ход работы модели: уходит на экран лентой. */
     onEvent?: (event: ModelEvent) => void;
+    /** Запуск агентом роли (R-0100): свой промпт поверх контекста задачи, своя модель и доступ. */
+    agent?: { wrap: (prompt: string) => string; model?: string; access: Access };
   }
 ): Promise<WorkOutcome> {
   const normalized = normalizeRoot(root);
@@ -121,19 +124,20 @@ export async function handover(
 
   const context = await openRecord(normalized, record.id);
   const before = context ? context.original : '';
-  const prompt = taskPrompt(
+  const context_ = taskPrompt(
     options.template,
     taskContext(normalized, index, record, before, options.rework, roundsIn(before) + 1)
   );
+  const prompt = options.agent ? options.agent.wrap(context_) : context_;
 
   // Модель работает в дереве задачи, а не в вашем каталоге. Повторный заход
   // продолжает прошлый разговор: разбор кодовой базы не идёт заново.
   const resume = sessionOf(normalized, record.id);
-  const answer = await askRouted('task', { projectId: normalized, user: options.actor ?? 'local' }, prompt, {
+  const answer = await askRouted('task', { projectId: normalized, user: options.actor ?? 'local', ...(options.agent?.model ? { model: options.agent.model } : {}) }, prompt, {
     cwd: worktreeRoot(normalized, record.id),
     // Работа над задачей — это правки, тесты и сборка, и всё это в своём
     // рабочем дереве. Результат человек читает диффом.
-    access: 'full',
+    access: options.agent?.access ?? 'full',
     ...(resume ? { resume } : {}),
     ...(options.signal ? { signal: options.signal } : {}),
     ...(options.onEvent ? { onEvent: options.onEvent } : {})

@@ -1,8 +1,11 @@
-import { defineEventHandler, getRouterParam, readBody } from 'h3';
+import { defineEventHandler, getRequestURL, getRouterParam, readBody } from 'h3';
 import { useStorage } from 'nitropack/runtime';
 
+import { accessFor, agentForAssignee, agentRunPrompt } from '../../../../../../lib/agent-run';
 import { normalizeRoot } from '../../../../../../lib/paths';
 import { WorkspaceError } from '../../../../../../lib/workspace';
+import { listAgents } from '../../../../../../utils/agents-service';
+import { agentToken, authEnabled, loadUsers } from '../../../../../../utils/auth';
 import { fail } from '../../../../../../utils/http';
 import { feedStream } from '../../../../../../utils/job-feeds';
 import { loadIndex } from '../../../../../../utils/index-service';
@@ -26,7 +29,7 @@ export default defineEventHandler(async (event) => {
   const body = await readBody<{ action?: unknown; actor?: unknown; comment?: unknown }>(event);
   const action = typeof body?.action === 'string' ? body.action : '';
   // На общем сервере работа и слияние — только со входом: право work/merge проверяет middleware/auth.ts.
-  if (action === 'handover' || action === 'rework' || action === 'accept') { const denied = sharedDenied(event, 'Работа над задачей и слияние'); if (denied) return denied; }
+  if (action === 'handover' || action === 'rework' || action === 'agent' || action === 'accept') { const denied = sharedDenied(event, 'Работа над задачей и слияние'); if (denied) return denied; }
   const actor = typeof body?.actor === 'string' ? body.actor : '';
   const comment = typeof body?.comment === 'string' ? body.comment : '';
 
@@ -38,7 +41,7 @@ export default defineEventHandler(async (event) => {
       return fail(event, 404, 'record_not_found', `Записи \`${recordId}\` в проекте нет`);
     }
 
-    if (action === 'handover' || action === 'rework') {
+    if (action === 'handover' || action === 'rework' || action === 'agent') {
       // Ворота те же, что и у перехода в работу: неподтверждённое не отдаётся.
       if (record.status !== 'ready' && record.status !== 'in_progress') {
         return fail(
@@ -49,6 +52,24 @@ export default defineEventHandler(async (event) => {
         );
       }
 
+      // «Запустить в работу» (R-0100): исполнитель — аккаунт агента; консоль выдаёт ему токен на запуск.
+      let agent: NonNullable<Parameters<typeof handover>[3]['agent']> | undefined;
+      if (action === 'agent') {
+        if (!authEnabled()) {
+          return fail(event, 409, 'agent_needs_auth', 'Агенты работают на общем сервере со входом (DOCDD_AUTH=on): без входа аккаунтов агентов нет');
+        }
+        const assignee = typeof record.extra['assignee'] === 'string' ? record.extra['assignee'] : '';
+        const choice = agentForAssignee(assignee, await loadUsers(), listAgents(root).agents);
+        if (!choice.ok) return fail(event, 409, choice.code, choice.message);
+        const token = await agentToken(choice.account.login);
+        const baseUrl = getRequestURL(event).origin;
+        agent = {
+          wrap: (prompt) => agentRunPrompt(choice.agent, choice.account, prompt, { baseUrl, projectId: id, taskId: recordId, token }),
+          ...(choice.agent.model ? { model: choice.agent.model } : {}),
+          access: accessFor(choice.agent.access)
+        };
+      }
+
       // Работа идёт минутами: экран показывает её ход лентой событий
       // (docs/04-ui.md, раздел «Запрос к модели»).
       const stream = feedStream(event, id);
@@ -56,6 +77,7 @@ export default defineEventHandler(async (event) => {
         actor,
         rework: action === 'rework' ? comment : '',
         template: await template('task.md'),
+        ...(agent ? { agent } : {}),
         signal: stream.signal,
         onEvent: (modelEvent) => stream.send(modelEvent.kind, modelEvent)
       });
@@ -75,7 +97,7 @@ export default defineEventHandler(async (event) => {
       return reject(root, record, actor);
     }
 
-    return fail(event, 400, 'action_invalid', 'Известны действия: handover, rework, accept, reject');
+    return fail(event, 400, 'action_invalid', 'Известны действия: handover, rework, agent, accept, reject');
   } catch (error) {
     if (error instanceof WorkspaceError) {
       return fail(event, 422, error.code, error.message, error.detail);

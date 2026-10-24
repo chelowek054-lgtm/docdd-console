@@ -10,6 +10,7 @@ export const components: Record<string, string> = {
   'tw.signedIn': 'Signed in',
   'tw.again': 'Hand over again',
   'tw.hand': 'Hand to the model',
+  'tw.runAgent': 'Start work: {title}',
   'tw.notReady': 'The task is in status {status}. Only a task ready for work can be handed to the model: human confirmation comes before code.',
   'tw.changed': 'Files changed: {n}',
   'tw.forbidden': 'process records touched — the merge will be rejected',

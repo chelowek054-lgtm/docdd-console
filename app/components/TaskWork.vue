@@ -20,7 +20,7 @@ const { data, refresh } = useFetch<WorkState | { error: ApiFailure }>(
   { key: () => `work:${props.projectId}:${props.recordId}` }
 );
 
-const state = computed(() => (failureOf(data.value) ? null : (data.value as WorkState | null)));
+const state = computed(() => (failureOf(data.value) ? null : (data.value as (WorkState & { agent?: { login: string; title: string } | null }) | null)));
 
 const actor = ref(props.roles[0]?.id ?? ''); const { me } = useMe(() => props.projectId);
 const comment = ref('');
@@ -39,7 +39,7 @@ const { running: working, elapsed, outcome, log, stream, cancel: cancelWork } = 
   onRecovered: (answer) => afterWork(answer as { answer?: string }, 'handover')
 });
 
-async function act(action: 'handover' | 'rework' | 'accept' | 'reject') {
+async function act(action: 'handover' | 'rework' | 'agent' | 'accept' | 'reject') {
   failure.value = null;
   if (action !== 'rework') answer.value = '';
 
@@ -48,7 +48,7 @@ async function act(action: 'handover' | 'rework' | 'accept' | 'reject') {
 
   // Модель зовут только `handover` и `rework` — остальное отвечает сразу, и
   // счётчик ожидания там был бы шумом.
-  const waits = action === 'handover' || action === 'rework';
+  const waits = action === 'handover' || action === 'rework' || action === 'agent';
   let result: { answer?: string } | null = null;
 
   if (waits) {
@@ -106,7 +106,18 @@ async function afterWork(result: { answer?: string }, action: string) {
 
     <div class="flex flex-wrap items-center gap-3">
       <UButton v-can="'work'"
+        v-if="!working && state?.agent"
+        :disabled="!canHandOver || !llm?.available"
+        icon="i-lucide-bot"
+        @click="act('agent')"
+      >
+        {{ t('tw.runAgent', { title: state.agent.title }) }}
+      </UButton>
+
+      <UButton v-can="'work'"
         v-if="!working"
+        :variant="state?.agent ? 'outline' : 'solid'"
+        :color="state?.agent ? 'neutral' : 'primary'"
         :disabled="!canHandOver || !llm?.available"
         icon="i-lucide-play"
         @click="act('handover')"
