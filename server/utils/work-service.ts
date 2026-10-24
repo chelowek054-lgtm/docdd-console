@@ -79,7 +79,7 @@ export async function workState(root: string, record: IndexRecord, body: string)
 
 /** Каждый заход оставляет строку в журнале — по ним и считаем круги. */
 function roundsIn(body: string): number {
-  return (body.match(/·\s*отдана модели\s*·/g) ?? []).length;
+  return (body.match(/·\s*отдана (?:модели|агенту[^·]*?)\s*·/g) ?? []).length;
 }
 
 export type WorkOutcome =
@@ -102,7 +102,7 @@ export async function handover(
     /** Ход работы модели: уходит на экран лентой. */
     onEvent?: (event: ModelEvent) => void;
     /** Запуск агентом роли (R-0100): свой промпт поверх контекста задачи, своя модель и доступ. */
-    agent?: { wrap: (prompt: string) => string; model?: string; access: Access };
+    agent?: { wrap: (prompt: string) => string; model?: string; access: Access; journal?: string };
   }
 ): Promise<WorkOutcome> {
   const normalized = normalizeRoot(root);
@@ -148,7 +148,7 @@ export async function handover(
 
   if (answer.sessionId) rememberSession(normalized, record.id, answer.sessionId);
 
-  const note = await journal(normalized, record.id, 'отдана модели', options.actor);
+  const note = await journal(normalized, record.id, options.agent?.journal ?? 'отдана модели', options.actor);
   return { ok: true, state: await workState(normalized, record, readBody(normalized, record)), answer: answer.answer, ...(note ? { note } : {}) };
 }
 

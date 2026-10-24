@@ -20,7 +20,14 @@ const { data, refresh } = useFetch<WorkState | { error: ApiFailure }>(
   { key: () => `work:${props.projectId}:${props.recordId}` }
 );
 
-const state = computed(() => (failureOf(data.value) ? null : (data.value as (WorkState & { agent?: { login: string; title: string } | null }) | null)));
+type AgentInfo = { login: string; title: string } | { problem: string };
+const state = computed(() => (failureOf(data.value) ? null : (data.value as (WorkState & { agent?: AgentInfo | null }) | null)));
+const agent = computed(() => state.value?.agent ?? null);
+const agentReady = computed(() => (agent.value && 'login' in agent.value ? agent.value : null));
+
+/** Итог запуска агента: что он попросил сделать и что сервер принял или отклонил. */
+interface AgentReport { login: string; title: string; problems: string[]; actions: { action: { do: string; id: string; status?: string; text?: string }; ok: boolean; message: string }[] }
+const agentReport = ref<AgentReport | null>(null);
 
 const actor = ref(props.roles[0]?.id ?? ''); const { me } = useMe(() => props.projectId);
 const comment = ref('');
@@ -77,8 +84,9 @@ async function act(action: 'handover' | 'rework' | 'agent' | 'accept' | 'reject'
 }
 
 /** Что делает страница с ответом модели; то же самое — когда ответ пришёл без неё. */
-async function afterWork(result: { answer?: string }, action: string) {
+async function afterWork(result: { answer?: string; agent?: AgentReport }, action: string) {
   if (result.answer) answer.value = result.answer;
+  agentReport.value = result.agent ?? null;
   if (action === 'rework') comment.value = '';
   await refresh();
   emit('changed');
@@ -106,18 +114,19 @@ async function afterWork(result: { answer?: string }, action: string) {
 
     <div class="flex flex-wrap items-center gap-3">
       <UButton v-can="'work'"
-        v-if="!working && state?.agent"
+        v-if="!working && agentReady"
         :disabled="!canHandOver || !llm?.available"
         icon="i-lucide-bot"
         @click="act('agent')"
       >
-        {{ t('tw.runAgent', { title: state.agent.title }) }}
+        {{ t('tw.runAgent', { title: agentReady.title }) }}
       </UButton>
+      <p v-if="agent && 'problem' in agent && !working" class="w-full text-sm text-muted">{{ agent.problem }}</p>
 
       <UButton v-can="'work'"
         v-if="!working"
-        :variant="state?.agent ? 'outline' : 'solid'"
-        :color="state?.agent ? 'neutral' : 'primary'"
+        :variant="agentReady ? 'outline' : 'solid'"
+        :color="agentReady ? 'neutral' : 'primary'"
         :disabled="!canHandOver || !llm?.available"
         icon="i-lucide-play"
         @click="act('handover')"
@@ -145,6 +154,22 @@ async function afterWork(result: { answer?: string }, action: string) {
     />
 
     <ModelLog class="mt-3" :lines="log" :running="working" />
+
+    <div v-if="agentReport" class="mt-3 space-y-1 text-sm">
+      <p class="font-medium">{{ t('tw.agentActions', { title: agentReport.title }) }}</p>
+      <p v-if="!agentReport.actions.length && !agentReport.problems.length" class="text-muted">{{ t('tw.agentNoActions') }}</p>
+      <ul class="space-y-1">
+        <li v-for="(item, at) in agentReport.actions" :key="at" class="flex items-start gap-2">
+          <UIcon :name="item.ok ? 'i-lucide-check' : 'i-lucide-x'" :class="item.ok ? 'text-success' : 'text-error'" class="mt-0.5 size-4 shrink-0" />
+          <span>
+            <span class="font-mono text-xs">{{ item.action.id }}</span>
+            {{ item.action.do === 'status' ? `→ ${item.action.status}` : t('tw.agentNote') }}
+            <span v-if="!item.ok" class="text-error"> — {{ item.message }}</span>
+          </span>
+        </li>
+        <li v-for="problem in agentReport.problems" :key="problem" class="text-warning">{{ problem }}</li>
+      </ul>
+    </div>
 
     <UAlert
       v-if="failure"
