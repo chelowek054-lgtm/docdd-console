@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { capabilityConsistency } from '../server/lib/rules';
-import { capabilityCoverage, capabilityFindings, mapsDeclaring } from '../server/lib/coverage';
+import { behindProposals, capabilityCoverage, capabilityFindings, mapsDeclaring } from '../server/lib/coverage';
 import type { VerificationResult, WorkRecord } from '../server/lib/types';
 import { codes, context, rec } from './helpers';
 
@@ -205,5 +205,27 @@ describe('покрытие родителя — по нижним возможн
     expect(coverage.get('g.c')?.tasks.ids).toEqual(['T-0002']);
     expect(coverage.get('g')?.tasks).toMatchObject({ total: 2, done: 1, active: 1 });
     expect(coverage.get('g')?.maps.sort()).toEqual(['M-0001', 'M-0002']);
+  });
+});
+describe('«Отметить по фактам»: предложение по отставшим отметкам (R-0101)', () => {
+  it('проверки все пройдены — «Реализовано», в заметке задачи и проверки', () => {
+    const { records, verifications } = project({ status: null, checks: { 'V-0001': 'passed' } });
+    expect(behindProposals(records, verifications)).toEqual([{
+      id: 'shop.pay', title: 'Оплата', current: null, status: 'implemented',
+      tasks: ['T-0001'], verifications: { passed: ['V-0001'], other: [] },
+      note: 'По фактам: задачи T-0001 закрыты; проверки — пройдены: V-0001'
+    }]);
+  });
+  it('проверка не запускалась или провалена — только «Частично»', () => {
+    expect(behindProposals(...Object.values(project({ status: 'not_implemented' })) as [WorkRecord[], ReadonlyMap<string, VerificationResult>]))
+      .toMatchObject([{ id: 'shop.pay', current: 'not_implemented', status: 'partial', verifications: { passed: [], other: ['V-0001'] } }]);
+    expect(behindProposals(...Object.values(project({ status: null, checks: { 'V-0001': 'failed' } })) as [WorkRecord[], ReadonlyMap<string, VerificationResult>]))
+      .toMatchObject([{ status: 'partial' }]);
+  });
+  it('не отстала — предлагать нечего: та же выборка, что у capability_behind', () => {
+    const none = (input: ReturnType<typeof project>) => behindProposals(input.records, input.verifications);
+    expect(none(project())).toEqual([]);
+    expect(none(project({ status: 'partial' }))).toEqual([]);
+    expect(none(project({ status: null, tasks: [['T-0001', 'done'], ['T-0002', 'in_progress']] }))).toEqual([]);
   });
 });
