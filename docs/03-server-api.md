@@ -479,6 +479,27 @@
 экран мог дать ссылку на запись. `level` — `failing`, `verified`,
 `unchecked`, `no_check` или `none`, по правилу из 07-maps.md.
 
+### `GET /api/projects/:id/map/behind`
+
+Возможности, отметка которых отстала от фактов (предупреждение `capability_behind`),
+с предложенной отметкой — для кнопки «Отметить по фактам»
+([07-maps.md](07-maps.md), «Покрытие процессом»). Производное, не хранится.
+
+```json
+{
+  "proposals": [
+    { "id": "orders.pay", "title": "Оплата заказа", "current": null, "status": "implemented",
+      "tasks": ["T-0003", "T-0004"], "verifications": { "passed": ["V-0004"], "other": [] },
+      "note": "По фактам: задачи T-0003, T-0004 закрыты; проверки пройдены: V-0004" }
+  ]
+}
+```
+
+`status` — `implemented`, когда проверки есть и все пройдены, иначе `partial`;
+`verifications.other` — проверки без прогона или с провалом. Черновик заводит
+`POST /api/projects/:id/map/capability` с `action: "status"` и выбранными строками
+(`id`, `status`, `note`).
+
 ### `GET /api/projects/:id/maps/custom`
 
 Пользовательские карты ([adr/0028](adr/0028-custom-maps.md)):

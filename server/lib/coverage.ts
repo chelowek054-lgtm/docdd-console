@@ -215,3 +215,57 @@ export function capabilityFindings(
   }
   return found;
 }
+// --- «Отметить по фактам» (R-0101, docs/07-maps.md) ---
+
+export interface BehindProposal {
+  id: string;
+  title: string;
+  /** Текущая отметка: `null` — не оценена. */
+  current: 'not_implemented' | null;
+  /** Предложение: «Реализовано» — проверки есть и все пройдены, иначе «Частично». */
+  status: 'implemented' | 'partial';
+  tasks: string[];
+  verifications: { passed: string[]; other: string[] };
+  /** Заметка в черновик карты: почему такая отметка. */
+  note: string;
+}
+
+/**
+ * Отставшие отметки с предложением, чем их заменить. Та же выборка, что у
+ * `capability_behind`: кнопка чинит ровно то, о чём предупреждает проверка.
+ * «Реализовано» предлагается только при пройденных проверках — закрытая задача
+ * без подтверждения фактом даёт «Частично», решает человек.
+ */
+export function behindProposals(
+  records: readonly WorkRecord[],
+  verifications: ReadonlyMap<string, VerificationResult>
+): BehindProposal[] {
+  const behind = capabilityFindings(records, verifications).filter((finding) => finding.code === 'capability_behind');
+  if (behind.length === 0) return [];
+  const picture = foldMaps(approvedMaps(records).map((record) => ({ id: record.id, change: parseMapRecord(record.body).change })));
+  const capabilities: CapabilityLike[] = picture.functional.capabilities;
+  const byId = new Map(capabilities.map((item) => [item.id, item]));
+  const states = statesOf(capabilities);
+  const coverage = capabilityCoverage({ capabilities, records, verifications });
+
+  return behind.flatMap((finding) => {
+    const cover = coverage.get(finding.capability);
+    if (!cover) return [];
+    const checks = cover.verifications.ids;
+    const passed = checks.filter((id) => verifications.get(id) === 'passed');
+    const other = checks.filter((id) => verifications.get(id) !== 'passed');
+    const status = checks.length > 0 && other.length === 0 ? 'implemented' : 'partial';
+    const checkText = checks.length === 0
+      ? 'проверок нет'
+      : [passed.length ? `пройдены: ${passed.join(', ')}` : '', other.length ? `без прогона или с провалом: ${other.join(', ')}` : ''].filter(Boolean).join('; ');
+    return [{
+      id: finding.capability,
+      title: byId.get(finding.capability)?.title ?? finding.capability,
+      current: states.get(finding.capability)?.status === 'not_implemented' ? 'not_implemented' : null,
+      status,
+      tasks: cover.tasks.ids,
+      verifications: { passed, other },
+      note: `По фактам: задачи ${cover.tasks.ids.join(', ')} закрыты; проверки — ${checkText}`
+    } satisfies BehindProposal];
+  });
+}

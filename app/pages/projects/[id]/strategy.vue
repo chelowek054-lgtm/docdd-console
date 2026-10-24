@@ -55,6 +55,9 @@ const counts = computed(() => ({
     <UTabs v-model="view" size="xs" class="w-56" :items="[{ label: t('st2.view.contours'), value: 'contours' }, { label: t('st2.view.map'), value: 'map' }]" />
 
     <!-- Намерение одной фразой (ADR-0037): на карточках контуров; на «Карте» строку показывает сама карта. -->
+    <!-- Отметки, отставшие от закрытых задач, — одним черновиком карты (R-0101). -->
+    <BehindMarks :project-id="projectId" />
+
     <StrategyIntent v-if="view === 'contours'" :project-id="projectId" :contours="contours.map((item) => ({ id: item.id, title: item.title }))" />
 
     <MapsPage v-if="view === 'map'" scope="strategic" />
