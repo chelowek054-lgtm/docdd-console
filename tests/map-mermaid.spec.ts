@@ -676,3 +676,36 @@ describe('группы на потоках данных', () => {
     expect(nodes[fromNodeId('server/lib/a.ts')]).toBeUndefined();
   });
 });
+
+describe('userflowMermaid: разделы и скрытые вызовы (docs/07-maps.md)', () => {
+  const flow = () => mapWith({
+    userflow: {
+      screens: [
+        { id: '/', title: 'Проекты', file: 'app/pages/index.vue' },
+        { id: '/projects/:id', title: 'Обзор', file: 'app/pages/projects/[id]/index.vue' },
+        { id: '/x', title: 'Без файла' }
+      ],
+      transitions: [],
+      calls: [{ from: '/', to: 'GET /api/projects', evidence: { path: 'app/pages/index.vue', line: 5, fragment: 'useFetch' } }]
+    }
+  });
+  const sectionOf = (file: string | undefined) => (file?.startsWith('app/pages/projects/') ? 'Экраны проекта' : file ? 'Общие экраны' : undefined);
+
+  it('экраны в рамках разделов, экран без раздела — вне рамок', () => {
+    const { text } = userflowMermaid(flow(), { sectionOf });
+    expect(text).toContain('["Общие экраны"]');
+    expect(text).toContain('["Экраны проекта"]');
+    expect(text.indexOf('Без файла')).toBeLessThan(text.indexOf('subgraph'));
+  });
+
+  it('вызовы скрываются по просьбе экрана, без опций — видны', () => {
+    expect(userflowMermaid(flow(), { showCalls: false }).text).not.toContain('GET /api/projects');
+    expect(userflowMermaid(flow()).text).toContain('GET /api/projects');
+  });
+
+  it('текст экранов и маршрутов тёмный: в тёмной теме иначе не читается', () => {
+    const { text } = userflowMermaid(flow());
+    expect(text).toContain('classDef screen fill:#DBEAFE,stroke:#2563EB,color:#111827;');
+    expect(text).toContain('classDef api fill:#F3E8FF,stroke:#7C3AED,color:#111827;');
+  });
+});

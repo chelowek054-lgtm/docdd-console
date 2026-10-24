@@ -227,5 +227,7 @@ export const pages2: Record<string, string> = {
   'maps.nothingToLink': 'Nothing to link: the map has fewer than two capabilities.',
   'maps.myZone': 'My zone',
   'maps.noMatch': 'Nothing matches these filters.',
+  'maps.callsShow': 'API calls ({n})',
+  'maps.callsHide': 'Hide API calls ({n})',
   'maps.notDescribed': 'This structure is not described in the approved maps.'
 };

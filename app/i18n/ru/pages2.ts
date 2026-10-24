@@ -227,5 +227,7 @@ export const pages2: Record<string, string> = {
   'maps.nothingToLink': 'Связывать нечего: в карте меньше двух возможностей.',
   'maps.myZone': 'Моя зона',
   'maps.noMatch': 'Под эти фильтры ничего не подошло.',
+  'maps.callsShow': 'Вызовы API ({n})',
+  'maps.callsHide': 'Скрыть вызовы API ({n})',
   'maps.notDescribed': 'В подтверждённых картах эта структура не описана.'
 };
