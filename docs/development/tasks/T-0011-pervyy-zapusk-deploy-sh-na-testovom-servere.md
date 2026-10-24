@@ -2,7 +2,7 @@
 id: T-0011
 type: task
 title: Первый запуск deploy.sh на тестовом сервере Ubuntu
-status: in_review
+status: done
 change: fix
 created: 2026-10-10
 updated: 2026-10-24
@@ -23,3 +23,4 @@ links:
 - 2026-10-24 · в разработку · developer
 - 2026-10-24 · прогон в Docker (Ubuntu 24.04, systemd): чистая установка и сервер с занятым портом 80 прошли, 401 зелёная; найден и исправлен сбой сборки по памяти · developer
 - 2026-10-24 · на проверку · developer
+- 2026-10-24 · закрыта: возможности deploy.script, deploy.access, deploy.auth отмечены реализованными (M-0077) · architect
