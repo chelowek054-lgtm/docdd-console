@@ -2,7 +2,7 @@
 id: T-0172
 type: task
 title: Статус legacy в схеме, переходах и правилах
-status: backlog
+status: in_review
 change: feature
 created: 2026-10-25
 updated: 2026-10-25
@@ -11,6 +11,7 @@ links:
   implements: [R-0103]
   affects: [M-0086]
   verified_by: [V-0110]
+reuse: none
 ---
 
 # Статус legacy в схеме, переходах и правилах
@@ -20,3 +21,6 @@ links:
 ## Журнал
 
 - 2026-10-25 · заведена из docs/inbox/legacy-zapisi.md · приложение
+- 2026-10-25 20:58 · готова к работе · architect
+- 2026-10-25 20:58 · в разработку · developer
+- 2026-10-25 20:59 · на проверку · developer

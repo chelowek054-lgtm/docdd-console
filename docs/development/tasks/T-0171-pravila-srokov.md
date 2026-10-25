@@ -2,7 +2,7 @@
 id: T-0171
 type: task
 title: 'Правила task_overdue, phase_overdue, estimate_exceeded'
-status: backlog
+status: in_review
 change: feature
 reuse: none
 created: 2026-10-25
@@ -20,3 +20,6 @@ links:
 ## Журнал
 
 - 2026-10-25 · заведена черновиком · модель
+- 2026-10-25 20:58 · готова к работе · architect
+- 2026-10-25 20:58 · в разработку · developer
+- 2026-10-25 20:59 · на проверку · developer
