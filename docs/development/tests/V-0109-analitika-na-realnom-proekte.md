@@ -2,7 +2,7 @@
 id: V-0109
 type: verification
 title: 'Аналитика и сроки на реальном проекте'
-status: draft
+status: approved
 created: 2026-10-25
 updated: 2026-10-25
 kind: manual
@@ -33,3 +33,5 @@ links:
 ## Журнал
 
 - 2026-10-25 · заведена черновиком · модель
+- 2026-10-25 · на подтверждение · architect
+- 2026-10-25 · подтверждён · architect
