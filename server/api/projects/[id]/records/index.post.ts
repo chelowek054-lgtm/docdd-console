@@ -13,7 +13,7 @@ import { DEVELOPMENT_DIR, WorkspaceError, readWorkspace } from '../../../../lib/
 import { fail } from '../../../../utils/http';
 import { loadIndex } from '../../../../utils/index-service';
 import { findProject } from '../../../../utils/projects';
-import { today } from '../../../../utils/record-write';
+import { journalNow } from '../../../../utils/record-write';
 
 /**
  * Создание записи из шаблона. Идентификатор выдаёт сервер — следующий
@@ -58,7 +58,7 @@ export default defineEventHandler(async (event) => {
       id: recordId,
       type: recordType,
       title,
-      today: today(),
+      today: journalNow(root),
       ...(typeof body?.owner === 'string' && body.owner ? { owner: body.owner } : {}),
       ...(typeof body?.kind === 'string' && body.kind ? { kind: body.kind } : {}),
       ...(typeof body?.change === 'string' && body.change ? { change: body.change } : {}),

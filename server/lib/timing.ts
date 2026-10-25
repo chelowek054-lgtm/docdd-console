@@ -103,7 +103,9 @@ export function parseJournal(body: string, timezone?: string): JournalEvent[] {
     const time = match[2] ?? null;
     events.push({ at: localToEpoch(date, time, timezone), date, time, action: action.trim(), actor: rest.join(' · ').trim(), status: statusOfJournalAction(action.trim()) });
   }
-  return events;
+  // Журнал дописывают по порядку, но руками строку могут вставить и не туда: считаем по времени.
+  // Сортировка устойчивая — строки одного дня без времени остаются в порядке записи.
+  return events.sort((a, b) => a.at - b.at);
 }
 
 export type TimingRecord = Pick<WorkRecord, 'id' | 'type' | 'status' | 'title' | 'data' | 'links' | 'body'>;

@@ -11,7 +11,7 @@ import { DEVELOPMENT_DIR, WorkspaceError } from '../../../../../lib/workspace';
 import { fail } from '../../../../../utils/http';
 import { loadIndex } from '../../../../../utils/index-service';
 import { findProject } from '../../../../../utils/projects';
-import { openRecord, today } from '../../../../../utils/record-write';
+import { journalNow, openRecord } from '../../../../../utils/record-write';
 
 /**
  * «Перенести в текущий курс» (A-0001, R-0103): черновик нового требования с тем же
@@ -42,7 +42,7 @@ export default defineEventHandler(async (event) => {
       id: newId,
       type: 'requirement',
       title: source.title,
-      today: today(),
+      today: journalNow(root),
       derivedFrom: source.id,
       body: revivedBody(source.id, source.body),
       sources: [source.id]

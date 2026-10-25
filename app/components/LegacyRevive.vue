@@ -28,7 +28,7 @@ async function revive() {
 <template>
   <UAlert color="neutral" variant="subtle" icon="i-lucide-archive" :title="t('lg.title')">
     <template #description>
-      <p>{{ t('lg.text') }}<template v-if="legacyBy"> {{ t('lg.by') }} <NuxtLink :to="`/projects/${projectId}/records/${legacyBy}`" class="font-mono hover:underline">{{ legacyBy }}</NuxtLink>.</template></p>
+      <p>{{ t('lg.text') }}<template v-if="legacyBy">&nbsp;{{ t('lg.by') }} <NuxtLink :to="`/projects/${projectId}/records/${legacyBy}`" class="font-mono hover:underline">{{ legacyBy }}</NuxtLink>.</template></p>
       <UButton v-can="'edit_draft'" class="mt-2" size="sm" variant="soft" icon="i-lucide-undo-2" :loading="busy" @click="revive">{{ t('lg.revive') }}</UButton>
       <p v-if="failure" class="mt-1 text-error">{{ failure.message }}</p>
     </template>
