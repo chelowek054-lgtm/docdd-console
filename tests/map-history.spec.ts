@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { partitionMapRecords, type CourseEntry } from '../server/lib/course';
 
-const entry = (map: string): CourseEntry => ({ map, title: map, at: '2026-10-01', by: 'architect', added: 1, removed: 0, statusChanged: 0, relations: 0, vision: false });
+const entry = (map: string): CourseEntry => ({ map, title: map, at: '2026-10-01', by: 'architect', added: 1, removed: 0, statusChanged: 0, relations: 0, vision: false, legacy: 0 });
 
 describe('записи карт: род по содержанию', () => {
   it('запись из истории курса — смена курса, остальные — живые карты', () => {

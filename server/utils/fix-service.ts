@@ -17,7 +17,7 @@ import {
   worktreeRoot
 } from './git';
 import { ask } from './llm';
-import { today } from './record-write';
+import { journalNow } from './record-write';
 
 /**
  * Починка нарушений моделью по подтверждённому человеком плану
@@ -258,7 +258,7 @@ function writeJournal(
   actor: string
 ): number {
   let written = 0;
-  const stamp = today();
+  const stamp = journalNow(root);
 
   for (const file of files) {
     if (!file.startsWith(`${DEVELOPMENT_DIR}/`)) continue;

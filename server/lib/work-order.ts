@@ -8,7 +8,7 @@ import type { IndexRecord } from './types';
  * нарушает зависимости.
  */
 
-const CLOSED = new Set(['done', 'dropped']);
+const CLOSED = new Set(['done', 'dropped', 'legacy']);
 
 /** Место фазы по важности; нет — `null`: порядок по номеру. */
 export function rankOf(phase: IndexRecord): number | null {

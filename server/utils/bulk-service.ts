@@ -5,7 +5,7 @@ import type { IssueDto } from '../lib/types';
 import { bulkPath, type BulkDirection } from '../lib/transitions';
 import { loadIndex } from './index-service';
 import { markDescribed } from './inventory-service';
-import { openRecord, today, writeRecord } from './record-write';
+import { journalNow, openRecord, writeRecord } from './record-write';
 import { wasViewed } from './record-diff-service';
 
 /**
@@ -41,7 +41,7 @@ export interface BulkOutcome {
 
 export function bulkStatus(root: string, ids: readonly string[], direction: BulkDirection, actor: string): BulkOutcome {
   const results: BulkResult[] = [];
-  const stamp = today();
+  const stamp = journalNow(root);
   // Список нарушений до действия: кэш мог устареть от правок снаружи.
   const before = loadIndex(root, true).issues;
 

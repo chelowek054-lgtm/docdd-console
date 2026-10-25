@@ -13,7 +13,7 @@ import { journalLines } from '../lib/write';
 import { dropCache } from '../lib/cache';
 import { loadIndex } from './index-service';
 import { buildProjectMap } from './map-service';
-import { today } from './record-write';
+import { journalNow, today } from './record-write';
 
 /**
  * Входящее: сырые заметки и заведение записей по ним (docs/10-inbox.md).
@@ -206,7 +206,7 @@ export function createRecords(root: string, original: readonly ProposedRecord[],
 
   const created: CreatedRecord[] = [];
   const problems: string[] = [];
-  const stamp = today();
+  const stamp = journalNow(normalized);
   // Концы связей — возможности предложения или уже стоящие в карте.
   const standing = proposed.some((record) => record.type === 'map' && record.relations?.length)
     ? buildProjectMap(normalized).functional.capabilities

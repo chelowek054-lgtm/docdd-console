@@ -1,0 +1,11 @@
+{
+  "contract": "docdd.workspace/1",
+  "runner": "vitest",
+  "started_at": "2026-10-25T18:58:37Z",
+  "total": 13,
+  "failed": 0,
+  "verifications": {
+    "V-0108": "passed"
+  },
+  "note": "V-0108 — tests/timing.spec.ts: журнал со временем и без, пояс проекта, тайминги с возвратом, estimate и схема, перенос срока из тега, правила-предупреждения"
+}

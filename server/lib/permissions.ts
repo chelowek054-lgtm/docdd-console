@@ -84,7 +84,7 @@ export function actionFor(method: string, path: string, body?: unknown): Action 
   if (/\/records\/[^/]+\/work\/?$/.test(path) && (body as { action?: unknown } | null | undefined)?.action === 'accept') return 'merge';
   if (/\/work\/?$/.test(path) || /\/fix(\/work)?\/?$/.test(path)) return 'work';
   if (/^\/api\/llm\//.test(path) || /\/prompt\/?$/.test(path)) return 'model';
-  if (/\/(status|verified)\/?$/.test(path) || /\/bulk\/status\/?$/.test(path)) return 'approve';
+  if (/\/(status|verified)\/?$/.test(path) || /\/bulk\/(status|legacy)\/?$/.test(path)) return 'approve';
   if (/\/priority\/apply\/?$/.test(path) || /\/phases\/?$/.test(path)) return 'reorder';
   return 'edit_draft';
 }

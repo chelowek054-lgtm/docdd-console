@@ -12,8 +12,8 @@ import { screens as ruScreens } from './ru/screens';
  * исходнике: перевод идёт по группам, а не одним коммитом.
  */
 export const messages: Record<string, Record<string, string>> = {
-  ru: { ...ruShell, ...ruDesign, ...ruScreens, ...ruPages, ...ruRest, ...ruRecords, ...ruPages2, ...ruComponents, ...ruNav, ...ruOverview, ...ruSearch, ...ruSettings, ...ruNotifications, ...ruManager, ...ruVerify, ...ruStrategy, ...ruAgents, ...ruOnboarding, ...ruUiMaps, ...ruUiInbox, ...ruUiRest, ...ruUiUtils, ...ruUiMermaid, ...ruUiLast },
-  en: { ...enShell, ...enDesign, ...enScreens, ...enPages, ...enRest, ...enRecords, ...enPages2, ...enComponents, ...enNav, ...enOverview, ...enSearch, ...enSettings, ...enNotifications, ...enManager, ...enVerify, ...enStrategy, ...enAgents, ...enOnboarding, ...enUiMaps, ...enUiInbox, ...enUiRest, ...enUiUtils, ...enUiMermaid, ...enUiLast }
+  ru: { ...ruTiming, ...ruShell, ...ruDesign, ...ruScreens, ...ruPages, ...ruRest, ...ruRecords, ...ruPages2, ...ruComponents, ...ruNav, ...ruOverview, ...ruSearch, ...ruSettings, ...ruNotifications, ...ruManager, ...ruVerify, ...ruStrategy, ...ruAgents, ...ruOnboarding, ...ruUiMaps, ...ruUiInbox, ...ruUiRest, ...ruUiUtils, ...ruUiMermaid, ...ruUiLast },
+  en: { ...enTiming, ...enShell, ...enDesign, ...enScreens, ...enPages, ...enRest, ...enRecords, ...enPages2, ...enComponents, ...enNav, ...enOverview, ...enSearch, ...enSettings, ...enNotifications, ...enManager, ...enVerify, ...enStrategy, ...enAgents, ...enOnboarding, ...enUiMaps, ...enUiInbox, ...enUiRest, ...enUiUtils, ...enUiMermaid, ...enUiLast }
 };
 import { pages as enPages } from './en/pages';
 import { pages as ruPages } from './ru/pages';
@@ -57,3 +57,5 @@ import { uiMermaid as enUiMermaid } from './en/ui-mermaid';
 import { uiMermaid as ruUiMermaid } from './ru/ui-mermaid';
 import { uiLast as enUiLast } from './en/ui-last';
 import { uiLast as ruUiLast } from './ru/ui-last';
+import { timing as enTiming } from './en/timing';
+import { timing as ruTiming } from './ru/timing';

@@ -8,15 +8,15 @@ import type { RecordAction, WorkRecord } from './types';
  */
 
 const NEXT_STATUSES: Record<string, readonly string[]> = {
-  requirement: ['review', 'approved', 'draft', 'superseded', 'dropped'],
-  design: ['review', 'approved', 'draft', 'superseded', 'dropped'],
+  requirement: ['review', 'approved', 'draft', 'superseded', 'dropped', 'legacy'],
+  design: ['review', 'approved', 'draft', 'superseded', 'dropped', 'legacy'],
   contract: ['review', 'approved', 'draft', 'superseded', 'dropped'],
-  verification: ['review', 'approved', 'draft', 'superseded', 'dropped'],
+  verification: ['review', 'approved', 'draft', 'superseded', 'dropped', 'legacy'],
   map: ['review', 'approved', 'draft', 'superseded', 'dropped'],
   release: ['review', 'approved', 'draft', 'superseded', 'dropped'], defect: ['review', 'approved', 'draft', 'superseded', 'dropped'],
   reference: ['review', 'approved', 'draft', 'superseded', 'dropped'],
-  decision: ['review', 'approved', 'draft', 'superseded', 'rejected'],
-  task: ['ready', 'in_progress', 'in_review', 'done', 'backlog', 'dropped']
+  decision: ['review', 'approved', 'draft', 'superseded', 'rejected', 'legacy'],
+  task: ['ready', 'in_progress', 'in_review', 'done', 'backlog', 'dropped', 'legacy']
 };
 
 /** Подпись кнопки: глагол действия, а не имя статуса. */
@@ -27,6 +27,7 @@ const LABELS: Record<string, string> = {
   superseded: 'Пометить заменённым',
   rejected: 'Отклонить',
   dropped: 'Отменить',
+  legacy: 'В прежний курс (legacy)',
   backlog: 'Вернуть в очередь',
   ready: 'Пометить готовой к работе',
   in_progress: 'Запустить в разработку',
@@ -77,7 +78,8 @@ const DOC_BACK: Readonly<Record<string, readonly string[]>> = {
   approved: ['draft'],
   superseded: ['draft'],
   dropped: ['draft'],
-  rejected: ['draft']
+  rejected: ['draft'],
+  legacy: ['draft']
 };
 
 const TASK_FORWARD: Readonly<Record<string, readonly string[]>> = {
@@ -92,7 +94,8 @@ const TASK_BACK: Readonly<Record<string, readonly string[]>> = {
   in_progress: ['ready'],
   in_review: ['in_progress'],
   done: ['in_review'],
-  dropped: ['backlog']
+  dropped: ['backlog'],
+  legacy: ['backlog']
 };
 
 /**

@@ -6,6 +6,7 @@ import { capabilityFindings } from './coverage';
 import { taskGaps } from './batch-check'; import { brokenMapLinks, inputsNotReady, effectiveHorizon, effectiveOwner, effectivePriority } from './functional';
 import { approvedMaps, checkEvidence, evidenceClaims, foldMaps, parseMapRecord, type MapChange } from './maps';
 import { firstHeading } from './parse';
+import { dateField, phaseDue, phaseTaskIds, stampAt, taskTiming } from './timing';
 import {
   DEFAULT_POLICY,
   DEVELOPMENT_DIR,
@@ -57,6 +58,8 @@ export interface RuleContext {
   verifications: ReadonlyMap<string, VerificationResult>;
   /** «Сегодня» приходит снаружи, иначе тест на `task_stale` зависит от календаря. */
   now: Date;
+  /** Пояс проекта (`project.timezone`): по нему читается время журнала (ADR-0039). */
+  timezone?: string;
   code: {
     /** Каталоги из `sources.code` манифеста, относительно корня проекта. */
     roots: readonly string[];
@@ -136,13 +139,29 @@ const DECISION_TRANSITIONS: Readonly<Record<string, readonly string[]>> = {
 };
 
 const TASK_TRANSITIONS: Readonly<Record<string, readonly string[]>> = {
-  backlog: ['ready', 'dropped'],
-  ready: ['in_progress', 'dropped', 'backlog'],
-  in_progress: ['in_review', 'dropped', 'ready'],
-  in_review: ['in_progress', 'done'],
-  done: ['in_review'],
-  dropped: ['backlog']
+  backlog: ['ready', 'dropped', 'legacy'],
+  ready: ['in_progress', 'dropped', 'backlog', 'legacy'],
+  in_progress: ['in_review', 'dropped', 'ready', 'legacy'],
+  in_review: ['in_progress', 'done', 'legacy'],
+  done: ['in_review', 'legacy'],
+  dropped: ['backlog', 'legacy'],
+  legacy: ['backlog']
 };
+
+/**
+ * Прежний курс (A-0001): из любого статуса, кроме черновика, — в `legacy`;
+ * обратно — только в черновик, через новое подтверждение. Только у тех типов,
+ * что описывают курс; у карт свой механизм — повторное объявление и `removed`.
+ */
+function withLegacy(table: Readonly<Record<string, readonly string[]>>): Readonly<Record<string, readonly string[]>> {
+  const next: Record<string, readonly string[]> = {};
+  for (const [from, to] of Object.entries(table)) next[from] = from === 'draft' ? to : [...to, 'legacy'];
+  next['legacy'] = ['draft'];
+  return next;
+}
+
+const LEGACY_DOC_TRANSITIONS = withLegacy(DOC_TRANSITIONS);
+const LEGACY_DECISION_TRANSITIONS = withLegacy(DECISION_TRANSITIONS);
 
 /** «Ready и дальше»: с этого момента задача обязана выполнять требование. */
 const TASK_READY_AND_BEYOND = ['ready', 'in_progress', 'in_review', 'done'];
@@ -233,7 +252,10 @@ export function checkAll(ctx: RuleContext): Violation[] {
     ...verificationNeverRun(ctx),
     ...taskNoVerification(ctx),
     ...capabilityNoOwner(ctx),
-    ...mapLinksBroken(ctx), ...taskBatchGaps(ctx), ...blockInputsNotReady(ctx)
+    ...mapLinksBroken(ctx), ...taskBatchGaps(ctx), ...blockInputsNotReady(ctx),
+    ...taskOverdue(ctx),
+    ...phaseOverdue(ctx),
+    ...estimateExceeded(ctx)
   ];
 }
 
@@ -924,6 +946,56 @@ export function docChangedAfterTask(ctx: RuleContext): Violation[] {
   return found;
 }
 
+/** Закрытая, отменённая и прежнего курса задача сроку больше не должна. */
+const TASK_FINISHED = new Set(['done', 'dropped', 'legacy']);
+
+/** Задача не закрыта, а срок прошёл (ADR-0039). Предупреждение: срок — намерение, не закон. */
+export function taskOverdue(ctx: RuleContext): Violation[] {
+  const today = stampAt(ctx.now, ctx.timezone).slice(0, 10);
+  const found: Violation[] = [];
+  for (const task of tasks(ctx)) {
+    const due = dateField(task.data['due']);
+    if (!due || TASK_FINISHED.has(task.status) || due >= today) continue;
+    const days = Math.round((Date.parse(today) - Date.parse(due)) / 86_400_000);
+    found.push(violation('task_overdue', task.id, task.source.path,
+      `Задача ${task.id} не закрыта, а срок ${due} прошёл ${days} дн. назад: закройте её, перенесите срок или отмените.`));
+  }
+  return found;
+}
+
+/** Фаза не закончена к сроку: `due`, а нет его — `target` (T-0034). */
+export function phaseOverdue(ctx: RuleContext): Violation[] {
+  const today = stampAt(ctx.now, ctx.timezone).slice(0, 10);
+  const byId = new Map(ctx.records.map((record) => [record.id, record]));
+  const found: Violation[] = [];
+  for (const phase of ctx.records) {
+    if (phase.type !== 'phase' || !phase.id) continue;
+    const due = phaseDue(phase.data);
+    if (!due || due >= today) continue;
+    const own = phaseTaskIds(phase, ctx.records).map((id) => byId.get(id)).filter((task): task is WorkRecord => !!task && task.status !== 'dropped' && task.status !== 'legacy');
+    const open = own.filter((task) => task.status !== 'done').length;
+    if (own.length > 0 && open === 0) continue;
+    found.push(violation('phase_overdue', phase.id, phase.source.path,
+      `Фаза ${phase.id} не закончена к сроку ${due}: открыто задач — ${open} из ${own.length}. Сдвиньте срок или сузьте состав фазы.`));
+  }
+  return found;
+}
+
+/** Время в работе по журналу больше оценки вдвое: оценка ошиблась или задача застряла. */
+export function estimateExceeded(ctx: RuleContext): Violation[] {
+  const byId = new Map(ctx.records.map((record) => [record.id, record]));
+  const found: Violation[] = [];
+  for (const task of tasks(ctx)) {
+    if (task.status === 'dropped' || task.status === 'legacy' || task.data['estimate'] === undefined) continue;
+    const timing = taskTiming(task, byId, ctx.now, ctx.timezone);
+    if (!timing.estimateMinutes || timing.factMinutes <= timing.estimateMinutes * 2) continue;
+    const hours = (value: number) => Math.round((value / 60) * 10) / 10;
+    found.push(violation('estimate_exceeded', task.id, task.source.path,
+      `Задача ${task.id} в работе ${hours(timing.factMinutes)} ч при оценке ${task.data['estimate']} (${hours(timing.estimateMinutes)} ч) — больше вдвое. Пересмотрите оценку или разбейте задачу.`));
+  }
+  return found;
+}
+
 export function taskStale(ctx: RuleContext): Violation[] {
   const limit = ctx.policy.stale_in_progress_days;
   // Порога нет — проект не считает задержку нарушением, и придумывать его не нам.
@@ -949,7 +1021,7 @@ export function taskStale(ctx: RuleContext): Violation[] {
 export function verificationNeverRun(ctx: RuleContext): Violation[] {
   const found: Violation[] = [];
   for (const record of ctx.records) {
-    if (record.type !== 'verification' || !record.id) continue;
+    if (record.type !== 'verification' || !record.id || RETIRED_STATUSES.has(record.status)) continue;
     if (ctx.verifications.has(record.id)) continue;
     found.push(violation(
       'verification_never_run',
@@ -1021,8 +1093,9 @@ function transitionsFor(type: string): Readonly<Record<string, readonly string[]
   switch (type) {
     case 'requirement':
     case 'design':
-    case 'contract':
     case 'verification':
+      return LEGACY_DOC_TRANSITIONS;
+    case 'contract':
     case 'reference':
     case 'defect': case 'release':
     // Карта подтверждается тем же порядком, что документ: без этого её нельзя
@@ -1030,7 +1103,7 @@ function transitionsFor(type: string): Readonly<Record<string, readonly string[]
     case 'map':
       return DOC_TRANSITIONS;
     case 'decision':
-      return DECISION_TRANSITIONS;
+      return LEGACY_DECISION_TRANSITIONS;
     case 'task':
       return TASK_TRANSITIONS;
     default:

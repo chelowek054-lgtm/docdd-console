@@ -24,6 +24,7 @@ export const STATUS_LABELS: Record<string, string> = {
   superseded: 'заменён',
   dropped: 'отменён',
   rejected: 'отклонён',
+  legacy: 'прежний курс',
   backlog: 'в очереди',
   ready: 'готова к работе',
   in_progress: 'в работе',
@@ -46,7 +47,7 @@ export const RESULT_LABELS: Record<string, string> = {
  * преемника (docs/adr/0011-body-editing.md). Список зеркалит `SETTLED_STATUSES`
  * на сервере (server/lib/actions.ts); сервер решает так же и без клиента.
  */
-export const SETTLED_STATUSES = ['approved', 'done', 'superseded', 'rejected', 'dropped'];
+export const SETTLED_STATUSES = ['approved', 'done', 'superseded', 'rejected', 'dropped', 'legacy'];
 
 export type BadgeColor = 'primary' | 'success' | 'warning' | 'error' | 'info' | 'neutral';
 
@@ -67,6 +68,7 @@ export function statusColor(status: string): BadgeColor {
     case 'superseded':
     case 'dropped':
     case 'rejected':
+    case 'legacy':
       return 'neutral';
     case 'failed':
       return 'error';
@@ -135,5 +137,5 @@ export function issueKey(issue: { code: string; path?: string | null; recordId?:
  * Порядок вкладок статусов в списках: по ходу процесса, а не по алфавиту
  * (docs/04-ui.md, «Списки по статусам»). Незнакомый статус — в конец.
  */
-export const DOCUMENT_STATUS_ORDER = ['draft', 'review', 'approved', 'superseded', 'dropped', 'rejected'];
-export const TASK_STATUS_ORDER = ['backlog', 'ready', 'in_progress', 'in_review', 'done', 'dropped'];
+export const DOCUMENT_STATUS_ORDER = ['draft', 'review', 'approved', 'superseded', 'dropped', 'rejected', 'legacy'];
+export const TASK_STATUS_ORDER = ['backlog', 'ready', 'in_progress', 'in_review', 'done', 'dropped', 'legacy'];

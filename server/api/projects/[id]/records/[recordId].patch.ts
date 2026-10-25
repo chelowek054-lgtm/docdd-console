@@ -7,7 +7,8 @@ import { WorkspaceError } from '../../../../lib/workspace';
 import { fail, failWith } from '../../../../utils/http';
 import { findProject } from '../../../../utils/projects';
 import { applyJournalNote } from '../../../../lib/actions';
-import { openRecord, saveRecord, today } from '../../../../utils/record-write';
+import { journalNow, openRecord, saveRecord, today } from '../../../../utils/record-write';
+import { parseEstimate } from '../../../../lib/timing';
 
 /**
  * Правка полей front matter. Тело документа этот маршрут не принимает вовсе —
@@ -22,14 +23,24 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody<Record<string, unknown>>(event);
-  const unknown = Object.keys(body ?? {}).filter((key) => !['owner', 'reviewer', 'phase', 'tags', 'links', 'change', 'reuse', 'assignee', 'actor', 'version'].includes(key));
+  const unknown = Object.keys(body ?? {}).filter((key) => !['owner', 'reviewer', 'phase', 'tags', 'links', 'change', 'reuse', 'assignee', 'due', 'estimate', 'actor', 'version'].includes(key));
   if (unknown.length > 0) {
     return fail(
       event,
       400,
       'field_not_editable',
-      `Полей \`${unknown.join('`, `')}\` этот маршрут не меняет: правке подлежат owner, reviewer, phase, tags, links, change и reuse`
+      `Полей \`${unknown.join('`, `')}\` этот маршрут не меняет: правке подлежат owner, reviewer, phase, tags, links, change, reuse, due и estimate`
     );
+  }
+  // Срок и оценка — намерение человека (ADR-0039): агент их только предлагает.
+  if (('due' in body || 'estimate' in body) && (event.context as { user?: { agent?: unknown } }).user?.agent) {
+    return fail(event, 403, 'agent_timing_edit', 'Срок и оценку меняет человек: агент может только предложить их текстом');
+  }
+  if ('due' in body && body['due'] !== null && !(typeof body['due'] === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body['due']))) {
+    return fail(event, 400, 'due_invalid', 'Срок — дата ГГГГ-ММ-ДД');
+  }
+  if ('estimate' in body && body['estimate'] !== null && !(typeof body['estimate'] === 'string' && parseEstimate(body['estimate']) !== null)) {
+    return fail(event, 400, 'estimate_invalid', 'Оценка — число и единица: 30m, 2h, 1.5d');
   }
 
   const fields: PatchFields = {};
@@ -41,6 +52,8 @@ export default defineEventHandler(async (event) => {
   if ('phase' in body) fields.phase = asStringOrNull(body['phase']);
   if ('tags' in body) fields.tags = asStrings(body['tags']);
   if ('links' in body) fields.links = asLinks(body['links']);
+  if ('due' in body) fields.due = asStringOrNull(body['due']);
+  if ('estimate' in body) fields.estimate = asStringOrNull(body['estimate']);
 
   try {
     const context = openRecord(project.root, recordId);
@@ -79,7 +92,7 @@ export default defineEventHandler(async (event) => {
         const note = applyJournalNote(again.original, {
           action: fields.assignee ? `исполнитель: ${fields.assignee}` : 'исполнитель снят',
           actor: typeof body['actor'] === 'string' ? body['actor'] : '',
-          today: today()
+          today: journalNow(project.root)
         });
         saveRecord(again, note, project.root);
       }

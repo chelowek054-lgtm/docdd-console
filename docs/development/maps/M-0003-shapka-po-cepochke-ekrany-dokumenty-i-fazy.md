@@ -53,7 +53,7 @@ updated: 2026-09-13
     ],
     "imports": [
       {"from":"app/pages/projects/[id]/documents.vue","to":"server/lib/types.ts","evidence":{"path":"app/pages/projects/[id]/documents.vue","line":2,"fragment":"import type { IndexRecord } from '~~/server/lib/types';"}},
-      {"from":"app/utils/phases.ts","to":"server/lib/types.ts","evidence":{"path":"app/utils/phases.ts","line":3,"fragment":"import type { IndexRecord } from '../../server/lib/types';"}}
+      {"from":"app/utils/phases.ts","to":"server/lib/types.ts","evidence":{"path":"app/utils/phases.ts","line":4,"fragment":"import type { IndexRecord } from '../../server/lib/types';"}}
     ]
   }
 }
@@ -75,8 +75,8 @@ updated: 2026-09-13
       {"id":"/projects/:id/phases","title":"phases","file":"app/pages/projects/[id]/phases.vue"}
     ],
     "transitions": [
-      {"from":"/projects/:id/documents","to":"/projects/:id/records/:recordId","trigger":"ссылка","evidence":{"path":"app/pages/projects/[id]/documents.vue","line":195,"fragment":":to=\"`/projects/${projectId}/records/${id}`\""}},
-      {"from":"/projects/:id/work","to":"/projects/:id/records/:recordId","trigger":"ссылка","evidence":{"path":"app/components/PhasesPanel.vue","line":76,"fragment":"<NuxtLink :to=\"`/projects/${projectId}/records/${task.id}`\" "}}
+      {"from":"/projects/:id/documents","to":"/projects/:id/records/:recordId","trigger":"ссылка","evidence":{"path":"app/pages/projects/[id]/documents.vue","line":205,"fragment":":to=\"`/projects/${projectId}/records/${id}`\""}},
+      {"from":"/projects/:id/work","to":"/projects/:id/records/:recordId","trigger":"ссылка","evidence":{"path":"app/components/PhasesPanel.vue","line":83,"fragment":"<NuxtLink :to=\"`/projects/${projectId}/records/${task.id}`\" "}}
     ]
   }
 }

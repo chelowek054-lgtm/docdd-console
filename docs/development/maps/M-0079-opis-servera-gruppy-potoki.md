@@ -4839,7 +4839,7 @@ updated: 2026-10-24
         "to": "server/lib/version.ts",
         "evidence": {
           "path": "server/api/projects/[id]/records/[recordId].patch.ts",
-          "line": 116,
+          "line": 129,
           "fragment": "import { versionConflict } from '../../../../lib/version';"
         }
       },
@@ -4848,7 +4848,7 @@ updated: 2026-10-24
         "to": "server/utils/notify-events.ts",
         "evidence": {
           "path": "server/api/projects/[id]/records/[recordId].patch.ts",
-          "line": 117,
+          "line": 130,
           "fragment": "import { notifyPatched } from '../../../../utils/notify-even"
         }
       },
@@ -6622,7 +6622,7 @@ updated: 2026-10-24
         "evidence": {
           "path": "server/lib/overview.ts",
           "line": 1,
-          "fragment": "import type { IndexRecord, IssueDto, VerificationOutcome } f"
+          "fragment": "import { RETIRED_STATUSES, type IndexRecord, type IssueDto, t"
         }
       },
       {
@@ -6819,7 +6819,7 @@ updated: 2026-10-24
         "to": "server/lib/types.ts",
         "evidence": {
           "path": "server/lib/rules.ts",
-          "line": 25,
+          "line": 26,
           "fragment": "} from './types';"
         }
       },
@@ -6828,7 +6828,7 @@ updated: 2026-10-24
         "to": "server/lib/design.ts",
         "evidence": {
           "path": "server/lib/rules.ts",
-          "line": 26,
+          "line": 27,
           "fragment": "import { plainTokens, type DesignResolution } from './design"
         }
       },
@@ -6837,7 +6837,7 @@ updated: 2026-10-24
         "to": "server/lib/design-screens.ts",
         "evidence": {
           "path": "server/lib/rules.ts",
-          "line": 27,
+          "line": 28,
           "fragment": "import { PASS_LABEL, latestReports, type DesignReport } from"
         }
       },
@@ -6846,7 +6846,7 @@ updated: 2026-10-24
         "to": "server/lib/design-export.ts",
         "evidence": {
           "path": "server/lib/rules.ts",
-          "line": 36,
+          "line": 37,
           "fragment": "} from './design-export';"
         }
       },
@@ -7207,7 +7207,7 @@ updated: 2026-10-24
         "evidence": {
           "path": "server/utils/bulk-service.ts",
           "line": 8,
-          "fragment": "import { openRecord, today, writeRecord } from './record-wri"
+          "fragment": "import { journalNow, openRecord, writeRecord } from './record-wri"
         }
       },
       {
@@ -8377,7 +8377,7 @@ updated: 2026-10-24
         "evidence": {
           "path": "server/utils/priority-service.ts",
           "line": 13,
-          "fragment": "import { openRecord, today, writeRecord } from './record-wri"
+          "fragment": "import { journalNow, openRecord, writeRecord } from './record-wri"
         }
       },
       {
@@ -8439,7 +8439,7 @@ updated: 2026-10-24
         "to": "server/utils/reference-service.ts",
         "evidence": {
           "path": "server/utils/record-write.ts",
-          "line": 13,
+          "line": 14,
           "fragment": "import { refreshReferenceIndex } from './reference-service';"
         }
       },

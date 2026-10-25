@@ -7,7 +7,12 @@ const projectId = computed(() => String(route.params['id'] ?? ''));
 const { index, failure, records, byId, refresh, patchStatuses } = useProjectIndex(projectId);
 
 const { mode } = useOrderMode(records);
-const tasks = computed(() => sortTasks(records.value.filter((record) => record.type === 'task'), records.value, mode.value));
+const showLegacy = useLegacyToggle();
+const allTasks = computed(() => records.value.filter((record) => record.type === 'task'));
+const legacyCount = computed(() => allTasks.value.filter((task) => task.status === 'legacy').length);
+// Прежний курс скрыт за переключателем (A-0001): в текущей работе его нет.
+const tasks = computed(() => sortTasks(allTasks.value.filter((task) => showLegacy.value || task.status !== 'legacy'), records.value, mode.value));
+const { byTask } = useTimings(projectId);
 
 const statuses = computed(() => tasks.value.map((task) => task.status));
 const status = useStatusFilter(statuses);
@@ -82,7 +87,10 @@ function reset() {
       <!-- Общие: фильтры ниже на них не влияют (docs/04-ui.md, «Общие шкалы»). -->
       <OverallProgress :records="records" />
 
-      <StatusTabs v-model="status" :statuses="statuses" :order="TASK_STATUS_ORDER" />
+      <div class="flex flex-wrap items-center gap-3">
+        <StatusTabs v-model="status" :statuses="statuses" :order="TASK_STATUS_ORDER" />
+        <LegacyToggle v-model="showLegacy" :count="legacyCount" class="ml-auto" />
+      </div>
 
       <div class="flex flex-wrap gap-2">
         <!-- Пустое значение USelect запрещает: «ничего не выбрано» — подсказка, снимается «Сбросить». -->
@@ -143,6 +151,7 @@ function reset() {
               {{ factOf(task)!.label }}
             </LightBadge>
             <LightBadge v-if="task.phase" color="neutral" variant="subtle">{{ task.phase }}</LightBadge>
+            <DueBadge :timing="byTask.get(task.id)" />
             <LightBadge v-for="name in task.tags" :key="name" color="neutral" variant="outline">{{ name }}</LightBadge>
             <span v-if="task.owner" class="text-sm text-muted">{{ task.owner }}</span>
           </div>

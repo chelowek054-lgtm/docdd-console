@@ -50,7 +50,7 @@ export interface StrategyInput {
   overdue: ReadonlyMap<string, number>;
 }
 
-const OUT = new Set(['superseded', 'rejected', 'dropped']);
+const OUT = new Set(['superseded', 'rejected', 'dropped', 'legacy']);
 const MANUAL = new Set(['manual', 'review']);
 
 /** Записи узла: задачи, меняющие карты, что объявили его или потомков, их требования и проверки этих требований. */

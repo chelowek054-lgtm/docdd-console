@@ -21,6 +21,7 @@ function summary(entry: CourseEntry): string {
   if (entry.removed) parts.push(`−${entry.removed}`);
   if (entry.statusChanged) parts.push(t('t83.m2.ch.state', { n: entry.statusChanged }));
   if (entry.relations) parts.push(tn('t83.m2.pl.rel', entry.relations));
+  if (entry.legacy) parts.push(t('lg.course', { n: entry.legacy }));
   return parts.join(', ');
 }
 

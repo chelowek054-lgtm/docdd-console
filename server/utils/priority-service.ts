@@ -10,7 +10,7 @@ import type { IndexRecord, LinkKind } from '../lib/types';
 import { membersOf, normalizePlan, rankOf, sortPhases, type PriorityPlan } from '../lib/work-order';
 import { buildProjectMap } from './map-service';
 import { loadIndex } from './index-service';
-import { openRecord, today, writeRecord } from './record-write';
+import { journalNow, openRecord, writeRecord } from './record-write';
 
 /**
  * Порядок по важности (docs/04-ui.md, «Порядок по важности»): данные для запроса и
@@ -92,7 +92,7 @@ export function applyPriority(root: string, plan: PriorityPlan, actor: string): 
   }
 
   const checked = normalizePlan(plan, records).plan;
-  const stamp = today();
+  const stamp = journalNow(root);
   const changed: string[] = [];
 
   for (const [at, phase] of checked.phases.entries()) {

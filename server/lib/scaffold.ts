@@ -77,6 +77,8 @@ export interface TemplateInput {
   title: string;
   today: string;
   owner?: string;
+  /** Запись прежнего курса, из которой перенесена эта (A-0001). */
+  derivedFrom?: string;
   links?: Partial<Record<LinkKind, string[]>>;
   /** Вид проверки: схема требует его у записей типа `verification`; у справки — вид (`component`, `api`, `technique`, `data`). */
   kind?: string; environment?: string; build?: string; /* у дефекта `kind` — серьёзность (R-0063) */
@@ -181,7 +183,10 @@ export function recordTemplate(input: TemplateInput, eol = '\n'): string {
   if (input.owner) lines.push(`owner: ${yamlSafe(input.owner)}`);
   if (input.type === 'task' && input.change) lines.push(`change: ${input.change}`);
   if (input.type === 'task' && input.reuse === 'none') lines.push('reuse: none');
-  lines.push(`created: ${input.today}`, `updated: ${input.today}`);
+  if (input.derivedFrom) lines.push(`derived_from: ${input.derivedFrom}`);
+  // «Сегодня» может прийти с временем (ADR-0039): оно — для строки журнала, в даты идёт только день.
+  const day = input.today.slice(0, 10);
+  lines.push(`created: ${day}`, `updated: ${day}`);
   if (input.type === 'map' && input.intent) lines.push('intent: true');
   if (input.type === 'verification') lines.push(`kind: ${yamlSafe(input.kind ?? 'manual')}`);
   if (input.type === 'release') { lines.push(`version: ${yamlSafe(input.kind ?? '')}`); if (input.environment) lines.push(`environments: [${input.environment.split(',').map((e) => yamlSafe(e.trim())).filter(Boolean).join(', ')}]`); }
@@ -194,7 +199,7 @@ export function recordTemplate(input: TemplateInput, eol = '\n'): string {
     lines.push(`summary: ${yamlSafe(input.summary ?? '')}`);
     if (input.kind) lines.push(`kind: ${yamlSafe(input.kind)}`);
     if (input.source) lines.push(`source: ${yamlSafe(input.source)}`);
-    lines.push(`fetched: ${input.fetched ?? input.today}`);
+    lines.push(`fetched: ${input.fetched ?? day}`);
   }
 
   const links = input.links ?? {};

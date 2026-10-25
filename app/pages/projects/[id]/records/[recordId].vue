@@ -143,6 +143,17 @@ function entries(
         @changed="reload"
       />
 
+      <!-- Срок, оценка и факт по журналу (ADR-0039). -->
+      <TaskTiming v-if="detail.record.type === 'task'" :project-id="projectId" :task="detail.record" @changed="reload" />
+
+      <!-- Прежний курс (A-0001): новое требование — черновиком, старое не трогаем. -->
+      <LegacyRevive
+        v-if="detail.record.type === 'requirement' && detail.record.status === 'legacy'"
+        :project-id="projectId"
+        :record-id="recordId"
+        :legacy-by="typeof detail.record.extra['legacy_by'] === 'string' ? detail.record.extra['legacy_by'] : null"
+      />
+
       <!-- Ручная проверка: флажок «Проверено» фиксирует прогон (docs/04-ui.md). -->
       <!-- Карточка «Как проверить»: способ, что проверяет, история прогонов (docs/04-ui.md, «Карточка проверки»). -->
       <VerificationCard

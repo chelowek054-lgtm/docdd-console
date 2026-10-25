@@ -16,7 +16,7 @@ export interface BatchGap {
 }
 
 /** Запись снята с работы: заменена, отклонена, отменена — её пробелы никого не касаются. */
-const OUT = new Set(['superseded', 'rejected', 'dropped']);
+const OUT = new Set(['superseded', 'rejected', 'dropped', 'legacy']);
 const MANUAL_KINDS = new Set(['manual', 'review']);
 
 type Rec = Pick<WorkRecord, 'id' | 'type' | 'status' | 'links' | 'data' | 'body'>;

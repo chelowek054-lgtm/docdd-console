@@ -1,0 +1,12 @@
+{
+  "contract": "docdd.workspace/1",
+  "runner": "manual:architect",
+  "started_at": "2026-10-25T18:58:38.158Z",
+  "total": 1,
+  "failed": 0,
+  "checked_by": "модель по поручению владельца",
+  "note": "Вживую на копии videos: approved→legacy, draft — отказ; пачка с причиной и M-0004, тело цело, счётчик курса 2; скрыто/показано; поиск и ссылки; «Перенести в текущий курс» — R-0005 derived_from",
+  "verifications": {
+    "V-0110": "passed"
+  }
+}

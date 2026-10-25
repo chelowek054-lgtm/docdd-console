@@ -5,7 +5,7 @@ title: Единый дизайн между проектами
 status: planned
 links:
   covers: [T-0060, T-0061, T-0063, T-0064, T-0067, T-0068, T-0069, T-0062, T-0065, T-0066]
-rank: 9
+rank: 10
 created: 2026-10-11
 updated: 2026-10-20
 ---

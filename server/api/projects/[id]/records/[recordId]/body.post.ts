@@ -6,7 +6,7 @@ import { splitRecord } from '../../../../../lib/write';
 import { WorkspaceError } from '../../../../../lib/workspace';
 import { fail, failWith } from '../../../../../utils/http';
 import { findProject } from '../../../../../utils/projects';
-import { openRecord, saveRecord, today } from '../../../../../utils/record-write';
+import { journalNow, openRecord, saveRecord } from '../../../../../utils/record-write';
 
 /**
  * Правка текста документа человеком (docs/adr/0011-body-editing.md). Раздел
@@ -60,7 +60,7 @@ export default defineEventHandler(async (event) => {
       );
     }
 
-    const outcome = applyBodyEdit(context.original, { body: nextBody, actor, today: today() });
+    const outcome = applyBodyEdit(context.original, { body: nextBody, actor, today: journalNow(project.root) });
     const saved = saveRecord(context, outcome, project.root);
     if (!saved.ok) {
       return failWith(
