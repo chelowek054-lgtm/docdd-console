@@ -39,7 +39,7 @@ export interface TestsReport {
 function loadProject(root: string) {
   const workspace = readWorkspace(root);
   return analyze({ files: workspace.files, manifest: workspace.manifest, reports: workspace.reports, codeFiles: workspace.codeFiles }).records
-    .filter((record) => !['superseded', 'rejected', 'dropped'].includes(record.status));
+    .filter((record) => !['superseded', 'rejected', 'dropped', 'legacy'].includes(record.status));
 }
 
 export function scanTests(root: string): TestsReport {

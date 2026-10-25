@@ -15,7 +15,7 @@ import { readWorkspace } from '../lib/workspace';
  * чек-лист нужен как раз тому, у кого ничего ещё нет.
  */
 
-const OUT = new Set(['superseded', 'rejected', 'dropped']);
+const OUT = new Set(['superseded', 'rejected', 'dropped', 'legacy']);
 const pending = (status: string) => status === 'draft' || status === 'review';
 
 /** Какие структуры карты лежат в записи: функциональная часть и три «карты устройства». */

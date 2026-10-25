@@ -59,11 +59,18 @@ export function buildProjectMap(root: string): ProjectMapResult {
   for (const item of folded.functional.capabilities) trace(item);
   if (folded.functional.vision) trace(folded.functional.vision);
 
+  // Сколько записей карта отправила в прежний курс (A-0001): поле `legacy_by` у записей в `legacy`.
+  const legacyBy = new Map<string, number>();
+  for (const record of result.records) {
+    const map = record.data['legacy_by'];
+    if (record.status === 'legacy' && typeof map === 'string') legacyBy.set(map, (legacyBy.get(map) ?? 0) + 1);
+  }
   const history = courseHistory(approved.map((record, at) => ({
     id: record.id,
     title: record.title,
     approval: approvals.get(record.id) ?? { at: '', by: null },
-    change: changes[at]?.change ?? {}
+    change: changes[at]?.change ?? {},
+    legacy: legacyBy.get(record.id) ?? 0
   })));
   return {
     ...folded,

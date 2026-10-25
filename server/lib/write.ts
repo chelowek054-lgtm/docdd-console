@@ -35,6 +35,12 @@ export interface FrontMatterChanges {
   phase?: string | null;
   tags?: string[];
   links?: Partial<Record<LinkKind, string[]>>;
+  /** Срок `ГГГГ-ММ-ДД` (ADR-0039); `null` убирает. */
+  due?: string | null;
+  /** Оценка `30m`/`2h`/`1d` (ADR-0039); `null` убирает. */
+  estimate?: string | null;
+  /** Карта, сменившая курс (A-0001). */
+  legacy_by?: string | null;
 }
 
 const FENCE = /^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(\r?\n|$)/;
@@ -78,6 +84,9 @@ export function applyFrontMatter(file: RecordFile, changes: FrontMatterChanges):
   if (changes.phase !== undefined) lines = setScalar(lines, 'phase', changes.phase);
   if (changes.tags !== undefined) lines = setScalar(lines, 'tags', flowList(changes.tags));
   if (changes.links !== undefined) lines = setLinks(lines, changes.links, eol);
+  if (changes.due !== undefined) lines = setScalar(lines, 'due', changes.due);
+  if (changes.estimate !== undefined) lines = setScalar(lines, 'estimate', changes.estimate);
+  if (changes.legacy_by !== undefined) lines = setScalar(lines, 'legacy_by', changes.legacy_by);
 
   return { ...file, frontMatter: lines.join(eol) };
 }

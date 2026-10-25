@@ -44,15 +44,19 @@ const heading = computed(() => (type.value === 'all'
  * Неподтверждённое наверху: экран открывают, чтобы найти его. Незнакомый
  * статус — в конец, но не пропадает.
  */
-const STATUS_ORDER = ['review', 'draft', 'approved', 'superseded', 'dropped', 'rejected'];
+const STATUS_ORDER = ['review', 'draft', 'approved', 'superseded', 'dropped', 'rejected', 'legacy'];
 
 function rank(status: string): number {
   const at = STATUS_ORDER.indexOf(status);
   return at === -1 ? STATUS_ORDER.length : at;
 }
 
-const listed = computed(() => records.value
-  .filter((record) => (type.value === 'all' ? DOCUMENT_TYPES.includes(record.type) : record.type === type.value))
+const showLegacy = useLegacyToggle();
+const ofType = computed(() => records.value.filter((record) => (type.value === 'all' ? DOCUMENT_TYPES.includes(record.type) : record.type === type.value)));
+const legacyCount = computed(() => ofType.value.filter((record) => record.status === 'legacy').length);
+// Прежний курс скрыт за переключателем (A-0001): текущая картина — без него.
+const listed = computed(() => ofType.value
+  .filter((record) => showLegacy.value || record.status !== 'legacy')
   .sort((a, b) => rank(a.status) - rank(b.status) || a.id.localeCompare(b.id)));
 
 /** Вторая ось после типа: статус (docs/04-ui.md, «Списки по статусам»). */
@@ -132,7 +136,10 @@ const EMPTY = computed<Record<string, string>>(() => ({
         {{ t('docs.refHint') }} <NuxtLink :to="`/projects/${projectId}/reference`" class="hover:underline">{{ t('docs.refLink') }}</NuxtLink>.
       </p>
 
-      <StatusTabs v-model="status" :statuses="statuses" :order="DOCUMENT_STATUS_ORDER" />
+      <div class="flex flex-wrap items-center gap-3">
+        <StatusTabs v-model="status" :statuses="statuses" :order="DOCUMENT_STATUS_ORDER" />
+        <LegacyToggle v-model="showLegacy" :count="legacyCount" class="ml-auto" />
+      </div>
 
       <BulkBar
         :project-id="projectId"

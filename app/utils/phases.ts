@@ -46,7 +46,7 @@ export function matchesPhaseFilter(state: PhaseState, filter: PhaseFilter): bool
 }
 
 const STARTED = new Set(['in_progress', 'in_review', 'done']);
-const CLOSED = new Set(['done', 'dropped']);
+const CLOSED = new Set(['done', 'dropped', 'legacy']);
 
 export function phaseProgress(phase: IndexRecord, records: readonly IndexRecord[]): PhaseProgress {
   const covered = new Set(phase.links.covers ?? []);
@@ -56,7 +56,7 @@ export function phaseProgress(phase: IndexRecord, records: readonly IndexRecord[
     .filter((record) => record.type === 'task' && (covered.has(record.id) || record.phase === phase.id))
     .sort((a, b) => a.id.localeCompare(b.id));
 
-  const counted = tasks.filter((task) => task.status !== 'dropped');
+  const counted = tasks.filter((task) => task.status !== 'dropped' && task.status !== 'legacy');
   return {
     phase,
     tasks,
@@ -85,7 +85,7 @@ export interface OverallProgress {
  * проекта в долю выбранного.
  */
 export function overallProgress(records: readonly IndexRecord[]): OverallProgress {
-  const tasks = records.filter((record) => record.type === 'task' && record.status !== 'dropped');
+  const tasks = records.filter((record) => record.type === 'task' && record.status !== 'dropped' && record.status !== 'legacy');
   const phases = records.filter((record) => record.type === 'phase');
   return {
     tasks: { done: tasks.filter((task) => task.status === 'done').length, total: tasks.length },

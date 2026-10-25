@@ -12,7 +12,7 @@ describe('availableActions', () => {
   it('из backlog предлагает только то, что есть в схеме статусов', () => {
     const task = rec('T-0007', 'task', 'backlog', { links: { implements: ['R-0004'] } });
     const ctx = context([rec('R-0004', 'requirement', 'approved'), task]);
-    expect(availableActions(task, ctx).map((action) => action.status)).toEqual(['ready', 'dropped']);
+    expect(availableActions(task, ctx).map((action) => action.status)).toEqual(['ready', 'dropped', 'legacy']);
   });
 
   it('называет причину, по которой действие недоступно', () => {
@@ -35,10 +35,10 @@ describe('availableActions', () => {
     expect(ready?.blockers).toEqual([]);
   });
 
-  it('из закрытой задачи — только назад, на проверку (adr/0012-status-reopening.md)', () => {
+  it('из закрытой задачи — назад, на проверку (adr/0012-status-reopening.md), или в прежний курс (A-0001)', () => {
     const task = rec('T-0007', 'task', 'done', { links: { implements: ['R-0004'] } });
     const actions = availableActions(task, context([task]));
-    expect(actions.map((action) => action.status)).toEqual(['in_review']);
+    expect(actions.map((action) => action.status)).toEqual(['in_review', 'legacy']);
     expect(actions[0]?.allowed).toBe(true);
   });
 

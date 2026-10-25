@@ -6,7 +6,7 @@ import { WorkspaceError } from '../../../../../lib/workspace';
 import { fail, failWith } from '../../../../../utils/http';
 import { markDescribed } from '../../../../../utils/inventory-service';
 import { findProject } from '../../../../../utils/projects';
-import { openRecordWithBlockers, saveRecord, today } from '../../../../../utils/record-write';
+import { journalNow, openRecordWithBlockers, saveRecord } from '../../../../../utils/record-write';
 import { wasViewed } from '../../../../../utils/record-diff-service';
 
 /**
@@ -51,7 +51,7 @@ export default defineEventHandler(async (event) => {
     const outcome = applyStatusChange(context.original, {
       status,
       actor,
-      today: today(),
+      today: journalNow(project.root),
       // Журнал честно различает подтверждение с просмотром разницы и без (R-0068).
       ...(status === 'approved' && wasViewed(project.root, recordId, context.record.source.path)
         ? { action: 'подтверждено после просмотра разницы' }

@@ -28,6 +28,7 @@ const JOURNAL_ACTIONS: Record<string, string> = {
   superseded: 'заменён',
   rejected: 'отклонён',
   dropped: 'отменён',
+  legacy: 'в legacy',
   backlog: 'в очередь',
   ready: 'готова к работе',
   in_progress: 'в разработку',
@@ -35,11 +36,30 @@ const JOURNAL_ACTIONS: Record<string, string> = {
   done: 'закрыта'
 };
 
+/**
+ * Обратное чтение строки журнала: какой статус она поставила. Слово может
+ * нести пояснение — «на проверку: …», «в legacy: причина»; подтверждение после
+ * просмотра разницы — тоже подтверждение (R-0068). Заметка — `null`.
+ */
+export function statusOfJournalAction(action: string): string | null {
+  if (action.startsWith('подтверждено после просмотра разницы')) return 'approved';
+  for (const [status, word] of Object.entries(JOURNAL_ACTIONS)) {
+    if (action === word || action.startsWith(word + ':') || action.startsWith(word + ' (')) return status;
+  }
+  return null;
+}
+
+/**
+ * «Сегодня» действия может прийти с временем (`2026-10-25 14:03`, ADR-0039):
+ * в журнал идёт целиком, в `updated` — только дата.
+ */
+const dateOf = (stamp: string) => stamp.slice(0, 10);
+
 /** Смена статуса меняет `status` и `updated` — и ничего больше. */
 export const STATUS_FIELDS = ['status', 'updated'] as const;
 
 /** Правка полей: тело документа не трогается вовсе, журнал не пишется. */
-export const PATCH_FIELDS = ['owner', 'reviewer', 'phase', 'tags', 'links', 'change', 'reuse', 'rank', 'updated', 'assignee'] as const;
+export const PATCH_FIELDS = ['owner', 'reviewer', 'phase', 'tags', 'links', 'change', 'reuse', 'rank', 'updated', 'assignee', 'due', 'estimate'] as const;
 
 export interface WriteOutcome {
   text: string;
@@ -61,7 +81,7 @@ export function applyStatusChange(
   const line = journalLine(options.today, action, options.actor);
 
   const changed = appendJournal(
-    applyFrontMatter(file, { status: options.status, updated: options.today }),
+    applyFrontMatter(file, { status: options.status, updated: dateOf(options.today) }),
     line
   );
   const text = joinRecord(changed);
@@ -91,7 +111,7 @@ export function applyJournalNote(
   }
 
   const line = journalLine(options.today, options.action, options.actor);
-  const text = joinRecord(appendJournal(applyFrontMatter(file, { updated: options.today }), line));
+  const text = joinRecord(appendJournal(applyFrontMatter(file, { updated: dateOf(options.today) }), line));
 
   return {
     text,
@@ -115,6 +135,9 @@ export interface PatchFields {
   phase?: string | null;
   tags?: string[];
   links?: Partial<Record<LinkKind, string[]>>;
+  /** Срок и оценка задачи (ADR-0039); `null` убирает. */
+  due?: string | null;
+  estimate?: string | null;
 }
 
 export function applyFieldPatch(
@@ -127,7 +150,7 @@ export function applyFieldPatch(
     return { text: original, problems: ['Файл не является записью с front matter.'] };
   }
 
-  const changes: FrontMatterChanges = { updated: today };
+  const changes: FrontMatterChanges = { updated: dateOf(today) };
   if (fields.owner !== undefined) changes.owner = fields.owner;
   if (fields.reviewer !== undefined) changes.reviewer = fields.reviewer;
   if (fields.assignee !== undefined) changes.assignee = fields.assignee;
@@ -137,6 +160,8 @@ export function applyFieldPatch(
   if (fields.phase !== undefined) changes.phase = fields.phase;
   if (fields.tags !== undefined) changes.tags = fields.tags;
   if (fields.links !== undefined) changes.links = fields.links;
+  if (fields.due !== undefined) changes.due = fields.due;
+  if (fields.estimate !== undefined) changes.estimate = fields.estimate;
 
   const text = joinRecord(applyFrontMatter(file, changes));
 
@@ -145,6 +170,48 @@ export function applyFieldPatch(
     // Строку журнала правка полей не пишет: журнал — про движение работы,
     // а не про то, что кто-то поправил тег.
     problems: verifyWrite(original, text, { allowedFields: [...PATCH_FIELDS] })
+  };
+}
+
+/**
+ * Перевод в прежний курс (A-0001): статус, `updated`, необязательная карта
+ * смены курса и строка «в legacy: причина». Тело не трогается.
+ */
+export function applyLegacy(
+  original: string,
+  options: { reason: string; legacyBy?: string | null; actor: string; today: string }
+): WriteOutcome {
+  const file = splitRecord(original);
+  if (!file) {
+    return { text: original, problems: ['Файл не является записью с front matter.'] };
+  }
+  const reason = options.reason.replace(/\s+/g, ' ').trim();
+  const line = journalLine(options.today, reason ? `${JOURNAL_ACTIONS['legacy']}: ${reason}` : JOURNAL_ACTIONS['legacy'] as string, options.actor);
+  const changes: FrontMatterChanges = { status: 'legacy', updated: dateOf(options.today) };
+  if (options.legacyBy) changes.legacy_by = options.legacyBy;
+  const text = joinRecord(appendJournal(applyFrontMatter(file, changes), line));
+  return {
+    text,
+    journal: line,
+    problems: verifyWrite(original, text, { allowedFields: ['status', 'updated', 'legacy_by'], addedJournalLine: line })
+  };
+}
+
+/** Срок из тега `due-ГГГГ-ММ-ДД` — в поле `due` (ADR-0039): тег убран, строка в журнале. */
+export function applyDueFromTag(
+  original: string,
+  options: { due: string; tags: string[]; actor: string; today: string }
+): WriteOutcome {
+  const file = splitRecord(original);
+  if (!file) {
+    return { text: original, problems: ['Файл не является записью с front matter.'] };
+  }
+  const line = journalLine(options.today, `срок перенесён из тега: ${options.due}`, options.actor);
+  const text = joinRecord(appendJournal(applyFrontMatter(file, { due: options.due, tags: options.tags, updated: dateOf(options.today) }), line));
+  return {
+    text,
+    journal: line,
+    problems: verifyWrite(original, text, { allowedFields: ['due', 'tags', 'updated'], addedJournalLine: line })
   };
 }
 
@@ -157,7 +224,7 @@ export function journalAction(status: string): string {
  * обесценила бы само подтверждение (docs/adr/0011-body-editing.md). Путь для
  * нужной правки такой записи — `supersedes` у преемника, не эта функция.
  */
-export const SETTLED_STATUSES = ['approved', 'done', 'superseded', 'rejected', 'dropped'] as const;
+export const SETTLED_STATUSES = ['approved', 'done', 'superseded', 'rejected', 'dropped', 'legacy'] as const;
 
 export function isSettled(status: string): boolean {
   return (SETTLED_STATUSES as readonly string[]).includes(status);
@@ -180,7 +247,7 @@ export function applyBodyEdit(
   const line = journalLine(options.today, 'текст отредактирован', options.actor);
   const withProse = replaceProse(file, options.body);
   const withJournal = appendJournal(withProse, line);
-  const text = joinRecord(applyFrontMatter(withJournal, { updated: options.today }));
+  const text = joinRecord(applyFrontMatter(withJournal, { updated: dateOf(options.today) }));
 
   return {
     text,

@@ -38,7 +38,7 @@ export const RECORD_TYPES: readonly RecordType[] = [
  * отказались. Пропускается там, где важно только то, что живо сейчас
  * (docs/11-shared-sources.md, docs/05-validation.md).
  */
-export const RETIRED_STATUSES = new Set(['dropped', 'superseded', 'rejected']);
+export const RETIRED_STATUSES = new Set(['dropped', 'superseded', 'rejected', 'legacy']);
 
 /** Ключ раздела из `paths` манифеста. Имена папок в код не зашиваются. */
 export type SectionKey =
@@ -161,6 +161,9 @@ export type ViolationCode =
   | 'doc_changed_after_task'
   | 'task_stale'
   | 'verification_never_run'
+  | 'task_overdue'
+  | 'phase_overdue'
+  | 'estimate_exceeded'
   | 'task_no_verification';
 
 /** Префикс идентификатора по типу записи. Контракт, а не соглашение. */
@@ -262,6 +265,9 @@ export const VIOLATION_LEVELS: Readonly<Record<ViolationCode, Severity>> = {
   doc_changed_after_task: 'warning',
   task_stale: 'warning',
   verification_never_run: 'warning',
+  task_overdue: 'warning',
+  phase_overdue: 'warning',
+  estimate_exceeded: 'warning',
   task_no_verification: 'warning'
 };
 
@@ -376,7 +382,7 @@ export interface ArchitectureConfig {
 
 export interface ProjectManifest {
   contract: string;
-  project: { id: string; name: string; description?: string };
+  project: { id: string; name: string; description?: string; /** Пояс IANA: по нему время в журнале (ADR-0039). */ timezone?: string };
   paths: Partial<Record<SectionKey, string>>;
   sources?: { code?: string[]; docs?: string[]; client?: string[]; tests?: string[]; inbox?: string[]; shared?: SharedSource[] };
   roles?: { id: string; name: string }[];

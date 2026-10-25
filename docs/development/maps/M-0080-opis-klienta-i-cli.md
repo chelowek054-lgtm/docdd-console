@@ -3731,7 +3731,7 @@ updated: 2026-10-24
         "trigger": "ссылка",
         "evidence": {
           "path": "app/pages/projects/[id]/documents.vue",
-          "line": 132,
+          "line": 136,
           "fragment": "{{ t('docs.refHint') }} <NuxtLink :to=\"`/projects/${projectI"
         }
       },

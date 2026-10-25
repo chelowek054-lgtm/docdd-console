@@ -168,7 +168,7 @@ export const TYPE_COLORS: Record<string, string> = {
  */
 export function nodeShape(status: string): { rx: number; dashed: boolean; corner: boolean } {
   if (status === 'approved' || status === 'done') return { rx: 4, dashed: false, corner: true };
-  if (status === 'dropped' || status === 'rejected' || status === 'superseded') {
+  if (status === 'dropped' || status === 'rejected' || status === 'superseded' || status === 'legacy') {
     return { rx: 4, dashed: true, corner: false };
   }
   if (status === 'in_progress' || status === 'in_review' || status === 'review') {

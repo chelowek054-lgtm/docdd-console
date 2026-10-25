@@ -1,4 +1,5 @@
-import type { IndexRecord, IssueDto, VerificationOutcome } from './types';
+import { RETIRED_STATUSES, type IndexRecord, type IssueDto, type VerificationOutcome } from './types';
+import { phaseDue } from './timing';
 
 /**
  * Обзор проекта (docs/04-ui.md, «Обзор»): готово ли обещанное, что в проде, что
@@ -52,7 +53,7 @@ export interface Overview {
   risks: Risk[];
 }
 
-const TASK_STATUSES = ['backlog', 'ready', 'in_progress', 'in_review', 'done', 'dropped'] as const;
+const TASK_STATUSES = ['backlog', 'ready', 'in_progress', 'in_review', 'done', 'dropped', 'legacy'] as const;
 
 function share(done: number, total: number): Share {
   return { done, total, percent: total ? Math.round((done / total) * 100) : 0 };
@@ -78,8 +79,8 @@ export function buildOverview(
   now: Date = new Date()
 ): Overview {
   const byId = new Map(records.map((record) => [record.id, record]));
-  const tasks = records.filter((record) => record.type === 'task' && record.status !== 'dropped');
-  const checks = records.filter((record) => record.type === 'verification' && record.status !== 'dropped' && record.status !== 'superseded');
+  const tasks = records.filter((record) => record.type === 'task' && record.status !== 'dropped' && record.status !== 'legacy');
+  const checks = records.filter((record) => record.type === 'verification' && !RETIRED_STATUSES.has(record.status));
   const requirements = records.filter((record) => record.type === 'requirement' && record.status !== 'rejected' && record.status !== 'superseded');
   const releases = records.filter((record) => record.type === 'release');
 
@@ -139,7 +140,7 @@ export function buildOverview(
   }
 
   const phases: PhaseRow[] = records.filter((record) => record.type === 'phase').map((phase) => {
-    const own = (phase.links.covers ?? []).map((id) => byId.get(id)).filter((task): task is IndexRecord => !!task && task.type === 'task' && task.status !== 'dropped');
+    const own = (phase.links.covers ?? []).map((id) => byId.get(id)).filter((task): task is IndexRecord => !!task && task.type === 'task' && task.status !== 'dropped' && task.status !== 'legacy');
     const done = own.filter((task) => task.status === 'done');
     const inProgress = own.filter((task) => task.status === 'in_progress').length;
     const inReview = own.filter((task) => task.status === 'in_review').length;
@@ -160,7 +161,7 @@ export function buildOverview(
     else if (inReview) stage = 'review';
     else if (inProgress || done.length) stage = 'development';
     else stage = 'not_started';
-    const target = typeof phase.extra['target'] === 'string' ? phase.extra['target'] : null;
+    const target = phaseDue(phase.extra);
     const finished = own.length > 0 && done.length === own.length;
     const late = target && !finished ? daysBetween(target, now) : null;
     const overdueDays = late !== null && late > 0 ? late : null;

@@ -1,4 +1,5 @@
 import type { MapChange } from './maps';
+import type { WorkRecord } from './types';
 
 /**
  * История курса проекта (docs/07-maps.md, «Источник правды и история курса»).
@@ -15,7 +16,7 @@ export interface Approval {
 }
 
 /** `- 2026-10-01 · подтверждён · architect` — слово то же, что пишет `applyStatusChange` (`JOURNAL_ACTIONS`). */
-const APPROVED_LINE = /^[-*]\s+(\d{4}-\d{2}-\d{2})\s+·\s+подтверждён(?:\s+·\s+(.+?))?\s*$/;
+const APPROVED_LINE = /^[-*]\s+(\d{4}-\d{2}-\d{2})(?:[ T]\d{2}:\d{2})?\s+·\s+подтверждён(?:\s+·\s+(.+?))?\s*$/;
 
 /** Последнее подтверждение карты: её могли вернуть в черновик и подтвердить снова. */
 export function approvalOf(body: string, updated: string | undefined): Approval {
@@ -42,6 +43,8 @@ export interface CourseEntry {
   relations: number;
   /** Изменён вектор проекта. */
   vision: boolean;
+  /** Сколько записей ушло в прежний курс с `legacy_by` этой карты (A-0001). */
+  legacy: number;
 }
 
 /**
@@ -60,6 +63,8 @@ export interface CourseSource {
   title: string;
   approval: Approval;
   change: MapChange;
+  /** Записей в `legacy` с `legacy_by` этой карты. */
+  legacy?: number;
 }
 
 /**
@@ -88,7 +93,8 @@ export function courseHistory(sources: readonly CourseSource[]): CourseEntry[] {
 
     const relations = (part.added?.relations?.length ?? 0) + (part.removed?.relations?.length ?? 0);
     const vision = !!part.added?.vision;
-    if (added + removedItems.length + statusChanged + relations === 0 && !vision) continue;
+    const legacy = source.legacy ?? 0;
+    if (added + removedItems.length + statusChanged + relations + legacy === 0 && !vision) continue;
 
     entries.push({
       map: source.id,
@@ -99,8 +105,17 @@ export function courseHistory(sources: readonly CourseSource[]): CourseEntry[] {
       removed: removedItems.length,
       statusChanged,
       relations,
-      vision
+      vision,
+      legacy
     });
   }
   return entries.reverse();
+}
+
+/** Дата, после которой запись в пачку не берётся; карта — по своему подтверждению. */
+export function cutoffDate(before: string | null | undefined, records: readonly Pick<WorkRecord, 'id' | 'body' | 'data'>[]): string | null {
+  if (!before) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(before)) return before;
+  const map = records.find((record) => record.id === before);
+  return map ? approvalOf(map.body, (typeof map.data['updated'] === 'string' ? map.data['updated'] : map.data['updated'] instanceof Date ? map.data['updated'].toISOString().slice(0, 10) : undefined)).at || null : null;
 }

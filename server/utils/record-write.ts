@@ -7,7 +7,8 @@ import { checkTransition, type RuleContext } from '../lib/rules';
 import { validateFrontMatter } from '../lib/schema';
 import { parseRecord } from '../lib/parse';
 import type { IndexRecord, Violation, WorkRecord } from '../lib/types';
-import { invalidateWorkspace, readWorkspace, type Workspace } from '../lib/workspace';
+import { invalidateWorkspace, readManifest, readWorkspace, type Workspace } from '../lib/workspace';
+import { stampAt } from '../lib/timing';
 import type { WriteOutcome } from '../lib/actions';
 import { loadIndex } from './index-service';
 import { refreshReferenceIndex } from './reference-service';
@@ -119,6 +120,16 @@ export function writeRecord(
 }
 
 /** Дата действия — сегодняшняя по календарю пользователя, без времени. */
+/**
+ * Метка строки журнала: дата и время по поясу проекта (ADR-0039). В `updated`
+ * действия берут из неё только дату. Манифест не прочитался — время сервера.
+ */
+export function journalNow(root: string, now = new Date()): string {
+  let timezone: string | undefined;
+  try { timezone = readManifest(root).project?.timezone; } catch { timezone = undefined; }
+  return stampAt(now, timezone);
+}
+
 export function today(now = new Date()): string {
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const day = String(now.getDate()).padStart(2, '0');

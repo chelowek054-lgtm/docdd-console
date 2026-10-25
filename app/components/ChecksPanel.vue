@@ -7,7 +7,10 @@ const projectId = computed(() => String(route.params['id'] ?? ''));
 
 const { index, failure, records, refresh, patchStatuses } = useProjectIndex(projectId); const backlinksOf = useBacklinks(projectId);
 
-const listed = computed(() => records.value.filter((record) => record.type === 'verification'));
+const showLegacy = useLegacyToggle();
+const legacyCount = computed(() => records.value.filter((record) => record.type === 'verification' && record.status === 'legacy').length);
+// Прежний курс скрыт за переключателем (A-0001).
+const listed = computed(() => records.value.filter((record) => record.type === 'verification' && (showLegacy.value || record.status !== 'legacy')));
 const statuses = computed(() => listed.value.map((record) => record.status));
 const status = useStatusFilter(statuses);
 const results = computed(() => index.value?.verificationResults ?? {});
@@ -92,7 +95,10 @@ function verifiesOf(check: (typeof checks.value)[number]): string[] {
         </ul>
       </UCard>
 
-      <StatusTabs v-model="status" :statuses="statuses" :order="DOCUMENT_STATUS_ORDER" />
+      <div class="flex flex-wrap items-center gap-3">
+        <StatusTabs v-model="status" :statuses="statuses" :order="DOCUMENT_STATUS_ORDER" />
+        <LegacyToggle v-model="showLegacy" :count="legacyCount" class="ml-auto" />
+      </div>
 
       <BulkBar
         :project-id="projectId"

@@ -77,6 +77,8 @@ export interface TemplateInput {
   title: string;
   today: string;
   owner?: string;
+  /** Запись прежнего курса, из которой перенесена эта (A-0001). */
+  derivedFrom?: string;
   links?: Partial<Record<LinkKind, string[]>>;
   /** Вид проверки: схема требует его у записей типа `verification`; у справки — вид (`component`, `api`, `technique`, `data`). */
   kind?: string; environment?: string; build?: string; /* у дефекта `kind` — серьёзность (R-0063) */
@@ -181,6 +183,7 @@ export function recordTemplate(input: TemplateInput, eol = '\n'): string {
   if (input.owner) lines.push(`owner: ${yamlSafe(input.owner)}`);
   if (input.type === 'task' && input.change) lines.push(`change: ${input.change}`);
   if (input.type === 'task' && input.reuse === 'none') lines.push('reuse: none');
+  if (input.derivedFrom) lines.push(`derived_from: ${input.derivedFrom}`);
   lines.push(`created: ${input.today}`, `updated: ${input.today}`);
   if (input.type === 'map' && input.intent) lines.push('intent: true');
   if (input.type === 'verification') lines.push(`kind: ${yamlSafe(input.kind ?? 'manual')}`);

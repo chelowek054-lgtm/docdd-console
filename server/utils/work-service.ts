@@ -25,7 +25,7 @@ import { askRouted } from './llm-gateway';
 import type { Access } from './llm';
 import type { ModelEvent } from '../lib/stream-events';
 import { buildProjectMap } from './map-service';
-import { openRecord, saveRecord, today } from './record-write';
+import { journalNow, openRecord, saveRecord } from './record-write';
 import { forgetSession, rememberSession, sessionOf } from './sessions';
 import { withBuiltin } from '../lib/builtin';
 import { referenceIndexText } from './reference-service';
@@ -305,7 +305,7 @@ function readBody(root: string, record: IndexRecord): string {
 async function journal(root: string, id: string, action: string, actor: string): Promise<string | undefined> {
   const context = await openRecord(root, id);
   if (!context) return undefined;
-  const outcome = applyJournalNote(context.original, { action, actor, today: today() });
+  const outcome = applyJournalNote(context.original, { action, actor, today: journalNow(root) });
   const saved = saveRecord(context, outcome, root);
   return saved.ok ? outcome.journal : undefined;
 }

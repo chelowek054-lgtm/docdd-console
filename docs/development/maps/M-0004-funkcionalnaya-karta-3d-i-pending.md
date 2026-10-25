@@ -263,7 +263,7 @@ updated: 2026-09-24
         "to": "server/lib/types.ts",
         "evidence": {
           "path": "server/utils/map-service.ts",
-          "line": 10,
+          "line": 12,
           "fragment": "import type { WorkRecord } from '../lib/types';"
         }
       }

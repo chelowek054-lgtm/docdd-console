@@ -109,6 +109,7 @@ export function analyze(input: AnalyzeInput): AnalyzeResult {
     ...(input.sharedReferences ? { sharedReferences: input.sharedReferences } : {}),
     verifications: latestVerificationResults(input.reports ?? []),
     now: input.now ?? new Date(),
+    ...(input.manifest?.project?.timezone ? { timezone: input.manifest.project.timezone } : {}),
     code: {
       roots: input.manifest?.sources?.code ?? [],
       files: new Set(input.codeFiles ?? [])

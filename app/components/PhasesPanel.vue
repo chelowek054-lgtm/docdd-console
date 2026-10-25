@@ -7,6 +7,8 @@ const route = useRoute();
 const projectId = computed(() => String(route.params['id'] ?? ''));
 
 const { failure, records, refresh } = useProjectIndex(projectId);
+const { timings } = useTimings(projectId);
+const phaseTimings = computed(() => new Map((timings.value?.phases ?? []).map((phase) => [phase.id, phase])));
 const { mode } = useOrderMode(records);
 
 /** Статус фазы — посчитанный по задачам, а не из файла (docs/04-ui.md, «Фазы»). */
@@ -56,6 +58,10 @@ const counts = computed(() => Object.fromEntries(PHASE_FILTERS.map((item) => [it
               <RecordLink :project-id="projectId" :record-id="item.phase.id" :record="item.phase" />
               <LightBadge :color="statusColor(item.state)" variant="subtle">{{ statusLabel(item.state) }}</LightBadge>
               <span v-if="item.phase.owner" class="text-xs text-muted" :title="t('t83.phases-panel.9')">{{ item.phase.owner }}</span>
+              <!-- Срок и прогноз окончания по скорости закрытия (docs/04-ui.md, «Сроки и время задачи»). -->
+              <LightBadge v-if="phaseTimings.get(item.phase.id)?.overdueDays" color="error" variant="subtle">{{ t('tm.overdue', { n: phaseTimings.get(item.phase.id)!.overdueDays }) }}</LightBadge>
+              <span v-if="phaseTimings.get(item.phase.id)?.due" class="text-xs text-muted">{{ t('tm.due', { date: phaseTimings.get(item.phase.id)!.due }) }}</span>
+              <span v-if="phaseTimings.get(item.phase.id)?.forecast && phaseTimings.get(item.phase.id)!.done < phaseTimings.get(item.phase.id)!.total" class="text-xs text-muted" :title="t('tm.perWeek', { n: phaseTimings.get(item.phase.id)!.perWeek })">{{ t('tm.forecast', { date: phaseTimings.get(item.phase.id)!.forecast }) }}</span>
               <span v-if="item.total" class="ml-auto text-sm text-muted">
                 {{ t('t83.phases-panel.10', { done: item.done, total: item.total }) }}
               </span>

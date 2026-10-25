@@ -19,7 +19,7 @@ import { today } from './record-write';
 
 const MAX_FILE = 512 * 1024;
 const MAX_DOCS = 200;
-const OUT = new Set(['superseded', 'rejected', 'dropped']);
+const OUT = new Set(['superseded', 'rejected', 'dropped', 'legacy']);
 
 function records(root: string) {
   const workspace = readWorkspace(root);
