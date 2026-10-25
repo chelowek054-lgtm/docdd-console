@@ -28,6 +28,10 @@
         "name": {
           "type": "string"
         },
+        "timezone": {
+          "type": "string",
+          "description": "Часовой пояс проекта из базы IANA (Europe/Moscow): по нему пишется время в журнале (ADR-0039)."
+        },
         "description": {
           "type": "string"
         }

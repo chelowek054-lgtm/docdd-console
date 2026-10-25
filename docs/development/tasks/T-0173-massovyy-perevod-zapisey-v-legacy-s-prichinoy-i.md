@@ -7,6 +7,7 @@ change: feature
 created: 2026-10-25
 updated: 2026-10-25
 links:
+  decided_by: [A-0001]
   implements: [R-0103]
   depends_on: [T-0172]
   affects: [M-0086]

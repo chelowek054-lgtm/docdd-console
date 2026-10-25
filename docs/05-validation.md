@@ -163,6 +163,13 @@ flowchart LR
 | `doc_changed_after_task` | warning | Документ изменён позже, чем закрыта задача, которая его правила |
 | `task_stale` | warning | Задача в `in_progress` дольше `stale_in_progress_days` |
 | `verification_never_run` | warning | Проверка есть, прогонов не было |
+| `task_overdue` | warning | Задача не закрыта, а `due` уже прошёл ([adr/0039](adr/0039-timings-from-journal.md)) |
+| `phase_overdue` | warning | Фаза не закончена, а её `due` (или `target`) уже прошёл |
+| `estimate_exceeded` | warning | Время задачи в `in_progress` по журналу больше `estimate` вдвое |
+
+Записи в `legacy` (прежний курс, [02-workspace-contract.md](02-workspace-contract.md),
+«Статусы») в правилах процесса не участвуют, как заменённые и отменённые: их
+пробелы — история, а не дело, которое кому-то доделывать.
 
 ## Сообщения
 

@@ -6,7 +6,6 @@ status: approved
 created: 2026-10-25
 updated: 2026-10-25
 links:
-  decided_by: [A-0001]
   verified_by: [V-0110]
 ---
 
