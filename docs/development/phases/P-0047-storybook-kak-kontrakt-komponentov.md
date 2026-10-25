@@ -7,7 +7,7 @@ created: 2026-10-20
 updated: 2026-10-20
 links:
   covers: [T-0117, T-0118, T-0119, T-0120, T-0121]
-rank: 11
+rank: 12
 ---
 
 # Storybook как контракт компонентов

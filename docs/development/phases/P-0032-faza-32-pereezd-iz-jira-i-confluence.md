@@ -7,7 +7,7 @@ created: 2026-10-10
 updated: 2026-10-20
 links:
   covers: [T-0047, T-0048]
-rank: 18
+rank: 19
 ---
 
 # Фаза 32 — переезд из Jira и Confluence
