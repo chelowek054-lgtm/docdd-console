@@ -2,7 +2,7 @@
 id: V-0112
 type: verification
 title: 'Бэклог: переходы deferred, исключение из текущей картины, вкладка и пачка'
-status: draft
+status: approved
 created: 2026-10-26
 updated: 2026-10-26
 kind: manual
@@ -31,3 +31,5 @@ links:
 ## Журнал
 
 - 2026-10-26 · заведена черновиком · модель
+- 2026-10-26 14:43 · на подтверждение · architect
+- 2026-10-26 14:43 · подтверждён · architect
