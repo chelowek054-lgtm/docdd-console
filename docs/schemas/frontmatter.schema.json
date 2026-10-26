@@ -66,7 +66,9 @@
       "then": {
         "properties": {
           "id": { "pattern": "^D-[0-9]{4}$" },
-          "status": { "enum": ["draft", "review", "approved", "superseded", "dropped", "legacy"] }
+          "status": { "enum": ["draft", "review", "approved", "superseded", "dropped", "legacy"] },
+          "screen": { "type": "string", "minLength": 1, "description": "Экран карты пользовательских путей, эталон которого — этот документ (R-0106)." },
+          "mockup": { "type": "string", "pattern": "^design/mockups/[^/]+/index\\.html$", "description": "HTML-макет экрана от docs/development (R-0106)." }
         }
       }
     },

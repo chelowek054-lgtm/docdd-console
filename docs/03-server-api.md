@@ -1064,6 +1064,21 @@ Claude Code не найден или отказал в доступе — `503`;
 `state`: `in_sync`, `drift`, `missing` (файла нет в проекте), `unknown` (путь вне корня).
 Файл в проекте приложение не пишет.
 
+### `POST /api/projects/:id/design/mockups`
+
+Импорт HTML-макета экрана (R-0106): `{ "screen": "login", "name": "login.zip", "content": "<base64>", "title": "…", "actor": "…" }`.
+`name` — `.html` или `.zip` (экспорт Claude Design); не больше 10 МБ. Файлы ложатся под
+`docs/development/design/mockups/<экран>/` (в архиве — `index.html` или единственный `.html` и его файлы; `..`,
+абсолютные пути — отказ `mockup_path_invalid`). Нет документа экрана — заводится черновик `design` с `screen` и
+`mockup`; есть черновик — файлы заменяются, в журнал строка «макет обновлён»; документ подтверждён — `409
+mockup_approved`: нужен преемник. Ответ `{ record, files }`.
+
+### `GET /api/projects/:id/design/mockups/:screen/:path`
+
+Файл макета — только из `mockups/<экран>/`. У `index.html` параметр `?theme=<тема>` ставит на корень `data-theme`,
+класс `dark` для тёмных тем и `color-scheme`. Ответ несёт `Content-Security-Policy: sandbox allow-scripts` — даже
+открытый напрямую, макет не получает доступа к консоли.
+
 ### `GET /api/projects/:id/design/screens`
 
 Опись снимков экранов: `{ "screens": [{ "id": "S-home", "title": "…", "shots": [{ "width": 375,
