@@ -86,14 +86,14 @@ export function roadmap(records: readonly IndexRecord[], today: string): Roadmap
       const tasks = [...phaseOfTask]
         .filter(([, owner]) => owner === phase.id)
         .map(([id]) => byId.get(id))
-        .filter((task): task is IndexRecord => !!task && task.status !== 'dropped' && task.status !== 'legacy');
+        .filter((task): task is IndexRecord => !!task && task.status !== 'dropped' && task.status !== 'legacy' && task.status !== 'deferred');
       const done = tasks.filter((task) => task.status === 'done').length;
       const blockedBy: { phase: string; task: string }[] = [];
       for (const task of tasks) {
         for (const dep of task.links.depends_on ?? []) {
           const owner = phaseOfTask.get(dep);
           const blocker = byId.get(dep);
-          if (owner && owner !== phase.id && blocker && !['done', 'dropped', 'legacy'].includes(blocker.status)) blockedBy.push({ phase: owner, task: dep });
+          if (owner && owner !== phase.id && blocker && !['done', 'dropped', 'legacy', 'deferred'].includes(blocker.status)) blockedBy.push({ phase: owner, task: dep });
         }
       }
       const rank = Number(phase.extra['rank']);
@@ -148,7 +148,7 @@ export type AssistantQuestion = 'blockers' | 'changes' | 'plan';
 /** Вопрос помощнику: данные подставлены в текст, инструменты модели не нужны. Ответ — черновик. */
 export function assistantPrompt(question: AssistantQuestion, records: readonly IndexRecord[], today: string, sinceDays = 7): string {
   const road = roadmap(records, today);
-  const tasks = records.filter((record) => record.type === 'task' && record.status !== 'dropped' && record.status !== 'legacy');
+  const tasks = records.filter((record) => record.type === 'task' && record.status !== 'dropped' && record.status !== 'legacy' && record.status !== 'deferred');
   const taskLine = (task: IndexRecord) => `- ${task.id} · ${task.title} · ${task.status}${task.links.depends_on?.length ? ` · зависит: ${task.links.depends_on.join(', ')}` : ''}`;
   const since = new Date(Date.parse(today) - sinceDays * DAY).toISOString().slice(0, 10);
   const phases = road.map((phase) => `- ${phase.id} · ${phase.title} · ${phase.done}/${phase.total}${phase.target ? ` · срок ${phase.target}` : ''}${phase.blockedBy.length ? ` · ждёт: ${phase.blockedBy.map((b) => b.task).join(', ')}` : ''}`).join('\n');

@@ -100,6 +100,7 @@ const allEntries = computed<NavEntry[]>(() => {
       links: [
         { key: 'tasks', label: t('nav.tasks'), to: `${base}/work?tab=tasks`, count: openTasks.value },
         { key: 'phases', label: t('nav.phases'), to: `${base}/work?tab=phases`, count: openPhases.value },
+        { key: 'backlog', label: t('nav.backlog'), to: `${base}/work?tab=backlog` },
         { key: 'manager', label: t('nav.manager'), to: `${base}/manager` },
         { key: 'analytics', label: t('nav.analytics'), to: `${base}/analytics` },
         { key: 'releases', label: t('nav.releases'), to: `${base}/releases` }

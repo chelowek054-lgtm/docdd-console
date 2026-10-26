@@ -165,6 +165,8 @@ const { t, tn } = useT();
 
       <!-- Прежний курс (A-0001): свой статус и своя причина, не шаг «вперёд/назад». -->
       <LegacyBulk :project-id="props.projectId" :selected="props.selected" :actor="actor" @done="emit('done')" />
+      <!-- Бэклог (R-0105): только у требований и задач. -->
+      <DeferBulk v-if="props.kind === 'task' || props.selected.every((record) => record.type === 'requirement')" direction="defer" :project-id="props.projectId" :selected="props.selected" :actor="actor" @done="emit('done')" />
 
       <!-- Неактивная кнопка обязана назвать причину (docs/04-ui.md). -->
       <p v-if="empty" class="min-w-0 flex-1 text-sm text-muted">{{ t('bulk.markHint') }}</p>

@@ -2,9 +2,9 @@
 id: R-0104
 type: requirement
 title: Записи прежнего курса, включая черновики, переводятся в legacy
-status: draft
+status: approved
 created: 2026-10-25
-updated: 2026-10-25
+updated: 2026-10-26
 links:
   supersedes: [R-0103]
   verified_by: [V-0111]
@@ -40,3 +40,5 @@ legacy». Ссылки на legacy-запись остаются действи�
 ## Журнал
 
 - 2026-10-25 · заведена черновиком: преемник R-0103, legacy и из черновика · модель
+- 2026-10-26 14:43 · на подтверждение · architect
+- 2026-10-26 14:43 · подтверждён · architect

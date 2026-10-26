@@ -27,7 +27,7 @@ export function requirementChoices(
 ): RequirementOption[] {
   const needle = query.trim().toLowerCase();
   return records
-    .filter((record) => record.type === 'requirement' && !RETIRED_STATUSES.has(record.status))
+    .filter((record) => record.type === 'requirement' && !RETIRED_STATUSES.has(record.status) && record.status !== 'deferred')
     .filter((record) => needle === '' || record.id.toLowerCase().includes(needle) || record.title.toLowerCase().includes(needle))
     .sort((a, b) => Number(b.status === 'approved') - Number(a.status === 'approved') || a.id.localeCompare(b.id))
     .slice(0, limit)

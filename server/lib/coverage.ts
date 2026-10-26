@@ -61,7 +61,8 @@ interface Trace {
  */
 export function capabilityCoverage(input: CoverageInput): Map<string, CapabilityCoverage> {
   const declared = mapsDeclaring(input.records);
-  const live = input.records.filter((record) => record.id && !RETIRED_STATUSES.has(record.status));
+  // Отложенное в бэклог (R-0105) — не текущая работа: в покрытии его нет, как и отставленного.
+  const live = input.records.filter((record) => record.id && !RETIRED_STATUSES.has(record.status) && record.status !== 'deferred');
   const byId = new Map(live.map((record) => [record.id, record]));
   const tasks = live.filter((record) => record.type === 'task');
   const verificationsOf = (record: WorkRecord): string[] => [

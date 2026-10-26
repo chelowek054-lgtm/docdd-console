@@ -495,6 +495,13 @@
 `legacy_by` и строку журнала `в legacy: <причина>`. Ответ — тот же отчёт, что у
 `bulk/status`.
 
+### `POST /api/projects/:id/records/bulk/deferred`
+
+Бэклог (R-0105): `{ "ids": [...], "direction": "defer" | "return", "reason": "…", "actor": "…", "versions": {} }`.
+`defer` — требование из `approved`, задача из `backlog`/`ready` → `deferred`; `return` — обратно: требование в
+`approved`, задача в `backlog`, без нового подтверждения. Каждая запись проверяется схемой статусов, строка журнала
+несёт причину. Агенту роли — `403 agent_deferred`. Ответ — отчёт, как у `bulk/status`.
+
 ### `POST /api/projects/:id/records/:recordId/revive`
 
 «Перенести в текущий курс» у legacy-требования: заводит черновик требования с тем же

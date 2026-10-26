@@ -2,11 +2,11 @@
 id: T-0175
 type: task
 title: Переход draft → legacy
-status: backlog
+status: in_review
 change: feature
 reuse: none
 created: 2026-10-25
-updated: 2026-10-25
+updated: 2026-10-26
 links:
   implements: [R-0104]
   decided_by: [A-0001]
@@ -23,3 +23,6 @@ legacy, у карты по-прежнему отказ. Больше ничег�
 ## Журнал
 
 - 2026-10-25 · заведена черновиком · модель
+- 2026-10-26 14:51 · готова к работе · architect
+- 2026-10-26 14:51 · в разработку · developer
+- 2026-10-26 14:51 · на проверку · developer

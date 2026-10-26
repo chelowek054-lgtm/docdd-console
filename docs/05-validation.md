@@ -153,6 +153,7 @@ flowchart LR
 | Код | Уровень | Когда |
 |---|---|---|
 | `task_not_ready_docs` | error | Задача `ready` или `in_progress`, а её `documents` или `refines` не подтверждены |
+| `task_requirement_deferred` | error | Задача `ready` или `in_progress`, а требование из её `implements` отложено в бэклог (`deferred`, R-0105) |
 | `task_no_requirement` | error | Задача `ready` и дальше без единой `implements` |
 | `task_done_unverified` | error | Задача `done`, а её проверки не `passed` либо проверок нет вовсе; при включённой политике |
 | `task_no_verification` | warning | Задача `ready` и дальше без единой проверки: ни через `implements` → `verified_by`, ни своей `verified_by` ([adr/0029](adr/0029-manual-acceptance-any-check.md)) |

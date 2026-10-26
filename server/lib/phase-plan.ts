@@ -42,7 +42,7 @@ export function phaseCandidates(records: readonly IndexRecord[], picked?: readon
   const phased = phasedTaskIds(records);
   const chosen = picked && picked.length > 0 ? new Set(picked) : null;
   return records
-    .filter((record) => record.type === 'task' && record.status !== 'dropped' && record.status !== 'legacy')
+    .filter((record) => record.type === 'task' && record.status !== 'dropped' && record.status !== 'legacy' && record.status !== 'deferred')
     .filter((record) => !phased.has(record.id))
     .filter((record) => chosen === null || chosen.has(record.id))
     .sort((a, b) => a.id.localeCompare(b.id));

@@ -29,6 +29,7 @@ const JOURNAL_ACTIONS: Record<string, string> = {
   rejected: 'отклонён',
   dropped: 'отменён',
   legacy: 'в legacy',
+  deferred: 'в бэклог',
   backlog: 'в очередь',
   ready: 'готова к работе',
   in_progress: 'в разработку',

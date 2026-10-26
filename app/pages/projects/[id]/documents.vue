@@ -52,7 +52,10 @@ function rank(status: string): number {
 }
 
 const showLegacy = useLegacyToggle();
-const ofType = computed(() => records.value.filter((record) => (type.value === 'all' ? DOCUMENT_TYPES.includes(record.type) : record.type === type.value)));
+const ofTypeAll = computed(() => records.value.filter((record) => (type.value === 'all' ? DOCUMENT_TYPES.includes(record.type) : record.type === type.value)));
+// Отложенное в бэклог (R-0105) живёт на вкладке «Бэклог» «Работы»: здесь только число со ссылкой.
+const deferredCount = computed(() => ofTypeAll.value.filter((record) => record.status === 'deferred').length);
+const ofType = computed(() => ofTypeAll.value.filter((record) => record.status !== 'deferred'));
 const legacyCount = computed(() => ofType.value.filter((record) => record.status === 'legacy').length);
 // Прежний курс скрыт за переключателем (A-0001): текущая картина — без него.
 const listed = computed(() => ofType.value
@@ -138,7 +141,8 @@ const EMPTY = computed<Record<string, string>>(() => ({
 
       <div class="flex flex-wrap items-center gap-3">
         <StatusTabs v-model="status" :statuses="statuses" :order="DOCUMENT_STATUS_ORDER" />
-        <LegacyToggle v-model="showLegacy" :count="legacyCount" class="ml-auto" />
+        <NuxtLink v-if="deferredCount" :to="`/projects/${projectId}/work?tab=backlog`" class="ml-auto text-sm text-muted hover:underline">{{ t('bl.inBacklog', { n: deferredCount }) }}</NuxtLink>
+        <LegacyToggle v-model="showLegacy" :count="legacyCount" :class="deferredCount ? '' : 'ml-auto'" />
       </div>
 
       <BulkBar

@@ -57,7 +57,7 @@
       "then": {
         "properties": {
           "id": { "pattern": "^R-[0-9]{4}$" },
-          "status": { "enum": ["draft", "review", "approved", "superseded", "dropped", "legacy"] }
+          "status": { "enum": ["draft", "review", "approved", "superseded", "dropped", "legacy", "deferred"] }
         }
       }
     },
@@ -98,7 +98,7 @@
         "properties": {
           "id": { "pattern": "^T-[0-9]{4}$" },
           "status": {
-            "enum": ["backlog", "ready", "in_progress", "in_review", "done", "dropped", "legacy"]
+            "enum": ["backlog", "ready", "in_progress", "in_review", "done", "dropped", "legacy", "deferred"]
           },
           "estimate": {
             "type": "string",
