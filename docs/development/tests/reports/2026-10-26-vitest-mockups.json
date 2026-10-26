@@ -1,0 +1,11 @@
+{
+  "contract": "docdd.workspace/1",
+  "runner": "vitest",
+  "started_at": "2026-10-26T17:50:09Z",
+  "total": 9,
+  "failed": 0,
+  "verifications": {
+    "V-0113": "passed"
+  },
+  "note": "V-0113 — tests/design-mockups.spec.ts: раскладка HTML и zip, отказ на .. и лимит, цвета и токены, тема, опись и скрипт снятия, три правила"
+}

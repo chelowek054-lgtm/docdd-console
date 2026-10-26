@@ -2,7 +2,7 @@
 id: T-0178
 type: task
 title: 'Контракт: HTML-макет экрана как проектный документ'
-status: backlog
+status: in_review
 change: feature
 reuse: none
 created: 2026-10-26
@@ -20,3 +20,6 @@ links:
 ## Журнал
 
 - 2026-10-26 · заведена черновиком · модель
+- 2026-10-26 19:50 · готова к работе · architect
+- 2026-10-26 19:50 · в разработку · developer
+- 2026-10-26 19:50 · на проверку · developer

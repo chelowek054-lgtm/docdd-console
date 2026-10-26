@@ -2,7 +2,7 @@
 id: T-0181
 type: task
 title: 'Сверка макетов: mockup_screen_unknown, mockup_off_tokens, screen_mockup_missing'
-status: backlog
+status: in_review
 change: feature
 reuse: none
 created: 2026-10-26
@@ -21,3 +21,6 @@ links:
 ## Журнал
 
 - 2026-10-26 · заведена черновиком · модель
+- 2026-10-26 19:50 · готова к работе · architect
+- 2026-10-26 19:50 · в разработку · developer
+- 2026-10-26 19:50 · на проверку · developer
