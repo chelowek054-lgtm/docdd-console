@@ -139,13 +139,15 @@ const DECISION_TRANSITIONS: Readonly<Record<string, readonly string[]>> = {
 };
 
 const TASK_TRANSITIONS: Readonly<Record<string, readonly string[]>> = {
-  backlog: ['ready', 'dropped', 'legacy'],
-  ready: ['in_progress', 'dropped', 'backlog', 'legacy'],
+  backlog: ['ready', 'dropped', 'legacy', 'deferred'],
+  ready: ['in_progress', 'dropped', 'backlog', 'legacy', 'deferred'],
   in_progress: ['in_review', 'dropped', 'ready', 'legacy'],
   in_review: ['in_progress', 'done', 'legacy'],
   done: ['in_review', 'legacy'],
   dropped: ['backlog', 'legacy'],
-  legacy: ['backlog']
+  legacy: ['backlog'],
+  // Бэклог (R-0105): незапущенная задача, отложенная на потом.
+  deferred: ['backlog', 'dropped', 'legacy']
 };
 
 /**
@@ -161,6 +163,16 @@ function withLegacy(table: Readonly<Record<string, readonly string[]>>): Readonl
 }
 
 const LEGACY_DOC_TRANSITIONS = withLegacy(DOC_TRANSITIONS);
+
+/**
+ * Бэклог (R-0105): подтверждённое требование откладывается и возвращается в
+ * `approved` без нового подтверждения; из отложенного — ещё в `legacy` и `dropped`.
+ */
+const REQUIREMENT_TRANSITIONS: Readonly<Record<string, readonly string[]>> = {
+  ...LEGACY_DOC_TRANSITIONS,
+  approved: [...(LEGACY_DOC_TRANSITIONS['approved'] ?? []), 'deferred'],
+  deferred: ['approved', 'dropped', 'legacy']
+};
 const LEGACY_DECISION_TRANSITIONS = withLegacy(DECISION_TRANSITIONS);
 
 /** «Ready и дальше»: с этого момента задача обязана выполнять требование. */
@@ -242,6 +254,7 @@ export function checkAll(ctx: RuleContext): Violation[] {
     ...workUnreviewed(ctx),
     ...workBranchOrphan(ctx),
     ...taskNotReadyDocs(ctx),
+    ...taskRequirementDeferred(ctx),
     ...taskNoRequirement(ctx),
     ...taskDoneUnverified(ctx),
     ...codeSourcesEmptyAfterFeature(ctx),
@@ -826,6 +839,20 @@ export function taskNotReadyDocs(ctx: RuleContext): Violation[] {
   return found;
 }
 
+/** Требование отложено в бэклог (R-0105): задача по нему в работу не идёт. */
+export function taskRequirementDeferred(ctx: RuleContext): Violation[] {
+  const found: Violation[] = [];
+  for (const task of tasks(ctx)) {
+    if (task.status !== 'ready' && task.status !== 'in_progress') continue;
+    for (const id of task.links.implements ?? []) {
+      if (ctx.graph.byId.get(id)?.status !== 'deferred') continue;
+      found.push(violation('task_requirement_deferred', task.id, task.source.path,
+        `Задача ${task.id} не может быть в статусе \`${task.status}\`: требование ${id} отложено в бэклог. Верните требование в работу или отложите и задачу.`));
+    }
+  }
+  return found;
+}
+
 export function taskNoRequirement(ctx: RuleContext): Violation[] {
   const found: Violation[] = [];
   for (const task of tasks(ctx)) {
@@ -947,7 +974,7 @@ export function docChangedAfterTask(ctx: RuleContext): Violation[] {
 }
 
 /** Закрытая, отменённая и прежнего курса задача сроку больше не должна. */
-const TASK_FINISHED = new Set(['done', 'dropped', 'legacy']);
+const TASK_FINISHED = new Set(['done', 'dropped', 'legacy', 'deferred']);
 
 /** Задача не закрыта, а срок прошёл (ADR-0039). Предупреждение: срок — намерение, не закон. */
 export function taskOverdue(ctx: RuleContext): Violation[] {
@@ -972,7 +999,7 @@ export function phaseOverdue(ctx: RuleContext): Violation[] {
     if (phase.type !== 'phase' || !phase.id) continue;
     const due = phaseDue(phase.data);
     if (!due || due >= today) continue;
-    const own = phaseTaskIds(phase, ctx.records).map((id) => byId.get(id)).filter((task): task is WorkRecord => !!task && task.status !== 'dropped' && task.status !== 'legacy');
+    const own = phaseTaskIds(phase, ctx.records).map((id) => byId.get(id)).filter((task): task is WorkRecord => !!task && !['dropped', 'legacy', 'deferred'].includes(task.status));
     const open = own.filter((task) => task.status !== 'done').length;
     if (own.length > 0 && open === 0) continue;
     found.push(violation('phase_overdue', phase.id, phase.source.path,
@@ -986,7 +1013,7 @@ export function estimateExceeded(ctx: RuleContext): Violation[] {
   const byId = new Map(ctx.records.map((record) => [record.id, record]));
   const found: Violation[] = [];
   for (const task of tasks(ctx)) {
-    if (task.status === 'dropped' || task.status === 'legacy' || task.data['estimate'] === undefined) continue;
+    if ((TASK_FINISHED.has(task.status) && task.status !== 'done') || task.data['estimate'] === undefined) continue;
     const timing = taskTiming(task, byId, ctx.now, ctx.timezone);
     if (!timing.estimateMinutes || timing.factMinutes <= timing.estimateMinutes * 2) continue;
     const hours = (value: number) => Math.round((value / 60) * 10) / 10;
@@ -1078,6 +1105,7 @@ export function checkTransition(record: WorkRecord, to: string, ctx: RuleContext
     // ушла бы в `ready` и тут же стала нарушителем `change_missing`.
     return [
       ...taskNotReadyDocs(scoped),
+      ...taskRequirementDeferred(scoped),
       ...taskNoRequirement(scoped),
       ...changeMissing(scoped),
       ...taskMapsUnapproved(scoped)
@@ -1092,6 +1120,7 @@ export function checkTransition(record: WorkRecord, to: string, ctx: RuleContext
 function transitionsFor(type: string): Readonly<Record<string, readonly string[]>> | null {
   switch (type) {
     case 'requirement':
+      return REQUIREMENT_TRANSITIONS;
     case 'design':
     case 'verification':
       return LEGACY_DOC_TRANSITIONS;

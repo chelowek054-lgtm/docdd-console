@@ -140,7 +140,7 @@ export interface TaskTiming {
   precise: boolean;
 }
 
-const CLOSED = new Set(['done', 'dropped', 'legacy']);
+const CLOSED = new Set(['done', 'dropped', 'legacy', 'deferred']);
 const TASK_STATUSES = new Set(['backlog', 'ready', 'in_progress', 'in_review', 'done', 'dropped', 'legacy']);
 
 const minutes = (ms: number) => Math.max(0, Math.round(ms / MINUTE));
@@ -239,7 +239,7 @@ const WINDOW_DAYS = 28;
 
 export function phaseTiming(phase: TimingRecord, tasks: readonly TaskTiming[], now: Date, timezone?: string): PhaseTiming {
   const today = stampAt(now, timezone).slice(0, 10);
-  const counted = tasks.filter((task) => task.status !== 'dropped' && task.status !== 'legacy');
+  const counted = tasks.filter((task) => !['dropped', 'legacy', 'deferred'].includes(task.status));
   const done = counted.filter((task) => task.status === 'done');
   const recent = done.filter((task) => task.done && dayDiff(today, task.done.slice(0, 10)) < WINDOW_DAYS).length;
   const perDay = recent / WINDOW_DAYS;

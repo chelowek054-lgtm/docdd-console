@@ -79,7 +79,7 @@ export function buildOverview(
   now: Date = new Date()
 ): Overview {
   const byId = new Map(records.map((record) => [record.id, record]));
-  const tasks = records.filter((record) => record.type === 'task' && record.status !== 'dropped' && record.status !== 'legacy');
+  const tasks = records.filter((record) => record.type === 'task' && record.status !== 'dropped' && record.status !== 'legacy' && record.status !== 'deferred');
   const checks = records.filter((record) => record.type === 'verification' && !RETIRED_STATUSES.has(record.status));
   const requirements = records.filter((record) => record.type === 'requirement' && record.status !== 'rejected' && record.status !== 'superseded');
   const releases = records.filter((record) => record.type === 'release');
@@ -140,7 +140,7 @@ export function buildOverview(
   }
 
   const phases: PhaseRow[] = records.filter((record) => record.type === 'phase').map((phase) => {
-    const own = (phase.links.covers ?? []).map((id) => byId.get(id)).filter((task): task is IndexRecord => !!task && task.type === 'task' && task.status !== 'dropped' && task.status !== 'legacy');
+    const own = (phase.links.covers ?? []).map((id) => byId.get(id)).filter((task): task is IndexRecord => !!task && task.type === 'task' && task.status !== 'dropped' && task.status !== 'legacy' && task.status !== 'deferred');
     const done = own.filter((task) => task.status === 'done');
     const inProgress = own.filter((task) => task.status === 'in_progress').length;
     const inReview = own.filter((task) => task.status === 'in_review').length;

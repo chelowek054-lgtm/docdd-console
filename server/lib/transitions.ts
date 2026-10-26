@@ -8,7 +8,7 @@ import type { RecordAction, WorkRecord } from './types';
  */
 
 const NEXT_STATUSES: Record<string, readonly string[]> = {
-  requirement: ['review', 'approved', 'draft', 'superseded', 'dropped', 'legacy'],
+  requirement: ['review', 'approved', 'draft', 'superseded', 'dropped', 'legacy', 'deferred'],
   design: ['review', 'approved', 'draft', 'superseded', 'dropped', 'legacy'],
   contract: ['review', 'approved', 'draft', 'superseded', 'dropped'],
   verification: ['review', 'approved', 'draft', 'superseded', 'dropped', 'legacy'],
@@ -16,7 +16,7 @@ const NEXT_STATUSES: Record<string, readonly string[]> = {
   release: ['review', 'approved', 'draft', 'superseded', 'dropped'], defect: ['review', 'approved', 'draft', 'superseded', 'dropped'],
   reference: ['review', 'approved', 'draft', 'superseded', 'dropped'],
   decision: ['review', 'approved', 'draft', 'superseded', 'rejected', 'legacy'],
-  task: ['ready', 'in_progress', 'in_review', 'done', 'backlog', 'dropped', 'legacy']
+  task: ['ready', 'in_progress', 'in_review', 'done', 'backlog', 'dropped', 'legacy', 'deferred']
 };
 
 /** Подпись кнопки: глагол действия, а не имя статуса. */
@@ -28,6 +28,7 @@ const LABELS: Record<string, string> = {
   rejected: 'Отклонить',
   dropped: 'Отменить',
   legacy: 'В прежний курс (legacy)',
+  deferred: 'В бэклог (на будущее)',
   backlog: 'Вернуть в очередь',
   ready: 'Пометить готовой к работе',
   in_progress: 'Запустить в разработку',

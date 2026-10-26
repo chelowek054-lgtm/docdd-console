@@ -12,7 +12,7 @@ describe('availableActions', () => {
   it('из backlog предлагает только то, что есть в схеме статусов', () => {
     const task = rec('T-0007', 'task', 'backlog', { links: { implements: ['R-0004'] } });
     const ctx = context([rec('R-0004', 'requirement', 'approved'), task]);
-    expect(availableActions(task, ctx).map((action) => action.status)).toEqual(['ready', 'dropped', 'legacy']);
+    expect(availableActions(task, ctx).map((action) => action.status)).toEqual(['ready', 'dropped', 'legacy', 'deferred']);
   });
 
   it('называет причину, по которой действие недоступно', () => {

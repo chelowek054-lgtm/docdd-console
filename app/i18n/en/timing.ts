@@ -57,5 +57,18 @@ export const timing: Record<string, string> = {
   'lg.title': 'Previous course',
   'lg.text': 'This record describes the previous course of the project: it is history and takes no part in the current picture.',
   'lg.by': 'The course was changed by map',
-  'lg.revive': 'Move to the current course'
+  'lg.revive': 'Move to the current course',
+  'bl.inBacklog': 'In backlog: {n}',
+  'bl.defer': 'To backlog',
+  'bl.return': 'Back to work',
+  'bl.title': 'Backlog — accepted but deferred for the future; returns without a new approval',
+  'bl.reason': 'Reason',
+  'bl.reasonHint': 'not in the next steps because…',
+  'bl.run': 'Apply to {n}',
+  'bl.done': '{what}: {moved} of {total}',
+  'bl.hint': 'Accepted but deferred: it is not part of current work, phase progress or warnings. Returning needs no new approval.',
+  'bl.empty': 'The backlog is empty. Defer from Tasks and Requirements with “To backlog”.',
+  'bl.later': 'Recommendations for the future — capabilities with the “Later” horizon',
+  'bl.toStrategy': 'To Strategy',
+  'bl.noLater': 'No capabilities with the “Later” horizon.'
 };

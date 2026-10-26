@@ -5181,7 +5181,7 @@ updated: 2026-10-24
         "to": "server/utils/record-diff-service.ts",
         "evidence": {
           "path": "server/api/projects/[id]/records/[recordId]/status.post.ts",
-          "line": 10,
+          "line": 11,
           "fragment": "import { wasViewed } from '../../../../../utils/record-diff-"
         }
       },
@@ -5190,7 +5190,7 @@ updated: 2026-10-24
         "to": "server/lib/version.ts",
         "evidence": {
           "path": "server/api/projects/[id]/records/[recordId]/status.post.ts",
-          "line": 89,
+          "line": 96,
           "fragment": "import { versionConflict } from '../../../../../lib/version'"
         }
       },
@@ -5199,7 +5199,7 @@ updated: 2026-10-24
         "to": "server/utils/notify-events.ts",
         "evidence": {
           "path": "server/api/projects/[id]/records/[recordId]/status.post.ts",
-          "line": 90,
+          "line": 97,
           "fragment": "import { notifyStatus } from '../../../../../utils/notify-ev"
         }
       },

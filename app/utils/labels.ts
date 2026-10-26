@@ -25,6 +25,7 @@ export const STATUS_LABELS: Record<string, string> = {
   dropped: 'отменён',
   rejected: 'отклонён',
   legacy: 'прежний курс',
+  deferred: 'в бэклоге',
   backlog: 'в очереди',
   ready: 'готова к работе',
   in_progress: 'в работе',
@@ -69,6 +70,7 @@ export function statusColor(status: string): BadgeColor {
     case 'dropped':
     case 'rejected':
     case 'legacy':
+    case 'deferred':
       return 'neutral';
     case 'failed':
       return 'error';
@@ -138,4 +140,4 @@ export function issueKey(issue: { code: string; path?: string | null; recordId?:
  * (docs/04-ui.md, «Списки по статусам»). Незнакомый статус — в конец.
  */
 export const DOCUMENT_STATUS_ORDER = ['draft', 'review', 'approved', 'superseded', 'dropped', 'rejected', 'legacy'];
-export const TASK_STATUS_ORDER = ['backlog', 'ready', 'in_progress', 'in_review', 'done', 'dropped', 'legacy'];
+export const TASK_STATUS_ORDER = ['backlog', 'ready', 'in_progress', 'in_review', 'done', 'dropped', 'legacy', 'deferred'];

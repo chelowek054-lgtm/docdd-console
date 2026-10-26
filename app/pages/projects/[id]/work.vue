@@ -12,11 +12,12 @@ const titles = computed(() => Object.fromEntries(records.value.map((record) => [
 
 const TABS = computed(() => [
   { label: t('nav.tasks'), value: 'tasks' },
-  { label: t('nav.phases'), value: 'phases' }
+  { label: t('nav.phases'), value: 'phases' },
+  { label: t('nav.backlog'), value: 'backlog' }
 ]);
 
 const tab = computed({
-  get: () => (route.query['tab'] === 'phases' ? 'phases' : 'tasks'),
+  get: () => (route.query['tab'] === 'phases' || route.query['tab'] === 'backlog' ? String(route.query['tab']) : 'tasks'),
   // Статус и фильтры принадлежат вкладке: на другой они значили бы не то.
   set: (value: string | number) => { router.replace({ query: { tab: String(value) } }); }
 });
@@ -45,6 +46,7 @@ const tab = computed({
     </div>
     <!-- Вкладки группы — строкой под шапкой (docs/04-ui.md, «Навигация»). -->
     <TasksPanel v-if="tab === 'tasks'" />
-    <PhasesPanel v-else />
+    <PhasesPanel v-else-if="tab === 'phases'" />
+    <BacklogPanel v-else />
   </div>
 </template>

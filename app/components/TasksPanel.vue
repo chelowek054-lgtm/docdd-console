@@ -8,7 +8,9 @@ const { index, failure, records, byId, refresh, patchStatuses } = useProjectInde
 
 const { mode } = useOrderMode(records);
 const showLegacy = useLegacyToggle();
-const allTasks = computed(() => records.value.filter((record) => record.type === 'task'));
+// Отложенное в бэклог (R-0105) живёт на своей вкладке: здесь только число со ссылкой.
+const deferredCount = computed(() => records.value.filter((record) => record.type === 'task' && record.status === 'deferred').length);
+const allTasks = computed(() => records.value.filter((record) => record.type === 'task' && record.status !== 'deferred'));
 const legacyCount = computed(() => allTasks.value.filter((task) => task.status === 'legacy').length);
 // Прежний курс скрыт за переключателем (A-0001): в текущей работе его нет.
 const tasks = computed(() => sortTasks(allTasks.value.filter((task) => showLegacy.value || task.status !== 'legacy'), records.value, mode.value));
@@ -89,7 +91,8 @@ function reset() {
 
       <div class="flex flex-wrap items-center gap-3">
         <StatusTabs v-model="status" :statuses="statuses" :order="TASK_STATUS_ORDER" />
-        <LegacyToggle v-model="showLegacy" :count="legacyCount" class="ml-auto" />
+        <NuxtLink v-if="deferredCount" :to="`/projects/${projectId}/work?tab=backlog`" class="ml-auto text-sm text-muted hover:underline">{{ t('bl.inBacklog', { n: deferredCount }) }}</NuxtLink>
+        <LegacyToggle v-model="showLegacy" :count="legacyCount" :class="deferredCount ? '' : 'ml-auto'" />
       </div>
 
       <div class="flex flex-wrap gap-2">

@@ -162,6 +162,7 @@ export type ViolationCode =
   | 'task_stale'
   | 'verification_never_run'
   | 'task_overdue'
+  | 'task_requirement_deferred'
   | 'phase_overdue'
   | 'estimate_exceeded'
   | 'task_no_verification';
@@ -266,6 +267,7 @@ export const VIOLATION_LEVELS: Readonly<Record<ViolationCode, Severity>> = {
   task_stale: 'warning',
   verification_never_run: 'warning',
   task_overdue: 'warning',
+  task_requirement_deferred: 'error',
   phase_overdue: 'warning',
   estimate_exceeded: 'warning',
   task_no_verification: 'warning'

@@ -1,6 +1,7 @@
 import { defineEventHandler, getRouterParam, readBody } from 'h3';
 
 import { applyStatusChange } from '../../../../../lib/actions';
+import { deferAction } from '../../../../../lib/deferred';
 import { OutsideRootError } from '../../../../../lib/paths';
 import { WorkspaceError } from '../../../../../lib/workspace';
 import { fail, failWith } from '../../../../../utils/http';
@@ -38,6 +39,10 @@ export default defineEventHandler(async (event) => {
     if (versionConflict(context.record, body?.version)) {
       return fail(event, 409, 'record_changed_since_load', 'Запись изменили с тех пор, как вы её открыли: перечитайте и повторите правку');
     }
+    // Бэклог — решение человека (R-0105): агент роли туда не уводит и не возвращает.
+    if ((status === 'deferred' || context.record.status === 'deferred') && (event.context as { user?: { agent?: unknown } }).user?.agent) {
+      return fail(event, 403, 'agent_deferred', 'В бэклог уводит и возвращает человек: агент может только предложить это текстом');
+    }
     if (blockers.length > 0) {
       return failWith(
         event,
@@ -53,9 +58,11 @@ export default defineEventHandler(async (event) => {
       actor,
       today: journalNow(project.root),
       // Журнал честно различает подтверждение с просмотром разницы и без (R-0068).
-      ...(status === 'approved' && wasViewed(project.root, recordId, context.record.source.path)
-        ? { action: 'подтверждено после просмотра разницы' }
-        : {})
+      ...(context.record.status === 'deferred'
+        ? { action: deferAction(context.record.type, 'return', '') }
+        : status === 'approved' && wasViewed(project.root, recordId, context.record.source.path)
+          ? { action: 'подтверждено после просмотра разницы' }
+          : {})
     });
     const saved = saveRecord(context, outcome, project.root);
     if (!saved.ok) {
