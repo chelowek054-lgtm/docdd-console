@@ -1,0 +1,12 @@
+{
+  "contract": "docdd.workspace/1",
+  "runner": "manual:architect",
+  "started_at": "2026-10-26T12:51:23.125Z",
+  "total": 1,
+  "failed": 0,
+  "checked_by": "модель по поручению владельца",
+  "note": "Вживую на копии videos: черновик R-0005 → legacy пачкой с причиной; подтверждённые тоже; карта — отказ; тест legacy.spec зелёный",
+  "verifications": {
+    "V-0111": "passed"
+  }
+}
