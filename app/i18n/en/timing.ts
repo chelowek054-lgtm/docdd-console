@@ -87,5 +87,12 @@ export const timing: Record<string, string> = {
   'mk.theme': 'Theme',
   'mk.mockup': 'Mockup',
   'mk.shot': 'Implementation',
-  'mk.noShot': 'No implementation snapshot for this width and theme — the capture script below puts it.'
+  'mk.noShot': 'No implementation snapshot for this width and theme — the capture script below puts it.',
+  'mk.zoomIn': 'Zoom in',
+  'mk.zoomOut': 'Zoom out',
+  'mk.fit': 'Fit',
+  'mk.focus': 'Show at actual size',
+  'mk.withShots': 'Implementation alongside',
+  'mk.canvasHint': 'Drag to pan, Ctrl + wheel to zoom, wheel and Shift + wheel to scroll',
+  'mk.without': 'Without an HTML mockup:'
 };
