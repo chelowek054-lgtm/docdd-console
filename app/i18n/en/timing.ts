@@ -70,5 +70,22 @@ export const timing: Record<string, string> = {
   'bl.empty': 'The backlog is empty. Defer from Tasks and Requirements with “To backlog”.',
   'bl.later': 'Recommendations for the future — capabilities with the “Later” horizon',
   'bl.toStrategy': 'To Strategy',
-  'bl.noLater': 'No capabilities with the “Later” horizon.'
+  'bl.noLater': 'No capabilities with the “Later” horizon.',
+  'mk.title': 'Mockups from Claude Design',
+  'mk.hint': 'The HTML reference of a screen: approved like a document, it gates tasks through documents.',
+  'mk.add': 'Add screen',
+  'mk.screen': 'Screen',
+  'mk.screenHint': 'id from the user-flow map',
+  'mk.file': 'File',
+  'mk.fileHint': '.html or .zip, up to 10 MB',
+  'mk.upload': 'Upload',
+  'mk.none': 'no mockup',
+  'mk.png': 'PNG reference',
+  'mk.draft': 'draft',
+  'mk.approved': 'approved',
+  'mk.width': 'Width',
+  'mk.theme': 'Theme',
+  'mk.mockup': 'Mockup',
+  'mk.shot': 'Implementation',
+  'mk.noShot': 'No implementation snapshot for this width and theme — the capture script below puts it.'
 };

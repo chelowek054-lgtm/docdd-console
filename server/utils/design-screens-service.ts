@@ -17,6 +17,7 @@ import {
   type ScreenPass
 } from '../lib/design-screens';
 import { approvedMaps, foldMaps, parseMapRecord } from '../lib/maps';
+import { mockupOf } from '../lib/design-mockups';
 import { normalizeRoot, resolveInside } from '../lib/paths';
 import { readManifest, readWorkspace } from '../lib/workspace';
 import { themeNames } from '../lib/design';
@@ -63,6 +64,11 @@ export function projectScreens(root: string): ScreensReport {
   const { records } = analyze({ files: workspace.files, manifest });
   const picture = foldMaps(approvedMaps(records).map((record) => ({ id: record.id, change: parseMapRecord(record.body).change })));
   const screens = picture.userflow.screens.map((screen) => ({ id: screen.id, title: screen.title }));
+  // Документы-макеты из Claude Design (R-0106): живой документ — не заменённый и не снятый.
+  const html = records.flatMap((record) => {
+    const mockup = mockupOf(record);
+    return mockup && !['superseded', 'dropped', 'rejected', 'legacy'].includes(record.status) ? [{ screen: mockup.screen, record: record.id, status: record.status, title: record.title }] : [];
+  });
 
   const design = manifest.design ?? {};
   const screensDir = design.screens ?? DEFAULT_SCREENS_DIR;
@@ -72,6 +78,7 @@ export function projectScreens(root: string): ScreensReport {
     files: [...listFiles(normalized, screensDir), ...listFiles(normalized, mockupsDir)],
     screensDir,
     mockupsDir,
+    html,
     widths: design.widths,
     themes: design.themes ?? projectThemes(normalized)
   });

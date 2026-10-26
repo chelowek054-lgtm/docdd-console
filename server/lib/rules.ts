@@ -6,6 +6,8 @@ import { capabilityFindings } from './coverage';
 import { taskGaps } from './batch-check'; import { brokenMapLinks, inputsNotReady, effectiveHorizon, effectiveOwner, effectivePriority } from './functional';
 import { approvedMaps, checkEvidence, evidenceClaims, foldMaps, parseMapRecord, type MapChange } from './maps';
 import { firstHeading } from './parse';
+import { mockupColors, mockupOf, offTokenColors } from './design-mockups';
+import { DEFAULT_MOCKUPS_DIR, screenSlug } from './design-screens';
 import { dateField, phaseDue, phaseTaskIds, stampAt, taskTiming } from './timing';
 import {
   DEFAULT_POLICY,
@@ -266,6 +268,7 @@ export function checkAll(ctx: RuleContext): Violation[] {
     ...taskNoVerification(ctx),
     ...capabilityNoOwner(ctx),
     ...mapLinksBroken(ctx), ...taskBatchGaps(ctx), ...blockInputsNotReady(ctx),
+    ...mockupRules(ctx),
     ...taskOverdue(ctx),
     ...phaseOverdue(ctx),
     ...estimateExceeded(ctx)
@@ -968,6 +971,56 @@ export function docChangedAfterTask(ctx: RuleContext): Violation[] {
         task.source.path,
         'Документ ' + id + ' изменён ' + changed + ', а задача ' + task.id + ', которая его правила, закрыта ' + closed + '. Либо изменение осталось без работы, либо задачу закрыли рано.'
       ));
+    }
+  }
+  return found;
+}
+
+/**
+ * HTML-макеты экранов (R-0106): макет называет экран карты путей, его цвета — из
+ * токенов; у экрана must-возможности макет есть. Последнее — только там, где макеты
+ * уже заводят: проект без них этим не заваливаем.
+ */
+export function mockupRules(ctx: RuleContext): Violation[] {
+  const mockups = ctx.records.filter((record) => !RETIRED_STATUSES.has(record.status)).map((record) => ({ record, mockup: mockupOf(record) }))
+    .filter((item): item is { record: WorkRecord; mockup: { screen: string; mockup: string | null } } => item.mockup !== null);
+  if (mockups.length === 0) return [];
+  const picture = foldMaps(approvedMaps(ctx.records).map((record) => ({ id: record.id, change: parseMapRecord(record.body).change })));
+  const screens = new Set(picture.userflow.screens.map((screen) => screen.id));
+  const found: Violation[] = [];
+
+  const tokens = ctx.design && !ctx.design.empty ? plainTokens(ctx.design.tokens) : null;
+  const palette = tokens ? [...Object.values(tokens.palette.light), ...Object.values(tokens.palette.dark), ...Object.values(tokens.themes).flatMap((theme) => Object.values(theme.palette))] : [];
+  for (const { record, mockup } of mockups) {
+    if (screens.size > 0 && !screens.has(mockup.screen)) {
+      found.push(violation('mockup_screen_unknown', record.id, record.source.path,
+        `Макет ${record.id} называет экран «${mockup.screen}», а в подтверждённой карте пользовательских путей его нет: поправьте \`screen\` или добавьте экран в карту.`));
+    }
+    const html = mockup.mockup && ctx.readSource ? ctx.readSource(`docs/development/${mockup.mockup}`) : null;
+    if (html && palette.length > 0) {
+      const off = offTokenColors(mockupColors(html), palette);
+      if (off.length > 0) {
+        found.push(violation('mockup_off_tokens', record.id, record.source.path,
+          `В макете ${record.id} цвета вне токенов дизайна: ${off.slice(0, 8).join(', ')}${off.length > 8 ? ` и ещё ${off.length - 8}` : ''}. Возьмите роли палитры или добавьте цвет в токены.`));
+      }
+    }
+  }
+
+  const covered = new Set(mockups.map((item) => item.mockup.screen));
+  const byId = new Map(picture.functional.capabilities.map((item) => [item.id, item]));
+  const pathOf = new Map(ctx.records.map((record) => [record.id, record.source.path]));
+  const reported = new Set<string>();
+  for (const capability of picture.functional.capabilities as (typeof picture.functional.capabilities[number] & { declaredBy?: string })[]) {
+    if (effectivePriority(capability, byId)?.value !== 'must') continue;
+    for (const link of capability.mapLinks ?? []) {
+      const screen = link.startsWith('userflow:') ? link.slice('userflow:'.length) : null;
+      if (!screen || !screens.has(screen) || covered.has(screen) || reported.has(screen)) continue;
+      // PNG-эталон — тоже макет: старые проекты так и работают.
+      const png = ctx.readSource?.(`${DEFAULT_MOCKUPS_DIR}/${screenSlug(screen)}.png`) ?? null;
+      if (png !== null) continue;
+      reported.add(screen);
+      found.push(violation('screen_mockup_missing', capability.declaredBy ?? null, pathOf.get(capability.declaredBy ?? '') ?? '',
+        `Экран «${screen}» нужен возможности «${capability.title ?? capability.id}» (must), а макета у него нет: добавьте HTML из Claude Design на вкладке «Экраны» дизайна.`));
     }
   }
   return found;

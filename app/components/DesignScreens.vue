@@ -130,6 +130,9 @@ const shotsPresent = computed(() => (screens.value ? screens.value.total - scree
     <ProjectFailure v-if="failure" :failure="failure" />
 
     <template v-else-if="screens">
+      <!-- HTML-макеты из Claude Design (R-0106): живой эталон экрана. -->
+      <DesignMockups :project-id="projectId" :screens="screens" @changed="refresh" />
+
       <UAlert
         v-if="!screens.fromMap"
         color="neutral"

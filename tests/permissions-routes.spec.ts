@@ -74,6 +74,7 @@ const EXPECTED: Record<string, Action> = {
   'POST /api/projects/x/records/bulk/status': 'approve',
   'POST /api/projects/x/records/bulk/legacy': 'approve',
   'POST /api/projects/x/records/bulk/deferred': 'approve',
+  'POST /api/projects/x/design/mockups': 'edit_draft',
   'POST /api/projects/x/records/x/revive': 'edit_draft',
   'POST /api/projects/x/records/x/due-from-tag': 'edit_draft',
   'POST /api/projects/x/records': 'edit_draft',

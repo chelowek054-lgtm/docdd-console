@@ -163,6 +163,9 @@ export type ViolationCode =
   | 'verification_never_run'
   | 'task_overdue'
   | 'task_requirement_deferred'
+  | 'mockup_screen_unknown'
+  | 'mockup_off_tokens'
+  | 'screen_mockup_missing'
   | 'phase_overdue'
   | 'estimate_exceeded'
   | 'task_no_verification';
@@ -268,6 +271,9 @@ export const VIOLATION_LEVELS: Readonly<Record<ViolationCode, Severity>> = {
   verification_never_run: 'warning',
   task_overdue: 'warning',
   task_requirement_deferred: 'error',
+  mockup_screen_unknown: 'warning',
+  mockup_off_tokens: 'warning',
+  screen_mockup_missing: 'warning',
   phase_overdue: 'warning',
   estimate_exceeded: 'warning',
   task_no_verification: 'warning'
