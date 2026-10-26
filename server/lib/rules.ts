@@ -149,13 +149,13 @@ const TASK_TRANSITIONS: Readonly<Record<string, readonly string[]>> = {
 };
 
 /**
- * Прежний курс (A-0001): из любого статуса, кроме черновика, — в `legacy`;
+ * Прежний курс (A-0001, R-0104): из любого статуса, черновик тоже, — в `legacy`;
  * обратно — только в черновик, через новое подтверждение. Только у тех типов,
  * что описывают курс; у карт свой механизм — повторное объявление и `removed`.
  */
 function withLegacy(table: Readonly<Record<string, readonly string[]>>): Readonly<Record<string, readonly string[]>> {
   const next: Record<string, readonly string[]> = {};
-  for (const [from, to] of Object.entries(table)) next[from] = from === 'draft' ? to : [...to, 'legacy'];
+  for (const [from, to] of Object.entries(table)) next[from] = [...to, 'legacy'];
   next['legacy'] = ['draft'];
   return next;
 }
