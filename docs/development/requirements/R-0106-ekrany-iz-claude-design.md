@@ -2,7 +2,7 @@
 id: R-0106
 type: requirement
 title: Экраны дизайна — HTML-макеты из Claude Design, привязанные к карте путей
-status: draft
+status: approved
 created: 2026-10-26
 updated: 2026-10-26
 links:
@@ -45,3 +45,5 @@ links:
 ## Журнал
 
 - 2026-10-26 · заведена черновиком · модель
+- 2026-10-26 16:09 · на подтверждение · architect
+- 2026-10-26 16:09 · подтверждён · architect

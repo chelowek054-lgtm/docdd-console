@@ -2,7 +2,7 @@
 id: V-0114
 type: verification
 title: 'Вкладка «Экраны»: HTML из Claude Design вживую'
-status: draft
+status: approved
 created: 2026-10-26
 updated: 2026-10-26
 kind: manual
@@ -28,3 +28,5 @@ links:
 ## Журнал
 
 - 2026-10-26 · заведена черновиком · модель
+- 2026-10-26 16:09 · на подтверждение · architect
+- 2026-10-26 16:09 · подтверждён · architect
