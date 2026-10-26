@@ -94,5 +94,6 @@ export const timing: Record<string, string> = {
   'mk.focus': 'Show at actual size',
   'mk.withShots': 'Implementation alongside',
   'mk.canvasHint': 'Drag to pan, Ctrl + wheel to zoom, wheel and Shift + wheel to scroll',
-  'mk.without': 'Without an HTML mockup:'
+  'mk.without': 'Without an HTML mockup:',
+  'mk.board': 'screen board'
 };

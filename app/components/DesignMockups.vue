@@ -23,6 +23,24 @@ const isDark = (name: string) => name === 'dark' || name.endsWith('-dark');
 const height = computed(() => (width.value <= 480 ? 812 : width.value <= 1024 ? 1024 : 800));
 
 const framed = computed(() => props.screens.screens.filter((screen) => screen.html));
+
+/**
+ * Настоящий размер макета — его присылает сам макет (сервер вставляет короткий
+ * скрипт). Шире выбранной ширины — это доска экранов из Claude Design: кадр
+ * растёт до её размера, а не режет её телефоном.
+ */
+const natural = reactive<Record<string, { w: number; h: number }>>({});
+const BOARD_LIMIT = 12_000;
+function onMessage(event: MessageEvent) {
+  const data = event.data as { docddMockup?: unknown; w?: unknown; h?: unknown } | null;
+  if (!data || typeof data.docddMockup !== 'string' || typeof data.w !== 'number' || typeof data.h !== 'number') return;
+  if (!framed.value.some((screen) => screen.id === data.docddMockup)) return;
+  natural[data.docddMockup] = { w: Math.min(BOARD_LIMIT, Math.round(data.w)), h: Math.min(BOARD_LIMIT, Math.round(data.h)) };
+}
+onMounted(() => window.addEventListener('message', onMessage));
+onBeforeUnmount(() => window.removeEventListener('message', onMessage));
+const isBoard = (screen: ScreenInventory) => (natural[screen.id]?.w ?? 0) > width.value + 40;
+const sizeOf = (screen: ScreenInventory) => (isBoard(screen) ? { w: natural[screen.id]!.w, h: natural[screen.id]!.h } : { w: width.value, h: height.value });
 const others = computed(() => props.screens.screens.filter((screen) => !screen.html));
 
 function stateOf(screen: ScreenInventory): { label: string; color: 'neutral' | 'warning' | 'success' } {
@@ -40,9 +58,9 @@ const pan = reactive({ x: 48, y: 72 });
 const dragging = ref(false);
 let last: { x: number; y: number } | null = null;
 
-const frameWidth = computed(() => width.value * (withShots.value ? 2 : 1) + (withShots.value ? 24 : 0));
-const contentWidth = computed(() => Math.max(1, framed.value.length) * (frameWidth.value + GAP) - GAP);
-const contentHeight = computed(() => height.value + 48);
+const frameWidthOf = (screen: ScreenInventory) => sizeOf(screen).w + (withShots.value && !isBoard(screen) ? width.value + 24 : 0);
+const contentWidth = computed(() => Math.max(1, framed.value.reduce((sum, screen) => sum + frameWidthOf(screen), 0) + GAP * (framed.value.length - 1)));
+const contentHeight = computed(() => Math.max(height.value, ...framed.value.map((screen) => sizeOf(screen).h)) + 48);
 
 function setZoom(next: number, at?: { x: number; y: number }) {
   const clamped = Math.min(2, Math.max(0.1, Math.round(next * 100) / 100));
@@ -65,7 +83,7 @@ function fit() {
 /** Показать кадр в натуральную величину: масштаб 100 %, кадр — у левого края. */
 function focus(index: number) {
   zoom.value = 1;
-  pan.x = 48 - index * (frameWidth.value + GAP);
+  pan.x = 48 - framed.value.slice(0, index).reduce((sum, screen) => sum + frameWidthOf(screen) + GAP, 0);
   pan.y = 48;
 }
 
@@ -83,6 +101,7 @@ function onWheel(event: WheelEvent) {
 function onDown(event: PointerEvent) {
   if (event.button !== 0 && event.button !== 1) return;
   dragging.value = true;
+  touched = true;
   last = { x: event.clientX, y: event.clientY };
   (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
 }
@@ -99,6 +118,9 @@ function onUp() {
 
 onMounted(() => nextTick(fit));
 watch([width, withShots, () => framed.value.length], () => nextTick(fit));
+// Доска прислала размер — вписываем заново, пока человек сам не двигал холст.
+let touched = false;
+watch(() => JSON.stringify(natural), () => { if (!touched) nextTick(fit); });
 
 /* ---------- импорт ---------- */
 const adding = ref(false);
@@ -185,9 +207,10 @@ async function upload() {
       >
         <div class="absolute left-0 top-0 origin-top-left" :style="{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }">
           <div class="flex items-start" :style="{ gap: `${GAP}px` }">
-            <div v-for="(screen, index) in framed" :key="screen.id" class="shrink-0" :style="{ width: `${frameWidth}px` }">
+            <div v-for="(screen, index) in framed" :key="screen.id" class="shrink-0" :style="{ width: `${frameWidthOf(screen)}px` }">
               <div class="mb-3 flex items-center gap-2 text-white/80" :style="{ fontSize: `${Math.max(14, 14 / zoom)}px` }">
                 <span class="truncate">{{ index + 1 }} · {{ screen.title }}</span>
+                <span v-if="isBoard(screen)" class="rounded bg-white/10 px-1.5 text-[0.75em] text-white/70">{{ t('mk.board') }}</span>
                 <span class="rounded px-1.5 text-[0.75em]" :class="screen.html?.status === 'approved' ? 'bg-green-500/20 text-green-300' : 'bg-amber-500/20 text-amber-300'">{{ stateOf(screen).label }}</span>
                 <button type="button" class="ml-auto text-white/60 hover:text-white" :title="t('mk.focus')" @pointerdown.stop @click="focus(index)">⤢</button>
               </div>
@@ -199,10 +222,10 @@ async function upload() {
                   sandbox="allow-scripts"
                   class="block rounded-md bg-white shadow-2xl shadow-black/60"
                   :class="dragging ? 'pointer-events-none' : ''"
-                  :style="{ width: `${width}px`, height: `${height}px` }"
+                  :style="{ width: `${sizeOf(screen).w}px`, height: `${sizeOf(screen).h}px` }"
                   :title="screen.title"
                 />
-                <div v-if="withShots" class="shrink-0" :style="{ width: `${width}px` }">
+                <div v-if="withShots && !isBoard(screen)" class="shrink-0" :style="{ width: `${width}px` }">
                   <img v-if="shotOf(screen)" :src="`/api/projects/${projectId}/design/shot?path=${encodeURIComponent(shotOf(screen)!.path)}`" class="block w-full rounded-md shadow-2xl shadow-black/60" :alt="screen.title" draggable="false">
                   <div v-else class="flex items-center justify-center rounded-md border border-dashed border-white/20 p-6 text-center text-white/50" :style="{ height: `${height}px` }">{{ t('mk.noShot') }}</div>
                 </div>

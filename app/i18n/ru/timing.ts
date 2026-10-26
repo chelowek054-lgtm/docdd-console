@@ -94,5 +94,6 @@ export const timing: Record<string, string> = {
   'mk.focus': 'Показать в натуральную величину',
   'mk.withShots': 'Реализация рядом',
   'mk.canvasHint': 'Тянуть — мышью, масштаб — Ctrl + колесо, прокрутка — колесо и Shift + колесо',
-  'mk.without': 'Без HTML-макета:'
+  'mk.without': 'Без HTML-макета:',
+  'mk.board': 'доска экранов'
 };
