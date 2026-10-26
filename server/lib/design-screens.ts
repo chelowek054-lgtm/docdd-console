@@ -48,6 +48,24 @@ export interface ScreenInventory {
   shots: Shot[];
   /** Путь эталонного макета, если он лежит. */
   mockup: string | null;
+  /** HTML-макет из Claude Design (R-0106): документ, его статус и снимки макета на ширинах и темах. */
+  html: HtmlMockup | null;
+}
+
+export interface HtmlMockup {
+  record: string;
+  status: string;
+  /** `index.html` от корня проекта. */
+  path: string;
+  /** Снимки макета: эталон для проверки моделью, когда документ подтверждён. */
+  shots: Shot[];
+}
+
+export interface HtmlMockupInput {
+  screen: string;
+  record: string;
+  status: string;
+  title?: string | undefined;
 }
 
 export interface DesignScreens {
@@ -79,6 +97,8 @@ export function buildInventory(input: {
   mockupsDir?: string | undefined;
   widths?: readonly number[] | undefined;
   themes?: readonly ScreenTheme[] | undefined;
+  /** Документы-макеты (`design` с `screen`). Экран, которого нет в карте, всё равно попадает в опись. */
+  html?: readonly HtmlMockupInput[] | undefined;
 }): DesignScreens {
   const screensDir = trimDir(input.screensDir ?? DEFAULT_SCREENS_DIR);
   const mockupsDir = trimDir(input.mockupsDir ?? DEFAULT_MOCKUPS_DIR);
@@ -86,7 +106,9 @@ export function buildInventory(input: {
   const themes = [...(input.themes?.length ? input.themes : DEFAULT_THEMES)];
   const byPath = new Map(input.files.map((file) => [file.path.replace(/\\/g, '/'), file.mtimeMs]));
 
-  const screens: ScreenInventory[] = input.screens.map((screen) => {
+  const htmlBy = new Map((input.html ?? []).map((item) => [item.screen, item]));
+  const listed = [...input.screens, ...(input.html ?? []).filter((item) => !input.screens.some((screen) => screen.id === item.screen)).map((item) => ({ id: item.screen, title: item.title }))];
+  const screens: ScreenInventory[] = listed.map((screen) => {
     const slug = screenSlug(screen.id);
     const shots: Shot[] = [];
     for (const width of widths) {
@@ -103,7 +125,18 @@ export function buildInventory(input: {
       }
     }
     const mockup = MOCKUP_EXTENSIONS.map((extension) => `${mockupsDir}/${slug}.${extension}`).find((path) => byPath.has(path)) ?? null;
-    return { id: screen.id, title: screen.title ?? screen.id, slug, shots, mockup };
+    const doc = htmlBy.get(screen.id);
+    const html: HtmlMockup | null = doc ? {
+      record: doc.record,
+      status: doc.status,
+      path: `${mockupsDir}/${slug}/index.html`,
+      shots: widths.flatMap((width) => themes.map((theme) => {
+        const path = `${mockupsDir}/${slug}/${width}-${theme}.png`;
+        const mtime = byPath.get(path);
+        return { width, theme, path, present: mtime !== undefined, takenAt: mtime !== undefined ? new Date(mtime).toISOString() : null };
+      }))
+    } : null;
+    return { id: screen.id, title: screen.title ?? screen.id, slug, shots, mockup, html };
   });
 
   const all = screens.flatMap((screen) => screen.shots);
@@ -155,6 +188,26 @@ export function captureScript(inventory: DesignScreens, darkThemes: readonly str
     "        if (name !== 'light' && name !== 'dark') root.classList.add(`theme-${name}`);",
     '      }, [theme, dark.has(theme)]);',
     '      await page.screenshot({ path: `${dir}/${slug}/${width}-${theme}.png`, fullPage: true });',
+    '      await page.close();',
+    '    }',
+    '  }',
+    '}',
+    '',
+    '// HTML-макеты из Claude Design (R-0106): снимок макета — эталон для проверки моделью.',
+    `const mockups = [${inventory.screens.filter((screen) => screen.html).map((screen) => `'${screen.slug}'`).join(', ')}];`,
+    `const mockupDir = '${inventory.mockupsDir}';`,
+    "const { pathToFileURL } = await import('node:url');",
+    'for (const slug of mockups) {',
+    '  for (const width of widths) {',
+    '    for (const theme of themes) {',
+    "      const page = await browser.newPage({ viewport: { width, height: 900 }, colorScheme: dark.has(theme) ? 'dark' : 'light' });",
+    '      await page.goto(pathToFileURL(`${mockupDir}/${slug}/index.html`).href, { waitUntil: "networkidle" });',
+    '      await page.evaluate(([name, isDark]) => {',
+    "        const root = document.documentElement;",
+    "        root.dataset.theme = name;",
+    "        if (isDark) root.classList.add('dark');",
+    '      }, [theme, dark.has(theme)]);',
+    '      await page.screenshot({ path: `${mockupDir}/${slug}/${width}-${theme}.png`, fullPage: true });',
     '      await page.close();',
     '    }',
     '  }',

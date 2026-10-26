@@ -164,6 +164,9 @@ flowchart LR
 | `doc_changed_after_task` | warning | Документ изменён позже, чем закрыта задача, которая его правила |
 | `task_stale` | warning | Задача в `in_progress` дольше `stale_in_progress_days` |
 | `verification_never_run` | warning | Проверка есть, прогонов не было |
+| `mockup_screen_unknown` | warning | HTML-макет (`design` с `screen`) называет экран, которого нет в подтверждённой карте пользовательских путей (R-0106) |
+| `mockup_off_tokens` | warning | В HTML-макете цвета, которых нет среди токенов дизайна; перечислены |
+| `screen_mockup_missing` | warning | Экран, на который ссылается возможность с приоритетом `must` (`userflow:<экран>`), без макета — ни HTML, ни PNG; только в проекте, где HTML-макеты уже заводят |
 | `task_overdue` | warning | Задача не закрыта, а `due` уже прошёл ([adr/0039](adr/0039-timings-from-journal.md)) |
 | `phase_overdue` | warning | Фаза не закончена, а её `due` (или `target`) уже прошёл |
 | `estimate_exceeded` | warning | Время задачи в `in_progress` по журналу больше `estimate` вдвое |

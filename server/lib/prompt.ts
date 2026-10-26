@@ -622,7 +622,11 @@ function shotLines(inventory: DesignScreens): string {
   const lines: string[] = [];
   for (const screen of inventory.screens) {
     lines.push(`### ${screen.id}${screen.title !== screen.id ? ` — ${screen.title}` : ''}`);
-    lines.push(screen.mockup ? `Макет: \`${screen.mockup}\`` : 'Макета нет');
+    // Подтверждённый HTML-макет — эталон (R-0106): его снимки той же ширины и темы.
+    const reference = screen.html?.status === 'approved' ? screen.html : null;
+    lines.push(reference
+      ? `Эталон — HTML-макет \`${reference.path}\` (${reference.record}), снимки: ${reference.shots.filter((shot) => shot.present).map((shot) => `\`${shot.path}\``).join(', ') || 'ещё не сняты'}`
+      : screen.mockup ? `Макет: \`${screen.mockup}\`` : 'Макета нет');
     for (const shot of screen.shots) {
       lines.push(`- ${shot.width} px, тема ${shot.theme}: ${shot.present ? `\`${shot.path}\`` : 'нет'}`);
     }
