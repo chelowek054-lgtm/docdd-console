@@ -3,7 +3,7 @@ import { deflateRawSync } from 'node:zlib';
 
 import { describe, expect, it } from 'vitest';
 
-import { MOCKUP_LIMIT, mockupColors, mockupOf, normalizeColor, offTokenColors, safeEntryPath, unpackMockup, withTheme } from '../server/lib/design-mockups';
+import { MOCKUP_LIMIT, mockupColors, mockupOf, normalizeColor, offTokenColors, safeEntryPath, unpackMockup, withSizeProbe, withTheme } from '../server/lib/design-mockups';
 import { buildInventory, captureScript } from '../server/lib/design-screens';
 import { mockupRules } from '../server/lib/rules';
 import { VIOLATION_LEVELS } from '../server/lib/types';
@@ -72,6 +72,14 @@ describe('тема при отдаче', () => {
     expect(html).toContain('class="app dark"');
     expect(html).toContain('color-scheme: dark');
     expect(withTheme('<p>x</p>', 'light', false)).toBe('<html data-theme="light" style="color-scheme: light"><p>x</p></html>');
+  });
+});
+
+describe('размер макета для холста', () => {
+  it('скрипт размера встаёт перед последним </body> и несёт id экрана', () => {
+    const html = withSizeProbe('<html><body><p>x</p></body></html>', 'login');
+    expect(html).toMatch(/<script>.*docddMockup:"login".*<\/script><\/body><\/html>$/s);
+    expect(withSizeProbe('<p>x</p>', '</script>')).toContain('docddMockup:"\\u003c/script>"');
   });
 });
 

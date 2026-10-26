@@ -1,6 +1,6 @@
 import { defineEventHandler, getQuery, getRouterParam, setHeader } from 'h3';
 
-import { contentTypeOf, withTheme } from '../../../../../../lib/design-mockups';
+import { contentTypeOf, withSizeProbe, withTheme } from '../../../../../../lib/design-mockups';
 import { OutsideRootError } from '../../../../../../lib/paths';
 import { fail } from '../../../../../../utils/http';
 import { readMockupFile } from '../../../../../../utils/mockups-service';
@@ -22,9 +22,12 @@ export default defineEventHandler(async (event) => {
     setHeader(event, 'Content-Type', contentTypeOf(file.path));
     setHeader(event, 'Content-Security-Policy', 'sandbox allow-scripts');
     setHeader(event, 'X-Content-Type-Options', 'nosniff');
-    const theme = getQuery(event)['theme'];
-    if (/\.html?$/i.test(file.path) && typeof theme === 'string' && theme) {
-      return withTheme(file.data.toString('utf8'), theme, getQuery(event)['dark'] === '1');
+    // Главная страница макета сообщает холсту свой размер; тема — по запросу.
+    if (/(^|\/)index\.html?$/i.test(file.path)) {
+      const theme = getQuery(event)['theme'];
+      const html = file.data.toString('utf8');
+      const themed = typeof theme === 'string' && theme ? withTheme(html, theme, getQuery(event)['dark'] === '1') : html;
+      return withSizeProbe(themed, screen);
     }
     return file.data;
   } catch (error) {

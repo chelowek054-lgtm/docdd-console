@@ -173,6 +173,19 @@ export function withTheme(html: string, theme: string, dark: boolean): string {
   });
 }
 
+/**
+ * Размер макета для холста. Окно изолировано, заглянуть в него снаружи нельзя,
+ * поэтому макет сам сообщает родителю ширину и высоту содержимого: экспорт
+ * Claude Design бывает целой доской экранов, и кадр телефона её обрезал бы. Экспорт
+ * после загрузки подменяет корень страницы, поэтому размер опрашивается таймером
+ * на window, а не наблюдателем за элементом, которого скоро не станет.
+ */
+export function withSizeProbe(html: string, screen: string): string {
+  const id = JSON.stringify(screen).replace(/</g, '\\u003c');
+  const probe = `<script>(function(){function s(){var d=document.documentElement,b=document.body;parent.postMessage({docddMockup:${id},w:Math.max(d.scrollWidth,b?b.scrollWidth:0),h:Math.max(d.scrollHeight,b?b.scrollHeight:0)},'*')}addEventListener('load',s);addEventListener('resize',s);var n=0,i=setInterval(function(){s();if(++n>15)clearInterval(i)},1000);setTimeout(s,300);})();</script>`;
+  return /<\/body>/i.test(html) ? html.replace(/<\/body>(?![\s\S]*<\/body>)/i, `${probe}</body>`) : html + probe;
+}
+
 const TYPES: Readonly<Record<string, string>> = {
   html: 'text/html; charset=utf-8', htm: 'text/html; charset=utf-8', css: 'text/css; charset=utf-8', js: 'text/javascript; charset=utf-8',
   mjs: 'text/javascript; charset=utf-8', json: 'application/json', svg: 'image/svg+xml', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
