@@ -4,9 +4,10 @@ import type { ScreenInventory } from '~~/server/lib/design-screens';
 import type { ScreensReport } from '~~/server/utils/design-screens-service';
 
 /**
- * Экраны из Claude Design (R-0106, docs/16-design-system.md): список экранов карты
- * путей с состоянием HTML-макета, импорт файла и живой просмотр. Макет — в окне
- * `sandbox` без `allow-same-origin`: его скрипты не видят консоль.
+ * Экраны из Claude Design (R-0106, docs/16-design-system.md): общий холст на тёмном
+ * фоне — макеты экранов в ряд, масштаб колесом с Ctrl и кнопками, перетаскивание
+ * мышью, «Вписать». Макет — в окне `sandbox` без `allow-same-origin`: его скрипты
+ * не видят консоль.
  */
 const props = defineProps<{ projectId: string; screens: ScreensReport }>();
 const emit = defineEmits<{ changed: [] }>();
@@ -14,23 +15,92 @@ const { t } = useT();
 
 const WIDTHS = computed(() => props.screens.widths);
 const THEMES = computed(() => props.screens.themes);
-const width = ref(WIDTHS.value[WIDTHS.value.length - 1] ?? 1280);
+const width = ref(WIDTHS.value[0] ?? 375);
 const theme = ref(THEMES.value[0] ?? 'light');
-const openId = ref<string | null>(props.screens.screens.find((screen) => screen.html)?.id ?? null);
-const open = computed(() => props.screens.screens.find((screen) => screen.id === openId.value) ?? null);
+const withShots = ref(false);
 const isDark = (name: string) => name === 'dark' || name.endsWith('-dark');
+/** Высота кадра: телефон — как экран телефона, шире — как ноутбук. */
+const height = computed(() => (width.value <= 480 ? 812 : width.value <= 1024 ? 1024 : 800));
+
+const framed = computed(() => props.screens.screens.filter((screen) => screen.html));
+const others = computed(() => props.screens.screens.filter((screen) => !screen.html));
 
 function stateOf(screen: ScreenInventory): { label: string; color: 'neutral' | 'warning' | 'success' } {
   if (!screen.html) return { label: screen.mockup ? t('mk.png') : t('mk.none'), color: 'neutral' };
   return screen.html.status === 'approved' ? { label: t('mk.approved'), color: 'success' } : { label: t('mk.draft'), color: 'warning' };
 }
+const srcOf = (screen: ScreenInventory) => `/api/projects/${props.projectId}/design/mockups/${encodeURIComponent(screen.id)}/index.html?theme=${encodeURIComponent(theme.value)}&dark=${isDark(theme.value) ? 1 : 0}`;
+const shotOf = (screen: ScreenInventory) => screen.shots.find((item) => item.width === width.value && item.theme === theme.value && item.present) ?? null;
 
-const src = computed(() => open.value?.html
-  ? `/api/projects/${props.projectId}/design/mockups/${encodeURIComponent(open.value.id)}/index.html?theme=${encodeURIComponent(theme.value)}&dark=${isDark(theme.value) ? 1 : 0}`
-  : '');
-const shot = computed(() => open.value?.shots.find((item) => item.width === width.value && item.theme === theme.value && item.present) ?? null);
+/* ---------- холст ---------- */
+const GAP = 64;
+const viewport = ref<HTMLElement | null>(null);
+const zoom = ref(0.5);
+const pan = reactive({ x: 48, y: 72 });
+const dragging = ref(false);
+let last: { x: number; y: number } | null = null;
 
-/* импорт */
+const frameWidth = computed(() => width.value * (withShots.value ? 2 : 1) + (withShots.value ? 24 : 0));
+const contentWidth = computed(() => Math.max(1, framed.value.length) * (frameWidth.value + GAP) - GAP);
+const contentHeight = computed(() => height.value + 48);
+
+function setZoom(next: number, at?: { x: number; y: number }) {
+  const clamped = Math.min(2, Math.max(0.1, Math.round(next * 100) / 100));
+  // Масштаб вокруг точки под курсором: то, на что смотрят, не уезжает.
+  const point = at ?? { x: (viewport.value?.clientWidth ?? 0) / 2, y: (viewport.value?.clientHeight ?? 0) / 2 };
+  pan.x = point.x - ((point.x - pan.x) * clamped) / zoom.value;
+  pan.y = point.y - ((point.y - pan.y) * clamped) / zoom.value;
+  zoom.value = clamped;
+}
+
+function fit() {
+  const box = viewport.value;
+  if (!box) return;
+  const next = Math.min(1, (box.clientWidth - 96) / contentWidth.value, (box.clientHeight - 96) / contentHeight.value);
+  zoom.value = Math.max(0.1, Math.round(next * 100) / 100);
+  pan.x = (box.clientWidth - contentWidth.value * zoom.value) / 2;
+  pan.y = 48;
+}
+
+/** Показать кадр в натуральную величину: масштаб 100 %, кадр — у левого края. */
+function focus(index: number) {
+  zoom.value = 1;
+  pan.x = 48 - index * (frameWidth.value + GAP);
+  pan.y = 48;
+}
+
+function onWheel(event: WheelEvent) {
+  const box = viewport.value?.getBoundingClientRect();
+  if (!box) return;
+  if (event.ctrlKey || event.metaKey) {
+    setZoom(zoom.value * (event.deltaY < 0 ? 1.1 : 1 / 1.1), { x: event.clientX - box.left, y: event.clientY - box.top });
+  } else {
+    pan.x -= event.shiftKey ? event.deltaY : event.deltaX;
+    pan.y -= event.shiftKey ? 0 : event.deltaY;
+  }
+}
+
+function onDown(event: PointerEvent) {
+  if (event.button !== 0 && event.button !== 1) return;
+  dragging.value = true;
+  last = { x: event.clientX, y: event.clientY };
+  (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+}
+function onMove(event: PointerEvent) {
+  if (!dragging.value || !last) return;
+  pan.x += event.clientX - last.x;
+  pan.y += event.clientY - last.y;
+  last = { x: event.clientX, y: event.clientY };
+}
+function onUp() {
+  dragging.value = false;
+  last = null;
+}
+
+onMounted(() => nextTick(fit));
+watch([width, withShots, () => framed.value.length], () => nextTick(fit));
+
+/* ---------- импорт ---------- */
 const adding = ref(false);
 const screenId = ref('');
 const file = ref<File | null>(null);
@@ -57,7 +127,6 @@ async function upload() {
     });
     const problem = failureOf(response);
     if (problem) { failure.value = problem; return; }
-    openId.value = screenId.value.trim();
     adding.value = false;
     file.value = null;
     emit('changed');
@@ -87,34 +156,68 @@ async function upload() {
       <p v-if="failure" class="w-full text-sm text-error">{{ failure.message }}</p>
     </div>
 
-    <ul class="flex flex-wrap gap-2">
-      <li v-for="screen in screens.screens" :key="screen.id">
-        <UButton size="xs" :variant="openId === screen.id ? 'solid' : 'soft'" color="neutral" :disabled="!screen.html" @click="openId = screen.id">
-          {{ screen.title }}
-          <LightBadge :color="stateOf(screen).color" variant="subtle" class="ml-1">{{ stateOf(screen).label }}</LightBadge>
-        </UButton>
-      </li>
-    </ul>
-
-    <div v-if="open?.html" class="space-y-2">
-      <div class="flex flex-wrap items-center gap-2 text-sm">
-        <RecordLink :project-id="projectId" :record-id="open.html.record" />
+    <div v-if="framed.length" class="overflow-hidden rounded-lg border border-default">
+      <!-- Панель холста: масштаб, ширина, тема, реализация рядом. -->
+      <div class="flex flex-wrap items-center gap-2 border-b border-default bg-elevated/60 px-3 py-2 text-sm">
+        <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-minus" :aria-label="t('mk.zoomOut')" @click="setZoom(zoom / 1.25)" />
+        <span class="w-12 text-center tabular-nums">{{ Math.round(zoom * 100) }}%</span>
+        <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-plus" :aria-label="t('mk.zoomIn')" @click="setZoom(zoom * 1.25)" />
+        <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-scan" @click="fit">{{ t('mk.fit') }}</UButton>
+        <UButton size="xs" color="neutral" variant="ghost" @click="setZoom(1)">100%</UButton>
         <span class="ml-auto text-muted">{{ t('mk.width') }}</span>
         <UButton v-for="item in WIDTHS" :key="item" size="xs" color="neutral" :variant="width === item ? 'solid' : 'ghost'" @click="width = item">{{ item }}</UButton>
         <span class="text-muted">{{ t('mk.theme') }}</span>
         <UButton v-for="item in THEMES" :key="item" size="xs" color="neutral" :variant="theme === item ? 'solid' : 'ghost'" @click="theme = item">{{ item }}</UButton>
+        <UCheckbox v-model="withShots" :label="t('mk.withShots')" />
       </div>
-      <div class="flex gap-4 overflow-x-auto">
-        <figure class="shrink-0">
-          <figcaption class="mb-1 text-xs text-muted">{{ t('mk.mockup') }}</figcaption>
-          <iframe :key="src" :src="src" sandbox="allow-scripts" :style="{ width: `${width}px` }" class="h-[42rem] rounded-md border border-default bg-white" :title="open.title" />
-        </figure>
-        <figure class="shrink-0">
-          <figcaption class="mb-1 text-xs text-muted">{{ t('mk.shot') }}</figcaption>
-          <img v-if="shot" :src="`/api/projects/${projectId}/design/shot?path=${encodeURIComponent(shot.path)}`" :style="{ width: `${width}px` }" class="rounded-md border border-default" :alt="open.title">
-          <p v-else class="w-64 text-sm text-muted">{{ t('mk.noShot') }}</p>
-        </figure>
+
+      <!-- Холст: тёмный фон всегда — экраны на нём читаются лучше в любой теме консоли. -->
+      <div
+        ref="viewport"
+        class="relative h-[70vh] min-h-[28rem] touch-none select-none overflow-hidden bg-[#1e1e1e]"
+        :class="dragging ? 'cursor-grabbing' : 'cursor-grab'"
+        :style="{ backgroundImage: 'radial-gradient(#2c2c2c 1px, transparent 1px)', backgroundSize: `${24 * zoom}px ${24 * zoom}px`, backgroundPosition: `${pan.x}px ${pan.y}px` }"
+        @wheel.prevent="onWheel"
+        @pointerdown="onDown"
+        @pointermove="onMove"
+        @pointerup="onUp"
+        @pointercancel="onUp"
+      >
+        <div class="absolute left-0 top-0 origin-top-left" :style="{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }">
+          <div class="flex items-start" :style="{ gap: `${GAP}px` }">
+            <div v-for="(screen, index) in framed" :key="screen.id" class="shrink-0" :style="{ width: `${frameWidth}px` }">
+              <div class="mb-3 flex items-center gap-2 text-white/80" :style="{ fontSize: `${Math.max(14, 14 / zoom)}px` }">
+                <span class="truncate">{{ index + 1 }} · {{ screen.title }}</span>
+                <span class="rounded px-1.5 text-[0.75em]" :class="screen.html?.status === 'approved' ? 'bg-green-500/20 text-green-300' : 'bg-amber-500/20 text-amber-300'">{{ stateOf(screen).label }}</span>
+                <button type="button" class="ml-auto text-white/60 hover:text-white" :title="t('mk.focus')" @pointerdown.stop @click="focus(index)">⤢</button>
+              </div>
+              <div class="flex gap-6">
+                <!-- Пока тянут холст, окна не перехватывают мышь. -->
+                <iframe
+                  :key="srcOf(screen)"
+                  :src="srcOf(screen)"
+                  sandbox="allow-scripts"
+                  class="block rounded-md bg-white shadow-2xl shadow-black/60"
+                  :class="dragging ? 'pointer-events-none' : ''"
+                  :style="{ width: `${width}px`, height: `${height}px` }"
+                  :title="screen.title"
+                />
+                <div v-if="withShots" class="shrink-0" :style="{ width: `${width}px` }">
+                  <img v-if="shotOf(screen)" :src="`/api/projects/${projectId}/design/shot?path=${encodeURIComponent(shotOf(screen)!.path)}`" class="block w-full rounded-md shadow-2xl shadow-black/60" :alt="screen.title" draggable="false">
+                  <div v-else class="flex items-center justify-center rounded-md border border-dashed border-white/20 p-6 text-center text-white/50" :style="{ height: `${height}px` }">{{ t('mk.noShot') }}</div>
+                </div>
+              </div>
+              <NuxtLink :to="`/projects/${projectId}/records/${screen.html?.record}`" class="mt-2 inline-block font-mono text-white/50 hover:text-white" :style="{ fontSize: `${Math.max(12, 12 / zoom)}px` }" @pointerdown.stop>{{ screen.html?.record }}</NuxtLink>
+            </div>
+          </div>
+        </div>
+        <p class="pointer-events-none absolute bottom-2 left-3 text-xs text-white/40">{{ t('mk.canvasHint') }}</p>
       </div>
     </div>
+
+    <p v-if="others.length" class="text-sm text-muted">
+      {{ t('mk.without') }}
+      <span v-for="screen in others" :key="screen.id" class="mr-2">{{ screen.title }} <LightBadge :color="stateOf(screen).color" variant="subtle">{{ stateOf(screen).label }}</LightBadge></span>
+    </p>
   </section>
 </template>
