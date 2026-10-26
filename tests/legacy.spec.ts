@@ -11,12 +11,12 @@ import { context, rec } from './helpers';
 const codesOf = (items: readonly { code: string }[]) => items.map((item) => item.code);
 
 describe('переход в legacy', () => {
-  it('из подтверждённого и отменённого — можно, из черновика — нет, обратно — только в черновик', () => {
+  it('из любого статуса, черновик тоже (R-0104), — можно; обратно — только в черновик', () => {
     const ctx = context([]);
     expect(checkTransition(rec('R-0001', 'requirement', 'approved'), 'legacy', ctx)).toEqual([]);
     expect(checkTransition(rec('V-0001', 'verification', 'dropped'), 'legacy', ctx)).toEqual([]);
     expect(checkTransition(rec('A-0001', 'decision', 'rejected'), 'legacy', ctx)).toEqual([]);
-    expect(codesOf(checkTransition(rec('R-0002', 'requirement', 'draft'), 'legacy', ctx))).toEqual(['transition_forbidden']);
+    expect(checkTransition(rec('R-0002', 'requirement', 'draft'), 'legacy', ctx)).toEqual([]);
     expect(checkTransition(rec('R-0003', 'requirement', 'legacy'), 'draft', ctx)).toEqual([]);
     expect(codesOf(checkTransition(rec('R-0003', 'requirement', 'legacy'), 'approved', ctx))).toEqual(['transition_forbidden']);
   });
