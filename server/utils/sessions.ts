@@ -32,7 +32,8 @@ function read(root: string): Record<string, string> {
 
 export function sessionOf(root: string, id: string): string | undefined {
   const found = read(root)[id];
-  return typeof found === 'string' && found !== '' ? found : undefined;
+  // Номер уходит аргументом в командную строку: только безопасные символы (ADR-0039).
+  return typeof found === 'string' && /^[\w-]{1,200}$/.test(found) ? found : undefined;
 }
 
 export function rememberSession(root: string, id: string, sessionId: string): void {

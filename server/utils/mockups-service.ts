@@ -3,7 +3,10 @@ import { dirname } from 'node:path';
 
 import { applyJournalNote } from '../lib/actions';
 import { dropCache } from '../lib/cache';
-import { unpackMockup, mockupOf, type MockupFile } from '../lib/design-mockups';
+import { BOARD_ASSETS, MOCKUP_LIMIT, parseBoard, unpackMockup, mockupOf, type MockupFile } from '../lib/design-mockups';
+import { approvedMaps, foldMaps, parseMapRecord } from '../lib/maps';
+import { slugify } from '../lib/scaffold';
+import type { WorkRecord } from '../lib/types';
 import { DEFAULT_MOCKUPS_DIR, screenSlug } from '../lib/design-screens';
 import { targetPath } from '../lib/import';
 import { normalizeRoot, resolveInside } from '../lib/paths';
@@ -37,47 +40,117 @@ function recordMockupPath(dir: string, slug: string): string {
   return full.startsWith(`${DEVELOPMENT_DIR}/`) ? full.slice(DEVELOPMENT_DIR.length + 1) : full;
 }
 
-export function importMockup(root: string, input: { screen: string; name: string; content: Buffer; title?: string; actor: string }): { record: IndexRecord | undefined; files: string[] } {
+/** Что стало с экраном при импорте: заведён, обновлён или пропущен — подтверждённое не трогаем. */
+export interface ImportedScreen {
+  screen: string;
+  title: string;
+  outcome: 'created' | 'updated' | 'skipped';
+  record: string | null;
+  message?: string;
+}
+
+export interface ImportOutcome {
+  record: IndexRecord | undefined;
+  files: string[];
+  /** По экрану на строку; у одиночного HTML — одна. */
+  screens: ImportedScreen[];
+}
+
+const OUT = ['superseded', 'dropped', 'rejected', 'legacy'];
+
+export function importMockup(root: string, input: { screen: string; name: string; content: Buffer; title?: string; actor: string }): ImportOutcome {
   const normalized = normalizeRoot(root);
-  const screen = input.screen.trim();
-  if (!screen) throw new MockupError('screen_required', 'Не назван экран: id из карты пользовательских путей');
   const unpacked = unpackMockup(input.name, input.content);
   if (unpacked.problems.length) throw new MockupError('mockup_path_invalid', unpacked.problems.join(' '));
 
   const workspace = readWorkspace(normalized);
   const records = analyze({ files: workspace.files, manifest: workspace.manifest }).records;
-  const existing = records.find((record) => mockupOf(record)?.screen === screen && !['superseded', 'dropped', 'legacy'].includes(record.status));
-  if (existing && isSettled(existing.status)) {
-    throw new MockupError('mockup_approved', `Макет экрана «${screen}» уже подтверждён (${existing.id}): заведите преемника с \`supersedes\`, подтверждённое не перезаписывается`, 409);
+  const dir = mockupsDir(normalized);
+  const stamp = journalNow(normalized);
+  const taken = records.map((record) => record.id);
+
+  // Доска Claude Design: режем на экраны, каждый — свой кадр и свой документ.
+  const main = unpacked.files.find((file) => file.path === 'index.html');
+  let board: ReturnType<typeof parseBoard> = null;
+  try {
+    board = main ? parseBoard(main.data.toString('utf8')) : null;
+  } catch (error) {
+    // Сжатый кусок доски сверх предела — тот же отказ, что у архива (ADR-0039).
+    if ((error as { code?: string }).code === 'ERR_BUFFER_TOO_LARGE') throw new MockupError('mockup_path_invalid', `Распакованная доска больше ${MOCKUP_LIMIT / 1024 / 1024} МБ.`);
+    throw error;
+  }
+  if (board) {
+    const written = writeFiles(normalized, `${dir}/${BOARD_ASSETS}`, board.assets.map((asset) => ({ path: asset.name, data: asset.data })));
+    const byTitle = mapScreensByTitle(records);
+    const screens: ImportedScreen[] = [];
+    for (const page of board.pages) {
+      // Экран карты путей с тем же названием — его id; нет — id из названия.
+      const screen = byTitle.get(page.title.toLowerCase()) ?? slugify(page.title);
+      const one = importOne(normalized, records, taken, { dir, screen, title: page.title, files: [{ path: 'index.html', data: Buffer.from(page.html, 'utf8') }], source: input.name, actor: input.actor, stamp });
+      screens.push(one.screen);
+      written.push(...one.files);
+    }
+    const first = screens.find((item) => item.record)?.record;
+    return { record: first ? loadIndex(normalized, true).records.find((record) => record.id === first) : undefined, files: written, screens };
   }
 
-  const dir = mockupsDir(normalized);
+  const screen = input.screen.trim();
+  if (!screen) throw new MockupError('screen_required', 'Не назван экран: id из карты пользовательских путей');
+  const one = importOne(normalized, records, taken, { dir, screen, title: input.title?.trim() || `Экран «${screen}»`, files: unpacked.files, source: input.name, actor: input.actor, stamp });
+  if (one.screen.outcome === 'skipped') throw new MockupError('mockup_approved', one.screen.message ?? '', 409);
+  return { record: loadIndex(normalized, true).records.find((record) => record.id === one.screen.record), files: one.files, screens: [one.screen] };
+}
+
+/** Экраны подтверждённой карты путей по названию: доска подписывает кадры названиями, а не id. */
+function mapScreensByTitle(records: readonly WorkRecord[]): Map<string, string> {
+  const picture = foldMaps(approvedMaps(records).map((record) => ({ id: record.id, change: parseMapRecord(record.body).change })));
+  return new Map(picture.userflow.screens.filter((screen) => screen.title).map((screen) => [String(screen.title).toLowerCase(), screen.id]));
+}
+
+/**
+ * Один экран: подтверждённый не перезаписывается (нужен преемник), черновик —
+ * файлы заменяются и строка в журнал, нового — черновик документа.
+ */
+function importOne(
+  root: string,
+  records: readonly WorkRecord[],
+  taken: string[],
+  input: { dir: string; screen: string; title: string; files: readonly MockupFile[]; source: string; actor: string; stamp: string }
+): { screen: ImportedScreen; files: string[] } {
+  const { dir, screen, stamp } = input;
+  const existing = records.find((record) => mockupOf(record)?.screen === screen && !OUT.includes(record.status));
+  if (existing && isSettled(existing.status)) {
+    return { screen: { screen, title: input.title, outcome: 'skipped', record: existing.id, message: `Макет экрана «${screen}» уже подтверждён (${existing.id}): заведите преемника с \`supersedes\`, подтверждённое не перезаписывается` }, files: [] };
+  }
+
   const slug = screenSlug(screen);
-  const folder = resolveInside(normalized, `${dir}/${slug}`);
+  const folder = resolveInside(root, `${dir}/${slug}`);
   // Новая версия заменяет прежнюю целиком: файлы старого экспорта не должны висеть рядом.
   if (existsSync(folder)) rmSync(folder, { recursive: true, force: true });
-  const written = writeFiles(normalized, `${dir}/${slug}`, unpacked.files);
-  const stamp = journalNow(normalized);
+  const written = writeFiles(root, `${dir}/${slug}`, input.files);
 
   if (existing) {
-    const context = openRecord(normalized, existing.id);
-    if (context) saveRecord(context, applyJournalNote(context.original, { action: `макет обновлён: ${input.name}`, actor: input.actor, today: stamp }), normalized);
-    return { record: loadIndex(normalized, true).records.find((record) => record.id === existing.id), files: written };
+    const context = openRecord(root, existing.id);
+    if (context) saveRecord(context, applyJournalNote(context.original, { action: `макет обновлён: ${input.source}`, actor: input.actor, today: stamp }), root);
+    return { screen: { screen, title: input.title, outcome: 'updated', record: existing.id }, files: written };
   }
 
-  const id = nextId('design', records.map((record) => record.id));
-  const title = input.title?.trim() || `Экран «${screen}»`;
+  const id = nextId('design', taken);
+  taken.push(id);
+  const title = input.title;
+  const normalized = root;
+  const workspace = readWorkspace(root);
   const relative = targetPath(DEVELOPMENT_DIR, workspace.manifest.paths ?? {}, 'design', id, title);
   const absolute = resolveInside(normalized, relative);
   const text = recordTemplate({
     id, type: 'design', title, today: stamp,
     body: `Макет экрана «${screen}» из Claude Design: \`${recordMockupPath(dir, slug)}\`. Смотреть — на вкладке «Экраны» дизайна; что в нём важно и чего не трогать — допишите здесь.`,
-    sources: [input.name]
+    sources: [input.source]
   }).replace(/^(updated: .*)$/m, `$1\nscreen: ${JSON.stringify(screen)}\nmockup: ${recordMockupPath(dir, slug)}`);
   mkdirSync(dirname(absolute), { recursive: true });
   writeFileSync(absolute, text, 'utf8');
   dropCache(normalized);
-  return { record: loadIndex(normalized, true).records.find((record) => record.id === id), files: written };
+  return { screen: { screen, title, outcome: 'created', record: id }, files: written };
 }
 
 function writeFiles(root: string, base: string, files: readonly MockupFile[]): string[] {

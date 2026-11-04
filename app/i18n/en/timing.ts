@@ -95,5 +95,10 @@ export const timing: Record<string, string> = {
   'mk.withShots': 'Implementation alongside',
   'mk.canvasHint': 'Drag to pan, Ctrl + wheel to zoom, wheel and Shift + wheel to scroll',
   'mk.without': 'Without an HTML mockup:',
-  'mk.board': 'screen board'
+  'mk.board': 'screen board',
+  'mk.boardHint': 'A Claude Design board (several screens in one file) is split into screens: each is named by its frame caption and takes the user-flow screen id when the titles match. Re-exporting updates drafts, skips approved ones and adds new screens.',
+  'mk.imported': 'Imported screens: {n}',
+  'mk.outcome.created': 'created',
+  'mk.outcome.updated': 'updated',
+  'mk.outcome.skipped': 'skipped: approved, needs a successor'
 };

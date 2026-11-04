@@ -1,4 +1,6 @@
 import { design as enDesign } from './en/design';
+import { labels as enLabels } from './en/labels';
+import { labels as ruLabels } from './ru/labels';
 import { shell as enShell } from './en/shell';
 import { design as ruDesign } from './ru/design';
 import { shell as ruShell } from './ru/shell';
@@ -12,8 +14,8 @@ import { screens as ruScreens } from './ru/screens';
  * исходнике: перевод идёт по группам, а не одним коммитом.
  */
 export const messages: Record<string, Record<string, string>> = {
-  ru: { ...ruTiming, ...ruShell, ...ruDesign, ...ruScreens, ...ruPages, ...ruRest, ...ruRecords, ...ruPages2, ...ruComponents, ...ruNav, ...ruOverview, ...ruSearch, ...ruSettings, ...ruNotifications, ...ruManager, ...ruVerify, ...ruStrategy, ...ruAgents, ...ruOnboarding, ...ruUiMaps, ...ruUiInbox, ...ruUiRest, ...ruUiUtils, ...ruUiMermaid, ...ruUiLast },
-  en: { ...enTiming, ...enShell, ...enDesign, ...enScreens, ...enPages, ...enRest, ...enRecords, ...enPages2, ...enComponents, ...enNav, ...enOverview, ...enSearch, ...enSettings, ...enNotifications, ...enManager, ...enVerify, ...enStrategy, ...enAgents, ...enOnboarding, ...enUiMaps, ...enUiInbox, ...enUiRest, ...enUiUtils, ...enUiMermaid, ...enUiLast }
+  ru: { ...ruLabels, ...ruTiming, ...ruShell, ...ruDesign, ...ruScreens, ...ruPages, ...ruRest, ...ruRecords, ...ruPages2, ...ruComponents, ...ruNav, ...ruOverview, ...ruSearch, ...ruSettings, ...ruNotifications, ...ruManager, ...ruVerify, ...ruStrategy, ...ruAgents, ...ruOnboarding, ...ruUiMaps, ...ruUiInbox, ...ruUiRest, ...ruUiUtils, ...ruUiMermaid, ...ruUiLast },
+  en: { ...enLabels, ...enTiming, ...enShell, ...enDesign, ...enScreens, ...enPages, ...enRest, ...enRecords, ...enPages2, ...enComponents, ...enNav, ...enOverview, ...enSearch, ...enSettings, ...enNotifications, ...enManager, ...enVerify, ...enStrategy, ...enAgents, ...enOnboarding, ...enUiMaps, ...enUiInbox, ...enUiRest, ...enUiUtils, ...enUiMermaid, ...enUiLast }
 };
 import { pages as enPages } from './en/pages';
 import { pages as ruPages } from './ru/pages';

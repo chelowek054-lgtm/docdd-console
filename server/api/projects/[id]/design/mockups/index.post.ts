@@ -7,7 +7,7 @@ import { fail } from '../../../../../utils/http';
 import { MockupError, importMockup } from '../../../../../utils/mockups-service';
 import { findProject } from '../../../../../utils/projects';
 
-/** Импорт HTML-макета экрана из Claude Design (R-0106, docs/03-server-api.md). */
+/** Импорт HTML-макета экрана или доски экранов из Claude Design (R-0106, docs/03-server-api.md). */
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id') ?? '';
   const project = await findProject(id);

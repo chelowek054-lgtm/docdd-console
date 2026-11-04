@@ -34,18 +34,24 @@ export function useProjectIndex(projectId: MaybeRefOrGetter<string>, light: Mayb
   const shared = useState<boolean>('index-light', () => false); const tasksMode = useState<boolean>('index-tasks', () => false); const lazyMode = useState<boolean>('index-lazy', () => false);
   const isLight = (): boolean => (light === null ? shared.value || tasksMode.value : toValue(light));
   const id = computed(() => toValue(projectId));
+  // Пустой id — это общий экран (портфель, использование) или момент перехода:
+  // запрос с ним даёт 404. Держим последний непустой id, чтобы уход с проекта не
+  // порождал запрос в пустоту, а приход сразу шёл по настоящему адресу.
+  const requestId = ref(id.value);
+  watch(id, (value) => { if (value) requestId.value = value; }, { immediate: true });
   // Нарушения не встраиваем в HTML: индекс идёт с issues=0, а они — отдельным
   // ленивым запросом на клиенте (пока грузятся — пусто, как у покрытия).
-  const state = useFetch<ProjectIndex | { error: ApiFailure }>(() => `/api/projects/${id.value}/index`, {
-    key: () => `index:${id.value}${isLight() ? (tasksMode.value ? ':tasks' : ':light') : ''}`, server: !lazyMode.value, lazy: lazyMode.value,
+  const state = useFetch<ProjectIndex | { error: ApiFailure }>(() => `/api/projects/${requestId.value}/index`, {
+    key: () => `index:${requestId.value}${isLight() ? (tasksMode.value ? ':tasks' : ':light') : ''}`, server: !lazyMode.value, lazy: lazyMode.value, immediate: Boolean(requestId.value),
     query: computed(() => (isLight() ? { issues: 0, light: tasksMode.value ? 2 : 1 } : { issues: 0 })), // light: без tags, дат, owner, phase и path для тяжёлых страниц
-    watch: [id, isLight, tasksMode]
+    watch: [requestId, isLight, tasksMode]
   });
-  const issuesState = useFetch<{ issues: IssueDto[] } | { error: ApiFailure }>(() => `/api/projects/${id.value}/issues`, {
-    key: () => `issues:${id.value}`,
+  const issuesState = useFetch<{ issues: IssueDto[] } | { error: ApiFailure }>(() => `/api/projects/${requestId.value}/issues`, {
+    key: () => `issues:${requestId.value}`,
     server: false,
     lazy: true,
-    watch: [id]
+    immediate: Boolean(requestId.value),
+    watch: [requestId]
   });
 
   const failure = computed(() => failureOf(state.data.value));
@@ -65,7 +71,8 @@ export function useProjectIndex(projectId: MaybeRefOrGetter<string>, light: Mayb
   const warnings = computed(() => (index.value?.issues ?? []).filter((issue) => issue.severity === 'warning'));
 
   async function refresh() {
-    await $fetch(`/api/projects/${id.value}/index?refresh=1`);
+    if (!requestId.value) return;
+    await $fetch(`/api/projects/${requestId.value}/index?refresh=1`);
     await Promise.all([state.refresh(), issuesState.refresh()]);
   }
 
@@ -127,8 +134,11 @@ type Backlinks = IndexRecord['backlinks'];
 /** Обратные связи по id записи: ленивый запрос на клиенте, пока грузятся — пусто (индекс в HTML их не несёт). */
 export function useBacklinks(projectId: MaybeRefOrGetter<string>) {
   const id = computed(() => toValue(projectId));
-  const state = useFetch<{ backlinks?: Record<string, Backlinks> } | { error: ApiFailure }>(() => `/api/projects/${id.value}/backlinks`, {
-    key: () => `backlinks:${id.value}`, server: false, lazy: true, watch: [id]
+  // Как у индекса: без id запроса нет, уход с проекта не ищет в пустоте.
+  const requestId = ref(id.value);
+  watch(id, (value) => { if (value) requestId.value = value; }, { immediate: true });
+  const state = useFetch<{ backlinks?: Record<string, Backlinks> } | { error: ApiFailure }>(() => `/api/projects/${requestId.value}/backlinks`, {
+    key: () => `backlinks:${requestId.value}`, server: false, lazy: true, immediate: Boolean(requestId.value), watch: [requestId]
   });
   const map = computed(() => (state.data.value as { backlinks?: Record<string, Backlinks> } | null)?.backlinks ?? {});
   return (record: IndexRecord): Backlinks => map.value[record.id] ?? record.backlinks ?? {};

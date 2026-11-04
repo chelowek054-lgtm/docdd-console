@@ -2,10 +2,10 @@
 id: T-0176
 type: task
 title: 'Статус deferred: контракт, схема, переходы, исключение из текущей картины'
-status: in_review
+status: done
 change: feature
 created: 2026-10-26
-updated: 2026-10-26
+updated: 2026-11-04
 links:
   implements: [R-0105]
   affects: [M-0089]
@@ -27,3 +27,4 @@ reuse: none
 - 2026-10-26 14:51 · готова к работе · architect
 - 2026-10-26 14:51 · в разработку · developer
 - 2026-10-26 14:51 · на проверку · developer
+- 2026-11-04 19:23 · закрыта · architect

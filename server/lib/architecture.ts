@@ -1,5 +1,6 @@
 import { globCovers, globMatch } from './glob';
 import type { ArchitectureConfig } from './types';
+import { reaches as reachable } from './graph';
 
 /**
  * Точная проверка архитектуры по карте кода (docs/07-maps.md, «Модули и
@@ -359,18 +360,7 @@ export function checkArchitecture(input: ArchInput): ArchResult {
     const key = `${edge.parent}|${edge.a}`;
     outgoing.set(key, (outgoing.get(key) ?? new Set()).add(edge.b));
   }
-  const reaches = (parent: string, start: string, goal: string): boolean => {
-    const seen = new Set<string>();
-    const stack = [start];
-    while (stack.length > 0) {
-      const at = stack.pop() as string;
-      if (at === goal) return true;
-      if (seen.has(at)) continue;
-      seen.add(at);
-      stack.push(...(outgoing.get(`${parent}|${at}`) ?? []));
-    }
-    return false;
-  };
+  const reaches = (parent: string, start: string, goal: string): boolean => reachable((at) => outgoing.get(`${parent}|${at}`), start, goal);
   for (const edge of edges) {
     if (!reaches(edge.parent, edge.b, edge.a)) continue;
     const { import: item } = edge.crossing;

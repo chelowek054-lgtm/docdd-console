@@ -14,42 +14,42 @@ export const IMPL_STATUSES = ['implemented', 'partial', 'not_implemented'] as co
 export type ImplStatus = (typeof IMPL_STATUSES)[number];
 
 /** Слова на экране. «Не оценено» — не состояние, а отсутствие ответа: у него нет значения в карте. */
-export const IMPL_LABEL: Record<ImplStatus | 'unrated', string> = {
+export const IMPL_LABEL: Record<ImplStatus | 'unrated', string> = localizedLabels('lbl.impl', {
   implemented: 'Реализовано',
   partial: 'Частично',
   not_implemented: 'Не реализовано',
   unrated: 'Не оценено'
-};
+});
 
 export const RELATION_TYPES = ['depends', 'uses', 'feeds', 'triggers', 'replaces'] as const;
 export type RelationType = (typeof RELATION_TYPES)[number];
 
-export const RELATION_LABEL: Record<RelationType, string> = {
+export const RELATION_LABEL: Record<RelationType, string> = localizedLabels('lbl.rel', {
   depends: 'зависит от',
   uses: 'пользуется',
   feeds: 'передаёт данные в',
   triggers: 'запускает',
   replaces: 'заменяет'
-};
+});
 
 export const PRIORITIES = ['must', 'should', 'could', 'wont'] as const;
 export type Priority = (typeof PRIORITIES)[number];
 
-export const PRIORITY_LABEL: Record<Priority, string> = {
+export const PRIORITY_LABEL: Record<Priority, string> = localizedLabels('lbl.priority', {
   must: 'Обязательно',
   should: 'Желательно',
   could: 'Можно',
   wont: 'Не берём'
-};
+});
 
 export const HORIZONS = ['now', 'next', 'later'] as const;
 export type Horizon = (typeof HORIZONS)[number];
 
-export const HORIZON_LABEL: Record<Horizon, string> = {
+export const HORIZON_LABEL: Record<Horizon, string> = localizedLabels('lbl.horizon', {
   now: 'Сейчас',
   next: 'Следом',
   later: 'Потом'
-};
+});
 
 export function isPriority(value: unknown): value is Priority {
   return typeof value === 'string' && (PRIORITIES as readonly string[]).includes(value);
@@ -405,18 +405,7 @@ export function dependsCycle(relations: readonly RelationLike[]): Set<string> {
     if (relation.type !== 'depends') continue;
     graph.set(relation.from, [...(graph.get(relation.from) ?? []), relation.to]);
   }
-  const reaches = (start: string, goal: string): boolean => {
-    const seen = new Set<string>();
-    const stack = [start];
-    while (stack.length > 0) {
-      const at = stack.pop() as string;
-      if (at === goal) return true;
-      if (seen.has(at)) continue;
-      seen.add(at);
-      stack.push(...(graph.get(at) ?? []));
-    }
-    return false;
-  };
+  const reaches = (start: string, goal: string): boolean => reachable((at) => graph.get(at), start, goal);
   const inCycle = new Set<string>();
   for (const [from, targets] of graph) {
     for (const to of targets) {
@@ -750,13 +739,13 @@ export function functionalGhosts(
 export const COVERAGE_LEVELS = ['failing', 'verified', 'unchecked', 'no_check', 'none'] as const;
 export type CoverageLevel = (typeof COVERAGE_LEVELS)[number];
 
-export const COVERAGE_LABEL: Record<CoverageLevel, string> = {
+export const COVERAGE_LABEL: Record<CoverageLevel, string> = localizedLabels('lbl.coverage', {
   failing: 'Проверка падает',
   verified: 'Подтверждено фактом',
   unchecked: 'Проверено не всё',
   no_check: 'Без проверки',
   none: 'Нет следа'
-};
+});
 
 export interface CapabilityCoverage {
   /** Карты, объявлявшие возможность (не отставленные). */
@@ -1084,6 +1073,8 @@ export function capabilityLines(capabilities: readonly CapabilityLike[]): string
 // Лежит в конце файла: карта M-0001 хранит номера строк-свидетельств, поэтому
 // код выше не сдвигаем. Импорт стоит здесь же по той же причине (ES-импорты поднимаются).
 import { ancestors, cyclesAt, foldEdges, visibleAt, type TreeNode } from './hierarchy';
+import { reaches as reachable } from './graph';
+import { localizedLabels } from './labels';
 
 /** Узел обзора: видимая на заданном уровне возможность или свёрнутая группа. */
 export interface OverviewNode {

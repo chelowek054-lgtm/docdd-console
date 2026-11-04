@@ -76,8 +76,8 @@ describe('токен агента', () => {
   const secret = 'тайна';
   it('токен агента читается как агентский и не годится как сессия человека', () => {
     const token = signAgentToken('qa-bot', 2_000, secret);
-    expect(readAgentToken(token, secret, 1_000)).toBe('qa-bot');
-    expect(readSession(token, secret, 1_000)).toBe('agent:qa-bot');
+    expect(readAgentToken(token, secret, 1_000)?.login).toBe('qa-bot');
+    expect(readSession(token, secret, 1_000)?.login).toBe('agent:qa-bot');
   });
   it('сессия человека не годится как токен агента; просроченный — null', () => {
     expect(readAgentToken(signSession('ann', 2_000, secret), secret, 1_000)).toBeNull();

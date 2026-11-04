@@ -108,3 +108,20 @@ function push(map: Map<string, Edge[]>, key: string, edge: Edge): void {
   if (list) list.push(edge);
   else map.set(key, [edge]);
 }
+
+/**
+ * Достижим ли `goal` из `start` по соседям `next`: общий обход для поиска циклов в картах —
+ * связи модулей, групп и возможностей устроены по-разному, а вопрос один.
+ */
+export function reaches(next: (node: string) => Iterable<string> | undefined, start: string, goal: string): boolean {
+  const seen = new Set<string>();
+  const stack = [start];
+  while (stack.length > 0) {
+    const at = stack.pop() as string;
+    if (at === goal) return true;
+    if (seen.has(at)) continue;
+    seen.add(at);
+    stack.push(...(next(at) ?? []));
+  }
+  return false;
+}

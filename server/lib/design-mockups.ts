@@ -1,4 +1,4 @@
-import { inflateRawSync } from 'node:zlib';
+import { gunzipSync, inflateRawSync } from 'node:zlib';
 
 /**
  * HTML-макеты экранов из Claude Design (R-0106, docs/16-design-system.md). Чистые
@@ -32,7 +32,7 @@ export function safeEntryPath(path: string): string | null {
  * Записи zip: центральный каталог, методы «без сжатия» и deflate. Своя короткая
  * читалка, а не зависимость: экспорт Claude Design — обычный zip, больше не нужно.
  */
-export function unzipEntries(buffer: Buffer): { path: string; data: Buffer }[] {
+export function unzipEntries(buffer: Buffer, limit = MOCKUP_LIMIT): { path: string; data: Buffer }[] {
   let end = -1;
   for (let at = buffer.length - 22; at >= Math.max(0, buffer.length - 65_557); at -= 1) {
     if (buffer.readUInt32LE(at) === 0x06054b50) { end = at; break; }
@@ -41,10 +41,14 @@ export function unzipEntries(buffer: Buffer): { path: string; data: Buffer }[] {
   const count = buffer.readUInt16LE(end + 10);
   let at = buffer.readUInt32LE(end + 16);
   const entries: { path: string; data: Buffer }[] = [];
+  // Предел проверяется до распаковки и во время неё: архив в килобайты не развернётся в гигабайты (ADR-0039).
+  let left = limit;
+  const tooBig = () => new Error(`Распакованный архив больше ${limit / 1024 / 1024} МБ.`);
   for (let index = 0; index < count; index += 1) {
     if (buffer.readUInt32LE(at) !== 0x02014b50) throw new Error('Оглавление zip повреждено.');
     const method = buffer.readUInt16LE(at + 10);
     const size = buffer.readUInt32LE(at + 20);
+    const declared = buffer.readUInt32LE(at + 24);
     const nameLength = buffer.readUInt16LE(at + 28);
     const extraLength = buffer.readUInt16LE(at + 30);
     const commentLength = buffer.readUInt16LE(at + 32);
@@ -55,7 +59,17 @@ export function unzipEntries(buffer: Buffer): { path: string; data: Buffer }[] {
     const start = local + 30 + buffer.readUInt16LE(local + 26) + buffer.readUInt16LE(local + 28);
     const raw = buffer.subarray(start, start + size);
     if (method !== 0 && method !== 8) throw new Error(`Файл архива ${path} сжат неизвестным способом (${method}).`);
-    entries.push({ path, data: method === 0 ? Buffer.from(raw) : inflateRawSync(raw) });
+    if (declared > left) throw tooBig();
+    let data: Buffer;
+    try {
+      data = method === 0 ? Buffer.from(raw) : inflateRawSync(raw, { maxOutputLength: Math.max(1, left) });
+    } catch (error) {
+      if ((error as { code?: string }).code === 'ERR_BUFFER_TOO_LARGE') throw tooBig();
+      throw error;
+    }
+    left -= data.length;
+    if (left < 0) throw tooBig();
+    entries.push({ path, data });
   }
   return entries;
 }
@@ -94,6 +108,97 @@ export function unpackMockup(name: string, buffer: Buffer): MockupUnpack {
     main.path = 'index.html';
   }
   return { files, problems: [] };
+}
+
+/* ---------- доска Claude Design ---------- */
+
+export interface BoardPage {
+  /** Подпись кадра на доске без номера: «Первый запуск: где ловите». */
+  title: string;
+  html: string;
+}
+
+export interface BoardAsset {
+  name: string;
+  data: Buffer;
+}
+
+export interface Board {
+  pages: BoardPage[];
+  /** Общие файлы страниц (шрифты, картинки): в `mockups/_assets/`. */
+  assets: BoardAsset[];
+}
+
+/** Каталог общих файлов доски рядом с каталогами экранов. */
+export const BOARD_ASSETS = '_assets';
+
+const ASSET_EXT: Readonly<Record<string, string>> = {
+  'text/css': 'css', 'text/javascript': 'js', 'application/javascript': 'js', 'image/png': 'png', 'image/jpeg': 'jpg', 'image/svg+xml': 'svg',
+  'image/webp': 'webp', 'image/gif': 'gif', 'font/woff2': 'woff2', 'font/woff': 'woff', 'font/ttf': 'ttf', 'font/otf': 'otf', 'application/json': 'json', 'text/html': 'html'
+};
+
+/** Содержимое `<script type="…">` — последнее: раньше та же строка встречается в коде самой страницы. */
+function bundleBlock(html: string, type: string): string | null {
+  const tag = `<script type="${type}">`;
+  const at = html.lastIndexOf(tag);
+  if (at < 0) return null;
+  const end = html.indexOf('</script>', at + tag.length);
+  return end < 0 ? null : html.slice(at + tag.length, end);
+}
+
+/**
+ * Экспорт доски Claude Design — самораспаковывающаяся страница: `page_order` —
+ * экраны по порядку, `manifest` — их содержимое и общие файлы (base64, gzip),
+ * `template` — сама доска с подписями кадров. Разбираем её на отдельные экраны:
+ * на холсте консоли каждый — свой кадр и свой документ. Не доска — `null`.
+ */
+export function parseBoard(html: string): Board | null {
+  const order = bundleBlock(html, '__bundler/page_order');
+  const manifestText = bundleBlock(html, '__bundler/manifest');
+  if (!order || !manifestText) return null;
+  let pages: string[];
+  let manifest: Record<string, { mime?: string; compressed?: boolean; data?: string }>;
+  let template = '';
+  try {
+    pages = JSON.parse(order) as string[];
+    manifest = JSON.parse(manifestText) as typeof manifest;
+    const raw = bundleBlock(html, '__bundler/template');
+    template = raw ? (JSON.parse(raw) as string) : '';
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(pages) || pages.length === 0) return null;
+
+  const decode = (entry: { compressed?: boolean; data?: string }) => {
+    const bytes = Buffer.from(entry.data ?? '', 'base64');
+    // Тот же предел, что у zip: сжатый кусок доски не разворачивается сверх него (ADR-0039).
+    return entry.compressed ? gunzipSync(bytes, { maxOutputLength: MOCKUP_LIMIT }) : bytes;
+  };
+  const pageSet = new Set(pages);
+  const assets: BoardAsset[] = [];
+  const assetPath = new Map<string, string>();
+  for (const [uuid, entry] of Object.entries(manifest)) {
+    if (pageSet.has(uuid)) continue;
+    const name = `${uuid}.${ASSET_EXT[entry.mime ?? ''] ?? 'bin'}`;
+    assets.push({ name, data: decode(entry) });
+    assetPath.set(uuid, `../${BOARD_ASSETS}/${name}`);
+  }
+
+  const titleOf = (uuid: string, index: number) => {
+    const tag = template.match(new RegExp(`<iframe[^>]*about:blank#${uuid}[^>]*>`))?.[0] ?? '';
+    const title = tag.match(/\stitle="([^"]*)"/)?.[1] ?? '';
+    // «3 · Когда ехать» → «Когда ехать»: номер — это место на доске, а не имя экрана.
+    return title.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/^\s*\d+\s*[·.)-]\s*/, '').trim() || `Экран ${index + 1}`;
+  };
+
+  return {
+    pages: pages.filter((uuid) => manifest[uuid]).map((uuid, index) => {
+      let text = decode(manifest[uuid] as { compressed?: boolean; data?: string }).toString('utf8');
+      for (const [asset, path] of assetPath) text = text.split(asset).join(path);
+      return { title: titleOf(uuid, index), html: text };
+    }),
+    assets
+  };
 }
 
 /* ---------- цвета ---------- */

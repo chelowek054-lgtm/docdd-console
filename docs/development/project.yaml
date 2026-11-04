@@ -15,13 +15,14 @@ paths:
   maps: maps
   reference: reference
 sources:
+  tests: [tests]
   shared:
     - path: builtin
       tags: [general, design]
   # Код, на который ссылаются документы и свидетельства карт.
   code: [server, cli, app]
   # Проектные документы этого репозитория лежат в docs/ и записями пока не стали.
-  docs: []
+  docs: [docs, practices]
   # Клиентская часть: по ней строится карта пользовательских путей.
   client: [app]
   # Черновики новых редакций A-0001..A-0009 в skill-стиле (supersedes).

@@ -77,25 +77,7 @@ const ENGINES: { value: string; label: string }[] = [
 ];
 
 async function createEngine(template: string) {
-  error.value = null;
-  busy.value = true;
-  try {
-    const response = await $fetch<{ definition: CustomMapDefinition } | { error: ApiFailure }>(
-      `/api/projects/${props.projectId}/maps/custom`,
-      { method: 'POST', body: { template } }
-    );
-    if ('error' in response) {
-      error.value = response.error.message;
-      return;
-    }
-    emit('created', response.definition);
-    open.value = false;
-  } catch (failure: unknown) {
-    const data = (failure as { data?: { error?: ApiFailure; message?: string } }).data;
-    error.value = data?.error?.message ?? data?.message ?? (failure as Error).message;
-  } finally {
-    busy.value = false;
-  }
+  await send({ template });
 }
 
 function addRelation() {
@@ -122,11 +104,17 @@ async function submit() {
       .filter((item) => item.id),
     features: form.features
   };
+  await send(definition);
+}
+
+/** Определение уходит одним путём — и своё, и шаблон с движком: ответ и отказы разбираются одинаково. */
+async function send(body: CustomMapDefinition | { template: string }) {
+  error.value = null;
   busy.value = true;
   try {
     const response = await $fetch<{ definition: CustomMapDefinition } | { error: ApiFailure }>(
       `/api/projects/${props.projectId}/maps/custom`,
-      { method: 'POST', body: definition }
+      { method: 'POST', body }
     );
     if ('error' in response) {
       error.value = response.error.message;

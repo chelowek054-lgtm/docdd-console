@@ -82,7 +82,7 @@ const denied = computed(() => allowed('approve'));
             size="sm"
             @click="run(action)"
           >
-            {{ action.label }}
+            {{ t(`lbl.action.${action.status}`) === `lbl.action.${action.status}` ? action.label : t(`lbl.action.${action.status}`) }}
           </UButton>
           <!-- Пустая серая кнопка без объяснения бесполезна: человек должен
                понимать, что именно чинить (docs/04-ui.md). -->

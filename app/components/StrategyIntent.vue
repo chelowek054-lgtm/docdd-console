@@ -44,10 +44,6 @@ const rank = (type: string) => (ORDER.includes(type) ? ORDER.indexOf(type) : ORD
 const sorted = computed(() => [...proposed.value].sort((a, b) => rank(a.type) - rank(b.type)));
 const kept = computed(() => proposed.value.filter((record) => !dropped.value.includes(record.key)));
 
-function failed(value: unknown): ApiFailure | null {
-  return value && typeof value === 'object' && 'error' in value ? (value as { error: ApiFailure }).error : null;
-}
-
 async function run() {
   trouble.value = null; proposed.value = []; dropped.value = []; problems.value = []; created.value = [];
   outside.value = null; outsideOk.value = false;
@@ -56,13 +52,13 @@ async function run() {
   const note = await $fetch<{ path: string } | { error: ApiFailure }>(`/api/projects/${props.projectId}/inbox/notes`, {
     method: 'POST', body: { title: intent.split(/\r?\n/, 1)[0]!.slice(0, 80), body: intent }, ignoreResponseError: true
   });
-  if (failed(note)) { trouble.value = failed(note); return; }
+  if (failureOf(note)) { trouble.value = failureOf(note); return; }
   const path = (note as { path: string }).path;
   rememberNote(path);
   const built = await $fetch<{ prompt: string } | { error: ApiFailure }>(`/api/projects/${props.projectId}/prompt`, {
     method: 'POST', body: { kind: 'inbox', notes: [path], mode: 'strategy', contour: contour.value === ANY ? undefined : contour.value }, ignoreResponseError: true
   });
-  if (failed(built)) { trouble.value = failed(built); return; }
+  if (failureOf(built)) { trouble.value = failureOf(built); return; }
   const answer = await stream<{ answer: string }>('/api/llm/ask', { prompt: (built as { prompt: string }).prompt, projectId: props.projectId });
   if (answer) await afterAnswer(answer);
 }
@@ -72,7 +68,7 @@ async function afterAnswer(answer: { answer: string }) {
   const parsed = await $fetch<{ records: ProposedRecord[]; problems: string[] } | { error: ApiFailure }>(`/api/projects/${props.projectId}/inbox/preview`, {
     method: 'POST', body: { answer: answer.answer }, ignoreResponseError: true
   });
-  if (failed(parsed)) { trouble.value = failed(parsed); return; }
+  if (failureOf(parsed)) { trouble.value = failureOf(parsed); return; }
   const result = parsed as { records: ProposedRecord[]; problems: string[] };
   proposed.value = result.records;
   problems.value = result.problems;
@@ -85,7 +81,7 @@ async function create() {
     const response = await $fetch<{ created: { id: string; title: string }[]; problems: string[] } | { error: ApiFailure }>(`/api/projects/${props.projectId}/inbox/records`, {
       method: 'POST', body: { records: kept.value, notes: path ? [path] : [] }, ignoreResponseError: true
     });
-    if (failed(response)) { trouble.value = failed(response); return; }
+    if (failureOf(response)) { trouble.value = failureOf(response); return; }
     const result = response as { created: { id: string; title: string }[]; problems: string[] };
     created.value = result.created; problems.value = result.problems; proposed.value = [];
     text.value = ''; rememberNote(null);

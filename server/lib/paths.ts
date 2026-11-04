@@ -1,5 +1,5 @@
 import { realpathSync } from 'node:fs';
-import { isAbsolute, join, normalize, relative, resolve, sep } from 'node:path';
+import { dirname, isAbsolute, join, normalize, relative, resolve, sep } from 'node:path';
 
 /**
  * Единственное место, где решается, можно ли трогать путь. Сервер работает
@@ -44,13 +44,23 @@ export function resolveInside(root: string, relativePath: string): string {
     throw new OutsideRootError(relativePath, root);
   }
 
-  // Символическая ссылка наружу не разворачивается: проверяем то, куда она ведёт.
-  try {
-    const real = realpathSync.native(target);
-    if (!isInside(normalizedRoot, real)) throw new OutsideRootError(relativePath, root);
-  } catch (error) {
-    if (error instanceof OutsideRootError) throw error;
-    // Файла ещё нет — это не нарушение границы, а отсутствие файла.
+  // Символическая ссылка наружу не разворачивается: проверяем то, куда она ведёт. Файла ещё
+  // нет — смотрим ближайшую существующую папку выше: ссылка наружу может быть у неё (ADR-0039).
+  let probe = target;
+  for (;;) {
+    let real: string | null = null;
+    try {
+      real = realpathSync.native(probe);
+    } catch {
+      real = null;
+    }
+    if (real !== null) {
+      if (!isInside(normalizedRoot, real)) throw new OutsideRootError(relativePath, root);
+      break;
+    }
+    const parent = dirname(probe);
+    if (parent === probe || !isInside(normalizedRoot, parent)) break;
+    probe = parent;
   }
 
   return target;

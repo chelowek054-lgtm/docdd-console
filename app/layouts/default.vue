@@ -312,7 +312,7 @@ function isActive(to: string): boolean {
               <span class="hidden truncate xl:inline">{{ roleLabel }}</span>
             </UButton>
           </UDropdownMenu>
-          <GlobalSearch v-if="projectId" :project-id="projectId" :links="searchLinks" /><NotificationsBell /><ModelJobsBar />
+          <GlobalSearch v-if="projectId" :project-id="projectId" :links="searchLinks" /><NotificationsBell v-if="projectId" /><ModelJobsBar />
           <span v-if="projectId" class="mx-1 h-5 w-px bg-(--ui-border)" aria-hidden="true" /><!-- поиск и события | общие экраны | вид и настройки -->
 
           <!-- Без проекта: общие экраны консоли. С проектом к ним ведёт логотип — список проектов. -->
