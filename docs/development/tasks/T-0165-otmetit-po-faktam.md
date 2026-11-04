@@ -2,7 +2,7 @@
 id: T-0165
 type: task
 title: 'Отметить по фактам: GET /map/behind и кнопка на «Стратегии»'
-status: in_review
+status: done
 change: feature
 reuse: none
 created: 2026-10-24
@@ -23,3 +23,4 @@ links:
 - 2026-10-24 · готова к работе · architect
 - 2026-10-24 · в разработку · developer
 - 2026-10-24 · на проверку: строка и окно проверены на этом репозитории (84 отставшие отметки), черновик не заводился · developer
+- 2026-10-24 · закрыта · architect

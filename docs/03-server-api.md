@@ -1071,7 +1071,9 @@ Claude Code не найден или отказал в доступе — `503`;
 `docs/development/design/mockups/<экран>/` (в архиве — `index.html` или единственный `.html` и его файлы; `..`,
 абсолютные пути — отказ `mockup_path_invalid`). Нет документа экрана — заводится черновик `design` с `screen` и
 `mockup`; есть черновик — файлы заменяются, в журнал строка «макет обновлён»; документ подтверждён — `409
-mockup_approved`: нужен преемник. Ответ `{ record, files }`.
+mockup_approved`: нужен преемник. Доска Claude Design (несколько экранов в одном файле) режется на экраны, `screen`
+не нужен: каждый экран проходит тот же путь, подтверждённые пропускаются без отказа. Ответ `{ record, files, screens }`,
+где `screens` — `[{ screen, title, outcome: "created" | "updated" | "skipped", record, message? }]`.
 
 ### `GET /api/projects/:id/design/mockups/:screen/:path`
 

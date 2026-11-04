@@ -128,6 +128,7 @@ const screenId = ref('');
 const file = ref<File | null>(null);
 const busy = ref(false);
 const failure = ref<ApiFailure | null>(null);
+const imported = ref<{ screen: string; title: string; outcome: string; record: string | null; message?: string }[]>([]);
 const mapScreens = computed(() => props.screens.screens.map((screen) => ({ label: `${screen.title} · ${screen.id}`, value: screen.id })));
 
 function pick(event: Event) {
@@ -135,7 +136,7 @@ function pick(event: Event) {
 }
 
 async function upload() {
-  if (!file.value || !screenId.value.trim()) return;
+  if (!file.value) return;
   busy.value = true;
   failure.value = null;
   try {
@@ -149,7 +150,9 @@ async function upload() {
     });
     const problem = failureOf(response);
     if (problem) { failure.value = problem; return; }
+    imported.value = (response as { screens?: typeof imported.value }).screens ?? [];
     adding.value = false;
+    touched = false;
     file.value = null;
     emit('changed');
   } finally {
@@ -174,9 +177,21 @@ async function upload() {
       <UFormField :label="t('mk.file')" :hint="t('mk.fileHint')">
         <input type="file" accept=".html,.htm,.zip" class="text-sm" @change="pick">
       </UFormField>
-      <UButton :loading="busy" :disabled="!file || !screenId.trim()" @click="upload">{{ t('mk.upload') }}</UButton>
+      <UButton :loading="busy" :disabled="!file" @click="upload">{{ t('mk.upload') }}</UButton>
+      <p class="w-full text-xs text-muted">{{ t('mk.boardHint') }}</p>
       <p v-if="failure" class="w-full text-sm text-error">{{ failure.message }}</p>
     </div>
+
+    <UAlert v-if="imported.length" color="neutral" variant="subtle" icon="i-lucide-layout-grid" :title="t('mk.imported', { n: imported.length })" close @update:open="imported = []">
+      <template #description>
+        <ul class="space-y-0.5 text-sm">
+          <li v-for="item in imported" :key="item.screen">
+            <span :class="item.outcome === 'skipped' ? 'text-warning' : ''">{{ t(`mk.outcome.${item.outcome}`) }}</span> — {{ item.title }}
+            <span class="font-mono text-xs text-muted">({{ item.screen }}<template v-if="item.record">, {{ item.record }}</template>)</span>
+          </li>
+        </ul>
+      </template>
+    </UAlert>
 
     <div v-if="framed.length" class="overflow-hidden rounded-lg border border-default">
       <!-- Панель холста: масштаб, ширина, тема, реализация рядом. -->

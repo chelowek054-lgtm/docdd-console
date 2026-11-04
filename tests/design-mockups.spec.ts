@@ -3,6 +3,8 @@ import { deflateRawSync } from 'node:zlib';
 
 import { describe, expect, it } from 'vitest';
 
+import { gzipSync } from 'node:zlib';
+import { parseBoard } from '../server/lib/design-mockups';
 import { MOCKUP_LIMIT, mockupColors, mockupOf, normalizeColor, offTokenColors, safeEntryPath, unpackMockup, withSizeProbe, withTheme } from '../server/lib/design-mockups';
 import { buildInventory, captureScript } from '../server/lib/design-screens';
 import { mockupRules } from '../server/lib/rules';
@@ -72,6 +74,20 @@ describe('тема при отдаче', () => {
     expect(html).toContain('class="app dark"');
     expect(html).toContain('color-scheme: dark');
     expect(withTheme('<p>x</p>', 'light', false)).toBe('<html data-theme="light" style="color-scheme: light"><p>x</p></html>');
+  });
+});
+
+describe('доска Claude Design режется на экраны', () => {
+  it('экраны по page_order, подпись без номера, общие файлы — в _assets', () => {
+    const entry = (text: string, mime: string) => ({ mime, compressed: true, data: gzipSync(Buffer.from(text)).toString('base64') });
+    const manifest = { 'aaaaaaaa-0000-0000-0000-000000000001': entry('<p>вход</p><img src="cccccccc-0000-0000-0000-000000000003">', 'text/html'), 'bbbbbbbb-0000-0000-0000-000000000002': entry('<p>карта</p>', 'text/html'), 'cccccccc-0000-0000-0000-000000000003': entry('PNG', 'image/png') };
+    const template = '<iframe src="about:blank#aaaaaaaa-0000-0000-0000-000000000001" title="1 · Вход"></iframe><iframe src="about:blank#bbbbbbbb-0000-0000-0000-000000000002" title="2 · Карта"></iframe>';
+    const html = ['<script type="__bundler/manifest">', JSON.stringify(manifest), '</script>', '<script type="__bundler/page_order">', JSON.stringify(['aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002']), '</script>', '<script type="__bundler/template">', JSON.stringify(template), '</script>'].join('');
+    const board = parseBoard(html)!;
+    expect(board.pages.map((page) => page.title)).toEqual(['Вход', 'Карта']);
+    expect(board.pages[0]!.html).toBe('<p>вход</p><img src="../_assets/cccccccc-0000-0000-0000-000000000003.png">');
+    expect(board.assets.map((asset) => [asset.name, asset.data.toString()])).toEqual([['cccccccc-0000-0000-0000-000000000003.png', 'PNG']]);
+    expect(parseBoard('<p>обычный экран</p>')).toBeNull();
   });
 });
 
