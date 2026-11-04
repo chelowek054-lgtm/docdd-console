@@ -3,7 +3,7 @@ import { dirname } from 'node:path';
 
 import { applyJournalNote } from '../lib/actions';
 import { dropCache } from '../lib/cache';
-import { BOARD_ASSETS, parseBoard, unpackMockup, mockupOf, type MockupFile } from '../lib/design-mockups';
+import { BOARD_ASSETS, MOCKUP_LIMIT, parseBoard, unpackMockup, mockupOf, type MockupFile } from '../lib/design-mockups';
 import { approvedMaps, foldMaps, parseMapRecord } from '../lib/maps';
 import { slugify } from '../lib/scaffold';
 import type { WorkRecord } from '../lib/types';
@@ -71,7 +71,14 @@ export function importMockup(root: string, input: { screen: string; name: string
 
   // Доска Claude Design: режем на экраны, каждый — свой кадр и свой документ.
   const main = unpacked.files.find((file) => file.path === 'index.html');
-  const board = main ? parseBoard(main.data.toString('utf8')) : null;
+  let board: ReturnType<typeof parseBoard> = null;
+  try {
+    board = main ? parseBoard(main.data.toString('utf8')) : null;
+  } catch (error) {
+    // Сжатый кусок доски сверх предела — тот же отказ, что у архива (ADR-0039).
+    if ((error as { code?: string }).code === 'ERR_BUFFER_TOO_LARGE') throw new MockupError('mockup_path_invalid', `Распакованная доска больше ${MOCKUP_LIMIT / 1024 / 1024} МБ.`);
+    throw error;
+  }
   if (board) {
     const written = writeFiles(normalized, `${dir}/${BOARD_ASSETS}`, board.assets.map((asset) => ({ path: asset.name, data: asset.data })));
     const byTitle = mapScreensByTitle(records);

@@ -32,7 +32,7 @@ export function safeEntryPath(path: string): string | null {
  * Записи zip: центральный каталог, методы «без сжатия» и deflate. Своя короткая
  * читалка, а не зависимость: экспорт Claude Design — обычный zip, больше не нужно.
  */
-export function unzipEntries(buffer: Buffer): { path: string; data: Buffer }[] {
+export function unzipEntries(buffer: Buffer, limit = MOCKUP_LIMIT): { path: string; data: Buffer }[] {
   let end = -1;
   for (let at = buffer.length - 22; at >= Math.max(0, buffer.length - 65_557); at -= 1) {
     if (buffer.readUInt32LE(at) === 0x06054b50) { end = at; break; }
@@ -41,10 +41,14 @@ export function unzipEntries(buffer: Buffer): { path: string; data: Buffer }[] {
   const count = buffer.readUInt16LE(end + 10);
   let at = buffer.readUInt32LE(end + 16);
   const entries: { path: string; data: Buffer }[] = [];
+  // Предел проверяется до распаковки и во время неё: архив в килобайты не развернётся в гигабайты (ADR-0039).
+  let left = limit;
+  const tooBig = () => new Error(`Распакованный архив больше ${limit / 1024 / 1024} МБ.`);
   for (let index = 0; index < count; index += 1) {
     if (buffer.readUInt32LE(at) !== 0x02014b50) throw new Error('Оглавление zip повреждено.');
     const method = buffer.readUInt16LE(at + 10);
     const size = buffer.readUInt32LE(at + 20);
+    const declared = buffer.readUInt32LE(at + 24);
     const nameLength = buffer.readUInt16LE(at + 28);
     const extraLength = buffer.readUInt16LE(at + 30);
     const commentLength = buffer.readUInt16LE(at + 32);
@@ -55,7 +59,17 @@ export function unzipEntries(buffer: Buffer): { path: string; data: Buffer }[] {
     const start = local + 30 + buffer.readUInt16LE(local + 26) + buffer.readUInt16LE(local + 28);
     const raw = buffer.subarray(start, start + size);
     if (method !== 0 && method !== 8) throw new Error(`Файл архива ${path} сжат неизвестным способом (${method}).`);
-    entries.push({ path, data: method === 0 ? Buffer.from(raw) : inflateRawSync(raw) });
+    if (declared > left) throw tooBig();
+    let data: Buffer;
+    try {
+      data = method === 0 ? Buffer.from(raw) : inflateRawSync(raw, { maxOutputLength: Math.max(1, left) });
+    } catch (error) {
+      if ((error as { code?: string }).code === 'ERR_BUFFER_TOO_LARGE') throw tooBig();
+      throw error;
+    }
+    left -= data.length;
+    if (left < 0) throw tooBig();
+    entries.push({ path, data });
   }
   return entries;
 }
@@ -157,7 +171,8 @@ export function parseBoard(html: string): Board | null {
 
   const decode = (entry: { compressed?: boolean; data?: string }) => {
     const bytes = Buffer.from(entry.data ?? '', 'base64');
-    return entry.compressed ? gunzipSync(bytes) : bytes;
+    // Тот же предел, что у zip: сжатый кусок доски не разворачивается сверх него (ADR-0039).
+    return entry.compressed ? gunzipSync(bytes, { maxOutputLength: MOCKUP_LIMIT }) : bytes;
   };
   const pageSet = new Set(pages);
   const assets: BoardAsset[] = [];
