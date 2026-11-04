@@ -6378,7 +6378,7 @@ updated: 2026-10-24
         "to": "server/lib/hierarchy.ts",
         "evidence": {
           "path": "server/lib/functional.ts",
-          "line": 1086,
+          "line": 1075,
           "fragment": "import { ancestors, cyclesAt, foldEdges, visibleAt, type Tre"
         }
       },
@@ -6405,7 +6405,7 @@ updated: 2026-10-24
         "to": "server/lib/hierarchy.ts",
         "evidence": {
           "path": "server/lib/groups.ts",
-          "line": 387,
+          "line": 377,
           "fragment": "import { ancestors, foldEdges, visibleAt, type Edge, type Fo"
         }
       },

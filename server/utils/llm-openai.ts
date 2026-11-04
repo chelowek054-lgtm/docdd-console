@@ -2,6 +2,7 @@ import type { Provider, ProviderRequest, ProviderResult } from '../lib/llm-provi
 
 import { emptyFailure, failureOf, sseData } from './llm-http';
 import { resolveKey, type ProviderSetting } from './llm-settings';
+import { deadline } from './llm-deadline';
 
 interface Usage { prompt_tokens?: number; completion_tokens?: number }
 
@@ -25,11 +26,7 @@ export function openAiProvider(setting: ProviderSetting): Provider {
     async ask(request: ProviderRequest): Promise<ProviderResult> {
       const started = Date.now();
       const key = resolveKey(setting);
-      const controller = new AbortController();
-      let timedOut = false;
-      const timer = request.timeoutMs ? setTimeout(() => { timedOut = true; controller.abort(); }, request.timeoutMs) : undefined;
-      const onAbort = () => controller.abort();
-      request.signal?.addEventListener('abort', onAbort, { once: true });
+      const limit = deadline(request.timeoutMs, request.signal);
       const streaming = Boolean(request.onEvent);
       let status: number | undefined;
       try {
@@ -44,7 +41,7 @@ export function openAiProvider(setting: ProviderSetting): Provider {
               { role: 'user', content: request.prompt }
             ]
           }),
-          signal: controller.signal
+          signal: limit.signal
         });
         status = response.status;
         if (!response.ok || !response.body) {
@@ -69,10 +66,9 @@ export function openAiProvider(setting: ProviderSetting): Provider {
         if (answer === '') return emptyFailure();
         return { ok: true, answer, ms: Date.now() - started, model: request.model ?? setting.model, ...tokens(usage) };
       } catch (error) {
-        return { ok: false, failure: failureOf(error, status, request.signal, timedOut) };
+        return { ok: false, failure: failureOf(error, status, request.signal, limit.timedOut()) };
       } finally {
-        clearTimeout(timer);
-        request.signal?.removeEventListener('abort', onAbort);
+        limit.dispose();
       }
     }
   };

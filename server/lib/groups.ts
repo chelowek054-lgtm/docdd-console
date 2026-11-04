@@ -1,5 +1,6 @@
 import { layerOf } from './layers';
 import type { Evidence, EvidenceVerdict } from './maps';
+import { reaches as reachable } from './graph';
 
 /**
  * Группы кодовой карты — уровень над модулями (docs/07-maps.md, «Группы:
@@ -217,18 +218,7 @@ export function groupModules(
   // Цикл на уровне групп: на уровне модулей он распылён и не виден.
   const outgoing = new Map<string, string[]>();
   for (const link of links) outgoing.set(link.from, [...(outgoing.get(link.from) ?? []), link.to]);
-  const reaches = (start: string, goal: string): boolean => {
-    const seen = new Set<string>();
-    const stack = [start];
-    while (stack.length > 0) {
-      const at = stack.pop() as string;
-      if (at === goal) return true;
-      if (seen.has(at)) continue;
-      seen.add(at);
-      stack.push(...(outgoing.get(at) ?? []));
-    }
-    return false;
-  };
+  const reaches = (start: string, goal: string): boolean => reachable((at) => outgoing.get(at), start, goal);
   for (const link of links) link.cycle = reaches(link.to, link.from);
 
   const sorted = [...groups.values()].sort((a, b) => a.title.localeCompare(b.title));

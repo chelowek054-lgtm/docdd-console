@@ -405,18 +405,7 @@ export function dependsCycle(relations: readonly RelationLike[]): Set<string> {
     if (relation.type !== 'depends') continue;
     graph.set(relation.from, [...(graph.get(relation.from) ?? []), relation.to]);
   }
-  const reaches = (start: string, goal: string): boolean => {
-    const seen = new Set<string>();
-    const stack = [start];
-    while (stack.length > 0) {
-      const at = stack.pop() as string;
-      if (at === goal) return true;
-      if (seen.has(at)) continue;
-      seen.add(at);
-      stack.push(...(graph.get(at) ?? []));
-    }
-    return false;
-  };
+  const reaches = (start: string, goal: string): boolean => reachable((at) => graph.get(at), start, goal);
   const inCycle = new Set<string>();
   for (const [from, targets] of graph) {
     for (const to of targets) {
@@ -1084,6 +1073,7 @@ export function capabilityLines(capabilities: readonly CapabilityLike[]): string
 // Лежит в конце файла: карта M-0001 хранит номера строк-свидетельств, поэтому
 // код выше не сдвигаем. Импорт стоит здесь же по той же причине (ES-импорты поднимаются).
 import { ancestors, cyclesAt, foldEdges, visibleAt, type TreeNode } from './hierarchy';
+import { reaches as reachable } from './graph';
 
 /** Узел обзора: видимая на заданном уровне возможность или свёрнутая группа. */
 export interface OverviewNode {
