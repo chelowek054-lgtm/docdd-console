@@ -1735,7 +1735,7 @@ updated: 2026-10-24
         "evidence": {
           "path": "server/api/auth/login.post.ts",
           "line": 3,
-          "fragment": "import { signSession, verifyPassword } from '../../lib/auth'"
+          "fragment": "import { sessionVersionOf, signSession, verifyPassword } fro"
         }
       },
       {
@@ -1816,7 +1816,7 @@ updated: 2026-10-24
         "evidence": {
           "path": "server/api/auth/users.post.ts",
           "line": 3,
-          "fragment": "import { hashPassword } from '../../lib/auth';"
+          "fragment": "import { hashPassword, mergeUserEntry } from '../../lib/auth"
         }
       },
       {
@@ -7135,7 +7135,7 @@ updated: 2026-10-24
         "evidence": {
           "path": "server/utils/auth.ts",
           "line": 7,
-          "fragment": "import { isAgentSessionName, readAgentToken, readSession, si"
+          "fragment": "import { isAgentSessionName, readAgentToken, readSession, se"
         }
       },
       {

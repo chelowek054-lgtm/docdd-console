@@ -1,6 +1,6 @@
 import { defineEventHandler, readBody } from 'h3';
 
-import { hashPassword } from '../../lib/auth';
+import { hashPassword, mergeUserEntry } from '../../lib/auth';
 import { loadUsers, saveUsers } from '../../utils/auth';
 import { fail } from '../../utils/http';
 
@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
     return fail(event, 400, 'user_invalid', 'Логин — латиница, цифры, . _ -; пароль — от 8 символов');
   }
   const users = await loadUsers();
-  const entry = {
+  const update = {
     login,
     name: typeof body?.name === 'string' && body.name.trim() ? body.name.trim() : login,
     passwordHash: agentType ? '' : hashPassword(password),
@@ -27,6 +27,8 @@ export default defineEventHandler(async (event) => {
     ...(agentType ? { agent: { type: agentType } } : {})
   };
   const at = users.findIndex((item) => item.login === login);
+  // Поверх прежней записи: незнакомые поля остаются, смена пароля или прав закрывает сессии (ADR-0040).
+  const entry = mergeUserEntry(at === -1 ? undefined : users[at], update, Date.now());
   if (at === -1) users.push(entry);
   else users[at] = entry;
   await saveUsers(users);

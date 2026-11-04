@@ -78,7 +78,7 @@ export async function prepareAgent(root: string, projectId: string, record: Inde
   const choice = await chooseAgent(root, record);
   if (!choice.ok) return choice;
   const { account, agent, roles } = choice;
-  const token = await agentToken(account.login);
+  const token = await agentToken(account);
   const base = `/api/projects/${encodeURIComponent(projectId)}/records`;
 
   if (record.status === 'ready') {

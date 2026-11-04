@@ -21,16 +21,16 @@ describe('R-0005: пароль', () => {
 describe('R-0005: сессия', () => {
   const now = 1_000_000;
   it('возвращает логин, в том числе не-ASCII и с точкой', () => {
-    expect(readSession(signSession('иван.п', now + 10, 's'), 's', now)).toBe('иван.п');
+    expect(readSession(signSession('иван.п', now + 10, 's'), 's', now)?.login).toBe('иван.п');
   });
   it('подделка, чужой секрет, срок и мусор дают null', () => {
     const token = signSession('ivan', now + 10, 's');
     expect(readSession(token, 'other', now)).toBeNull();
     expect(readSession(token, 's', now + 11)).toBeNull();
-    const [, exp, mac] = token.split('.');
-    const forged = `${Buffer.from('admin').toString('base64url')}.${exp}.${mac}`;
+    const [, version, exp, mac] = token.split('.');
+    const forged = `${Buffer.from('admin').toString('base64url')}.${version}.${exp}.${mac}`;
     expect(readSession(forged, 's', now)).toBeNull();
-    for (const bad of ['', 'a', 'a.b', 'a.b.c', '..']) expect(readSession(bad, 's', now)).toBeNull();
+    for (const bad of ['', 'a', 'a.b', 'a.b.c', 'a.b.c.d', '...', '....']) expect(readSession(bad, 's', now)).toBeNull();
   });
 });
 

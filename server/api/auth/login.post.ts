@@ -1,6 +1,6 @@
 import { defineEventHandler, getHeader, getRequestIP, readBody, setCookie, setHeader } from 'h3';
 
-import { signSession, verifyPassword } from '../../lib/auth';
+import { sessionVersionOf, signSession, verifyPassword } from '../../lib/auth';
 import { SESSION_COOKIE, SESSION_TTL_MS, loadUsers, sessionSecret } from '../../utils/auth';
 import { fail } from '../../utils/http';
 import { LoginThrottle } from '../../lib/login-throttle';
@@ -35,7 +35,7 @@ export default defineEventHandler(async (event) => {
   }
   throttle.succeed(address, login);
 
-  const token = signSession(user.login, now + SESSION_TTL_MS, await sessionSecret());
+  const token = signSession(user.login, now + SESSION_TTL_MS, await sessionSecret(), sessionVersionOf(user));
   // За HTTPS (nginx передаёт X-Forwarded-Proto) cookie не уходит по открытому каналу.
   const secure = getHeader(event, 'x-forwarded-proto')?.split(',')[0]?.trim() === 'https';
   setCookie(event, SESSION_COOKIE, token, {

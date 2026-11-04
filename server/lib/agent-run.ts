@@ -13,7 +13,7 @@ import type { AgentAccess, AgentDef } from './agents';
  * через те же права и ограничения, с подписью агента.
  */
 
-export interface AgentAccount { login: string; name: string; agent?: { type: string } | undefined }
+export interface AgentAccount { login: string; name: string; agent?: { type: string } | undefined; sessionVersion?: number | undefined }
 export interface TeamEntry { login: string; roles: readonly string[] }
 
 export type AgentChoice =
