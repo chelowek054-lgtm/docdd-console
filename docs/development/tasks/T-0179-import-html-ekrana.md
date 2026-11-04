@@ -2,11 +2,11 @@
 id: T-0179
 type: task
 title: 'Импорт HTML-экрана из Claude Design'
-status: in_review
+status: done
 change: feature
 reuse: none
 created: 2026-10-26
-updated: 2026-10-26
+updated: 2026-11-04
 links:
   implements: [R-0106]
   affects: [M-0090]
@@ -24,3 +24,4 @@ links:
 - 2026-10-26 19:50 · готова к работе · architect
 - 2026-10-26 19:50 · в разработку · developer
 - 2026-10-26 19:50 · на проверку · developer
+- 2026-11-04 19:23 · закрыта · architect

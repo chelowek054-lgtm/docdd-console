@@ -2,11 +2,11 @@
 id: T-0167
 type: task
 title: 'Журнал со временем: запись часов и минут, чтение старых строк'
-status: in_review
+status: done
 change: feature
 reuse: none
 created: 2026-10-25
-updated: 2026-10-25
+updated: 2026-11-04
 links:
   implements: [R-0102]
   verified_by: [V-0108]
@@ -23,3 +23,4 @@ links:
 - 2026-10-25 20:58 · готова к работе · architect
 - 2026-10-25 20:58 · в разработку · developer
 - 2026-10-25 20:59 · на проверку · developer
+- 2026-11-04 19:23 · закрыта · architect

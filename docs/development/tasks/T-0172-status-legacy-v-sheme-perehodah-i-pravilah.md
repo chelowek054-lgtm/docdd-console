@@ -2,10 +2,10 @@
 id: T-0172
 type: task
 title: Статус legacy в схеме, переходах и правилах
-status: in_review
+status: done
 change: feature
 created: 2026-10-25
-updated: 2026-10-25
+updated: 2026-11-04
 links:
   decided_by: [A-0001]
   implements: [R-0103]
@@ -24,3 +24,4 @@ reuse: none
 - 2026-10-25 20:58 · готова к работе · architect
 - 2026-10-25 20:58 · в разработку · developer
 - 2026-10-25 20:59 · на проверку · developer
+- 2026-11-04 19:23 · закрыта · architect

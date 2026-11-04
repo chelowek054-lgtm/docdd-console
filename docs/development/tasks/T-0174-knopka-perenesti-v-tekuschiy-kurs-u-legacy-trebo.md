@@ -2,10 +2,10 @@
 id: T-0174
 type: task
 title: Кнопка «Перенести в текущий курс» у legacy-требования
-status: in_review
+status: done
 change: feature
 created: 2026-10-25
-updated: 2026-10-25
+updated: 2026-11-04
 links:
   implements: [R-0103]
   decided_by: [A-0001]
@@ -25,3 +25,4 @@ reuse: none
 - 2026-10-25 20:58 · готова к работе · architect
 - 2026-10-25 20:58 · в разработку · developer
 - 2026-10-25 20:59 · на проверку · developer
+- 2026-11-04 19:23 · закрыта · architect
