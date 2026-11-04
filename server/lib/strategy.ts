@@ -1,4 +1,5 @@
 import { childrenIndex, effectiveOwner, leavesUnder, progressOf, type CapabilityLike, type Progress } from './functional';
+import { label } from './labels';
 
 /**
  * Стратегический уровень и здоровье узла (R-0084, R-0085; docs/07-maps.md,
@@ -88,7 +89,7 @@ export function nodeHealth(id: string, input: StrategyInput): NodeHealth {
   // Прогресс: обещано «сейчас» (горизонт now), а лист не реализован — внимание.
   for (const leaf of leavesUnder(id, index, byId)) {
     if (leaf.horizon === 'now' && leaf.status === 'not_implemented') {
-      reasons.push({ signal: 'progress', level: 'attention', text: `«${leaf.title ?? leaf.id}» обещано сейчас и не реализовано` });
+      reasons.push({ signal: 'progress', level: 'attention', text: label('lbl.reason.now', '«{title}» обещано сейчас и не реализовано', { title: leaf.title ?? leaf.id }) });
     }
   }
 
@@ -103,26 +104,26 @@ export function nodeHealth(id: string, input: StrategyInput): NodeHealth {
     const phase = task.phase ?? covered.get(task.id);
     if (phase && (input.overdue.get(phase) ?? 0) > 0) late.add(phase);
   }
-  for (const phase of late) reasons.push({ signal: 'deadlines', level: 'problem', text: `фаза ${phase} просрочена на ${input.overdue.get(phase)} дн.`, recordId: phase });
+  for (const phase of late) reasons.push({ signal: 'deadlines', level: 'problem', text: label('lbl.reason.late', 'фаза {id} просрочена на {days} дн.', { id: phase, days: input.overdue.get(phase) ?? 0 }), recordId: phase });
 
   // Качество: провал — проблема; блокировка, ручная без приёмки, требование без проверок — внимание.
   for (const check of checks) {
     const state = input.results[check.id]?.state;
-    if (state === 'failed') reasons.push({ signal: 'quality', level: 'problem', text: `проверка ${check.id} провалена`, recordId: check.id });
-    else if (state === 'blocked') reasons.push({ signal: 'quality', level: 'attention', text: `проверка ${check.id} заблокирована`, recordId: check.id });
-    else if (state !== 'passed' && MANUAL.has(String(check.extra?.['kind'] ?? ''))) reasons.push({ signal: 'quality', level: 'attention', text: `проверка ${check.id} ждёт ручной приёмки`, recordId: check.id });
+    if (state === 'failed') reasons.push({ signal: 'quality', level: 'problem', text: label('lbl.reason.failed', 'проверка {id} провалена', { id: check.id }), recordId: check.id });
+    else if (state === 'blocked') reasons.push({ signal: 'quality', level: 'attention', text: label('lbl.reason.blocked', 'проверка {id} заблокирована', { id: check.id }), recordId: check.id });
+    else if (state !== 'passed' && MANUAL.has(String(check.extra?.['kind'] ?? ''))) reasons.push({ signal: 'quality', level: 'attention', text: label('lbl.reason.manual', 'проверка {id} ждёт ручной приёмки', { id: check.id }), recordId: check.id });
   }
   for (const requirement of requirements) {
     const has = checks.some((check) => (check.links['verifies'] ?? []).includes(requirement.id)) || (requirement.links['verified_by'] ?? []).length > 0;
-    if (!has) reasons.push({ signal: 'quality', level: 'attention', text: `у требования ${requirement.id} нет проверок`, recordId: requirement.id });
+    if (!has) reasons.push({ signal: 'quality', level: 'attention', text: label('lbl.reason.nochecks', 'у требования {id} нет проверок', { id: requirement.id }), recordId: requirement.id });
   }
 
   // Нарушения: ошибки — проблема, предупреждения — внимание; по записям узла и картам, что его объявили.
   const own = new Set<string>([...tasks, ...requirements, ...checks].map((record) => record.id).concat([...maps]));
   const errors = input.issues.filter((issue) => issue.recordId && own.has(issue.recordId) && issue.severity === 'error');
   const warnings = input.issues.filter((issue) => issue.recordId && own.has(issue.recordId) && issue.severity === 'warning');
-  if (errors.length) reasons.push({ signal: 'violations', level: 'problem', text: `ошибок процесса: ${errors.length}`, recordId: errors[0]!.recordId! });
-  if (warnings.length) reasons.push({ signal: 'violations', level: 'attention', text: `предупреждений: ${warnings.length}`, recordId: warnings[0]!.recordId! });
+  if (errors.length) reasons.push({ signal: 'violations', level: 'problem', text: label('lbl.reason.errors', 'ошибок процесса: {n}', { n: errors.length }), recordId: errors[0]!.recordId! });
+  if (warnings.length) reasons.push({ signal: 'violations', level: 'attention', text: label('lbl.reason.warnings', 'предупреждений: {n}', { n: warnings.length }), recordId: warnings[0]!.recordId! });
 
   const level = reasons.reduce<HealthLevel>((acc, reason) => worst(acc, reason.level), 'ok');
   return { level, reasons };
