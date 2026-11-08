@@ -48,6 +48,9 @@ approval gate before work starts, and verification of the code against the maps 
   review the diff and merge.
 - **Role agents with limits.** Agents are accounts with roles: no approving, no accepting their own
   work, signed log entries, token budgets per task.
+- **The 15/80/5 cycle.** The model interviews you about the project and lays the answers out as a map,
+  spec, design, risks and first tasks; at the end you check a task by answering questions instead of
+  reading the whole diff ([docs/08-usage.md](docs/08-usage.md), in Russian).
 - **Work from an assistant over MCP.** Claude Code and other clients get project state and task
   context as short answers. There are no tools to approve, close or merge; without sign-in it's
   read-only ([docs/17-mcp.md](docs/17-mcp.md)).
