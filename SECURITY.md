@@ -25,5 +25,7 @@ The console runs locally and listens on `127.0.0.1` by default. Of particular in
 - reading or writing files outside the declared project root (path traversal, symlinks, `..`);
 - bypassing the approval gate or the limits on role agents (an agent approving documents,
   accepting its own work or merging);
+- getting past the MCP server's limits: writing without sign-in, status changes outside its allow-list,
+  an agent token appearing in a tool's answer ([docs/17-mcp.md](docs/17-mcp.md));
 - leaking model API keys stored in the console's settings;
 - authentication or authorisation flaws in the shared-server setup ([docs/14-deploy.md](docs/14-deploy.md)).

@@ -21,7 +21,7 @@ that restore behaviour the docs already describe. If a bug shows the doc itself 
 doc first.
 
 New features start on the strategic map (`docs/development/maps`, kind `functional`), then a
-requirement, a check, a task — then code. See [docs/08-usage.md](docs/08-usage.md),
+requirement, a check, a task with an "expected result" section — then code. See [docs/08-usage.md](docs/08-usage.md),
 "Правила реализации".
 
 ## Before you open a pull request
@@ -31,9 +31,10 @@ npm install
 npm run typecheck
 npm run test
 npm run lint
+npm run check -- .
 ```
 
-All three must pass. `tests/self-map.spec.ts` checks that the code still matches this repository's
+All four must pass. `tests/self-map.spec.ts` checks that the code still matches this repository's
 own code map: if you move code, update the evidence in `docs/development/maps` in the same pull
 request.
 
@@ -44,6 +45,8 @@ request.
   can be tested without a server.
 - Components never touch the file system — only the HTTP API described in
   [docs/03-server-api.md](docs/03-server-api.md).
+- New capabilities go in their own module, `server/lib/<module>/` with an `index.ts` entry; MCP tools
+  are files in `<module>/tools/` ([docs/17-mcp.md](docs/17-mcp.md)).
 - Comments explain **why**, not what the code does.
 - The server must never read or write outside the declared project root. Unknown fields in user
   files are preserved as they were.

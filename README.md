@@ -48,6 +48,11 @@ approval gate before work starts, and verification of the code against the maps 
   review the diff and merge.
 - **Role agents with limits.** Agents are accounts with roles: no approving, no accepting their own
   work, signed log entries, token budgets per task.
+- **Work from an assistant over MCP.** Claude Code and other clients get project state and task
+  context as short answers. There are no tools to approve, close or merge; without sign-in it's
+  read-only ([docs/17-mcp.md](docs/17-mcp.md)).
+- **Token spend by task.** See what a task cost and where it went; every task has an "expected
+  result" section it is accepted against.
 - **CLI check for CI.** `npm run check -- <project>` fails the build on process violations.
 
 | Strategic map | Codebase map |
@@ -98,6 +103,17 @@ npm run check -- /path/to/your/project --json
 Exit code `1` — errors, `2` — the project could not be read, `0` — clean. Warnings are printed but
 don't fail the build. The check writes nothing.
 
+## Connect over MCP
+
+The console must be running. From its root:
+
+```bash
+claude mcp add docdd --env DOCDD_PROJECT=<project id> -- npx tsx cli/mcp.ts
+```
+
+Without an agent token the tools only read. Writing, tokens and adding tools are covered in
+[docs/17-mcp.md](docs/17-mcp.md).
+
 ## The repository describes itself
 
 DocDD is developed with DocDD: `docs/development` holds this project's own requirements, tasks,
@@ -119,6 +135,7 @@ The design docs are currently written in Russian; English translations are welco
 | [docs/07-maps.md](docs/07-maps.md) | Strategic and working maps, evidence, verification |
 | [docs/08-usage.md](docs/08-usage.md) | How to use it and the implementation rules |
 | [docs/09-execution.md](docs/09-execution.md) | Working on a task: branch, diff, merge |
+| [docs/17-mcp.md](docs/17-mcp.md) | Working from an assistant over MCP, adding tools, token spend |
 | [docs/adr/](docs/adr/) | Architecture decisions with rejected alternatives |
 
 ## Contributing
