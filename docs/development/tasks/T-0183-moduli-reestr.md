@@ -2,7 +2,7 @@
 id: T-0183
 type: task
 title: 'Каркас модулей mcp и tokens, реестр инструментов'
-status: in_progress
+status: in_review
 change: feature
 reuse: none
 created: 2026-11-08
@@ -26,3 +26,4 @@ links:
 - 2026-11-08 · заведена черновиком · модель
 - 2026-11-08 22:06 · готова к работе · chelowek, подтверждено в чате, записала модель
 - 2026-11-08 22:06 · в разработку · developer
+- 2026-11-08 22:19 · на проверку · developer

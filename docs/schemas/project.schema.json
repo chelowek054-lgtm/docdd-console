@@ -258,6 +258,13 @@
         "themes": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" }, "description": "Темы снимков; по умолчанию все темы проекта: светлая, тёмная и добавленные." }
       }
     },
+    "gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "expected_result": { "type": "boolean", "default": false, "description": "Задача без раздела «Ожидаемый результат» не уходит в ready (R-0108)." }
+      }
+    },
     "policy": {
       "type": "object",
       "additionalProperties": false,

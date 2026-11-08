@@ -1,0 +1,14 @@
+{
+  "contract": "docdd.workspace/1",
+  "runner": "vitest",
+  "started_at": "2026-11-08T20:19:02Z",
+  "total": 27,
+  "failed": 0,
+  "verifications": {
+    "V-0115": "passed",
+    "V-0116": "passed",
+    "V-0117": "passed",
+    "V-0121": "passed"
+  },
+  "note": "tests/mcp.spec.ts, tests/task-expected.spec.ts, tests/tokens-report.spec.ts; V-0115 также живым прогоном: сборка консоли и cli/mcp.ts по stdio, 24 из 24 шагов, без входа и со входом."
+}

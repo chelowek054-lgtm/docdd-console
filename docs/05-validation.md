@@ -156,6 +156,7 @@ flowchart LR
 | `task_requirement_deferred` | error | Задача `ready` или `in_progress`, а требование из её `implements` отложено в бэклог (`deferred`, R-0105) |
 | `task_no_requirement` | error | Задача `ready` и дальше без единой `implements` |
 | `task_done_unverified` | error | Задача `done`, а её проверки не `passed` либо проверок нет вовсе; при включённой политике |
+| `task_expected_missing` | warning | Незакрытая задача без непустого раздела `## Ожидаемый результат`. С `gates.expected_result: true` ещё и держит переход в `ready` (R-0108) |
 | `task_no_verification` | warning | Задача `ready` и дальше без единой проверки: ни через `implements` → `verified_by`, ни своей `verified_by` ([adr/0029](adr/0029-manual-acceptance-any-check.md)) |
 | `code_sources_empty_after_feature` | warning | `feature`-задача дошла до `in_review`/`done`, а `sources.code` в манифесте пуст |
 | `transition_forbidden` | error | Запрошен переход, которого нет в схеме статусов |

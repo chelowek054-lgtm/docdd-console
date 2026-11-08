@@ -2,7 +2,7 @@
 id: T-0186
 type: task
 title: 'MCP: сервер и инструменты чтения'
-status: in_progress
+status: in_review
 change: feature
 reuse: none
 created: 2026-11-08
@@ -27,3 +27,4 @@ Claude Code подключается по MCP и получает контекс
 - 2026-11-08 · заведена черновиком · модель
 - 2026-11-08 22:06 · готова к работе · chelowek, подтверждено в чате, записала модель
 - 2026-11-08 22:06 · в разработку · developer
+- 2026-11-08 22:19 · на проверку · developer
