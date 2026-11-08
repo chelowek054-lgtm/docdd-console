@@ -2436,24 +2436,6 @@ updated: 2026-10-24
         }
       },
       {
-        "from": "app/components/StrategyIntent.vue",
-        "to": "server/lib/inbox.ts",
-        "evidence": {
-          "path": "app/components/StrategyIntent.vue",
-          "line": 3,
-          "fragment": "import type { ProposedRecord } from '~~/server/lib/inbox';"
-        }
-      },
-      {
-        "from": "app/components/StrategyIntent.vue",
-        "to": "server/lib/prompt.ts",
-        "evidence": {
-          "path": "app/components/StrategyIntent.vue",
-          "line": 4,
-          "fragment": "import { offVector } from '~~/server/lib/prompt';"
-        }
-      },
-      {
         "from": "app/components/TaskAssignee.vue",
         "to": "app/composables/useProjectIndex.ts",
         "evidence": {

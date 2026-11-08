@@ -24,6 +24,7 @@ import { buildArchitecture } from '../../../../utils/architecture-service';
 import { resolveProjectRules } from '../../../../utils/rules-service';
 import { connectedPractices } from '../../../../utils/shared-service';
 import { inboxNotes } from '../../../../utils/inbox-service';
+import { grillPlanBlock, isOpenSessionNote, isSessionName, parseSession, readableNote } from '../../../../lib/grill';
 import { mapSchemas } from '../../../../lib/map-schemas';
 import { phaseCandidates } from '../../../../lib/phase-plan';
 import { portionAt, queueOf, worthAsking } from '../../../../lib/inventory';
@@ -140,7 +141,13 @@ export default defineEventHandler(async (event) => {
         : [];
 
       const all = inboxNotes(project.root);
-      const notes = chosen.length ? all.filter((note) => chosen.includes(note.path)) : all;
+      // Незавершённый допрос в общий разбор не идёт, а служебный блок сессии модели не нужен (R-0115).
+      const notes = (chosen.length ? all.filter((note) => chosen.includes(note.path)) : all.filter((note) => !isOpenSessionNote(note.text)))
+        .map((note) => ({ ...note, text: readableNote(note.text) }));
+      const sessionDone = all.some((note) => chosen.includes(note.path) && isSessionName(note.path.split('/').pop() ?? '') && parseSession(note.text)?.status === 'done');
+      if (body?.mode === 'grill' && !sessionDone) {
+        return fail(event, 409, 'grill_not_finished', 'Раскладывать можно только завершённый допрос: сперва завершите его');
+      }
       if (notes.length === 0) {
         return fail(event, 422, 'inbox_empty', 'Во входящем нет заметок: разбирать нечего');
       }
@@ -163,6 +170,7 @@ export default defineEventHandler(async (event) => {
         const vision = buildProjectMap(project.root).functional.vision;
         prompt += String.fromCharCode(10, 10) + strategyIntentBlock(await template('strategy-intent.md'), contour, vision);
       }
+      if (body?.mode === 'grill') prompt += String.fromCharCode(10, 10) + grillPlanBlock(await template('grill-plan.md'));
       return { prompt, count: notes.length };
     }
 
