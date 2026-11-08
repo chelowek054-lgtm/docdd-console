@@ -133,7 +133,7 @@ export async function handover(
   // Модель работает в дереве задачи, а не в вашем каталоге. Повторный заход
   // продолжает прошлый разговор: разбор кодовой базы не идёт заново.
   const resume = sessionOf(normalized, record.id);
-  const answer = await askRouted('task', { projectId: normalized, user: options.actor ?? 'local', ...(options.agent?.model ? { model: options.agent.model } : {}) }, prompt, {
+  const answer = await askRouted('task', { projectId: normalized, user: options.actor ?? 'local', taskId: record.id, ...(options.agent?.model ? { model: options.agent.model } : {}) }, prompt, {
     cwd: worktreeRoot(normalized, record.id),
     // Работа над задачей — это правки, тесты и сборка, и всё это в своём
     // рабочем дереве. Результат человек читает диффом.

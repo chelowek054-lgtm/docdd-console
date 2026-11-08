@@ -11,6 +11,8 @@ export interface UsageRecord {
   /** Кто спросил: логин или 'local' без входа. */
   user: string;
   kind: string;
+  /** Задача, ради которой запрос (R-0109); нет — запрос вне задачи или старая строка. */
+  taskId?: string;
   providerId: string;
   model: string;
   /** Размер запроса и ответа в символах: токенов агентные CLI не сообщают. */

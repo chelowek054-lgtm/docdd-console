@@ -1292,8 +1292,13 @@ txt/log/json — `400 type_not_allowed`; больше 5 МБ — `400 too_large`
 `POST …/git-init { root, consent: true }` — `git init -b main`; без `consent: true` — `400 consent_required`, репозиторий уже есть — `{ repo: true, created: false }`.
 Ничего сверх `git init` (ни коммитов, ни удалённых адресов). Право — `admin`, как у `POST /api/projects/init`.
 
+### POST /api/projects/:id/records/:recordId/journal (R-0107)
+
+`{ text }` — заметка в журнал записи, одной строкой до 500 знаков; строка получает пометку `заметка:` и не считается переходом статуса. Текст документа и статус не меняются. Подтверждённую запись это тоже не трогает: журнал доступен всегда (ADR-0011). Право — `edit_draft`. Ошибки: `400 text_required`, `400 text_too_long`, `404 record_not_found`. Инструменты MCP: [17-mcp.md](17-mcp.md).
+
 ### Учёт токенов, маршруты по умолчанию и лимиты (R-0093)
 
+- **Учёт по задаче (R-0109).** Запрос работы над задачей пишет в строку учёта `taskId`; `GET /api/llm/usage` отдаёт `byTask`: задача, вид запроса, заходы, токены; экран моделей показывает это списком, `cli/token-report.ts` — отчётом и базовой линией.
 - **Учёт.** Строка `.data/llm-usage.jsonl` несёт `tokens` (`input`, `output`, `cacheRead`, `cacheWrite`) — так, как их отдал провайдер: Claude Code в ленте (`usage` сообщений и итог `result`), Anthropic и OpenAI-совместимые API в ответе. Цена по токенам точная; провайдер токенов не отдал — оценка по символам и `estimated: true`. `GET /api/llm/usage` в итогах отдаёт `tokens` и `estimated` (сколько запросов оценено), экран моделей ставит «≈» только при оценке.
 - **Цены.** `prices` в `llm.json`: `[вход, выход]` или `[вход, выход, чтение кэша]` USD за млн токенов; без третьей цены чтение кэша — десятая часть входа, запись в кэш — вход с надбавкой в четверть.
 - **Маршрут по умолчанию.** Вида запроса нет в `routes` — разбор и сверка (`inbox`, `inbox-plan`, `review`, `review-batch`, `analyst`, `batch-check`, `manager`, `ask`, `context`) без инструментов идут первому подключённому чат-провайдеру, всё остальное — Claude Code.
@@ -1311,6 +1316,7 @@ txt/log/json — `400 type_not_allowed`; больше 5 МБ — `400 too_large`
 
 ### Агенты ролей (R-0091, ADR-0033)
 
+- `GET /api/auth/me` у токена агента дополнительно отдаёт `user.agent: true`: так MCP-сервер понимает, что запись разрешена (A-0002).
 - `GET /api/projects/:id/agents` — `{ agents, problems, types, access }`: агенты из `docs/agents/*.md`, нечитаемые файлы с причиной, набор типов по умолчанию.
 - `POST /api/projects/:id/agents` — `{ id, type, title, model?, access, prompt }`: завести или изменить; `DELETE …/agents/:agentId` — удалить файл;
   `POST …/agents/defaults` — завести недостающих агентов набора по умолчанию. Право всех трёх — `team`.

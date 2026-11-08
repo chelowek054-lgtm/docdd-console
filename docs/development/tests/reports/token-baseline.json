@@ -1,0 +1,16 @@
+{
+  "kind": "token-baseline",
+  "at": "2026-11-08T20:18:39.368Z",
+  "rows": [
+    {
+      "taskId": null,
+      "kind": "ask",
+      "requests": 8,
+      "input": 23318,
+      "output": 41527,
+      "cacheRead": 894260,
+      "cacheWrite": 145655,
+      "estimated": 5
+    }
+  ]
+}

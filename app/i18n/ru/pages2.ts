@@ -121,6 +121,8 @@ export const pages2: Record<string, string> = {
   'mod.spend': 'Расход за {month} (оценка по символам; цены — поле prices в llm.json)',
   'mod.requests': 'Запросов',
   'mod.req': 'зап.',
+  'mod.byTask': 'Расход по задачам',
+  'mod.taskRow': '{task} · {kind}: заходов {n}, вход {input}, выход {output}, кэш чтение {read}, запись {write}',
   'mod.queue': 'Очередь запросов',
   'mod.cancel': 'Отменить',
   'shared.verifyLabel': 'Сверка кода с практиками',

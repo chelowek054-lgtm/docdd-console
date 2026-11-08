@@ -42,6 +42,8 @@ export interface RuleContext {
   records: readonly WorkRecord[];
   graph: Graph;
   policy: Policy;
+  /** Необязательные ворота из манифеста (R-0108). */
+  gates?: NonNullable<ProjectManifest['gates']>;
   /** Правила архитектуры из манифеста; нет секции — нет проверки (docs/07-maps.md). */
   architecture?: ArchitectureConfig;
   /** Откуда взялись правила: источники, перекрытия, конфликты (docs/12-practice-rules.md). */
@@ -266,6 +268,7 @@ export function checkAll(ctx: RuleContext): Violation[] {
     ...taskStale(ctx),
     ...verificationNeverRun(ctx),
     ...taskNoVerification(ctx),
+    ...taskExpectedMissing(ctx),
     ...capabilityNoOwner(ctx),
     ...mapLinksBroken(ctx), ...taskBatchGaps(ctx), ...blockInputsNotReady(ctx),
     ...mockupRules(ctx),
@@ -1161,7 +1164,8 @@ export function checkTransition(record: WorkRecord, to: string, ctx: RuleContext
       ...taskRequirementDeferred(scoped),
       ...taskNoRequirement(scoped),
       ...changeMissing(scoped),
-      ...taskMapsUnapproved(scoped)
+      ...taskMapsUnapproved(scoped),
+      ...(ctx.gates?.expected_result ? taskExpectedMissing(scoped) : [])
     ];
   }
   if (to === 'done') {
@@ -1275,6 +1279,33 @@ function taskVerificationIds(ctx: RuleContext, task: WorkRecord): Set<string> {
 const NO_VERIFICATION_TEXT = 'У задачи нет ни одной проверки: ни у её требований, ни своей. Закрытая задача без проверки — обещание, а не факт';
 
 /** Пустое множество проверок не значит «все пройдены» (ADR-0029). Предупреждение, не ошибка: прежние задачи не ломаются. */
+const EXPECTED_HEADING = /^##[ \t]+Ожидаемый результат[ \t]*\r?$/m;
+const EXPECTED_CLOSED = new Set(['done', 'dropped', 'legacy', 'deferred']);
+
+/** Есть ли в теле непустой раздел: заголовок без текста ничего не обещает (R-0108). */
+export function hasExpectedResult(body: string): boolean {
+  const found = EXPECTED_HEADING.exec(body);
+  if (!found) return false;
+  const rest = body.slice(found.index + found[0].length);
+  const next = /^##[ \t]/m.exec(rest);
+  return (next ? rest.slice(0, next.index) : rest).trim() !== '';
+}
+
+export function taskExpectedMissing(ctx: RuleContext): Violation[] {
+  const found: Violation[] = [];
+  for (const task of tasks(ctx)) {
+    // Запись с битым id уже ошибка: сперва её чинят, вторая жалоба на тот же файл только шумит.
+    if (!task.id.startsWith('T-') || EXPECTED_CLOSED.has(task.status) || hasExpectedResult(task.body)) continue;
+    found.push(violation(
+      'task_expected_missing',
+      task.id,
+      task.source.path,
+      'У задачи ' + task.id + ' нет раздела «## Ожидаемый результат» или он пуст: непонятно, по чему принимать работу.'
+    ));
+  }
+  return found;
+}
+
 export function taskNoVerification(ctx: RuleContext): Violation[] {
   const found: Violation[] = [];
   for (const task of tasks(ctx)) {

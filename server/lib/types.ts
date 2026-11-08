@@ -168,7 +168,8 @@ export type ViolationCode =
   | 'screen_mockup_missing'
   | 'phase_overdue'
   | 'estimate_exceeded'
-  | 'task_no_verification';
+  | 'task_no_verification'
+  | 'task_expected_missing';
 
 /** Префикс идентификатора по типу записи. Контракт, а не соглашение. */
 export const PREFIX_BY_TYPE: Readonly<Record<RecordType, string>> = {
@@ -276,7 +277,8 @@ export const VIOLATION_LEVELS: Readonly<Record<ViolationCode, Severity>> = {
   screen_mockup_missing: 'warning',
   phase_overdue: 'warning',
   estimate_exceeded: 'warning',
-  task_no_verification: 'warning'
+  task_no_verification: 'warning',
+  task_expected_missing: 'warning'
 };
 
 export interface Violation {
@@ -396,6 +398,8 @@ export interface ProjectManifest {
   roles?: { id: string; name: string }[];
   /** Команда проекта: логин и роли человека в этом проекте (docs/adr/0020-people-roles-permissions.md). */
   team?: { login: string; roles: string[]; deny?: string[] }[]; /** Метрики продукта из Prometheus для обзора (docs/04-ui.md, «Наблюдаемость»). */ observability?: { url?: string; dashboard?: string; queries?: { id: string; label: string; query: string; unit?: string; warn?: number }[] };
+  /** Необязательные ворота: `expected_result` держит переход в ready (R-0108). */
+  gates?: { expected_result?: boolean };
   policy?: Policy;
   architecture?: ArchitectureConfig;
   /** Стеки и снимки экранов (docs/16-design-system.md). */

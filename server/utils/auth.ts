@@ -56,7 +56,8 @@ export async function currentUser(event: H3Event): Promise<UserAccount | null> {
 }
 
 /** Токен на один запуск агента (ADR-0033): живёт шесть часов. Выдаёт его консоль, а не человек. */
-export const AGENT_TOKEN_TTL_MS = 6 * 60 * 60 * 1000;
+export { AGENT_TOKEN_TTL_MS } from '../lib/auth';
+import { AGENT_TOKEN_TTL_MS } from '../lib/auth';
 export async function agentToken(account: Pick<UserAccount, 'login' | 'sessionVersion'>): Promise<string> {
   return signAgentToken(account.login, Date.now() + AGENT_TOKEN_TTL_MS, await sessionSecret(), sessionVersionOf(account));
 }

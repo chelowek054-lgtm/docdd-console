@@ -98,6 +98,7 @@ export function analyze(input: AnalyzeInput): AnalyzeResult {
     records,
     graph,
     policy: input.manifest?.policy ?? {},
+    ...(input.manifest?.gates ? { gates: input.manifest.gates } : {}),
     ...(rules.config ? { architecture: rules.config } : {}),
     ...(input.manifest?.paths?.reference
       ? { reference: { path: `${DEVELOPMENT_DIR}/${input.manifest.paths.reference}/INDEX.md`, staleDays: input.manifest.policy?.reference_stale_days ?? 180 } }

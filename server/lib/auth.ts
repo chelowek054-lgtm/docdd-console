@@ -107,3 +107,6 @@ export function readAgentToken(token: string, secret: string, now: number): Sess
 
 /** Обычная сессия не может нести логин агента: агент через браузер не входит. */
 export const isAgentSessionName = (name: string): boolean => name.startsWith(AGENT_PREFIX);
+
+/** Токен агента живёт шесть часов: хватает на запуск, а утёкший быстро теряет силу. */
+export const AGENT_TOKEN_TTL_MS = 6 * 60 * 60 * 1000;

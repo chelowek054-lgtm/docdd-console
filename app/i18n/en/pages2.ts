@@ -121,6 +121,8 @@ export const pages2: Record<string, string> = {
   'mod.spend': 'Spend for {month} (estimated by characters; prices come from the prices field in llm.json)',
   'mod.requests': 'Requests',
   'mod.req': 'req.',
+  'mod.byTask': 'Spend by task',
+  'mod.taskRow': '{task} · {kind}: runs {n}, input {input}, output {output}, cache read {read}, write {write}',
   'mod.queue': 'Request queue',
   'mod.cancel': 'Cancel',
   'shared.verifyLabel': 'Code check against practices',

@@ -18,10 +18,11 @@ const providerIds = computed(() => ['claude-code', ...providers.value.map((p) =>
 function addRoute() { routes.value.push({ kind: 'ask', providerId: 'claude-code', model: '' }); }
 const routesBody = () => Object.fromEntries(routes.value.filter((r) => r.kind).map((r) => [r.kind, { providerId: r.providerId, ...(r.model ? { model: r.model } : {}) }]));
 // Расходы за месяц (оценка по символам) и очередь запросов выбранного проекта (T-0024, T-0026).
+interface TaskRow { taskId: string; kind: string; requests: number; input: number; output: number; cacheRead: number; cacheWrite: number; estimated: number }
 interface Total { requests: number; ms: number; chars: number; costUsd: number; tokens?: number; estimated?: number }
 /** «≈» — только когда в сумме есть оценка по символам (R-0093); по токенам провайдера — точно. */
 const money = (tot: Total) => `${tot.estimated ? '≈ ' : ''}$${tot.costUsd.toFixed(3)}${tot.tokens ? t('t83.m7.tok', { n: tot.tokens.toLocaleString(locale.value === 'ru' ? 'ru-RU' : 'en-US') }) : ''}`;
-const { data: usage } = await useFetch<{ month: string; total: Total; byUser: Record<string, Total>; byModel: Record<string, Total> }>('/api/llm/usage', { ignoreResponseError: true });
+const { data: usage } = await useFetch<{ month: string; total: Total; byUser: Record<string, Total>; byModel: Record<string, Total>; byTask?: TaskRow[] }>('/api/llm/usage', { ignoreResponseError: true });
 const { data: projectList } = await useFetch<{ projects?: Array<{ id: string; name?: string }> } | Array<{ id: string; name?: string }>>('/api/projects', { ignoreResponseError: true });
 const projectOptions = computed(() => { const v = projectList.value; return Array.isArray(v) ? v : (v?.projects ?? []); });
 const queueProject = ref('');
@@ -91,6 +92,12 @@ async function check(id: string) {
         <li v-for="(tot, who) in usage.byUser" :key="'u' + who">{{ who }}: {{ tot.requests }} {{ t('mod.req') }}, {{ money(tot) }}</li>
         <li v-for="(tot, model) in usage.byModel" :key="'m' + model">{{ model }}: {{ tot.requests }} {{ t('mod.req') }}, {{ money(tot) }}</li>
       </ul>
+      <template v-if="usage?.byTask?.length">
+        <h2 class="pt-3 font-medium">{{ t('mod.byTask') }}</h2>
+        <ul class="text-sm text-muted">
+          <li v-for="row in usage.byTask" :key="row.taskId + row.kind">{{ row.estimated ? '≈ ' : '' }}{{ t('mod.taskRow', { task: row.taskId, kind: row.kind, n: row.requests, input: row.input, output: row.output, read: row.cacheRead, write: row.cacheWrite }) }}</li>
+        </ul>
+      </template>
       <h2 class="pt-3 font-medium">{{ t('mod.queue') }}</h2>
       <USelect v-model="queueProject" :items="projectOptions.map((p) => ({ label: p.name ?? p.id, value: p.id }))" @update:model-value="loadQueue" />
       <ul class="text-sm">

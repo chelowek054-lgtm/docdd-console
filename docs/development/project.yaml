@@ -50,6 +50,11 @@ roles:
     name: Доменный специалист
   - id: viewer
     name: Наблюдатель
+gates:
+  expected_result: true
+# Новые модули: снаружи к ним обращаются только через index.ts (R-0113).
+architecture:
+  entries: { typescript: [index.ts] }
 policy:
   require_approved_docs_before_dev: true
   require_verification_before_done: true
