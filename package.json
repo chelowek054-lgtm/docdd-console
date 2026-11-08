@@ -11,7 +11,14 @@
     "type": "git",
     "url": "git+https://github.com/chelowek054-lgtm/docdd-console.git"
   },
-  "keywords": ["documentation-driven-development", "spec-driven-development", "ai-agents", "architecture", "requirements", "nuxt"],
+  "keywords": [
+    "documentation-driven-development",
+    "spec-driven-development",
+    "ai-agents",
+    "architecture",
+    "requirements",
+    "nuxt"
+  ],
   "scripts": {
     "dev": "nuxt dev",
     "build": "nuxt build",
@@ -22,11 +29,14 @@
     "add-user": "tsx cli/add-user.ts",
     "perf": "tsx cli/perf.ts",
     "embeddings": "tsx cli/embeddings.ts",
+    "mcp": "tsx cli/mcp.ts",
+    "token-report": "tsx cli/token-report.ts",
     "typecheck": "tsc --noEmit && nuxt typecheck",
     "test": "vitest run",
     "lint": "eslint ."
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@nuxt/ui": "^4.11.0",
     "@pinia/nuxt": "^1.0.2",
     "3d-force-graph": "^1.80.0",

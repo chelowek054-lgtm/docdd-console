@@ -77,6 +77,7 @@ const EXPECTED: Record<string, Action> = {
   'POST /api/projects/x/design/mockups': 'edit_draft',
   'POST /api/projects/x/records/x/revive': 'edit_draft',
   'POST /api/projects/x/records/x/due-from-tag': 'edit_draft',
+  'POST /api/projects/x/records/x/journal': 'edit_draft',
   'POST /api/projects/x/records': 'edit_draft',
   'POST /api/projects/x/records/x/body': 'edit_draft',
   'POST /api/projects/x/records/x/diff/viewed': 'edit_draft',

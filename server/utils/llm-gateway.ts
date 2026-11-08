@@ -15,7 +15,7 @@ import { recordUsage } from './llm-usage-store';
  * напрямую, и таблица маршрутов, очередь и учёт лежали отдельно от реального пути.
  */
 
-export interface RouteContext { projectId: string; user: string; /** Модель агента (R-0100): перекрывает модель маршрута. */ model?: string; /** Идентификатор задания: по нему клиент найдёт ответ после обновления страницы. */ onJob?: (id: string) => void }
+export interface RouteContext { projectId: string; user: string; /** Задача запроса: по ней считается расход (R-0109). */ taskId?: string; /** Модель агента (R-0100): перекрывает модель маршрута. */ model?: string; /** Идентификатор задания: по нему клиент найдёт ответ после обновления страницы. */ onJob?: (id: string) => void }
 
 /** Одна очередь на сервер: лимиты модели общие у всей команды. Предел — DOCDD_LLM_PARALLEL, по умолчанию 2. */
 export const llmQueue = new LlmQueue(Math.max(1, Number(process.env.DOCDD_LLM_PARALLEL) || 2), 200, (job) => saveJob(job), BOOT_ID);
@@ -87,7 +87,7 @@ export async function askRouted(kind: string, ctx: RouteContext, prompt: string,
   const cost = costOf(prices, modelName, tokens, prompt.length, answerChars);
   try {
     recordUsage({
-      at: started, projectId: ctx.projectId, user: ctx.user, kind, providerId, model: modelName,
+      at: started, projectId: ctx.projectId, user: ctx.user, kind, ...(ctx.taskId ? { taskId: ctx.taskId } : {}), providerId, model: modelName,
       promptChars: prompt.length, answerChars, ms: result.ok ? result.ms : Date.now() - Date.parse(started),
       ok: result.ok, costUsd: cost.costUsd, estimated: cost.estimated, ...(tokens ? { tokens } : {})
     });

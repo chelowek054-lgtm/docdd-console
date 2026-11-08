@@ -69,6 +69,15 @@ const expected = [
   'schema_invalid D-0009',
   'superseded_without_successor R-0003',
   'task_done_unverified T-0006',
+  'task_expected_missing T-0002',
+  'task_expected_missing T-0003',
+  'task_expected_missing T-0004',
+  'task_expected_missing T-0005',
+  'task_expected_missing T-0008',
+  'task_expected_missing T-0010',
+  'task_expected_missing T-0010',
+  'task_expected_missing T-0011',
+  'task_expected_missing T-0012',
   'task_maps_unapproved T-0011',
   'task_no_requirement T-0012',
   'task_no_verification T-0003',
@@ -95,7 +104,7 @@ describe('набор файлов-примеров', () => {
     // transition_forbidden отвечает на запрос действия, а не на состояние
     // набора записей, поэтому в этом списке его нет — он проверен в rules.spec.
     const covered = new Set(result.violations.map((item) => item.code));
-    expect(covered.size).toBe(27);
+    expect(covered.size).toBe(28);
     expect(covered.has('transition_forbidden')).toBe(false);
   });
 

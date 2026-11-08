@@ -31,7 +31,7 @@ export default defineEventHandler(async (event) => {
   for (const action of ALL_ACTIONS) verdicts[action] = can(user, team, action);
   return {
     required: true,
-    user: { login: user.login, name: user.name, admin: user.admin },
+    user: { login: user.login, name: user.name, admin: user.admin, ...(user.agent ? { agent: true } : {}) },
     can: typeof projectId === 'string' ? verdicts : null, roles: team?.find((member) => member.login === user.login)?.roles ?? []
   };
 });

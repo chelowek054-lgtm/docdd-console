@@ -172,6 +172,9 @@ const VERIFICATION_BODY = [
   'Что считается «прошла».'
 ].join('\n');
 
+/** Заголовок без текста: правило `task_expected_missing` напомнит заполнить (R-0108). */
+const TASK_BODY = 'Что делаем и чего не делаем.\n\n## Ожидаемый результат\n';
+
 export function recordTemplate(input: TemplateInput, eol = '\n'): string {
   const lines = [
     '---',
@@ -218,7 +221,7 @@ export function recordTemplate(input: TemplateInput, eol = '\n'): string {
   const body = capabilities.length > 0 || relations.length > 0 || input.vision
     ? bodyWithCapabilities(said, capabilities, input.vision, relations)
     : (said === ''
-      ? (input.type === 'reference' ? 'Что это, когда брать, ограничения, примеры использования.' : input.type === 'verification' ? VERIFICATION_BODY : 'Зачем это, что делаем, чего не делаем, как понять, что готово.')
+      ? (input.type === 'reference' ? 'Что это, когда брать, ограничения, примеры использования.' : input.type === 'verification' ? VERIFICATION_BODY : input.type === 'task' ? TASK_BODY : 'Зачем это, что делаем, чего не делаем, как понять, что готово.')
       : said);
 
   const sources = input.sources ?? [];
