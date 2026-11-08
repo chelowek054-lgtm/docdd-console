@@ -6,7 +6,7 @@ import type { Readiness, Step, StepResult } from '~~/server/lib/onboarding';
  * подключения со статусом, вычисленным по состоянию проекта. Кратко — карточка
  * на обзоре; полностью — вкладка «Подключение» с кнопкой «Запустить подключение».
  */
-const props = defineProps<{ projectId: string; compact?: boolean }>();
+const props = defineProps<{ projectId: string; compact?: boolean; grill?: boolean }>();
 const { t } = useT();
 
 interface Report { steps: Step[]; readiness: Readiness }
@@ -38,6 +38,7 @@ const resultOf = (id: string) => results.value.find((item) => item.step === id);
 </script>
 
 <template>
+  <GrillPanel v-if="grill && !compact" class="mb-5" :project-id="projectId" mode="existing" @created="refresh()" />
   <UCard v-if="data">
     <template #header>
       <div class="flex flex-wrap items-center gap-3">

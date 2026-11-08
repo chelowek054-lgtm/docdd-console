@@ -80,6 +80,7 @@ async function sendBrief() {
 </script>
 
 <template>
+  <GrillPanel class="mb-5" :project-id="projectId" mode="new" @created="emit('changed')" />
   <UCard>
     <template #header>
       <div class="flex flex-wrap items-center gap-2">

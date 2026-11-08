@@ -1,0 +1,14 @@
+{
+  "contract": "docdd.workspace/1",
+  "runner": "vitest",
+  "started_at": "2026-11-08T21:40:00Z",
+  "total": 43,
+  "failed": 0,
+  "verifications": {
+    "V-0123": "passed",
+    "V-0124": "passed",
+    "V-0125": "passed",
+    "V-0126": "passed"
+  },
+  "note": "tests/grill.spec.ts, tests/review-questions.spec.ts. Ответы модели подставные. Экраны пройдены на собранной консоли и временном проекте, тоже с подставной моделью. V-0127 с настоящей моделью проходит человек."
+}

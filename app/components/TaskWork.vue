@@ -51,6 +51,15 @@ async function act(action: 'handover' | 'rework' | 'agent' | 'accept' | 'reject'
   if (action !== 'rework') answer.value = '';
 
   const url = `/api/projects/${props.projectId}/records/${props.recordId}/work`;
+
+  // С проверки модель работу не получит: задача сперва возвращается в работу, как и руками (R-0117).
+  if (action === 'rework' && props.status === 'in_review') {
+    const back = await $fetch<unknown | { error: ApiFailure }>(`/api/projects/${props.projectId}/records/${props.recordId}/status`, {
+      method: 'POST', body: { status: 'in_progress', actor: actor.value }, ignoreResponseError: true
+    });
+    const refused = failureOf(back);
+    if (refused) { failure.value = refused; return; }
+  }
   const body = { action, actor: actor.value, comment: comment.value };
 
   // Модель зовут только `handover` и `rework` — остальное отвечает сразу, и
@@ -84,6 +93,11 @@ async function act(action: 'handover' | 'rework' | 'agent' | 'accept' | 'reject'
 }
 
 /** Что делает страница с ответом модели; то же самое — когда ответ пришёл без неё. */
+function reworkFromReview(text: string) {
+  comment.value = text;
+  void act('rework');
+}
+
 async function afterWork(result: { answer?: string; agent?: AgentReport }, action: string) {
   if (result.answer) answer.value = result.answer;
   agentReport.value = result.agent ?? null;
@@ -237,6 +251,15 @@ async function afterWork(result: { answer?: string; agent?: AgentReport }, actio
     <p v-else-if="state?.started" class="mt-3 text-sm text-muted">
       {{ t('tw.noChanges') }}
     </p>
+
+    <ReviewQuestions
+      v-if="props.status === 'in_review'"
+      :project-id="props.projectId"
+      :record-id="props.recordId"
+      :actor="actor"
+      @rework="reworkFromReview"
+      @saved="emit('changed')"
+    />
 
     <div v-if="answer" class="mt-4">
       <h3 class="mb-2 font-medium">{{ t('tw.modelSaid') }}</h3>

@@ -713,6 +713,55 @@ Decision и design из источников, названных в `sources.sha
 что и у модели. Имя файла приложение берёт из заголовка; занято — добавляет
 `-2`, `-3`. Пустой заголовок или текст — отказ, не пустой файл на складе.
 
+## Допрос проекта
+
+Сессия — заметка `grill-*.md` во входящем ([08-usage.md](08-usage.md), «Допрос проекта»,
+[A-0003](development/decisions/A-0003-cikl-15-80-5-i-dopros.md)). Вид запроса к модели — `grill`, общий путь
+с маршрутом, очередью и учётом. Право — `model`.
+
+### `GET /api/projects/:id/grill`
+
+`{ "view": … | null, "themes": [{ "id", "title", "asks" }] }`. `view` — последняя неразобранная сессия:
+`path`, `session`, `waiting` (без ответа), `open` (открытые), `pending` (незакрытые темы).
+
+### `POST /api/projects/:id/grill`
+
+```json
+{ "action": "answer", "path": "docs/inbox/grill-20261108-1000.md", "answers": [{ "id": "q1", "text": "Врачи" }] }
+```
+
+`action`: `start` (с `mode`: `new` или `existing`), `answer`, `finish`. Ответ — лента событий, итог —
+событие `done` с тем же `view`. Ответы пишутся в файл до запроса к модели. Модель зовётся, только
+если сессия открыта и неотвеченных вопросов нет; `existing` — с доступом на чтение, `new` — без
+инструментов. Непонятный ответ модели: `view.problem`, сессия не меняется. Отказы до потока:
+`mode_invalid`, `action_invalid`, `path_required`, `inbox_not_configured`, `outside_root`,
+`note_outside_inbox`, `note_not_found`, `session_invalid`.
+
+### `POST /api/projects/:id/grill/intent`
+
+`{ "note": "docs/inbox/istoriya.md" }` — до трёх уточняющих вопросов к намерению, лентой событий,
+модель без инструментов. Итог: `done` с `questions`. Сбой модели — не ошибка: `questions` пусты, причина
+в `problem`, разбор идёт дальше. Отмена — событие `error`.
+
+### `POST /api/projects/:id/grill/intent-answers`
+
+`{ "note": "…", "answers": [{ "text": "вопрос", "answer": "ответ" }] }` — дописывает к заметке раздел
+«Уточнения». Пустые ответы пропускаются.
+
+### `POST /api/projects/:id/records/:recordId/review-questions`
+
+Вопросы по задаче на проверке (R-0117), лентой событий, вид запроса `review-questions`, модель без
+инструментов, расход записывается на задачу. Право — `model`. Итог: `done` с `questions`:
+`[{ "text", "how", "expected" }]`, от 3 до 5; непонятный ответ — пустой список и `problem`. Отказы:
+409 `task_not_in_review`, 422 `task_confidential`.
+
+### `POST /api/projects/:id/records/:recordId/review-answers`
+
+`{ "answers": [{ "text", "how", "expected", "verdict": "yes", "comment": "…" }] }`, `verdict` — `yes`, `no`
+или `unchecked`. Пишет ветку в обсуждение и строку в журнал, статус не меняет. Ответ:
+`{ "summary", "rework" }`, `rework` — текст для доработки. Право — `approve`. Отказы: 409
+`task_not_in_review`, 400 `answers_required`; агент на своей задаче — 403 `agent_own_acceptance`.
+
 ## Запросы к модели
 
 Приложение вызывает модель через Claude Code на машине пользователя
@@ -728,6 +777,8 @@ Decision и design из источников, названных в `sources.sha
 Недоступность — состояние, а не ошибка: копирование запроса работает всегда.
 
 ### `POST /api/projects/:id/prompt`
+
+У `kind: inbox` режим `mode: grill` (только по заметке завершённого допроса, иначе 409 `grill_not_finished`) добавляет к разбору [prompts/grill-plan.md](prompts/grill-plan.md). Незавершённый допрос в разбор «всего входящего» не идёт, а служебный блок сессии модели не отдаётся.
 
 ```json
 { "kind": "fix", "codes": ["task_no_requirement"], "severity": "error" }

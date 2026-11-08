@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import type { ApiFailure } from '~/composables/useProjectIndex';
-import type { ProposedRecord } from '~~/server/lib/inbox';
-import { offVector } from '~~/server/lib/prompt';
 
 /**
  * Строка намерения на стратегической карте (docs/adr/0037-strategy-intent-input.md): фраза
  * становится заметкой во входящем, разбирается тем же `inbox-plan` в режиме «стратегия» и
  * приходит предложением — возможность, требования, проверки, задачи. Заводятся черновики.
+ * Перед разбором модель может задать до трёх уточняющих вопросов (R-0116).
  */
 const props = defineProps<{ projectId: string; contours: readonly { id: string; title: string }[] }>();
 const emit = defineEmits<{ created: [] }>();
@@ -16,14 +15,13 @@ const text = ref('');
 /** Значение «контур выберет модель»: у списка Nuxt UI пустого значения быть не может. */
 const ANY = '__any__';
 const contour = ref(ANY);
-const proposed = ref<ProposedRecord[]>([]);
-const dropped = ref<string[]>([]);
-const problems = ref<string[]>([]);
-const created = ref<{ id: string; title: string }[]>([]);
-const outside = ref<string | null>(null);
-const outsideOk = ref(false);
-const trouble = ref<ApiFailure | null>(null);
-const saving = ref(false);
+const { proposed, dropped, problems, created, outside, outsideOk, trouble, saving, kept, reset, preview, create: createRecords, toggle } = useProposal(() => props.projectId);
+
+interface Clarify { theme: string; text: string; answer: string }
+interface IntentReply { questions: { theme: string; text: string }[]; problem?: string }
+const clarify = ref<Clarify[]>([]);
+/** Сбой вопросов разбору не мешает, но промолчать о нём нельзя (R-0116). */
+const notice = ref('');
 
 /** Заметка, из которой идёт разбор: нужна при заведении, в том числе после перезагрузки. */
 const NOTE_KEY = computed(() => `docdd.strategyIntent:${props.projectId}`);
@@ -36,17 +34,18 @@ function rememberNote(path: string | null) {
 
 const { running, elapsed, outcome, log, stream, cancel } = useModelRequest(() => `${props.projectId}:strategy-intent`, {
   label: t('si.label'),
-  onRecovered: (answer) => void afterAnswer(answer as { answer: string })
+  onRecovered: (answer) => void preview((answer as { answer: string }).answer)
 });
 
-const ORDER = ['map', 'requirement', 'verification', 'task'];
-const rank = (type: string) => (ORDER.includes(type) ? ORDER.indexOf(type) : ORDER.length);
-const sorted = computed(() => [...proposed.value].sort((a, b) => rank(a.type) - rank(b.type)));
-const kept = computed(() => proposed.value.filter((record) => !dropped.value.includes(record.key)));
+const asking = useModelRequest(() => `${props.projectId}:strategy-intent-questions`, {
+  label: t('si.clarifyLabel'),
+  onRecovered: (reply) => void afterQuestions(reply as IntentReply)
+});
+const busy = computed(() => running.value || asking.running.value);
 
-async function run() {
-  trouble.value = null; proposed.value = []; dropped.value = []; problems.value = []; created.value = [];
-  outside.value = null; outsideOk.value = false;
+async function run(withQuestions: boolean) {
+  reset();
+  clarify.value = []; notice.value = '';
   const intent = text.value.trim();
   if (!intent) return;
   const note = await $fetch<{ path: string } | { error: ApiFailure }>(`/api/projects/${props.projectId}/inbox/notes`, {
@@ -55,44 +54,48 @@ async function run() {
   if (failureOf(note)) { trouble.value = failureOf(note); return; }
   const path = (note as { path: string }).path;
   rememberNote(path);
+  if (!withQuestions) { await layout(); return; }
+  const reply = await asking.stream<IntentReply>(`/api/projects/${props.projectId}/grill/intent`, { note: path });
+  if (reply) await afterQuestions(reply);
+}
+
+/** Вопросов нет или модель не ответила — сразу разбор: намерению это не помеха. */
+async function afterQuestions(reply: IntentReply) {
+  if (reply.problem) notice.value = t('si.clarifyFailed', { why: reply.problem });
+  if (reply.questions.length) {
+    clarify.value = reply.questions.map((question) => ({ ...question, answer: '' }));
+    return;
+  }
+  await layout();
+}
+
+async function submitAnswers() {
+  const path = notePath();
+  if (!path) { await layout(); return; }
+  const saved = await $fetch<{ ok: true } | { error: ApiFailure }>(`/api/projects/${props.projectId}/grill/intent-answers`, {
+    method: 'POST', body: { note: path, answers: clarify.value.map((item) => ({ text: item.text, answer: item.answer })) }, ignoreResponseError: true
+  });
+  if (failureOf(saved)) { trouble.value = failureOf(saved); return; }
+  await layout();
+}
+
+async function layout() {
+  clarify.value = [];
+  const path = notePath();
   const built = await $fetch<{ prompt: string } | { error: ApiFailure }>(`/api/projects/${props.projectId}/prompt`, {
-    method: 'POST', body: { kind: 'inbox', notes: [path], mode: 'strategy', contour: contour.value === ANY ? undefined : contour.value }, ignoreResponseError: true
+    method: 'POST', body: { kind: 'inbox', notes: path ? [path] : [], mode: 'strategy', contour: contour.value === ANY ? undefined : contour.value }, ignoreResponseError: true
   });
   if (failureOf(built)) { trouble.value = failureOf(built); return; }
   const answer = await stream<{ answer: string }>('/api/llm/ask', { prompt: (built as { prompt: string }).prompt, projectId: props.projectId });
-  if (answer) await afterAnswer(answer);
-}
-
-async function afterAnswer(answer: { answer: string }) {
-  outside.value = offVector(answer.answer);
-  const parsed = await $fetch<{ records: ProposedRecord[]; problems: string[] } | { error: ApiFailure }>(`/api/projects/${props.projectId}/inbox/preview`, {
-    method: 'POST', body: { answer: answer.answer }, ignoreResponseError: true
-  });
-  if (failureOf(parsed)) { trouble.value = failureOf(parsed); return; }
-  const result = parsed as { records: ProposedRecord[]; problems: string[] };
-  proposed.value = result.records;
-  problems.value = result.problems;
+  if (answer) await preview(answer.answer);
 }
 
 async function create() {
   const path = notePath();
-  saving.value = true; trouble.value = null;
-  try {
-    const response = await $fetch<{ created: { id: string; title: string }[]; problems: string[] } | { error: ApiFailure }>(`/api/projects/${props.projectId}/inbox/records`, {
-      method: 'POST', body: { records: kept.value, notes: path ? [path] : [] }, ignoreResponseError: true
-    });
-    if (failureOf(response)) { trouble.value = failureOf(response); return; }
-    const result = response as { created: { id: string; title: string }[]; problems: string[] };
-    created.value = result.created; problems.value = result.problems; proposed.value = [];
-    text.value = ''; rememberNote(null);
-    emit('created');
-  } finally {
-    saving.value = false;
-  }
-}
-
-function toggle(key: string) {
-  dropped.value = dropped.value.includes(key) ? dropped.value.filter((item) => item !== key) : [...dropped.value, key];
+  const done = await createRecords(kept.value, path ? [path] : []);
+  if (!done) return;
+  text.value = ''; rememberNote(null);
+  emit('created');
 }
 </script>
 
@@ -106,23 +109,31 @@ function toggle(key: string) {
         :items="[{ label: t('si.anyContour'), value: ANY }, ...contours.map((item) => ({ label: item.title, value: item.id }))]"
         :aria-label="t('si.contour')"
       />
-      <UButton icon="i-lucide-sparkles" :loading="running" :disabled="!text.trim() || running" :label="t('si.run')" @click="run" />
+      <UButton icon="i-lucide-sparkles" :loading="busy" :disabled="!text.trim() || busy" :label="t('si.run')" @click="run(true)" />
+      <UButton variant="ghost" color="neutral" :disabled="!text.trim() || busy" :label="t('si.noQuestions')" @click="run(false)" />
     </div>
     <p class="text-xs text-muted">{{ t('si.hint') }}</p>
 
+    <ModelProgress :running="asking.running.value" :elapsed="asking.elapsed.value" :outcome="asking.outcome.value" @cancel="asking.cancel" />
     <ModelProgress :running="running" :elapsed="elapsed" :outcome="outcome" @cancel="cancel" />
     <ModelLog :lines="log" :running="running" />
     <UAlert v-if="trouble" color="error" variant="subtle" :title="trouble.message" />
+    <UAlert v-if="notice" color="warning" variant="subtle" :title="notice" />
+
+    <div v-if="clarify.length" class="space-y-3">
+      <p class="text-sm font-medium">{{ t('si.clarifyHead') }}</p>
+      <UFormField v-for="item in clarify" :key="item.text" :label="item.text">
+        <UTextarea v-model="item.answer" :rows="2" autoresize class="w-full" />
+      </UFormField>
+      <div class="flex flex-wrap gap-2">
+        <UButton :disabled="busy" :label="t('si.clarifySend')" @click="submitAnswers" />
+        <UButton variant="ghost" color="neutral" :disabled="busy" :label="t('si.noQuestions')" @click="layout" />
+      </div>
+    </div>
 
     <template v-if="proposed.length">
       <UAlert v-if="outside" color="warning" variant="subtle" :title="t('si.outside')" :description="outside" />
-      <ul class="space-y-1 text-sm">
-        <li v-for="record in sorted" :key="record.key" class="flex items-start gap-2" :class="record.type === 'map' ? '' : record.type === 'task' ? 'pl-8' : 'pl-4'">
-          <UCheckbox :model-value="!dropped.includes(record.key)" @update:model-value="toggle(record.key)" />
-          <UBadge size="sm" variant="subtle" color="neutral">{{ t(`si.type.${record.type}`) }}</UBadge>
-          <span>{{ record.title }}</span>
-        </li>
-      </ul>
+      <ProposalList :records="proposed" :dropped="dropped" @toggle="toggle" />
       <div class="flex flex-wrap items-center gap-3">
         <UCheckbox v-if="outside" v-model="outsideOk" :label="t('si.outsideOk')" />
         <UButton :loading="saving" :disabled="!kept.length || (!!outside && !outsideOk)" :label="t('si.create', { n: kept.length })" @click="create" />

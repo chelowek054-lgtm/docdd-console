@@ -4794,7 +4794,7 @@ updated: 2026-10-24
         "to": "server/lib/phase-plan.ts",
         "evidence": {
           "path": "server/api/projects/[id]/prompt/index.post.ts",
-          "line": 28,
+          "line": 29,
           "fragment": "import { phaseCandidates } from '../../../../lib/phase-plan'"
         }
       },
@@ -4803,7 +4803,7 @@ updated: 2026-10-24
         "to": "server/lib/design.ts",
         "evidence": {
           "path": "server/api/projects/[id]/prompt/index.post.ts",
-          "line": 38,
+          "line": 39,
           "fragment": "import { plainTokens } from '../../../../lib/design';"
         }
       },
@@ -4812,7 +4812,7 @@ updated: 2026-10-24
         "to": "server/utils/design-service.ts",
         "evidence": {
           "path": "server/api/projects/[id]/prompt/index.post.ts",
-          "line": 40,
+          "line": 41,
           "fragment": "import { projectDesign } from '../../../../utils/design-serv"
         }
       },
@@ -4821,7 +4821,7 @@ updated: 2026-10-24
         "to": "server/utils/design-screens-service.ts",
         "evidence": {
           "path": "server/api/projects/[id]/prompt/index.post.ts",
-          "line": 41,
+          "line": 42,
           "fragment": "import { projectScreens } from '../../../../utils/design-scr"
         }
       },
@@ -4830,7 +4830,7 @@ updated: 2026-10-24
         "to": "server/lib/reviewer.ts",
         "evidence": {
           "path": "server/api/projects/[id]/prompt/index.post.ts",
-          "line": 42,
+          "line": 43,
           "fragment": "import { reviewerOf, roleName } from '../../../../lib/review"
         }
       },

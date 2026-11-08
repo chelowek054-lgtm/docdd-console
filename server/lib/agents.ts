@@ -134,6 +134,11 @@ export function agentVerdict(login: string, method: string, path: string, body: 
     }
   }
 
+  const answered = /\/records\/([^/]+)\/review-answers\/?$/.exec(path)?.[1];
+  if (answered && assigneeOf(byId.get(decodeURIComponent(answered))) === login) {
+    return { allowed: false, code: 'agent_own_acceptance', reason: 'Свою работу агент не принимает: на вопросы по своей задаче отвечает другой' };
+  }
+
   const checked = /\/records\/([^/]+)\/verified\/?$/.exec(path)?.[1];
   if (checked && tasksOfCheck(decodeURIComponent(checked), records).some((task) => assigneeOf(task) === login)) {
     return { allowed: false, code: 'agent_own_acceptance', reason: 'Свою работу агент не принимает: «Проверено» по своей задаче ставит другой' };
