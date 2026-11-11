@@ -1,5 +1,6 @@
 import { findDependencyCycles, incomingEdges, outgoing, type Graph } from './graph';
 import { checkArchitecture } from './architecture';
+import { domainFindings } from './domain-map';
 import { buildReferenceIndex, sameIndex, type ReferenceEntry } from './reference';
 import type { RulesResolution } from './practice-rules';
 import { capabilityFindings } from './coverage';
@@ -249,6 +250,7 @@ export function checkAll(ctx: RuleContext): Violation[] {
     ...mapCapabilityMissing(ctx),
     ...capabilityConsistency(ctx),
     ...architectureRules(ctx),
+    ...domainRules(ctx),
     ...rulesConflict(ctx),
     ...designRules(ctx),
     ...designDrift(ctx), ...designCatalogRules(ctx),
@@ -605,6 +607,28 @@ export function architectureRules(ctx: RuleContext): Violation[] {
     (finding.declaredBy && pathOf.get(finding.declaredBy)) || '',
     finding.rule ? `${finding.message} Правило: ${finding.rule.source}${finding.rule.key ? ` (${finding.rule.key})` : ''}.` : finding.message
   ));
+}
+
+/**
+ * Доменная карта и решения архитектора (R-0119, R-0120). Карта обязательна у
+ * проекта с кодом; находка висит на карте, объявившей элемент, а пробел карты
+ * целиком — на манифесте проекта: путь нужен каждому нарушению.
+ */
+export function domainRules(ctx: RuleContext): Violation[] {
+  const folded = foldMaps(approvedMaps(ctx.records).map((record) => ({ id: record.id, change: parseMapRecord(record.body).change })));
+  const pathOf = new Map(ctx.records.map((record) => [record.id, record.source.path]));
+  const findings = domainFindings({
+    domain: folded.domain,
+    hasCode: ctx.code.roots.length > 0 || folded.codemap.modules.length > 0,
+    capabilities: folded.functional.capabilities,
+    modules: folded.codemap.modules,
+    common: [...(ctx.architecture?.shared ?? []), ...(ctx.architecture?.kernel ?? [])],
+    decisions: ctx.records
+      .filter((record) => record.type === 'decision' && !RETIRED_STATUSES.has(record.status))
+      .map((record) => ({ id: record.id, area: record.data['area'] }))
+  });
+  const manifest = `${DEVELOPMENT_DIR}/project.yaml`;
+  return findings.map((finding) => violation(finding.code, finding.record, (finding.record && pathOf.get(finding.record)) || manifest, finding.message));
 }
 
 /** Справки проекта в виде, пригодном для индекса: подтверждённые, с названным видом и датой. */

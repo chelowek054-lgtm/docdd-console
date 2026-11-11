@@ -293,6 +293,8 @@ export interface TaskContext {
   /** Что человек сказал по прошлому заходу. Пусто — заход первый. */
   rework: string;
   round: number; pack?: string /* дополнение из пакета контекста */;
+  /** Доменная карта текстом (R-0121): контекст, слой, словарь, инварианты. */
+  domain?: string;
 }
 
 /**
@@ -314,6 +316,10 @@ export function taskPrompt(template: string, task: TaskContext): string {
   }
   if (task.map.trim()) {
     lines.push('## Что меняется в устройстве', '', task.map.trim(), '');
+  }
+
+  if (task.domain?.trim()) {
+    lines.push('## Доменная карта', '', 'Код кладётся в контекст и слой по ней, имена — из словаря, инварианты охраняет корень агрегата:', '', task.domain.trim(), '');
   }
 
   if (task.modules.length > 0) {
@@ -529,6 +535,7 @@ export const PRACTICES_MARKER = '<!-- ПРАКТИКИ -->';
 
 /** Сколько модулей и находок называть поимённо: дальше запрос сам становится стеной. */
 const AUDIT_MODULE_LIMIT = 300;
+export const DOMAIN_MARKER = '<!-- ДОМЕН -->';
 const AUDIT_FOUND_LIMIT = 40;
 
 /**
@@ -546,6 +553,8 @@ export function architecturePrompt(
     practices?: readonly { label: string; id: string; title: string; body: string }[];
     /** Индекс справочника: что уже написано — чтобы `duplicate` проверялся по названному. */
     referenceIndex?: string | null;
+    /** Доменная карта текстом (R-0121): по ней судят о контекстах, слоях и словаре. */
+    domain?: string;
   }
 ): string {
   const { rules } = input;
@@ -585,6 +594,7 @@ export function architecturePrompt(
     .replace(RULES_MARKER, () => rulesText)
     .replace(MODULES_MARKER, () => modulesText)
     .replace(FOUND_MARKER, () => foundText)
+    .replace(DOMAIN_MARKER, () => input.domain?.trim() || 'Доменной карты нет: о контекстах и словаре суди по названиям и коду.')
     .replace(REFERENCE_MARKER, () => referenceIndexBlock(input.referenceIndex))
     .replace(PRACTICES_MARKER, () => {
       const practices = input.practices ?? [];

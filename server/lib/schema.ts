@@ -13,7 +13,7 @@ import projectSchema from '../../docs/schemas/project.schema.json';
 import reportSchema from '../../docs/schemas/report.schema.json';
 import recordsSchema from '../../docs/schemas/records.schema.json';
 import skippedSchema from '../../docs/schemas/skipped.schema.json';
-import userflowSchema from '../../docs/schemas/userflow.schema.json'; import customSchema from '../../docs/schemas/custommap.schema.json';
+import userflowSchema from '../../docs/schemas/userflow.schema.json'; import customSchema from '../../docs/schemas/custommap.schema.json'; import domainSchema from '../../docs/schemas/domain.schema.json';
 
 /** Схемы берутся прямо из docs/schemas: копия разошлась бы с контрактом в первую же неделю. */
 
@@ -45,6 +45,7 @@ const validateCodemapSchema = ajv.compile(codemapSchema);
 const validateDataflowSchema = ajv.compile(dataflowSchema);
 const validateUserflowSchema = ajv.compile(userflowSchema);
 const validateFunctionalSchema = ajv.compile(functionalSchema);
+const validateDomainSchema = ajv.compile(domainSchema);
 const validateRecordsSchema = ajv.compile(recordsSchema);
 const validateSkippedSchema = ajv.compile(skippedSchema);
 
@@ -85,6 +86,11 @@ export function validateUserflow(data: unknown): SchemaIssue[] {
 }
 
 /** Возможности системы на языке предметной области — без свидетельства (docs/07-maps.md). */
+/** Блок ```docdd-domain (R-0119). */
+export function validateDomain(data: unknown): SchemaIssue[] {
+  return run(validateDomainSchema, data);
+}
+
 export function validateFunctional(data: unknown): SchemaIssue[] {
   return run(validateFunctionalSchema, data);
 }

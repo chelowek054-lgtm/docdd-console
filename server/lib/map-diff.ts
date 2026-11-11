@@ -54,6 +54,7 @@ const SPECS: Record<MapStructure, Spec> = {
   dataflow: { nodes: ['sources'], edges: ['flows'], nodeKey: (i) => i.id, edgeKey: pairKey, edgeLabel: (i) => i.direction ?? '' },
   userflow: { nodes: ['screens'], edges: ['transitions', 'calls'], nodeKey: (i) => i.id, edgeKey: pairKey, edgeLabel: (i) => i.trigger ?? '' },
   functional: { nodes: ['capabilities'], edges: ['relations'], nodeKey: (i) => i.id, edgeKey: (i) => `${pairKey(i)}:${i.type}`, edgeLabel: (i) => i.type ?? '' },
+  domain: { nodes: ['contexts', 'aggregates'], edges: ['relations'], nodeKey: (i) => i.id, edgeKey: (i) => `${pairKey(i)}:${i.kind}`, edgeLabel: (i) => i.kind ?? '' },
   custom: { nodes: ['nodes'], edges: ['relations'], nodeKey: (i) => `${i.map}:${i.id}`, edgeKey: (i) => `${i.map}:${pairKey(i)}:${i.type}`, edgeLabel: (i) => i.type ?? '' }
 };
 

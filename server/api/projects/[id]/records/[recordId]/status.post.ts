@@ -1,6 +1,7 @@
 import { defineEventHandler, getRouterParam, readBody } from 'h3';
 
 import { applyStatusChange } from '../../../../../lib/actions';
+import { architectRefusal } from '../../../../../lib/domain-map';
 import { deferAction } from '../../../../../lib/deferred';
 import { OutsideRootError } from '../../../../../lib/paths';
 import { WorkspaceError } from '../../../../../lib/workspace';
@@ -43,6 +44,8 @@ export default defineEventHandler(async (event) => {
     if ((status === 'deferred' || context.record.status === 'deferred') && (event.context as { user?: { agent?: unknown } }).user?.agent) {
       return fail(event, 403, 'agent_deferred', 'В бэклог уводит и возвращает человек: агент может только предложить это текстом');
     }
+    const refusal = architectRefusal(context.record, status, rolesOf(event.context));
+    if (refusal) return fail(event, 403, refusal.code, refusal.message);
     if (blockers.length > 0) {
       return failWith(
         event,
@@ -95,3 +98,4 @@ export default defineEventHandler(async (event) => {
 });
 import { versionConflict } from '../../../../../lib/version';
 import { notifyStatus } from '../../../../../utils/notify-events';
+import { rolesOf } from '../../../../../utils/roles-of';

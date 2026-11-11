@@ -77,7 +77,11 @@
       "then": {
         "properties": {
           "id": { "pattern": "^A-[0-9]{4}$" },
-          "status": { "enum": ["draft", "review", "approved", "superseded", "rejected", "legacy"] }
+          "status": { "enum": ["draft", "review", "approved", "superseded", "rejected", "legacy"] },
+          "area": {
+            "enum": ["topology", "storage", "transactions"],
+            "description": "Решение архитектора (R-0120, A-0004): топология, хранение данных или транзакции. Подтверждает только роль architect."
+          }
         }
       }
     },

@@ -1,5 +1,6 @@
 import { PREFIX_BY_TYPE, RECORD_TYPES, SECTION_BY_TYPE, type LinkKind, type RecordType, type SectionKey } from './types';
 import { journalLine, yamlSafe } from './write';
+import type { DomainPart } from './domain-map';
 
 export { PREFIX_BY_TYPE, SECTION_BY_TYPE };
 
@@ -114,6 +115,10 @@ export interface TemplateInput {
   }[];
   /** Только для карт: связи между возможностями — в тот же блок. */
   relations?: { from: string; to: string; type: string; summary?: string }[];
+  /** Только для карт: доменная карта — блоком `docdd-domain` (R-0119). */
+  domain?: DomainPart;
+  /** Только для решений: область архитектора (R-0120). */
+  area?: string;
   /** Только для карт: вектор проекта — уходит в тот же блок `docdd-functional`. */
   vision?: { problem?: string; audience?: string; outcome?: string; not?: string };
   /**
@@ -186,6 +191,7 @@ export function recordTemplate(input: TemplateInput, eol = '\n'): string {
   if (input.owner) lines.push(`owner: ${yamlSafe(input.owner)}`);
   if (input.type === 'task' && input.change) lines.push(`change: ${input.change}`);
   if (input.type === 'task' && input.reuse === 'none') lines.push('reuse: none');
+  if (input.type === 'decision' && input.area) lines.push(`area: ${yamlSafe(input.area)}`);
   if (input.derivedFrom) lines.push(`derived_from: ${input.derivedFrom}`);
   // «Сегодня» может прийти с временем (ADR-0039): оно — для строки журнала, в даты идёт только день.
   const day = input.today.slice(0, 10);
@@ -218,8 +224,14 @@ export function recordTemplate(input: TemplateInput, eol = '\n'): string {
   const said = (input.body ?? '').trim();
   const capabilities = input.capabilities ?? [];
   const relations = input.relations ?? [];
-  const body = capabilities.length > 0 || relations.length > 0 || input.vision
+  const domain = input.type === 'map' && input.domain && Object.values(input.domain).some((list) => (list?.length ?? 0) > 0) ? input.domain : null;
+  const functionalBody = capabilities.length > 0 || relations.length > 0 || input.vision
     ? bodyWithCapabilities(said, capabilities, input.vision, relations)
+    : null;
+  // Доменная карта — своим блоком под функциональным, тем же приёмом: синтаксис собирает код, а не модель.
+  const domainBlock = domain ? ['```docdd-domain', JSON.stringify({ added: domain }, null, 2), '```'].join(NEW_LINE) : null;
+  const body = functionalBody !== null || domainBlock !== null
+    ? [functionalBody ?? said, domainBlock].filter((part): part is string => !!part && part !== '').join(NEW_LINE + NEW_LINE)
     : (said === ''
       ? (input.type === 'reference' ? 'Что это, когда брать, ограничения, примеры использования.' : input.type === 'verification' ? VERIFICATION_BODY : input.type === 'task' ? TASK_BODY : 'Зачем это, что делаем, чего не делаем, как понять, что готово.')
       : said);
@@ -375,6 +387,7 @@ export function claudeMd(input: ManifestInput, eol = NEW_LINE): string {
     '  `docs/development/reference/INDEX.md`: что уже решает то же самое. Нашлось —',
     '  переиспользуй и назови в задаче (`reuses` на справку или путь модуля); нет —',
     '  `reuse: none`. Индекс ведёт приложение, руками он не правится.',
+    '- **Основа — DDD и чистая архитектура** (слои внутрь, доменная карта); монолит, база, транзакции — решает архитектор.',
     '- Закрыта задача — отметь возможность «реализовано» или «частично». Работа',
     '  идёт маленькими законченными кусками, как в Scrum и Agile, но без церемоний.',
     '',

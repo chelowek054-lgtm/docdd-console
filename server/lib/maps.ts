@@ -1,5 +1,6 @@
 import type { Horizon, ImplStatus, Priority, RelationType } from './functional';
-import { validateCodemap, validateDataflow, validateFunctional, validateSkipped, validateUserflow, validateCustom } from './schema';
+import { validateCodemap, validateDataflow, validateDomain, validateFunctional, validateSkipped, validateUserflow, validateCustom } from './schema';
+import { emptyDomain, type DomainPart, type DomainState } from './domain-map';
 import type { WorkRecord } from './types';
 import { yamlSafe } from './write';
 
@@ -12,7 +13,7 @@ const LF = String.fromCharCode(10);
  * (docs/adr/0007-maps-lead-code.md).
  */
 
-export type MapStructure = 'codemap' | 'dataflow' | 'userflow' | 'functional' | 'custom';
+export type MapStructure = 'codemap' | 'dataflow' | 'userflow' | 'functional' | 'domain' | 'custom';
 
 export interface Evidence {
   path: string;
@@ -119,6 +120,8 @@ export interface MapChange {
   dataflow?: { added?: DataflowPart; removed?: DataflowPart };
   userflow?: { added?: UserflowPart; removed?: UserflowPart };
   functional?: { added?: FunctionalPart; removed?: FunctionalPart }; custom?: CustomChange;
+  /** Доменная карта (R-0119): контексты, агрегаты, связи контекстов. */
+  domain?: { added?: DomainPart; removed?: DomainPart };
   /** Не структура, а решение: этих файлов в карте нет, и вот почему. */
   skipped?: SkippedFile[];
 }
@@ -210,6 +213,17 @@ const MAP_KINDS: readonly MapKind[] = [
       { name: 'capabilities', keyOf: (item) => item.id },
       // Тип входит в ключ: между двумя возможностями бывает и зависимость, и передача данных.
       { name: 'relations', keyOf: (item) => `${item.from}>${item.to}:${item.type}` }
+    ]
+  },
+  {
+    // Вторая по значимости после стратегической (A-0004): идёт сразу за ней.
+    // Свидетельства нет: контекст и агрегат — суждение человека, модули и файлы даёт кодовая карта.
+    name: 'domain',
+    validate: validateDomain,
+    fields: [
+      { name: 'contexts', keyOf: (item) => item.id },
+      { name: 'aggregates', keyOf: (item) => item.id },
+      { name: 'relations', keyOf: (item) => `${item.from}>${item.to}:${item.kind}` }
     ]
   }, customKind()
 ];
@@ -450,6 +464,7 @@ export interface ProjectMap {
     /** Вектор проекта; `null` — никто не объявил. Последнее объявление заменяет прежнее целиком. */
     vision: (Vision & { declaredBy?: string; declaredAt?: string; declaredByRole?: string | null }) | null;
   };
+  domain: DomainState;
   /** Какие записи сложены, в порядке применения. */
   from: string[];
 }
@@ -460,6 +475,7 @@ export function emptyProjectMap(): ProjectMap {
     dataflow: { sources: [], flows: [] },
     userflow: { screens: [], transitions: [], calls: [] }, custom: { nodes: [], relations: [] },
     functional: { capabilities: [], relations: [], vision: null },
+    domain: emptyDomain(),
     from: []
   };
 }

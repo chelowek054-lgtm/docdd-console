@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docdd/domain.schema.json",
+  "title": "Изменение доменной карты",
+  "description": "Блок ```docdd-domain в записи типа map (R-0119, A-0004). Ограниченные контексты, их словарь и агрегаты, связи между контекстами. Модули, слои и файлы не повторяются: их даёт кодовая карта по корню контекста. Свидетельства нет: подтверждает человек.",
+
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "added": { "$ref": "#/$defs/part" },
+    "removed": { "$ref": "#/$defs/part" }
+  },
+
+  "$defs": {
+    "part": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "contexts": { "type": "array", "items": { "$ref": "#/$defs/context" } },
+        "aggregates": { "type": "array", "items": { "$ref": "#/$defs/aggregate" } },
+        "relations": { "type": "array", "items": { "$ref": "#/$defs/relation" } }
+      }
+    },
+    "context": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "description": "Ограниченный контекст. В removed достаточно id.",
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "description": "Как предметную область называет бизнес." },
+        "kind": { "enum": ["core", "supporting", "generic"], "description": "core — ради него продукт; supporting — нужен, но не отличает; generic — можно взять готовое." },
+        "root": { "type": "string", "minLength": 1, "description": "Папка контекста от корня проекта. Внутри — слои domain, application, infrastructure, interface." },
+        "summary": { "type": "string" },
+        "capabilities": { "type": "array", "items": { "type": "string", "minLength": 1 }, "description": "id возможностей стратегической карты, которые реализует контекст." },
+        "language": {
+          "type": "array",
+          "description": "Словарь единого языка: те же слова в разговоре, документах и коде.",
+          "items": {
+            "type": "object",
+            "required": ["term"],
+            "additionalProperties": false,
+            "properties": {
+              "term": { "type": "string", "minLength": 1 },
+              "meaning": { "type": "string" },
+              "code": { "type": "string", "description": "Имя в коде: класс, метод, состояние." }
+            }
+          }
+        }
+      }
+    },
+    "aggregate": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "description": "Агрегат: группа объектов, которую меняют как целое и только через корень. В removed достаточно id.",
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "context": { "type": "string", "minLength": 1 },
+        "title": { "type": "string" },
+        "root": { "type": "string", "description": "Корневая сущность: через неё идут все изменения." },
+        "invariants": { "type": "array", "items": { "type": "string", "minLength": 1 }, "description": "Правила, которые охраняет корень." },
+        "entities": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "valueObjects": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "policies": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "events": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "path": { "type": "string", "description": "Папка агрегата от корня проекта, если она своя." }
+      }
+    },
+    "relation": {
+      "type": "object",
+      "required": ["from", "to", "kind"],
+      "additionalProperties": false,
+      "description": "Связь контекстов. В removed нужны from, to и kind.",
+      "properties": {
+        "from": { "type": "string", "minLength": 1, "description": "Контекст, который зависит (downstream)." },
+        "to": { "type": "string", "minLength": 1, "description": "Контекст, от которого зависят (upstream)." },
+        "kind": { "enum": ["shared-kernel", "customer-supplier", "conformist", "anticorruption-layer", "open-host", "published-language", "partnership", "separate-ways"] },
+        "summary": { "type": "string" }
+      }
+    }
+  }
+}

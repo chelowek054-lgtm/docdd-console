@@ -6,6 +6,8 @@ import type { ReferenceEntry } from '../lib/reference';
 import type { SharedSource } from '../lib/types';
 import { readManifest, readWorkspace } from '../lib/workspace';
 import { sourceRoot } from './source-root';
+import { approvedMaps, foldMaps, parseMapRecord } from '../lib/maps';
+import { profileUses } from '../lib/domain-map';
 
 /**
  * Правила проверки из практик (docs/12-practice-rules.md, ADR-0014). Общие
@@ -86,6 +88,7 @@ export function resolveProjectRules(root: string): RulesResolution {
   return resolveRules({
     manifest: manifest.architecture,
     general: generalRuleRecords(withBuiltin(manifest.sources?.shared ?? [])),
-    local
+    local,
+    auto: profileUses(foldMaps(approvedMaps(records).map((record) => ({ id: record.id, change: parseMapRecord(record.body).change }))).domain)
   });
 }

@@ -5,7 +5,7 @@
  * Чистые функции: состояние собирает `server/utils/onboarding-service.ts`.
  */
 
-export type StepId = 'vision' | 'capabilities' | 'requirements' | 'glossary' | 'sources' | 'maps' | 'contracts' | 'references' | 'checks';
+export type StepId = 'vision' | 'domain' | 'capabilities' | 'requirements' | 'glossary' | 'sources' | 'maps' | 'contracts' | 'references' | 'checks';
 
 /** `not_started` — ничего нет; `awaiting` — есть черновики, ждут человека; `done` — подтверждено. */
 export type StepStatus = 'not_started' | 'awaiting' | 'done';
@@ -15,6 +15,8 @@ export type StepVia = 'auto' | 'model' | 'human';
 
 export interface OnboardingState {
   vision: 'none' | 'draft' | 'approved';
+  /** Доменная карта (R-0119): вторая после стратегической, обязательна у проекта с кодом. */
+  domain: 'none' | 'draft' | 'approved';
   /** Подтверждённых возможностей функциональной карты и карт-черновиков с ними. */
   capabilities: number;
   capabilitiesDraft: number;
@@ -48,7 +50,7 @@ export interface Step {
 }
 
 export const EMPTY_STATE: OnboardingState = {
-  vision: 'none', capabilities: 0, capabilitiesDraft: 0, requirements: 0, requirementsDraft: 0, requirementsChecked: 0,
+  vision: 'none', domain: 'none', capabilities: 0, capabilitiesDraft: 0, requirements: 0, requirementsDraft: 0, requirementsChecked: 0,
   glossaryTerms: 0, sources: { code: 0, docs: 0, client: 0 }, maps: 0, mapsDraft: 0, contracts: 0, contractsDraft: 0,
   references: 0, referencesDraft: 0, testChecks: 0, testChecksDraft: 0
 };
@@ -59,11 +61,12 @@ function statusOf(done: number, draft: number): StepStatus {
   return draft > 0 ? 'awaiting' : 'not_started';
 }
 
-/** Шаги в порядке подключения: сначала зачем, потом что, потом откуда и чем проверять. */
+/** Шаги в порядке подключения: сначала зачем и в каких границах предметной области, потом что, откуда и чем проверять. */
 export function checklist(state: OnboardingState): Step[] {
   const sourcesNamed = state.sources.code + state.sources.docs + state.sources.client;
   return [
     { id: 'vision', via: 'human', to: 'maps', status: state.vision === 'approved' ? 'done' : state.vision === 'draft' ? 'awaiting' : 'not_started', detail: state.vision === 'none' ? 'вектор не записан' : state.vision === 'draft' ? 'вектор ждёт подтверждения' : 'вектор подтверждён' },
+    { id: 'domain', via: 'model', to: 'maps', status: state.domain === 'approved' ? 'done' : state.domain === 'draft' ? 'awaiting' : 'not_started', detail: state.domain === 'approved' ? 'доменная карта подтверждена' : state.domain === 'draft' ? 'доменная карта ждёт подтверждения' : 'контексты, словарь и агрегаты не описаны' },
     { id: 'sources', via: 'auto', to: 'fill?tab=onboarding', status: sourcesNamed > 0 ? 'done' : 'not_started', detail: sourcesNamed > 0 ? `код: ${state.sources.code}, клиент: ${state.sources.client}, документация: ${state.sources.docs}` : 'папки не названы в project.yaml' },
     { id: 'maps', via: 'model', to: 'maps', status: statusOf(state.maps, state.mapsDraft), detail: `подтверждённых: ${state.maps}, черновиков: ${state.mapsDraft}` },
     { id: 'capabilities', via: 'model', to: 'maps', status: statusOf(state.capabilities, state.capabilitiesDraft), detail: `возможностей: ${state.capabilities}, черновиков карт: ${state.capabilitiesDraft}` },

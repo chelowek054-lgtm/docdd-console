@@ -35,6 +35,7 @@ import { readWorkspace, sourceReader, WorkspaceError } from '../../../../lib/wor
 import { fail } from '../../../../utils/http';
 import { loadIndex } from '../../../../utils/index-service';
 import { buildProjectMap } from '../../../../utils/map-service';
+import { domainText } from '../../../../lib/domain-map';
 import { findProject } from '../../../../utils/projects';
 import { plainTokens } from '../../../../lib/design';
 import { designPrompt } from '../../../../lib/prompt';
@@ -292,6 +293,7 @@ export default defineEventHandler(async (event) => {
           modules: modules.map((module) => ({ dir: module.id, entry: module.entry, parent: module.parent })),
           found: report.findings ?? [],
           referenceIndex: referenceIndexText(project.root),
+          domain: domainText(buildProjectMap(project.root).domain),
           // Те же практики, что идут в запрос на выполнение задачи: суд по ним, а не по привычкам модели.
           practices: connectedPractices(withBuiltin(readWorkspace(project.root).manifest.sources?.shared ?? []))
         }),

@@ -25,6 +25,7 @@ import { askRouted } from './llm-gateway';
 import type { Access } from './llm';
 import type { ModelEvent } from '../lib/stream-events';
 import { buildProjectMap } from './map-service';
+import { domainText } from '../lib/domain-map';
 import { journalNow, openRecord, saveRecord } from './record-write';
 import { forgetSession, rememberSession, sessionOf } from './sessions';
 import { withBuiltin } from '../lib/builtin';
@@ -277,9 +278,19 @@ export function taskContext(
     referenceIndex: referenceIndexText(root),
     reused: (record.links.reuses ?? []).map(linked),
     practices: shared,
+    domain: domainOf(root),
     rework,
     round
   };
+}
+
+/** Доменная карта текстом: не собралась — задача всё равно идёт, просто без неё. */
+function domainOf(root: string): string {
+  try {
+    return domainText(buildProjectMap(root).domain);
+  } catch {
+    return '';
+  }
 }
 
 /** Что именно меняет карта: структуры, а не пересказ записи. */

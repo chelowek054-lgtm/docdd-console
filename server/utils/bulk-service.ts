@@ -1,4 +1,5 @@
 import { applyStatusChange } from '../lib/actions';
+import { architectRefusal } from '../lib/domain-map';
 import { newIssues } from '../lib/issues-diff';
 import { checkTransition } from '../lib/rules';
 import type { IssueDto } from '../lib/types';
@@ -39,14 +40,14 @@ export interface BulkOutcome {
   results: BulkResult[];
 }
 
-export function bulkStatus(root: string, ids: readonly string[], direction: BulkDirection, actor: string): BulkOutcome {
+export function bulkStatus(root: string, ids: readonly string[], direction: BulkDirection, actor: string, roles: readonly string[] | null = null): BulkOutcome {
   const results: BulkResult[] = [];
   const stamp = journalNow(root);
   // Список нарушений до действия: кэш мог устареть от правок снаружи.
   const before = loadIndex(root, true).issues;
 
   for (const id of [...new Set(ids)]) {
-    results.push(moveRecord(root, id, direction, actor, stamp));
+    results.push(moveRecord(root, id, direction, actor, stamp, roles));
   }
 
   // Индекс пересобираем один раз: после каждой записи он никому не нужен.
@@ -56,7 +57,7 @@ export function bulkStatus(root: string, ids: readonly string[], direction: Bulk
   return { moved, skipped: results.length - moved, newIssues: newIssues(before, after), results };
 }
 
-function moveRecord(root: string, id: string, direction: BulkDirection, actor: string, stamp: string): BulkResult {
+function moveRecord(root: string, id: string, direction: BulkDirection, actor: string, stamp: string, roles: readonly string[] | null): BulkResult {
   const first = openRecord(root, id);
   if (!first) {
     return { id, ok: false, from: '', to: '', code: 'record_not_found', message: `Записи \`${id}\` в проекте нет` };
@@ -80,6 +81,10 @@ function moveRecord(root: string, id: string, direction: BulkDirection, actor: s
     const context = openRecord(root, id);
     if (!context) break;
 
+    const refusal = architectRefusal(context.record, status, roles);
+    if (refusal) {
+      return { id, ok: false, from, to: context.record.status, ...(steps.length ? { steps } : {}), code: refusal.code, message: refusal.message };
+    }
     const blockers = checkTransition(context.record, status, context.rules);
     if (blockers.length > 0) {
       return {

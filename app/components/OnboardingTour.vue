@@ -2,13 +2,14 @@
 /**
  * Обучение новому человеку (R-0094, docs/04-ui.md, «Обучение»): три коротких шага —
  * как читать стратегию и карты, почему задача не уходит в работу без документа,
- * как работать с моделью через ветку и дифф. «Пропустить» убирает его сразу;
+ * как работать с моделью через ветку и дифф, и на чём строится код: DDD и чистая
+ * архитектура, глобальное решает архитектор (R-0122). «Пропустить» убирает его сразу;
  * пройденное и пропущенное помнится в браузере по проекту.
  */
 const props = defineProps<{ projectId: string }>();
 const { t } = useT();
 
-const STEPS = ['maps', 'docs', 'model'] as const;
+const STEPS = ['maps', 'docs', 'model', 'arch'] as const;
 const key = computed(() => `docdd:tour:${props.projectId}`);
 const visible = ref(false);
 const step = ref(0);
@@ -33,6 +34,7 @@ function finish() {
         <p class="text-xs text-muted">{{ t('tour.progress', { n: step + 1, total: STEPS.length }) }}</p>
         <p class="font-medium">{{ t(`tour.${STEPS[step]}.title`) }}</p>
         <p class="text-sm text-muted">{{ t(`tour.${STEPS[step]}.text`) }}</p>
+        <NuxtLink v-if="STEPS[step] === 'arch'" :to="`/projects/${projectId}/shared`" class="text-sm text-primary hover:underline">{{ t('tour.arch.more') }}</NuxtLink>
       </div>
       <div class="flex shrink-0 flex-col items-end gap-1 sm:flex-row">
         <UButton v-if="step < STEPS.length - 1" size="sm" @click="step += 1">{{ t('tour.next') }}</UButton>

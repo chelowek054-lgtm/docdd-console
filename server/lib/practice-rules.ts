@@ -88,10 +88,18 @@ export function resolveRules(input: {
   manifest?: ArchitectureConfig | undefined;
   general: readonly RuleRecord[];
   local: readonly RuleRecord[];
+  /**
+   * Профили, которые консоль применяет сама, без `use` в проекте: `ddd-clean` к корню
+   * каждого контекста доменной карты (R-0118). Нет записи с таким профилем — нет и правил.
+   */
+  auto?: readonly { profile: string; root: string }[];
 }): RulesResolution {
   const problems: RuleProblem[] = [];
   const placed: Placed[] = [];
   const profiles = [...input.general, ...input.local];
+  // Профиль ищется по записи или по имени, объявленному в самом блоке (`"profile": "ddd-clean"`).
+  const profileRecord = (wanted: string) => profiles.find((item) => item.id === wanted || label(item) === wanted
+    || parseRuleBlocks(item).blocks.some((block) => block['profile'] === wanted));
 
   const place = (record: RuleRecord, level: RuleLevel) => {
     const parsed = parseRuleBlocks(record);
@@ -107,7 +115,7 @@ export function resolveRules(input: {
       for (const use of uses) {
         const wanted = typeof (use as Block)?.['profile'] === 'string' ? ((use as Block)['profile'] as string) : '';
         const root = typeof (use as Block)?.['root'] === 'string' ? ((use as Block)['root'] as string) : '';
-        const profile = profiles.find((item) => item.id === wanted || label(item) === wanted);
+        const profile = profileRecord(wanted);
         const found = profile ? parseRuleBlocks(profile) : null;
         if (!profile || !found || found.blocks.length === 0) {
           problems.push({ record: record.id, message: `\`use\` называет запись \`${wanted}\`, но блока правил в ней нет: профиль не применён.` });
@@ -123,6 +131,15 @@ export function resolveRules(input: {
   };
 
   for (const record of input.general) place(record, 'general');
+  for (const use of input.auto ?? []) {
+    const profile = profileRecord(use.profile);
+    if (!profile) continue;
+    for (const profileBlock of parseRuleBlocks(profile).blocks) {
+      const concrete = withRoot(profileBlock, use.root) as Block;
+      delete concrete['use'];
+      placed.push({ block: concrete, source: label(profile), level: 'general', record: profile.id });
+    }
+  }
   for (const record of input.local) place(record, 'local');
 
   if (placed.length === 0) {

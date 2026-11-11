@@ -117,6 +117,7 @@ export const onboarding: Record<string, string> = {
   'ob.via.model': 'модель',
   'ob.via.human': 'человек',
   'ob.step.vision': 'Вектор проекта',
+  'ob.step.domain': 'Доменная карта',
   'ob.step.sources': 'Источники: код, клиент, документация',
   'ob.step.maps': 'Карты устройства',
   'ob.step.capabilities': 'Возможности «как есть»',

@@ -133,6 +133,9 @@ export type ViolationCode =
   | 'arch_private_import'
   | 'arch_not_independent'
   | 'arch_forbidden'
+  // доменная карта и решения архитектора (R-0119, R-0120)
+  | 'domain_map_missing' | 'domain_capability_uncovered' | 'domain_module_orphan' | 'domain_relation_unknown'
+  | 'domain_language_empty' | 'domain_aggregate_no_invariants' | 'arch_decision_missing'
   | 'rules_conflict'
   // дизайн (docs/16-design-system.md)
   | 'design_block_invalid'
@@ -243,6 +246,8 @@ export const VIOLATION_LEVELS: Readonly<Record<ViolationCode, Severity>> = {
   reference_index_stale: 'warning',
   task_reuse_unchecked: 'warning',
   arch_private_import: 'warning',
+  domain_map_missing: 'warning', domain_capability_uncovered: 'warning', domain_module_orphan: 'warning', domain_relation_unknown: 'warning',
+  domain_language_empty: 'warning', domain_aggregate_no_invariants: 'warning', arch_decision_missing: 'warning',
   arch_not_independent: 'warning',
   arch_forbidden: 'warning',
   rules_conflict: 'warning',
