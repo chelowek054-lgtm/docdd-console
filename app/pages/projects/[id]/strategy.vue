@@ -95,5 +95,8 @@ const counts = computed(() => ({
         </ul>
       </UCard>
     </div>
+
+    <!-- Доменная карта — вторая после стратегической (A-0004, R-0119): сразу под ней. -->
+    <DomainMapPanel :project-id="projectId" />
   </div>
 </template>

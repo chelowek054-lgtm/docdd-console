@@ -305,7 +305,7 @@ updated: 2026-10-11
         {"from":"server/api/projects/[id]/prompt/index.post.ts","to":"server/utils/index-service.ts","evidence":{"path":"server/api/projects/[id]/prompt/index.post.ts","line":36,"fragment":"import { loadIndex } from '../../../../utils/index-service';"}},
         {"from":"server/api/projects/[id]/prompt/index.post.ts","to":"server/utils/inventory-service.ts","evidence":{"path":"server/api/projects/[id]/prompt/index.post.ts","line":33,"fragment":"import { inventoryOf } from '../../../../utils/inventory-ser"}},
         {"from":"server/api/projects/[id]/prompt/index.post.ts","to":"server/utils/map-service.ts","evidence":{"path":"server/api/projects/[id]/prompt/index.post.ts","line":37,"fragment":"import { buildProjectMap } from '../../../../utils/map-servi"}},
-        {"from":"server/api/projects/[id]/prompt/index.post.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/[id]/prompt/index.post.ts","line":38,"fragment":"import { findProject } from '../../../../utils/projects';"}},
+        {"from":"server/api/projects/[id]/prompt/index.post.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/[id]/prompt/index.post.ts","line":39,"fragment":"import { findProject } from '../../../../utils/projects';"}},
         {"from":"server/api/projects/[id]/prompt/index.post.ts","to":"server/utils/shared-service.ts","evidence":{"path":"server/api/projects/[id]/prompt/index.post.ts","line":25,"fragment":"import { connectedPractices } from '../../../../utils/share"}},
         {"from":"server/api/projects/[id]/records/[recordId].get.ts","to":"server/lib/analyze.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId].get.ts","line":6,"fragment":"import { analyze } from '../../../../lib/analyze';"}},
         {"from":"server/api/projects/[id]/records/[recordId].get.ts","to":"server/lib/diagrams.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId].get.ts","line":7,"fragment":"import { extractDiagrams } from '../../../../lib/diagrams';"}},
@@ -333,12 +333,12 @@ updated: 2026-10-11
         {"from":"server/api/projects/[id]/records/[recordId]/body.post.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/body.post.ts","line":8,"fragment":"import { findProject } from '../../../../../utils/projects';"}},
         {"from":"server/api/projects/[id]/records/[recordId]/body.post.ts","to":"server/utils/record-write.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/body.post.ts","line":9,"fragment":"import { journalNow, openRecord, saveRecord } from '../../../../../utils/record-write';"}},
         {"from":"server/api/projects/[id]/records/[recordId]/status.post.ts","to":"server/lib/actions.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/status.post.ts","line":3,"fragment":"import { applyStatusChange } from '../../../../../lib/action"}},
-        {"from":"server/api/projects/[id]/records/[recordId]/status.post.ts","to":"server/lib/paths.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/status.post.ts","line":5,"fragment":"import { OutsideRootError } from '../../../../../lib/paths';"}},
-        {"from":"server/api/projects/[id]/records/[recordId]/status.post.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/status.post.ts","line":6,"fragment":"import { WorkspaceError } from '../../../../../lib/workspace"}},
-        {"from":"server/api/projects/[id]/records/[recordId]/status.post.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/status.post.ts","line":7,"fragment":"import { fail, failWith } from '../../../../../utils/http';"}},
-        {"from":"server/api/projects/[id]/records/[recordId]/status.post.ts","to":"server/utils/inventory-service.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/status.post.ts","line":8,"fragment":"import { markDescribed } from '../../../../../utils/inventor"}},
-        {"from":"server/api/projects/[id]/records/[recordId]/status.post.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/status.post.ts","line":9,"fragment":"import { findProject } from '../../../../../utils/projects';"}},
-        {"from":"server/api/projects/[id]/records/[recordId]/status.post.ts","to":"server/utils/record-write.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/status.post.ts","line":10,"fragment":"import { journalNow, openRecordWithBlockers, saveRecord } from '."}},
+        {"from":"server/api/projects/[id]/records/[recordId]/status.post.ts","to":"server/lib/paths.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/status.post.ts","line":6,"fragment":"import { OutsideRootError } from '../../../../../lib/paths';"}},
+        {"from":"server/api/projects/[id]/records/[recordId]/status.post.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/status.post.ts","line":7,"fragment":"import { WorkspaceError } from '../../../../../lib/workspace"}},
+        {"from":"server/api/projects/[id]/records/[recordId]/status.post.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/status.post.ts","line":8,"fragment":"import { fail, failWith } from '../../../../../utils/http';"}},
+        {"from":"server/api/projects/[id]/records/[recordId]/status.post.ts","to":"server/utils/inventory-service.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/status.post.ts","line":9,"fragment":"import { markDescribed } from '../../../../../utils/inventor"}},
+        {"from":"server/api/projects/[id]/records/[recordId]/status.post.ts","to":"server/utils/projects.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/status.post.ts","line":10,"fragment":"import { findProject } from '../../../../../utils/projects';"}},
+        {"from":"server/api/projects/[id]/records/[recordId]/status.post.ts","to":"server/utils/record-write.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/status.post.ts","line":11,"fragment":"import { journalNow, openRecordWithBlockers, saveRecord } from '."}},
         {"from":"server/api/projects/[id]/records/[recordId]/work/index.get.ts","to":"server/lib/paths.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/work/index.get.ts","line":5,"fragment":"import { normalizeRoot } from '../../../../../../lib/paths';"}},
         {"from":"server/api/projects/[id]/records/[recordId]/work/index.get.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/work/index.get.ts","line":6,"fragment":"import { WorkspaceError } from '../../../../../../lib/worksp"}},
         {"from":"server/api/projects/[id]/records/[recordId]/work/index.get.ts","to":"server/utils/http.ts","evidence":{"path":"server/api/projects/[id]/records/[recordId]/work/index.get.ts","line":8,"fragment":"import { fail } from '../../../../../../utils/http';"}},
@@ -398,8 +398,8 @@ updated: 2026-10-11
         {"from":"server/lib/import.ts","to":"server/lib/parse.ts","evidence":{"path":"server/lib/import.ts","line":1,"fragment":"import { firstHeading } from './parse';"}},
         {"from":"server/lib/import.ts","to":"server/lib/scaffold.ts","evidence":{"path":"server/lib/import.ts","line":2,"fragment":"import { fileNameFor, initialStatus, isRecordType, SECTION_B"}},
         {"from":"server/lib/import.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/import.ts","line":3,"fragment":"import type { RecordType } from './types';"}},
-        {"from":"server/lib/inbox.ts","to":"server/lib/schema.ts","evidence":{"path":"server/lib/inbox.ts","line":2,"fragment":"import { validateRecords } from './schema';"}},
-        {"from":"server/lib/inbox.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/inbox.ts","line":1,"fragment":"import { LINK_KINDS, RECORD_TYPES, type LinkKind, type Recor"}},
+        {"from":"server/lib/inbox.ts","to":"server/lib/schema.ts","evidence":{"path":"server/lib/inbox.ts","line":4,"fragment":"import { validateRecords } from './schema';"}},
+        {"from":"server/lib/inbox.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/inbox.ts","line":3,"fragment":"import { LINK_KINDS, RECORD_TYPES, type LinkKind, type Recor"}},
         {"from":"server/lib/indexer.ts","to":"server/lib/analyze.ts","evidence":{"path":"server/lib/indexer.ts","line":1,"fragment":"import { analyze } from './analyze';"}},
         {"from":"server/lib/indexer.ts","to":"server/lib/graph.ts","evidence":{"path":"server/lib/indexer.ts","line":2,"fragment":"import { incomingEdges } from './graph';"}},
         {"from":"server/lib/indexer.ts","to":"server/lib/reports.ts","evidence":{"path":"server/lib/indexer.ts","line":3,"fragment":"import { latestVerificationDetails } from './reports';"}},
@@ -407,13 +407,13 @@ updated: 2026-10-11
         {"from":"server/lib/indexer.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/lib/indexer.ts","line":15,"fragment":"import { onWorkspaceInvalidated, readWorkspace, sourceReader"}},
         {"from":"server/lib/inventory.ts","to":"server/lib/maps.ts","evidence":{"path":"server/lib/inventory.ts","line":1,"fragment":"import type { MapChange } from './maps';"}},
         {"from":"server/lib/map-schemas.ts","to":"server/lib/schema-digest.ts","evidence":{"path":"server/lib/map-schemas.ts","line":6,"fragment":"import { schemaDigest } from './schema-digest';"}},
-        {"from":"server/lib/maps.ts","to":"server/lib/schema.ts","evidence":{"path":"server/lib/maps.ts","line":1,"fragment":"import { validateCodemap, validateDataflow, validateFunctio"}},
+        {"from":"server/lib/maps.ts","to":"server/lib/schema.ts","evidence":{"path":"server/lib/maps.ts","line":2,"fragment":"import { validateCodemap, validateDataflow, validateDomain"}},
         {"from":"server/lib/prompt.ts","to":"server/lib/contract-digest.ts","evidence":{"path":"server/lib/prompt.ts","line":1,"fragment":"import { contractDigest } from './contract-digest';"}},
         {"from":"server/lib/prompt.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/prompt.ts","line":3,"fragment":"import type { ArchitectureConfig, IssueDto } from './types';"}},
         {"from":"server/lib/reports.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/reports.ts","line":1,"fragment":"import type { Report, VerificationOutcome, VerificationResul"}},
         {"from":"server/lib/rules.ts","to":"server/lib/graph.ts","evidence":{"path":"server/lib/rules.ts","line":1,"fragment":"import { findDependencyCycles, incomingEdges, outgoing, type"}},
-        {"from":"server/lib/rules.ts","to":"server/lib/maps.ts","evidence":{"path":"server/lib/rules.ts","line":7,"fragment":"import { approvedMaps, checkEvidence, evidenceClaims, foldMa"}},
-        {"from":"server/lib/rules.ts","to":"server/lib/parse.ts","evidence":{"path":"server/lib/rules.ts","line":8,"fragment":"import { firstHeading } from './parse';"}},
+        {"from":"server/lib/rules.ts","to":"server/lib/maps.ts","evidence":{"path":"server/lib/rules.ts","line":8,"fragment":"import { approvedMaps, checkEvidence, evidenceClaims, foldMa"}},
+        {"from":"server/lib/rules.ts","to":"server/lib/parse.ts","evidence":{"path":"server/lib/rules.ts","line":9,"fragment":"import { firstHeading } from './parse';"}},
         {"from":"server/lib/scaffold.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/scaffold.ts","line":1,"fragment":"import { PREFIX_BY_TYPE, RECORD_TYPES, SECTION_BY_TYPE, type"}},
         {"from":"server/lib/scaffold.ts","to":"server/lib/write.ts","evidence":{"path":"server/lib/scaffold.ts","line":2,"fragment":"import { journalLine, yamlSafe } from './write';"}},
         {"from":"server/lib/shared.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/shared.ts","line":1,"fragment":"import { RETIRED_STATUSES, type IndexRecord } from './type"}},
@@ -461,7 +461,7 @@ updated: 2026-10-11
         {"from":"server/utils/llm.ts","to":"server/lib/stream-events.ts","evidence":{"path":"server/utils/llm.ts","line":6,"fragment":"import { createStreamParser, type ModelEvent } from '../lib/"}},
         {"from":"server/utils/map-service.ts","to":"server/lib/analyze.ts","evidence":{"path":"server/utils/map-service.ts","line":1,"fragment":"import { analyze } from '../lib/analyze';"}},
         {"from":"server/utils/map-service.ts","to":"server/lib/maps.ts","evidence":{"path":"server/utils/map-service.ts","line":11,"fragment":"} from '../lib/maps';"}},
-        {"from":"server/utils/map-service.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/utils/map-service.ts","line":13,"fragment":"import { readWorkspace, sourceReader } from '../lib/workspac"}},
+        {"from":"server/utils/map-service.ts","to":"server/lib/workspace.ts","evidence":{"path":"server/utils/map-service.ts","line":14,"fragment":"import { readWorkspace, sourceReader } from '../lib/workspac"}},
         {"from":"server/utils/projects.ts","to":"server/lib/types.ts","evidence":{"path":"server/utils/projects.ts","line":3,"fragment":"import type { ProjectEntry } from '../lib/types';"}},
         {"from":"server/utils/record-write.ts","to":"server/lib/actions.ts","evidence":{"path":"server/utils/record-write.ts","line":12,"fragment":"import type { WriteOutcome } from '../lib/actions';"}},
         {"from":"server/utils/record-write.ts","to":"server/lib/analyze.ts","evidence":{"path":"server/utils/record-write.ts","line":3,"fragment":"import { analyze } from '../lib/analyze';"}},
@@ -493,9 +493,9 @@ updated: 2026-10-11
         {"from":"server/utils/work-service.ts","to":"server/lib/write.ts","evidence":{"path":"server/utils/work-service.ts","line":9,"fragment":"import { withoutJournal } from '../lib/write';"}},
         {"from":"server/utils/work-service.ts","to":"server/utils/git.ts","evidence":{"path":"server/utils/work-service.ts","line":23,"fragment":"} from './git';"}},
         {"from":"server/utils/work-service.ts","to":"server/utils/map-service.ts","evidence":{"path":"server/utils/work-service.ts","line":27,"fragment":"import { buildProjectMap } from './map-service';"}},
-        {"from":"server/utils/work-service.ts","to":"server/utils/record-write.ts","evidence":{"path":"server/utils/work-service.ts","line":28,"fragment":"import { journalNow, openRecord, saveRecord } from './record-writ"}},
-        {"from":"server/utils/work-service.ts","to":"server/utils/sessions.ts","evidence":{"path":"server/utils/work-service.ts","line":29,"fragment":"import { forgetSession, rememberSession, sessionOf } from '."}},
-        {"from":"server/utils/work-service.ts","to":"server/utils/shared-service.ts","evidence":{"path":"server/utils/work-service.ts","line":32,"fragment":"import { connectedPractices } from './shared-service';"}}
+        {"from":"server/utils/work-service.ts","to":"server/utils/record-write.ts","evidence":{"path":"server/utils/work-service.ts","line":29,"fragment":"import { journalNow, openRecord, saveRecord } from './record-writ"}},
+        {"from":"server/utils/work-service.ts","to":"server/utils/sessions.ts","evidence":{"path":"server/utils/work-service.ts","line":30,"fragment":"import { forgetSession, rememberSession, sessionOf } from '."}},
+        {"from":"server/utils/work-service.ts","to":"server/utils/shared-service.ts","evidence":{"path":"server/utils/work-service.ts","line":33,"fragment":"import { connectedPractices } from './shared-service';"}}
       ]
     }
 }
@@ -538,8 +538,8 @@ updated: 2026-10-11
         {"from":"server/utils/record-write.ts","to":"project-files","direction":"read","evidence":{"path":"server/utils/record-write.ts","line":1,"fragment":"import { readFileSync, writeFileSync } from 'node:fs';"}},
         {"from":"server/utils/record-write.ts","to":"project-files","direction":"write","evidence":{"path":"server/utils/record-write.ts","line":113,"fragment":"writeFileSync(context.absolute, outcome.text, 'utf8');"}},
         {"from":"server/utils/sessions.ts","to":"session-memory","direction":"both","evidence":{"path":"server/utils/sessions.ts","line":15,"fragment":"const FILE = '.docdd/sessions.json';"}},
-        {"from":"server/utils/work-service.ts","to":"git-repo","direction":"both","evidence":{"path":"server/utils/work-service.ts","line":120,"fragment":"  const created = await ensureWorktree(normalized, branch, r"}},
-        {"from":"server/utils/work-service.ts","to":"project-files","direction":"write","evidence":{"path":"server/utils/work-service.ts","line":309,"fragment":"  const saved = saveRecord(context, outcome, root);"}}
+        {"from":"server/utils/work-service.ts","to":"git-repo","direction":"both","evidence":{"path":"server/utils/work-service.ts","line":121,"fragment":"  const created = await ensureWorktree(normalized, branch, r"}},
+        {"from":"server/utils/work-service.ts","to":"project-files","direction":"write","evidence":{"path":"server/utils/work-service.ts","line":320,"fragment":"  const saved = saveRecord(context, outcome, root);"}}
       ]
     }
 }

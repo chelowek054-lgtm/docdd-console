@@ -10,6 +10,7 @@ import {
   type ProjectMap
 } from '../lib/maps';
 import type { WorkRecord } from '../lib/types';
+import { contextTrees, type ContextTree } from '../lib/domain-map';
 import { readWorkspace, sourceReader } from '../lib/workspace';
 
 /**
@@ -23,6 +24,8 @@ export interface ProjectMapResult extends ProjectMap {
   unverified: number;
   /** История курса — производное от подтверждённых карт, нигде не хранится. */
   functional: ProjectMap['functional'] & { history: CourseEntry[] };
+  /** Доменная карта, раскрытая до слоёв, модулей и файлов по корням контекстов (R-0119). */
+  domainTree: ContextTree[];
 }
 
 export function buildProjectMap(root: string): ProjectMapResult {
@@ -75,6 +78,7 @@ export function buildProjectMap(root: string): ProjectMapResult {
   return {
     ...folded,
     functional: { ...folded.functional, history },
+    domainTree: contextTrees(folded.domain, folded.codemap.modules, workspace.codeFiles ?? []),
     unverified: countUnverified(folded)
   };
 }
@@ -123,7 +127,8 @@ function countUnverified(map: ProjectMap): number {
   return count;
 }
 
-export const MAP_KINDS = ['functional', 'codebase', 'flows', 'journeys', 'custom'] as const;
+// Доменная карта — вторая после стратегической (A-0004).
+export const MAP_KINDS = ['functional', 'domain', 'codebase', 'flows', 'journeys', 'custom'] as const;
 export type MapKind = (typeof MAP_KINDS)[number];
 
 /** Числа для ярлыков вкладок: считаются по полному виду, но отдаются без содержимого других видов. */
@@ -138,6 +143,7 @@ export interface MapSummary {
   transitions: number;
   calls: number;
   customNodes: number;
+  contexts: number;
 }
 
 /** Ответ `?kind=`: сводка + только запрошенный вид. Остальные части не попадают в ответ вовсе. */
@@ -152,10 +158,12 @@ export function mapKindView(full: ProjectMapResult, kind: MapKind): Record<strin
     screens: full.userflow.screens.length,
     transitions: full.userflow.transitions.length,
     calls: full.userflow.calls.length,
-    customNodes: full.custom.nodes.length
+    customNodes: full.custom.nodes.length,
+    contexts: full.domain.contexts.length
   };
   const part: Record<MapKind, Record<string, unknown>> = {
     functional: { functional: full.functional },
+    domain: { domain: full.domain, domainTree: full.domainTree },
     codebase: { codemap: full.codemap },
     flows: { dataflow: full.dataflow },
     journeys: { userflow: full.userflow },

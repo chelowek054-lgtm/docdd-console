@@ -17,6 +17,8 @@ import {
 } from './types';
 import { resolveDesign } from './design';
 import type { DesignReport } from './design-screens';
+import { approvedMaps, foldMaps, parseMapRecord } from './maps';
+import { profileUses } from './domain-map';
 
 export interface SourceFile {
   text: string;
@@ -91,7 +93,9 @@ export function analyze(input: AnalyzeInput): AnalyzeResult {
   const local: RuleRecord[] = records
     .filter((record) => (record.type === 'decision' || record.type === 'design') && record.status === 'approved')
     .map((record) => ({ id: record.id, body: record.body }));
-  const rules: RulesResolution = resolveRules({ manifest: input.manifest?.architecture, general: input.generalRules ?? [], local });
+  // Профиль DDD + Clean ложится на корни контекстов доменной карты сам (R-0118).
+  const domain = foldMaps(approvedMaps(records).map((record) => ({ id: record.id, change: parseMapRecord(record.body).change }))).domain;
+  const rules: RulesResolution = resolveRules({ manifest: input.manifest?.architecture, general: input.generalRules ?? [], local, auto: profileUses(domain) });
   // Токены дизайна: те же источники, что у правил, — читаются блоки `docdd-design`.
   const design = resolveDesign({ general: input.generalRules ?? [], local });
   const ctx: RuleContext = {
@@ -152,9 +156,13 @@ function suppressed(issue: SchemaIssue, codes: ReadonlySet<string>): boolean {
 }
 
 /** Порядок предсказуемый: список нарушений сравнивается в тестах целиком. */
+/** Пробел доменной карты — первым среди архитектурных (R-0119): без неё остальное читать не по чему. */
+const FIRST: ReadonlySet<string> = new Set(['domain_map_missing']);
+
 function sortViolations(violations: readonly Violation[]): Violation[] {
   return [...violations].sort((a, b) =>
-    a.path.localeCompare(b.path)
+    Number(FIRST.has(b.code)) - Number(FIRST.has(a.code))
+    || a.path.localeCompare(b.path)
     || a.code.localeCompare(b.code)
     || a.message.localeCompare(b.message));
 }

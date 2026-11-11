@@ -6,12 +6,13 @@ import { AUTO_STEPS, EMPTY_STATE, checklist, firstStep, readiness, type Onboardi
 const state = (over: Partial<OnboardingState> = {}): OnboardingState => ({ ...EMPTY_STATE, sources: { ...EMPTY_STATE.sources }, ...over });
 
 describe('чек-лист на пустом проекте', () => {
-  it('все девять шагов «не начато», готовность 0 %, первый — вектор', () => {
+  it('все десять шагов «не начато», готовность 0 %, первый — вектор, второй — доменная карта', () => {
     const steps = checklist(state());
-    expect(steps).toHaveLength(9);
+    expect(steps).toHaveLength(10);
+    expect(steps.slice(0, 2).map((step) => step.id)).toEqual(['vision', 'domain']);
     expect(steps.every((step) => step.status === 'not_started')).toBe(true);
     const ready = readiness(steps);
-    expect(ready).toMatchObject({ done: 0, total: 9, percent: 0 });
+    expect(ready).toMatchObject({ done: 0, total: 10, percent: 0 });
     expect(ready.next?.id).toBe('vision');
   });
 });
@@ -21,6 +22,11 @@ describe('статус вычисляется по состоянию, а не �
   it('вектор: нет / черновик / подтверждён', () => {
     expect(by(checklist(state({ vision: 'draft' })), 'vision').status).toBe('awaiting');
     expect(by(checklist(state({ vision: 'approved' })), 'vision').status).toBe('done');
+  });
+  it('доменная карта: нет / черновик / подтверждена (V-0129)', () => {
+    expect(by(checklist(state()), 'domain').status).toBe('not_started');
+    expect(by(checklist(state({ domain: 'draft' })), 'domain').status).toBe('awaiting');
+    expect(by(checklist(state({ domain: 'approved' })), 'domain').status).toBe('done');
   });
   it('записи: подтверждённые — «готово», одни черновики — «ждёт подтверждения»', () => {
     expect(by(checklist(state({ contracts: 2 })), 'contracts').status).toBe('done');
@@ -37,8 +43,8 @@ describe('статус вычисляется по состоянию, а не �
   });
   it('реальный проект: готовность и первый невыполненный шаг', () => {
     const ready = readiness(checklist(state({ vision: 'approved', capabilities: 20, maps: 3, requirements: 50, requirementsChecked: 50, glossaryTerms: 4, sources: { code: 2, docs: 1, client: 1 }, contracts: 1, references: 5 })));
-    expect(ready).toMatchObject({ done: 8, total: 9, percent: 89 });
-    expect(ready.next?.id).toBe('checks');
+    expect(ready).toMatchObject({ done: 8, total: 10, percent: 80 });
+    expect(ready.next?.id).toBe('domain');
   });
 });
 

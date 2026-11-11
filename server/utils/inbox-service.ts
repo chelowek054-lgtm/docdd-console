@@ -239,6 +239,7 @@ export function createRecords(root: string, original: readonly ProposedRecord[],
     // Возможности — только у карт: у остальных типов поле просто игнорируется.
     const capabilities = record.type === 'map' ? record.capabilities : undefined;
     const vision = record.type === 'map' ? record.vision : undefined;
+    const domain = record.type === 'map' ? record.domain : undefined;
     const relations = record.type === 'map'
       ? usableRelations(record.relations, capabilities ?? [], standing)
       : { relations: [], problems: [] };
@@ -255,6 +256,8 @@ export function createRecords(root: string, original: readonly ProposedRecord[],
       ...(capabilities?.length ? { capabilities } : {}),
       ...(relations.relations.length ? { relations: relations.relations } : {}),
       ...(vision && Object.keys(vision).length ? { vision } : {}),
+      ...(domain ? { domain } : {}),
+      ...(record.type === 'decision' && record.area ? { area: record.area } : {}),
       ...(record.type === 'map' && record.intent ? { intent: true } : {}),
       ...(record.type === 'task' && record.change ? { change: record.change } : {}),
       ...(record.type === 'task' && record.reuse === 'none' ? { reuse: 'none' } : {}),

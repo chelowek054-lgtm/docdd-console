@@ -1,0 +1,14 @@
+{
+  "contract": "docdd.workspace/1",
+  "runner": "vitest",
+  "started_at": "2026-11-11T17:10:00+03:00",
+  "total": 26,
+  "failed": 0,
+  "verifications": {
+    "V-0128": "passed",
+    "V-0129": "passed",
+    "V-0130": "passed",
+    "V-0131": "passed"
+  },
+  "note": "tests/domain-map.spec.ts (26), tests/onboarding.spec.ts. Экран «Стратегия» с доменной картой, шаг чек-листа и четвёртый шаг обучения пройдены на собранной консоли и временном проекте. V-0132 (ручная) проходит человек."
+}

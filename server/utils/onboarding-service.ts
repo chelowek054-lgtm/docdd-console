@@ -19,14 +19,15 @@ const OUT = new Set(['superseded', 'rejected', 'dropped', 'legacy']);
 const pending = (status: string) => status === 'draft' || status === 'review';
 
 /** Какие структуры карты лежат в записи: функциональная часть и три «карты устройства». */
-function mapParts(record: WorkRecord): { functional: boolean; device: boolean; vision: boolean; capabilities: number } {
+function mapParts(record: WorkRecord): { functional: boolean; device: boolean; vision: boolean; capabilities: number; domain: boolean } {
   const change = parseMapRecord(record.body).change;
   const functional = change.functional;
   return {
     functional: !!functional,
     device: !!(change.codemap || change.dataflow || change.userflow),
     vision: !!functional?.added?.vision,
-    capabilities: functional?.added?.capabilities?.length ?? 0
+    capabilities: functional?.added?.capabilities?.length ?? 0,
+    domain: (change.domain?.added?.contexts?.length ?? 0) > 0
   };
 }
 
@@ -48,11 +49,13 @@ export function collectOnboarding(root: string): OnboardingState {
     const approved = approvedMaps(live);
     const approvedParts = approved.map(mapParts);
     state.vision = approvedParts.some((part) => part.vision) ? 'approved' : 'none';
+    state.domain = approvedParts.some((part) => part.domain) ? 'approved' : 'none';
     state.capabilities = approvedParts.reduce((sum, part) => sum + part.capabilities, 0);
     state.maps = approvedParts.filter((part) => part.device).length;
     for (const record of live.filter((item) => item.type === 'map' && pending(item.status))) {
       const part = mapParts(record);
       if (part.vision && state.vision === 'none') state.vision = 'draft';
+      if (part.domain && state.domain === 'none') state.domain = 'draft';
       if (part.capabilities > 0) state.capabilitiesDraft += 1;
       if (part.device) state.mapsDraft += 1;
     }

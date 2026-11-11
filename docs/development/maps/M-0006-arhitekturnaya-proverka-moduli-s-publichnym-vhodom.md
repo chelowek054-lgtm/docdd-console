@@ -32,7 +32,7 @@ updated: 2026-10-11
         "to": "server/lib/types.ts",
         "evidence": {
           "path": "server/lib/architecture.ts",
-          "line": 1,
+          "line": 2,
           "fragment": "import type { ArchitectureConfig } from './types';"
         }
       },

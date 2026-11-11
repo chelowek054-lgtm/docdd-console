@@ -119,6 +119,13 @@ flowchart LR
 | `arch_private_import` | warning | Импорт приватного (`_`) подмодуля `open`-модуля снаружи |
 | `arch_not_independent` | warning | Модули из `independent` обращаются друг к другу |
 | `arch_forbidden` | warning | Импорт нарушает правило `forbidden` (называет `why` и запись-источник) |
+| `domain_map_missing` | warning | В проекте есть код, а доменной карты нет (R-0119); путь пустой — в списке идёт первым |
+| `domain_capability_uncovered` | warning | Возможность `must` / `now` не отнесена ни к одному контексту, ни сама, ни через предка |
+| `domain_module_orphan` | warning | Модуль кодовой карты вне корня любого контекста и вне `shared` / `kernel` |
+| `domain_relation_unknown` | warning | Связь контекстов называет контекст, которого в карте нет |
+| `domain_language_empty` | warning | У контекста `core` пустой словарь |
+| `domain_aggregate_no_invariants` | warning | У агрегата не названы инварианты |
+| `arch_decision_missing` | warning | Доменная карта есть, а по области `topology` / `storage` / `transactions` нет ни одного решения (R-0120) |
 | `reference_no_summary` | warning | У справки нет `summary`: в индекс она попадёт безымянной |
 | `reference_stale` | warning | Справка получена давно (`policy.reference_stale_days`, по умолчанию 180) |
 | `reference_index_stale` | warning | `INDEX.md` расходится с тем, что собралось бы сейчас |

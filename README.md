@@ -56,6 +56,11 @@ approval gate before work starts, and verification of the code against the maps 
   read-only ([docs/17-mcp.md](docs/17-mcp.md)).
 - **Token spend by task.** See what a task cost and where it went; every task has an "expected
   result" section it is accepted against.
+- **DDD and Clean Architecture as the base.** Every project aims for bounded contexts with domain,
+  application, infrastructure and interface layers. A domain map with ubiquitous language and
+  aggregates comes second after the strategic map; layer violations are warnings. Monolith vs
+  microservices, storage and transactions are the architect's call — the model only proposes options
+  ([docs/18-architecture.md](docs/18-architecture.md), in Russian).
 - **CLI check for CI.** `npm run check -- <project>` fails the build on process violations.
 
 | Strategic map | Codebase map |
@@ -137,6 +142,7 @@ The design docs are currently written in Russian; English translations are welco
 | [docs/02-workspace-contract.md](docs/02-workspace-contract.md) | The file format the console reads and writes |
 | [docs/07-maps.md](docs/07-maps.md) | Strategic and working maps, evidence, verification |
 | [docs/08-usage.md](docs/08-usage.md) | How to use it and the implementation rules |
+| [docs/18-architecture.md](docs/18-architecture.md) | Code base: DDD and Clean Architecture, the domain map, architect decisions |
 | [docs/09-execution.md](docs/09-execution.md) | Working on a task: branch, diff, merge |
 | [docs/17-mcp.md](docs/17-mcp.md) | Working from an assistant over MCP, adding tools, token spend |
 | [docs/adr/](docs/adr/) | Architecture decisions with rejected alternatives |

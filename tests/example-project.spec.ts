@@ -86,6 +86,8 @@ const expected = [
   'task_not_ready_docs T-0002',
   'task_stale T-0002',
   'title_mismatch T-0008',
+  // Код в примере есть, доменной карты нет (R-0119).
+  'domain_map_missing docs/development/project.yaml',
   'unknown_type A-0009',
   'verification_never_run V-0003'
 ].sort();
@@ -104,7 +106,7 @@ describe('набор файлов-примеров', () => {
     // transition_forbidden отвечает на запрос действия, а не на состояние
     // набора записей, поэтому в этом списке его нет — он проверен в rules.spec.
     const covered = new Set(result.violations.map((item) => item.code));
-    expect(covered.size).toBe(28);
+    expect(covered.size).toBe(29);
     expect(covered.has('transition_forbidden')).toBe(false);
   });
 

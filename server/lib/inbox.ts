@@ -2,6 +2,7 @@ import { drawableRelations, type CapabilityLike, type RelationItem } from './fun
 import type { Horizon, ImplStatus, Priority, RelationType } from './functional';
 import { LINK_KINDS, RECORD_TYPES, type LinkKind, type RecordType } from './types';
 import { validateRecords } from './schema';
+import type { DomainPart } from './domain-map';
 
 /**
  * Разбор входящего: из сырых заметок — список предложенных записей
@@ -43,6 +44,10 @@ export interface ProposedRecord {
   }[];
   /** Только у `type: map` — связи между возможностями, если заметка говорит, что на чём стоит. */
   relations?: { from: string; to: string; type: RelationType; summary?: string }[];
+  /** Только у `type: map` — доменная карта (R-0119). */
+  domain?: DomainPart;
+  /** Только у `type: decision` — решение архитектора (R-0120). */
+  area?: 'topology' | 'storage' | 'transactions';
   /** Только у `type: map` — вектор проекта (docs/07-maps.md, «Вектор проекта»). */
   vision?: { problem?: string; audience?: string; outcome?: string; not?: string };
   links?: Record<string, string[]>;

@@ -428,7 +428,11 @@ export function checkArchitecture(input: ArchInput): ArchResult {
 // --- аудит моделью ---
 
 /** Что граф импортов не видит и о чём судит модель (docs/prompts/architecture-audit.md). */
-export const AUDIT_KINDS = ['logic_in_ui', 'duplicate', 'many_tasks', 'leaky_entry', 'no_entry_use', 'misplaced'] as const;
+export const AUDIT_KINDS = [
+  'logic_in_ui', 'duplicate', 'many_tasks', 'leaky_entry', 'no_entry_use', 'misplaced',
+  // DDD + Clean (A-0004, R-0118): паттерны, которых граф импортов не видит.
+  'setter_bypass', 'rule_in_application', 'mutable_value', 'aggregate_bypass', 'domain_framework', 'off_language'
+] as const;
 export type AuditKind = (typeof AUDIT_KINDS)[number];
 
 export const AUDIT_KIND_LABEL: Readonly<Record<AuditKind, string>> = {
@@ -437,7 +441,13 @@ export const AUDIT_KIND_LABEL: Readonly<Record<AuditKind, string>> = {
   many_tasks: 'несколько задач в модуле',
   leaky_entry: 'вход отдаёт лишнее',
   no_entry_use: 'внутренность снаружи',
-  misplaced: 'файл не на месте'
+  misplaced: 'файл не на месте',
+  setter_bypass: 'сеттер в обход инварианта',
+  rule_in_application: 'правило в прикладном слое',
+  mutable_value: 'объект-значение меняется',
+  aggregate_bypass: 'агрегат не через корень',
+  domain_framework: 'домен знает о фреймворке',
+  off_language: 'имя не из словаря'
 };
 
 export interface AuditFinding {

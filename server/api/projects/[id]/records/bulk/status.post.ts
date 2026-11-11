@@ -38,7 +38,7 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    return bulkStatus(project.root, ids as string[], direction as BulkDirection, actor);
+    return bulkStatus(project.root, ids as string[], direction as BulkDirection, actor, rolesOf(event.context));
   } catch (error) {
     if (error instanceof OutsideRootError) {
       return fail(event, 403, 'outside_root', error.message, error.requested);
@@ -50,3 +50,4 @@ export default defineEventHandler(async (event) => {
   }
 });
 import { staleVersions } from '../../../../../utils/record-write';
+import { rolesOf } from '../../../../../utils/roles-of';
