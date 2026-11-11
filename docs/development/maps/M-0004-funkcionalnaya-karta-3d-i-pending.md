@@ -254,7 +254,7 @@ updated: 2026-09-24
         "to": "server/lib/write.ts",
         "evidence": {
           "path": "server/lib/maps.ts",
-          "line": 2,
+          "line": 5,
           "fragment": "import { yamlSafe } from './write';"
         }
       },

@@ -153,6 +153,10 @@
 }
 ```
 
+Решение с `area` (`topology`, `storage`, `transactions`) переводит в `approved` только роль
+`architect`: остальным — `403 architect_only` (R-0120). Без входа правило молчит. В
+`bulk/status` тот же отказ приходит строкой отчёта с кодом `architect_only`.
+
 ### `GET /api/projects/:id/records/:recordId/diff`
 
 «Что меняется» для записи на подтверждении. Ответ: `kind` (`text` | `vision` | `new`), `base` (`{commit, reason: approved | previous}` или `null`), `fields` (`поле · было · стало`), `links` (`+`/`−`, вид, цель), `text` (построчно, `same | add | del`), для карты с вектором — `vision` (поля «проблема, для кого, успех, чего не делает» и задетые возможности), `empty`, `viewed`. «Было» — файл на последнем коммите со статусом `approved`, иначе на предыдущем; своей базы снимков нет.
@@ -401,10 +405,17 @@
   "dataflow": { "sources": [...], "flows": [...] },
   "userflow": { "screens": [...], "transitions": [...], "calls": [...] },
   "functional": { "capabilities": [...], "relations": [...], "vision": { "problem": "…" }, "history": [...] },
+  "domain": { "contexts": [...], "aggregates": [...], "relations": [...] },
+  "domainTree": [{ "context": {...}, "aggregates": [...], "files": 42, "layers": [{ "layer": "domain", "clean": true, "modules": [{ "id": "src/payroll/domain", "path": "src/payroll/domain", "files": ["…"] }] }] }],
   "from": ["M-0001", "M-0007"],
   "unverified": 3
 }
 ```
+
+`domain` — доменная карта ([07-maps.md](07-maps.md), «Доменная карта»), `domainTree` — она же,
+раскрытая до слоёв, модулей и файлов по корню каждого контекста: слой — каталог первого уровня под
+корнем (`clean: false` — не слой чистой архитектуры), модуль — модуль кодовой карты, файлы — из
+`sources.code`, не больше 200 на контекст.
 
 `functional.vision` — вектор проекта ([07-maps.md](07-maps.md), «Вектор
 проекта»), `null`, если его никто не объявил. `functional.history` — история
@@ -439,11 +450,11 @@
 Черновики и отменённые карты сюда не входят: пока человек не подтвердил, это
 намерение, а не устройство проекта.
 
-**Параметр `?kind=functional|codebase|flows|journeys|custom`.** Отдаёт только
-один вид — `functional`, `codemap`, `dataflow`, `userflow` или `custom`
+**Параметр `?kind=functional|domain|codebase|flows|journeys|custom`.** Отдаёт только
+один вид — `functional`, `domain` (вместе с `domainTree`), `codemap`, `dataflow`, `userflow` или `custom`
 соответственно — плюс `kind`, `from`, `unverified` и лёгкую `summary` с числами
 для ярлыков вкладок (`capabilities`, `relations`, `modules`, `imports`,
-`sources`, `flows`, `screens`, `transitions`, `calls`, `customNodes`). Без
+`sources`, `flows`, `screens`, `transitions`, `calls`, `customNodes`, `contexts`). Без
 параметра ответ прежний, целиком. Неизвестный вид — 400 `bad_kind`. Страница карт
 просит открытый вид, остальные догружает при переключении вкладки: полный ответ
 на большом проекте весит сотни килобайт и раздувал HTML.

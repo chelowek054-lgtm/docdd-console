@@ -2,7 +2,7 @@
 id: T-0203
 type: task
 title: 'Запросы модели: DDD + Clean и варианты для архитектора'
-status: ready
+status: in_review
 change: feature
 reuse: none
 created: 2026-11-11
@@ -25,3 +25,5 @@ links:
 
 - 2026-11-11 · заведена черновиком · модель
 - 2026-11-11 16:52 · готова к работе · chelowek, подтверждено в чате, записала модель
+- 2026-11-11 16:55 · в разработку · developer
+- 2026-11-11 17:20 · на проверку · developer

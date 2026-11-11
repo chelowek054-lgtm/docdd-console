@@ -4803,7 +4803,7 @@ updated: 2026-10-24
         "to": "server/lib/design.ts",
         "evidence": {
           "path": "server/api/projects/[id]/prompt/index.post.ts",
-          "line": 39,
+          "line": 40,
           "fragment": "import { plainTokens } from '../../../../lib/design';"
         }
       },
@@ -4812,7 +4812,7 @@ updated: 2026-10-24
         "to": "server/utils/design-service.ts",
         "evidence": {
           "path": "server/api/projects/[id]/prompt/index.post.ts",
-          "line": 41,
+          "line": 42,
           "fragment": "import { projectDesign } from '../../../../utils/design-serv"
         }
       },
@@ -4821,7 +4821,7 @@ updated: 2026-10-24
         "to": "server/utils/design-screens-service.ts",
         "evidence": {
           "path": "server/api/projects/[id]/prompt/index.post.ts",
-          "line": 42,
+          "line": 43,
           "fragment": "import { projectScreens } from '../../../../utils/design-scr"
         }
       },
@@ -4830,7 +4830,7 @@ updated: 2026-10-24
         "to": "server/lib/reviewer.ts",
         "evidence": {
           "path": "server/api/projects/[id]/prompt/index.post.ts",
-          "line": 43,
+          "line": 44,
           "fragment": "import { reviewerOf, roleName } from '../../../../lib/review"
         }
       },
@@ -5181,7 +5181,7 @@ updated: 2026-10-24
         "to": "server/utils/record-diff-service.ts",
         "evidence": {
           "path": "server/api/projects/[id]/records/[recordId]/status.post.ts",
-          "line": 11,
+          "line": 12,
           "fragment": "import { wasViewed } from '../../../../../utils/record-diff-"
         }
       },
@@ -5190,7 +5190,7 @@ updated: 2026-10-24
         "to": "server/lib/version.ts",
         "evidence": {
           "path": "server/api/projects/[id]/records/[recordId]/status.post.ts",
-          "line": 96,
+          "line": 99,
           "fragment": "import { versionConflict } from '../../../../../lib/version'"
         }
       },
@@ -5199,7 +5199,7 @@ updated: 2026-10-24
         "to": "server/utils/notify-events.ts",
         "evidence": {
           "path": "server/api/projects/[id]/records/[recordId]/status.post.ts",
-          "line": 97,
+          "line": 100,
           "fragment": "import { notifyStatus } from '../../../../../utils/notify-ev"
         }
       },
@@ -6585,7 +6585,7 @@ updated: 2026-10-24
         "to": "server/lib/types.ts",
         "evidence": {
           "path": "server/lib/maps.ts",
-          "line": 3,
+          "line": 4,
           "fragment": "import type { WorkRecord } from './types';"
         }
       },
@@ -6783,7 +6783,7 @@ updated: 2026-10-24
         "to": "server/lib/reference.ts",
         "evidence": {
           "path": "server/lib/rules.ts",
-          "line": 3,
+          "line": 4,
           "fragment": "import { buildReferenceIndex, sameIndex, type ReferenceEntry"
         }
       },
@@ -6792,7 +6792,7 @@ updated: 2026-10-24
         "to": "server/lib/practice-rules.ts",
         "evidence": {
           "path": "server/lib/rules.ts",
-          "line": 4,
+          "line": 5,
           "fragment": "import type { RulesResolution } from './practice-rules';"
         }
       },
@@ -6801,7 +6801,7 @@ updated: 2026-10-24
         "to": "server/lib/coverage.ts",
         "evidence": {
           "path": "server/lib/rules.ts",
-          "line": 5,
+          "line": 6,
           "fragment": "import { capabilityFindings } from './coverage';"
         }
       },
@@ -6810,7 +6810,7 @@ updated: 2026-10-24
         "to": "server/lib/batch-check.ts",
         "evidence": {
           "path": "server/lib/rules.ts",
-          "line": 6,
+          "line": 7,
           "fragment": "import { taskGaps } from './batch-check'; import { brokenMap"
         }
       },
@@ -6819,7 +6819,7 @@ updated: 2026-10-24
         "to": "server/lib/types.ts",
         "evidence": {
           "path": "server/lib/rules.ts",
-          "line": 26,
+          "line": 29,
           "fragment": "} from './types';"
         }
       },
@@ -6828,7 +6828,7 @@ updated: 2026-10-24
         "to": "server/lib/design.ts",
         "evidence": {
           "path": "server/lib/rules.ts",
-          "line": 27,
+          "line": 30,
           "fragment": "import { plainTokens, type DesignResolution } from './design"
         }
       },
@@ -6837,7 +6837,7 @@ updated: 2026-10-24
         "to": "server/lib/design-screens.ts",
         "evidence": {
           "path": "server/lib/rules.ts",
-          "line": 28,
+          "line": 31,
           "fragment": "import { PASS_LABEL, latestReports, type DesignReport } from"
         }
       },
@@ -6846,7 +6846,7 @@ updated: 2026-10-24
         "to": "server/lib/design-export.ts",
         "evidence": {
           "path": "server/lib/rules.ts",
-          "line": 37,
+          "line": 40,
           "fragment": "} from './design-export';"
         }
       },
@@ -7152,7 +7152,7 @@ updated: 2026-10-24
         "to": "server/lib/issues-diff.ts",
         "evidence": {
           "path": "server/utils/bulk-service.ts",
-          "line": 2,
+          "line": 3,
           "fragment": "import { newIssues } from '../lib/issues-diff';"
         }
       },
@@ -7161,7 +7161,7 @@ updated: 2026-10-24
         "to": "server/lib/rules.ts",
         "evidence": {
           "path": "server/utils/bulk-service.ts",
-          "line": 3,
+          "line": 4,
           "fragment": "import { checkTransition } from '../lib/rules';"
         }
       },
@@ -7170,7 +7170,7 @@ updated: 2026-10-24
         "to": "server/lib/types.ts",
         "evidence": {
           "path": "server/utils/bulk-service.ts",
-          "line": 4,
+          "line": 5,
           "fragment": "import type { IssueDto } from '../lib/types';"
         }
       },
@@ -7179,7 +7179,7 @@ updated: 2026-10-24
         "to": "server/lib/transitions.ts",
         "evidence": {
           "path": "server/utils/bulk-service.ts",
-          "line": 5,
+          "line": 6,
           "fragment": "import { bulkPath, type BulkDirection } from '../lib/transit"
         }
       },
@@ -7188,7 +7188,7 @@ updated: 2026-10-24
         "to": "server/utils/index-service.ts",
         "evidence": {
           "path": "server/utils/bulk-service.ts",
-          "line": 6,
+          "line": 7,
           "fragment": "import { loadIndex } from './index-service';"
         }
       },
@@ -7197,7 +7197,7 @@ updated: 2026-10-24
         "to": "server/utils/inventory-service.ts",
         "evidence": {
           "path": "server/utils/bulk-service.ts",
-          "line": 7,
+          "line": 8,
           "fragment": "import { markDescribed } from './inventory-service';"
         }
       },
@@ -7206,7 +7206,7 @@ updated: 2026-10-24
         "to": "server/utils/record-write.ts",
         "evidence": {
           "path": "server/utils/bulk-service.ts",
-          "line": 8,
+          "line": 9,
           "fragment": "import { journalNow, openRecord, writeRecord } from './record-wri"
         }
       },
@@ -7215,7 +7215,7 @@ updated: 2026-10-24
         "to": "server/utils/record-diff-service.ts",
         "evidence": {
           "path": "server/utils/bulk-service.ts",
-          "line": 9,
+          "line": 10,
           "fragment": "import { wasViewed } from './record-diff-service';"
         }
       },
@@ -8907,7 +8907,7 @@ updated: 2026-10-24
         "to": "server/lib/builtin.ts",
         "evidence": {
           "path": "server/utils/work-service.ts",
-          "line": 30,
+          "line": 31,
           "fragment": "import { withBuiltin } from '../lib/builtin';"
         }
       },
@@ -8916,7 +8916,7 @@ updated: 2026-10-24
         "to": "server/utils/reference-service.ts",
         "evidence": {
           "path": "server/utils/work-service.ts",
-          "line": 31,
+          "line": 32,
           "fragment": "import { referenceIndexText } from './reference-service';"
         }
       },
@@ -8925,7 +8925,7 @@ updated: 2026-10-24
         "to": "server/lib/auth.ts",
         "evidence": {
           "path": "server/utils/work-service.ts",
-          "line": 33,
+          "line": 34,
           "fragment": "import { authorFromSignature } from '../lib/auth';"
         }
       }
