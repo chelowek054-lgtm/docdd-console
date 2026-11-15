@@ -216,6 +216,21 @@ function walk(directory: string, inherited: readonly string[] = []): string[] {
   return found.sort();
 }
 
+/**
+ * Правила `.gitignore` корня проекта и папок над корнем кода: у настоящего git
+ * `__pycache__/` из корня действует и в `src`, а обход начинается с `src` и
+ * без этого корневых правил не видит.
+ */
+function inheritedRules(root: string, codeRoot: string): string[] {
+  const rules = [...readGitignore(root)];
+  let directory = root;
+  for (const step of codeRoot.split(/[\\/]/).filter((part) => part && part !== '.').slice(0, -1)) {
+    directory = join(directory, step);
+    rules.push(...readGitignore(directory));
+  }
+  return rules;
+}
+
 function readGitignore(directory: string): string[] {
   const path = join(directory, '.gitignore');
   try {
@@ -279,7 +294,7 @@ function walkCodeCached(root: string, codeRoot: string): string[] {
   const key = `${root} ${codeRoot}`;
   const hit = codeWalks.get(key);
   if (hit && Date.now() - hit.at < CODE_WALK_TTL_MS) return hit.paths;
-  const paths = walk(join(root, codeRoot));
+  const paths = walk(join(root, codeRoot), inheritedRules(root, codeRoot));
   codeWalks.set(key, { at: Date.now(), paths });
   return paths;
 }
