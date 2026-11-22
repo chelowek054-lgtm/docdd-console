@@ -166,7 +166,7 @@ export const pages2: Record<string, string> = {
   'maps.fixLabel': 'Fix the maps answer',
   'maps.grp.approved': 'Approved',
   'maps.grp.waiting': 'Awaiting approval',
-  'maps.grp.out': 'Outside the sum', 'maps.records.title': 'Map records', 'maps.records.hint': 'What the maps are built from: {n}', 'maps.records.pending': 'Waiting for approval: {n}', 'maps.records.nonePending': 'Nothing waiting for approval', 'maps.records.approve': 'Approve', 'maps.records.archive': 'Map archive ({n})', 'maps.records.diffHint': 'What the map changes: added in green, removed in red, changed in yellow.', 'maps.records.loading': 'Loading the diff…',
+  'maps.grp.out': 'Outside the sum', 'maps.records.title': 'Map records', 'maps.notation.title': 'Notation: {title}', 'maps.notation.sources': 'Standards', 'maps.notation.format': 'label names the data format', 'maps.notation.label': 'label required', 'maps.records.hint': 'What the maps are built from: {n}', 'maps.records.pending': 'Waiting for approval: {n}', 'maps.records.nonePending': 'Nothing waiting for approval', 'maps.records.approve': 'Approve', 'maps.records.archive': 'Map archive ({n})', 'maps.records.diffHint': 'What the map changes: added in green, removed in red, changed in yellow.', 'maps.records.loading': 'Loading the diff…',
   'maps.fk.file': 'files',
   'maps.fk.db': 'databases',
   'maps.fk.queue': 'queues',

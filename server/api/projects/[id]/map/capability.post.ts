@@ -22,6 +22,7 @@ import { validateFunctional } from '../../../../lib/schema';
 import { DEVELOPMENT_DIR, WorkspaceError, readWorkspace } from '../../../../lib/workspace';
 import { fail, failWith } from '../../../../utils/http';
 import { loadIndex } from '../../../../utils/index-service';
+import { lintDetails, lintMapChange } from '../../../../utils/map-lint';
 import { buildProjectMap } from '../../../../utils/map-service';
 import { findProject } from '../../../../utils/projects';
 import { today } from '../../../../utils/record-write';
@@ -189,6 +190,9 @@ export default defineEventHandler(async (event) => {
 
   try {
     const root = normalizeRoot(project.root);
+    // Линтер карт (R-0141): узел без имени, назначения или вида, связь в никуда — не пишем.
+    const lint = lintDetails(lintMapChange(root, change));
+    if (lint.length > 0) return failWith(event, 422, 'map_lint', 'Карта не прошла линтер: черновик не создан', lint);
     const workspace = readWorkspace(root);
     const analysis = analyze({ files: workspace.files, manifest: workspace.manifest });
 
@@ -231,7 +235,7 @@ function strings(value: unknown, key: string): Record<string, string[]> {
 }
 
 function asCapability(value: unknown): {
-  id: string; title?: string; parent?: string; summary?: string; status?: string; note?: string;
+  id: string; kind?: string; title?: string; parent?: string; summary?: string; status?: string; note?: string;
   priority?: string; horizon?: string; dashboards?: string[]; mapLinks?: string[]; inputs?: string[]; outputs?: string[];
 } | null {
   if (!value || typeof value !== 'object') return null;
@@ -242,6 +246,7 @@ function asCapability(value: unknown): {
   const status = text(raw['status']);
   return {
     id,
+    ...(text(raw['kind']) ? { kind: text(raw['kind']) as string } : {}),
     ...(text(raw['title']) ? { title: text(raw['title']) as string } : {}),
     ...(text(raw['parent']) ? { parent: text(raw['parent']) as string } : {}),
     ...(text(raw['summary']) ? { summary: text(raw['summary']) as string } : {}),

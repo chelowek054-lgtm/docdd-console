@@ -1,0 +1,33 @@
+{
+  "template": "sysdesign",
+  "title": "System Design",
+  "question": "Как будет реализовано",
+  "sources": [
+    { "name": "C4, уровни контейнеров и компонентов", "note": "контейнеры, компоненты, хранилища, внешние системы" },
+    { "name": "UML, диаграмма развёртывания", "note": "узлы развёртывания как контейнеры для контейнеров" },
+    { "name": "UML, диаграмма последовательностей", "note": "синхронный вызов и асинхронное сообщение различаются линией и наконечником" }
+  ],
+  "own": [
+    "очередь — отдельная форма: её путают с хранилищем",
+    "«данные» подписываются форматом"
+  ],
+  "defaultEdgeKind": "call",
+  "nodeKinds": [
+    { "id": "system", "title": "Система", "shape": "rect", "color": "map-layer-domain", "icon": "i-lucide-box", "container": true },
+    { "id": "container", "title": "Контейнер (приложение, сервис)", "shape": "rounded", "color": "map-layer-application", "icon": "i-lucide-container", "container": true },
+    { "id": "component", "title": "Компонент", "shape": "rect", "color": "map-layer-interface", "icon": "i-lucide-component", "container": true },
+    { "id": "database", "title": "Хранилище", "shape": "cylinder", "color": "map-layer-infrastructure", "icon": "i-lucide-database", "container": false },
+    { "id": "queue", "title": "Очередь, шина", "shape": "queue", "color": "map-infra", "icon": "i-lucide-list-ordered", "container": false },
+    { "id": "deployment", "title": "Узел развёртывания", "shape": "package", "color": "map-infra", "icon": "i-lucide-server", "container": true },
+    { "id": "ui", "title": "Интерфейс", "shape": "rounded", "color": "map-ui", "icon": "i-lucide-monitor", "container": true },
+    { "id": "person", "title": "Человек, роль", "shape": "person", "color": "map-person", "icon": "i-lucide-user", "container": false },
+    { "id": "external", "title": "Внешняя система", "shape": "cloud", "color": "map-external", "icon": "i-lucide-cloud", "container": false }
+  ],
+  "edgeKinds": [
+    { "id": "call", "title": "синхронный вызов", "line": "solid", "head": "arrow", "label": "required" },
+    { "id": "event", "title": "событие, сообщение", "line": "dashed", "head": "open", "label": "required" },
+    { "id": "data", "title": "данные", "line": "dashed", "head": "arrow", "label": "format" },
+    { "id": "roundtrip", "title": "запрос и ответ", "line": "solid", "head": "arrow", "label": "required", "twoWay": true },
+    { "id": "depends", "title": "зависит от", "line": "dotted", "head": "arrow", "label": "optional" }
+  ]
+}

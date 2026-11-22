@@ -6,6 +6,7 @@ import type { RulesResolution } from './practice-rules';
 import { capabilityFindings } from './coverage';
 import { taskGaps } from './batch-check'; import { brokenMapLinks, inputsNotReady, effectiveHorizon, effectiveOwner, effectivePriority } from './functional';
 import { approvedMaps, checkEvidence, evidenceClaims, foldMaps, parseMapRecord, type MapChange } from './maps';
+import { lintStrategicChange, standardFor } from './map-core';
 import { firstHeading } from './parse';
 import { mockupColors, mockupOf, offTokenColors } from './design-mockups';
 import { DEFAULT_MOCKUPS_DIR, screenSlug } from './design-screens';
@@ -426,11 +427,28 @@ export function checkDocLinks(ctx: RuleContext): Violation[] {
  */
 export function checkMaps(ctx: RuleContext): Violation[] {
   const found: Violation[] = [];
+  // Сложенная стратегическая карта — для линтера: узел записи сверяется с прежним состоянием узла.
+  let strategic: { capabilities: { id: string; title?: string; summary?: string; parent?: string }[] } | null = null;
 
   for (const record of ctx.records) {
     if (record.type !== 'map' || !record.id) continue;
 
     const parsed = parseMapRecord(record.body);
+    // Линтер (R-0141) — у записей на подтверждении: подтверждённые старые карты читаются без правки файлов.
+    if ((record.status === 'draft' || record.status === 'review') && parsed.change.functional) {
+      strategic ??= foldMaps(approvedMaps(ctx.records).map((item) => ({ id: item.id, change: parseMapRecord(item.body).change }))).functional;
+      const standard = standardFor('strategic')?.standard;
+      // Строка — по всему файлу: тело без front matter дало бы номер, которого в редакторе нет.
+      const fileText = ctx.readSource?.(record.source.path) ?? undefined;
+      for (const finding of standard ? lintStrategicChange(parsed.change.functional, strategic, standard, fileText) : []) {
+        found.push(violation(
+          finding.severity === 'error' ? 'map_lint' : 'map_lint_notation',
+          record.id,
+          record.source.path,
+          (finding.line ? `Строка ${finding.line}. ` : '') + finding.message + '.'
+        ));
+      }
+    }
     // Отставленная карта (заменена, отменена, отвергнута) больше не читается
     // как текущая — её форма никого не вводит в заблуждение и чинить в ней
     // уже нечего (docs/05-validation.md).

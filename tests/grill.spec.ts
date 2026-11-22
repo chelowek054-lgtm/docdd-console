@@ -279,7 +279,7 @@ describe('Допрос на временном проекте (V-0123, V-0124, V
 
   const SAMPLE = '```docdd-records\n' + JSON.stringify({
     records: [
-      { key: 'karta', type: 'map', title: 'Приём пациента', body: 'Со слов человека.', vision: { problem: 'Врач ищет историю по бумагам', audience: 'Врачи', outcome: 'История на одном экране', not: 'Не биллинг' }, capabilities: [{ id: 'priyom', title: 'Приём', status: 'not_implemented' }, { id: 'istoriya', title: 'История приёмов', parent: 'priyom', status: 'not_implemented' }] },
+      { key: 'karta', type: 'map', title: 'Приём пациента', body: 'Со слов человека.', vision: { problem: 'Врач ищет историю по бумагам', audience: 'Врачи', outcome: 'История на одном экране', not: 'Не биллинг' }, capabilities: [{ id: 'priyom', title: 'Приём', summary: 'Врач принимает пациента и видит его историю', status: 'not_implemented' }, { id: 'istoriya', title: 'История приёмов', summary: 'Все прошлые приёмы пациента на одном экране', parent: 'priyom', status: 'not_implemented' }] },
       { key: 'tz', type: 'requirement', title: 'История приёмов на одном экране', body: 'Зачем: врач ищет по бумагам.\nЧто делаем: список приёмов.\nЧего не делаем: биллинг.\nГотово, когда: виден список.', links: { refines: [] } },
       { key: 'pr', type: 'verification', title: 'Список приёмов виден', body: 'Шаги: открыть карточку.\nОжидаемый результат: список.', links: { verifies: ['tz'] } },
       { key: 'ekran', type: 'design', title: 'Экран истории, строгий тон', body: 'Экран и тон интерфейса.' },

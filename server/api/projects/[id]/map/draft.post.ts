@@ -12,6 +12,7 @@ import { nextId } from '../../../../lib/scaffold';
 import { DEVELOPMENT_DIR, WorkspaceError, readWorkspace } from '../../../../lib/workspace';
 import { fail, failWith } from '../../../../utils/http';
 import { loadIndex } from '../../../../utils/index-service';
+import { lintDetails, lintMapChange } from '../../../../utils/map-lint';
 import { findProject } from '../../../../utils/projects';
 import { today } from '../../../../utils/record-write';
 
@@ -60,6 +61,8 @@ export default defineEventHandler(async (event) => {
 
   try {
     const root = normalizeRoot(project.root);
+    const lint = lintDetails(lintMapChange(root, parsed.change, answer));
+    if (lint.length > 0) return failWith(event, 422, 'map_lint', 'Карта не прошла линтер: черновик не создан', lint);
     const workspace = readWorkspace(root);
     const analysis = analyze({ files: workspace.files, manifest: workspace.manifest });
 

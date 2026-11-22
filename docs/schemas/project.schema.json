@@ -307,7 +307,12 @@
       "type": "object",
       "description": "Карты проекта. custom — определения пользовательских карт (docs/adr/0028-custom-maps.md). Схема здесь нарочно свободная: неверное определение — проблема одной карты, а не всего проекта; подробно его проверяет customDefinitions (server/lib/custom-maps.ts).",
       "properties": {
-        "custom": { "type": "array", "items": { "type": "object" } }
+        "custom": { "type": "array", "items": { "type": "object" } },
+        "standards": {
+          "type": "array",
+          "description": "Переопределения стандартов обозначений по частям (docs/07-maps.md, «Обозначения»): extends — шаблон (strategic, domain, sysdesign, codebase), nodeKinds и edgeKinds — виды с тем же id меняют только названные поля.",
+          "items": { "type": "object", "required": ["extends"], "properties": { "extends": { "type": "string" } } }
+        }
       }
     },
     "observability": {
