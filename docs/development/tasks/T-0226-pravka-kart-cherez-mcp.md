@@ -2,7 +2,7 @@
 id: T-0226
 type: task
 title: 'Создание и правка карт через MCP'
-status: backlog
+status: done
 change: feature
 reuse: none
 created: 2026-11-23
@@ -25,3 +25,7 @@ links:
 ## Журнал
 
 - 2026-11-23 · заведена из разбора razbor-2026-11-23.md (п. 4.8; A-0010) · модель
+- 2026-11-23 · - 2026-11-23 · готова: ожидаемый результат и проверка V-0152 есть · модель
+- 2026-11-23 · - 2026-11-23 · в работу (Ц3, ветка claude/c3-mcp-maps) · модель
+- 2026-11-23 · - 2026-11-23 · на проверку: map_get, map_add_nodes, map_update, map_connect, map_remove в server/lib/map-core/tools; V-0152 пройдена · модель
+- 2026-11-23 · - 2026-11-23 · закрыта: отчёт 2026-11-23-c3-mcp-maps.json, M-0102 · модель по поручению chelowek («сливать в main и фиксировать в docdd»)

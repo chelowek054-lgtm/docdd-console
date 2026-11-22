@@ -68,8 +68,11 @@ export function lintGraph(input: LintInput, standard: MapStandard): LintFinding[
     const at = nodeLine(node.id);
     const add = (code: LintFinding['code'], severity: LintFinding['severity'], field: string, message: string) =>
       found.push({ severity, code, target: node.id, field, ...(at ? { line: at } : {}), message });
-    if (blank(node.title)) add('map_lint_field', 'error', 'title', `Узел «${node.id}»: нет имени (title)`);
-    if (blank(node.summary)) add('map_lint_field', 'error', 'summary', `Узел «${node.id}»: не сказано назначение (summary) — зачем он на карте`);
+    // Узел, уже стоящий на карте без имени или назначения, — долг прежних записей, а не этой:
+    // предупреждение, чтобы отметка состояния на старой карте не упиралась в чужой пропуск.
+    const missing = input.known.has(node.id) ? 'warning' : 'error';
+    if (blank(node.title)) add('map_lint_field', missing, 'title', `Узел «${node.id}»: нет имени (title)`);
+    if (blank(node.summary)) add('map_lint_field', missing, 'summary', `Узел «${node.id}»: не сказано назначение (summary) — зачем он на карте`);
     const kindId = node.kind ?? standard.defaultNodeKind;
     if (!kindId) add('map_lint_field', 'error', 'kind', `Узел «${node.id}»: не назван вид (kind); виды карты: ${[...nodeKinds.keys()].join(', ')}`);
     else if (!nodeKinds.has(kindId)) add('map_lint_node_kind', 'error', 'kind', `Узел «${node.id}»: вида «${kindId}» нет в стандарте карты «${standard.title}»; есть: ${[...nodeKinds.keys()].join(', ')}`);

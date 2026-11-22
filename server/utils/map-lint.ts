@@ -1,4 +1,5 @@
-import { lintStrategicChange, overridesFrom, standardFor, type LintFinding } from '../lib/map-core';
+import { customDefinitions } from '../lib/custom-maps';
+import { lintCustomChange, lintStrategicChange, overridesFrom, standardFor, type LintFinding } from '../lib/map-core';
 import type { MapChange } from '../lib/maps';
 import { readWorkspace } from '../lib/workspace';
 import { buildProjectMap } from './map-service';
@@ -8,11 +9,16 @@ import { buildProjectMap } from './map-service';
  * с узлом, полем и строкой. Переопределения стандарта — из `maps.standards` манифеста.
  */
 export function lintMapChange(root: string, change: MapChange, text?: string): LintFinding[] {
-  if (!change.functional) return [];
-  const overrides = overridesFrom(readWorkspace(root).manifest.maps?.['standards']);
-  const standard = standardFor('strategic', overrides)?.standard;
-  if (!standard) return [];
-  return lintStrategicChange(change.functional, buildProjectMap(root).functional, standard, text);
+  if (!change.functional && !change.custom) return [];
+  const manifest = readWorkspace(root).manifest;
+  const picture = buildProjectMap(root);
+  const found: LintFinding[] = [];
+  if (change.functional) {
+    const standard = standardFor('strategic', overridesFrom(manifest.maps?.['standards']))?.standard;
+    if (standard) found.push(...lintStrategicChange(change.functional, picture.functional, standard, text));
+  }
+  if (change.custom) found.push(...lintCustomChange(change.custom, customDefinitions(manifest).definitions, picture.custom, text));
+  return found;
 }
 
 /** Детали отказа: каждая находка — своей строкой с кодом, как у отказа схемы. */

@@ -15,6 +15,7 @@ import { validateCustom } from '../../../../../../lib/schema';
 import { DEVELOPMENT_DIR, WorkspaceError, readWorkspace } from '../../../../../../lib/workspace';
 import { fail, failWith } from '../../../../../../utils/http';
 import { loadIndex } from '../../../../../../utils/index-service';
+import { lintDetails, lintMapChange } from '../../../../../../utils/map-lint';
 import { buildProjectMap } from '../../../../../../utils/map-service';
 import { findProject } from '../../../../../../utils/projects';
 import { today } from '../../../../../../utils/record-write';
@@ -142,6 +143,8 @@ export default defineEventHandler(async (event) => {
     if (issues.length > 0) {
       return failWith(event, 422, 'node_invalid', 'Правка не прошла схему', issues.map((issue) => ({ code: 'custom', message: issue.message })));
     }
+    const lint = lintDetails(lintMapChange(root, { custom: change }));
+    if (lint.length > 0) return failWith(event, 422, 'map_lint', 'Карта не прошла линтер: черновик не создан', lint);
 
     const analysis = analyze({ files: workspace.files, manifest: workspace.manifest });
     const recordId = nextId('map', analysis.records.map((record) => record.id));

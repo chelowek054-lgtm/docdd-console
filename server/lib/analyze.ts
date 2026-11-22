@@ -17,6 +17,7 @@ import {
 } from './types';
 import { resolveDesign } from './design';
 import type { DesignReport } from './design-screens';
+import { customDefinitions } from './custom-maps';
 import { approvedMaps, foldMaps, parseMapRecord } from './maps';
 import { profileUses } from './domain-map';
 
@@ -109,6 +110,7 @@ export function analyze(input: AnalyzeInput): AnalyzeResult {
       : {}),
     rules,
     design,
+    ...(input.manifest?.maps?.custom ? { customMaps: customDefinitions(input.manifest).definitions } : {}),
     ...(input.designReports ? { designReports: input.designReports } : {}),
     ...(input.manifest?.design?.stacks ? { designStacks: input.manifest.design.stacks } : {}), ...(input.manifest?.design?.catalog ? { designCatalog: input.manifest.design.catalog } : {}),
     ...(input.sharedReferences ? { sharedReferences: input.sharedReferences } : {}),
