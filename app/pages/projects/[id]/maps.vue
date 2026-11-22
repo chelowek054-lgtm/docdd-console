@@ -741,7 +741,7 @@ const views = computed(() => {
   // заведённые шаблоны с движком; пока список не пришёл, показываем все три, чтобы вкладки не мигали.
   if (strategic) return all.filter((view) => view.key === 'functional');
   const engines: readonly string[] = customData.value && 'engines' in customData.value ? customData.value.engines : ['codemap', 'dataflow', 'userflow'];
-  const shownViews = all.filter((view) => view.key === 'functional' || engines.includes(view.key));
+  const shownViews = all.filter((view) => view.key === 'functional' || view.key === 'codemap' || engines.includes(view.key));
   return [...shownViews.filter((view) => view.key === 'functional'), ...shownViews.filter((view) => view.key !== 'functional')];
 });
 
@@ -767,7 +767,8 @@ const viewMode = ref<'2d' | '3d'>('2d');
  * уже посчитаны (`functionalMermaid` в `views` выше) — включение режима
  * ничего не пересчитывает.
  */
-const functionalView = ref<'tree' | 'graph'>('tree');
+// Граф — основной вид, дерево — второй (A-0010).
+const functionalView = ref<'tree' | 'graph'>('graph');
 
 /**
  * Общий контейнер диаграммы и карточки — цель разворота на весь экран.
@@ -1304,11 +1305,30 @@ const customMaps = computed<CustomMapsResponse>(() =>
 const customShown = computed<string | null>({
   get: () => (typeof route.query['cmap'] === 'string' && route.query['cmap'] ? route.query['cmap'] : null),
   set: (value) => {
-    void router.push({ query: { ...route.query, cmap: value ?? undefined, cgroup: undefined, cdepth: undefined, copen: undefined } });
+    void router.push({ query: { ...route.query, cmap: value ?? undefined, rmap: undefined, cgroup: undefined, cdepth: undefined, copen: undefined } });
+  }
+});
+/**
+ * Открытая обязательная карта без своего движка на этом экране — доменная или System Design (A-0010).
+ * Живёт в адресе (?rmap=), как и пользовательская; открытие одной закрывает другую одним переходом.
+ */
+const requiredShown = computed<'domain' | 'sysdesign' | null>({
+  get: () => (route.query['rmap'] === 'domain' || route.query['rmap'] === 'sysdesign' ? route.query['rmap'] : null),
+  set: (value) => {
+    void router.push({ query: { ...route.query, rmap: value ?? undefined, cmap: undefined, cgroup: undefined, cdepth: undefined, copen: undefined } });
   }
 });
 const customFormOpen = ref(false);
 const customCurrent = computed(() => customMaps.value.definitions.find((item) => item.id === customShown.value) ?? null);
+/** Над диаграммой встроенного вида открыто другое: пользовательская карта или доменная, System Design. */
+const asideShown = computed(() => Boolean(customCurrent.value) || requiredShown.value !== null);
+/** Четыре обязательные карты — первым рядом (A-0010, R-0140); у каждой свой вопрос. */
+const requiredTabs = computed(() => [
+  { key: 'functional', title: t('maps.v.functional'), active: !asideShown.value && shown.value === 'functional', open: () => { shown.value = 'functional'; customShown.value = null; } },
+  { key: 'domain', title: t('maps.v.domain'), active: requiredShown.value === 'domain', open: () => { requiredShown.value = 'domain'; } },
+  { key: 'sysdesign', title: t('maps.v.sysdesign'), active: requiredShown.value === 'sysdesign', open: () => { requiredShown.value = 'sysdesign'; } },
+  { key: 'codemap', title: t('maps.v.codemap'), active: !asideShown.value && shown.value === 'codemap', open: () => { shown.value = 'codemap'; customShown.value = null; } }
+]);
 
 /** Открытая рабочая карта, которую этот человек вправе удалить (ADR-0036): создатель или администратор. */
 const deletable = computed(() => {
@@ -1388,7 +1408,7 @@ if (firstKind !== 'functional') void loadKind('functional');
 // Открытая вкладка исчезла из списка (например, карту ещё не завели) — первая из имеющихся.
 /** Рабочие карты одним списком: шаблоны с движком и свои (ADR-0035). */
 const workingTabs = computed(() => [
-  ...views.value.filter((view) => view.key !== 'functional').map((view) => ({ label: view.title, value: `engine:${view.key}`, badge: view.count })),
+  ...views.value.filter((view) => view.key !== 'functional' && view.key !== 'codemap').map((view) => ({ label: view.title, value: `engine:${view.key}`, badge: view.count })),
   ...customMaps.value.definitions.map((item) => ({ label: item.title, value: item.id, badge: customMaps.value.maps[item.id]?.nodes.length ?? 0 }))
 ]);
 function pickWorking(value: string | number) {
@@ -1531,16 +1551,18 @@ watch(views, (list) => {
       <div v-if="!strategic" class="ds-scroll flex flex-nowrap items-center gap-3 overflow-x-auto pb-2">
         <!-- Две категории (ADR-0035): стратегическая карта — одна, плашкой; все остальные — одним рядом,
              одинаково: шаблон с движком и своя карта для человека не различаются. -->
+        <!-- Обязательные четыре (A-0010) — всегда, даже пустые: пустая — тоже ответ, и вкладка его покажет. -->
         <UButton
-          v-for="view in (map && map.from.length > 0 ? views.filter((item) => item.key === 'functional') : [])"
-          :key="view.key"
+          v-for="tab in requiredTabs"
+          :key="tab.key"
           class="shrink-0"
-          :variant="!customShown && shown === 'functional' ? 'solid' : 'soft'"
-          @click="() => { shown = 'functional'; customShown = null }"
-        >{{ view.title }} <UBadge size="sm" color="neutral" variant="subtle">{{ view.count }}</UBadge></UButton>
+          :data-required-map="tab.key"
+          :variant="tab.active ? 'solid' : 'soft'"
+          @click="tab.open"
+        >{{ tab.title }}</UButton>
         <UTabs
           v-if="workingTabs.length"
-          :model-value="customShown ?? (shown === 'functional' ? '' : `engine:${shown}`)"
+          :model-value="customShown ?? (requiredShown || shown === 'functional' || shown === 'codemap' ? '' : `engine:${shown}`)"
           variant="link"
           :items="workingTabs"
           :ui="{ root: 'w-auto shrink-0', list: 'w-auto' }"
@@ -1555,7 +1577,7 @@ watch(views, (list) => {
       <CustomMapForm v-if="!strategic" v-model:open="customFormOpen" :project-id="projectId" :engines="customMaps.engines" @created="onCustomCreated" />
       <!-- Строка намерения (ADR-0037) — над стратегической картой, и на «Картах», и на «Стратегии». -->
       <StrategyIntent
-        v-if="map && !customCurrent && shown === 'functional'"
+        v-if="map && !asideShown && shown === 'functional'"
         :project-id="projectId"
         :contours="map.functional.capabilities.filter((item) => !item.parent).map((item) => ({ id: item.id, title: item.title }))"
         @created="() => refresh()"
@@ -1568,10 +1590,16 @@ watch(views, (list) => {
         :relations="customMaps.maps[customCurrent.id]?.relations ?? []"
         @changed="refreshCustom"
       />
+      <DomainMapPanel v-if="!strategic && requiredShown === 'domain'" :project-id="projectId" />
+      <UCard v-if="!strategic && requiredShown === 'sysdesign'" data-required-empty="sysdesign">
+        <h2 class="font-medium">{{ t('maps.v.sysdesign') }}</h2>
+        <p class="text-sm text-muted">{{ t('maps.q.sysdesign') }}</p>
+        <p class="mt-3 text-sm text-muted">{{ t('maps.sysdesign.empty') }}</p>
+      </UCard>
 
       <div
         v-if="map && map.from.length === 0"
-        v-show="!customCurrent"
+        v-show="!asideShown"
         class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted"
       >
         <!-- Пусто — тоже ответ, и он обязан назвать причину (docs/04-ui.md). -->
@@ -1604,7 +1632,7 @@ watch(views, (list) => {
         <!-- Общий контейнер диаграммы и карточки узла: на весь экран
              разворачивается он, а не сама диаграмма, — иначе карточка (портал
              рядом) из фуллскрина не видна (docs/04-ui.md, «Карты»). -->
-        <div v-show="!customCurrent" ref="stage" class="[&:fullscreen]:overflow-auto [&:fullscreen]:bg-default [&:fullscreen]:p-4">
+        <div v-show="!asideShown" ref="stage" class="[&:fullscreen]:overflow-auto [&:fullscreen]:bg-default [&:fullscreen]:p-4">
           <UCard v-if="current">
             <template #header>
               <div class="flex flex-wrap items-center gap-3">

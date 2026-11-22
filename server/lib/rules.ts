@@ -6,7 +6,7 @@ import type { RulesResolution } from './practice-rules';
 import { capabilityFindings } from './coverage';
 import { taskGaps } from './batch-check'; import { brokenMapLinks, inputsNotReady, effectiveHorizon, effectiveOwner, effectivePriority } from './functional';
 import { approvedMaps, checkEvidence, evidenceClaims, foldMaps, parseMapRecord, type MapChange } from './maps';
-import { lintCustomChange, lintStrategicChange, standardFor, type CustomDefinitionLike, type LintFinding } from './map-core';
+import { lintCustomChange, lintStrategicChange, missingRequired, standardFor, type CustomDefinitionLike, type LintFinding } from './map-core';
 import { firstHeading } from './parse';
 import { mockupColors, mockupOf, offTokenColors } from './design-mockups';
 import { DEFAULT_MOCKUPS_DIR, screenSlug } from './design-screens';
@@ -248,6 +248,7 @@ export function checkAll(ctx: RuleContext): Violation[] {
     ...checkCodeLinks(ctx),
     ...checkDocLinks(ctx),
     ...checkMaps(ctx),
+    ...checkRequiredMaps(ctx),
     ...taskMapsUnapproved(ctx),
     ...changeMissing(ctx),
     ...mapCapabilityMissing(ctx),
@@ -486,6 +487,27 @@ export function checkMaps(ctx: RuleContext): Violation[] {
   }
 
   return found;
+}
+
+/**
+ * Четыре обязательные карты (A-0010, R-0140): нет подтверждённой — предупреждение. Только у проекта,
+ * который уже ведёт карты: до первой записи `map` путь к картам показывает онбординг, а не список
+ * пропусков. Кодовая база — только у проекта с кодом.
+ */
+export function checkRequiredMaps(ctx: RuleContext): Violation[] {
+  if (!ctx.records.some((record) => record.type === 'map')) return [];
+  const folded = foldMaps(approvedMaps(ctx.records).map((item) => ({ id: item.id, change: parseMapRecord(item.body).change })));
+  const filled = new Set<string>();
+  if (folded.functional.capabilities.length > 0) filled.add('functional');
+  if (folded.domain.contexts.length > 0) filled.add('domain');
+  if (folded.codemap.modules.length > 0) filled.add('codemap');
+  const titles: Record<string, string> = { strategic: 'стратегической', domain: 'доменной', codebase: 'кодовой базы' };
+  return missingRequired(filled, ctx.code.roots.length > 0).map((template) => violation(
+    'map_required_missing',
+    null,
+    `${DEVELOPMENT_DIR}/project.yaml`,
+    `Нет подтверждённой ${titles[template.id] ?? template.id} карты (${template.id}: ${template.question}). Это одна из обязательных карт (docs/07-maps.md).`
+  ));
 }
 
 function verifyEvidence(ctx: RuleContext, id: string, path: string, change: MapChange): Violation[] {
