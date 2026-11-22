@@ -137,7 +137,7 @@ updated: 2026-10-24
         "to": "server/lib/hierarchy.ts",
         "evidence": {
           "path": "app/pages/projects/[id]/maps.vue",
-          "line": 850,
+          "line": 857,
           "fragment": "import { ancestors, visibleAt, type Edge as HierarchyEdge, t"
         }
       },
@@ -146,7 +146,7 @@ updated: 2026-10-24
         "to": "server/lib/custom-maps.ts",
         "evidence": {
           "path": "app/pages/projects/[id]/maps.vue",
-          "line": 1274,
+          "line": 1281,
           "fragment": "import type { CustomMapView as CustomMapContent } from '~~/s"
         }
       },
@@ -155,7 +155,7 @@ updated: 2026-10-24
         "to": "server/lib/types.ts",
         "evidence": {
           "path": "app/pages/projects/[id]/maps.vue",
-          "line": 1275,
+          "line": 1282,
           "fragment": "import type { CustomMapDefinition } from '~~/server/lib/type"
         }
       },
