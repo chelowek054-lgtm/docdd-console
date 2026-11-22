@@ -2197,7 +2197,7 @@ updated: 2026-10-24
         "to": "server/lib/types.ts",
         "evidence": {
           "path": "app/components/MapRecordsCard.vue",
-          "line": 2,
+          "line": 3,
           "fragment": "import type { IndexRecord } from '~~/server/lib/types';"
         }
       },
@@ -2710,7 +2710,7 @@ updated: 2026-10-24
         "to": "app/i18n/en/shell.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 2,
+          "line": 4,
           "fragment": "import { shell as enShell } from './en/shell';"
         }
       },
@@ -2719,7 +2719,7 @@ updated: 2026-10-24
         "to": "app/i18n/ru/design.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 3,
+          "line": 5,
           "fragment": "import { design as ruDesign } from './ru/design';"
         }
       },
@@ -2728,7 +2728,7 @@ updated: 2026-10-24
         "to": "app/i18n/ru/shell.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 4,
+          "line": 6,
           "fragment": "import { shell as ruShell } from './ru/shell';"
         }
       },
@@ -2737,7 +2737,7 @@ updated: 2026-10-24
         "to": "app/i18n/en/screens.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 5,
+          "line": 7,
           "fragment": "import { screens as enScreens } from './en/screens';"
         }
       },
@@ -2746,7 +2746,7 @@ updated: 2026-10-24
         "to": "app/i18n/ru/screens.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 6,
+          "line": 8,
           "fragment": "import { screens as ruScreens } from './ru/screens';"
         }
       },
@@ -2755,7 +2755,7 @@ updated: 2026-10-24
         "to": "app/i18n/en/pages.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 18,
+          "line": 20,
           "fragment": "import { pages as enPages } from './en/pages';"
         }
       },
@@ -2764,7 +2764,7 @@ updated: 2026-10-24
         "to": "app/i18n/ru/pages.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 19,
+          "line": 21,
           "fragment": "import { pages as ruPages } from './ru/pages';"
         }
       },
@@ -2773,7 +2773,7 @@ updated: 2026-10-24
         "to": "app/i18n/en/rest.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 20,
+          "line": 22,
           "fragment": "import { rest as enRest } from './en/rest';"
         }
       },
@@ -2782,7 +2782,7 @@ updated: 2026-10-24
         "to": "app/i18n/ru/rest.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 21,
+          "line": 23,
           "fragment": "import { rest as ruRest } from './ru/rest';"
         }
       },
@@ -2791,7 +2791,7 @@ updated: 2026-10-24
         "to": "app/i18n/en/records.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 22,
+          "line": 24,
           "fragment": "import { records as enRecords } from './en/records';"
         }
       },
@@ -2800,7 +2800,7 @@ updated: 2026-10-24
         "to": "app/i18n/ru/records.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 23,
+          "line": 25,
           "fragment": "import { records as ruRecords } from './ru/records';"
         }
       },
@@ -2809,7 +2809,7 @@ updated: 2026-10-24
         "to": "app/i18n/en/pages2.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 24,
+          "line": 26,
           "fragment": "import { pages2 as enPages2 } from './en/pages2';"
         }
       },
@@ -2818,7 +2818,7 @@ updated: 2026-10-24
         "to": "app/i18n/ru/pages2.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 25,
+          "line": 27,
           "fragment": "import { pages2 as ruPages2 } from './ru/pages2';"
         }
       },
@@ -2827,7 +2827,7 @@ updated: 2026-10-24
         "to": "app/i18n/en/components.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 26,
+          "line": 28,
           "fragment": "import { components as enComponents } from './en/components'"
         }
       },
@@ -2836,7 +2836,7 @@ updated: 2026-10-24
         "to": "app/i18n/ru/components.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 27,
+          "line": 29,
           "fragment": "import { components as ruComponents } from './ru/components'"
         }
       },
@@ -2845,7 +2845,7 @@ updated: 2026-10-24
         "to": "app/i18n/en/nav.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 28,
+          "line": 30,
           "fragment": "import { nav as enNav } from './en/nav';"
         }
       },
@@ -2854,7 +2854,7 @@ updated: 2026-10-24
         "to": "app/i18n/ru/nav.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 29,
+          "line": 31,
           "fragment": "import { nav as ruNav } from './ru/nav';"
         }
       },
@@ -2863,7 +2863,7 @@ updated: 2026-10-24
         "to": "app/i18n/en/overview.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 30,
+          "line": 32,
           "fragment": "import { overview as enOverview } from './en/overview';"
         }
       },
@@ -2872,7 +2872,7 @@ updated: 2026-10-24
         "to": "app/i18n/ru/overview.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 31,
+          "line": 33,
           "fragment": "import { overview as ruOverview } from './ru/overview';"
         }
       },
@@ -2881,7 +2881,7 @@ updated: 2026-10-24
         "to": "app/i18n/en/search.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 32,
+          "line": 34,
           "fragment": "import { search as enSearch } from './en/search';"
         }
       },
@@ -2890,7 +2890,7 @@ updated: 2026-10-24
         "to": "app/i18n/ru/search.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 33,
+          "line": 35,
           "fragment": "import { search as ruSearch } from './ru/search';"
         }
       },
@@ -2899,7 +2899,7 @@ updated: 2026-10-24
         "to": "app/i18n/en/settings.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 34,
+          "line": 36,
           "fragment": "import { settings as enSettings } from './en/settings';"
         }
       },
@@ -2908,7 +2908,7 @@ updated: 2026-10-24
         "to": "app/i18n/ru/settings.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 35,
+          "line": 37,
           "fragment": "import { settings as ruSettings } from './ru/settings';"
         }
       },
@@ -2917,7 +2917,7 @@ updated: 2026-10-24
         "to": "app/i18n/en/notifications.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 36,
+          "line": 38,
           "fragment": "import { notifications as enNotifications } from './en/notif"
         }
       },
@@ -2926,7 +2926,7 @@ updated: 2026-10-24
         "to": "app/i18n/ru/notifications.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 37,
+          "line": 39,
           "fragment": "import { notifications as ruNotifications } from './ru/notif"
         }
       },
@@ -2935,7 +2935,7 @@ updated: 2026-10-24
         "to": "app/i18n/en/manager.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 38,
+          "line": 40,
           "fragment": "import { manager as enManager } from './en/manager';"
         }
       },
@@ -2944,7 +2944,7 @@ updated: 2026-10-24
         "to": "app/i18n/ru/manager.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 39,
+          "line": 41,
           "fragment": "import { manager as ruManager } from './ru/manager';"
         }
       },
@@ -2953,7 +2953,7 @@ updated: 2026-10-24
         "to": "app/i18n/en/verify.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 40,
+          "line": 42,
           "fragment": "import { verify as enVerify } from './en/verify';"
         }
       },
@@ -2962,7 +2962,7 @@ updated: 2026-10-24
         "to": "app/i18n/ru/verify.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 41,
+          "line": 43,
           "fragment": "import { verify as ruVerify } from './ru/verify';"
         }
       },
@@ -2971,7 +2971,7 @@ updated: 2026-10-24
         "to": "app/i18n/en/strategy.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 42,
+          "line": 44,
           "fragment": "import { strategy as enStrategy } from './en/strategy';"
         }
       },
@@ -2980,7 +2980,7 @@ updated: 2026-10-24
         "to": "app/i18n/ru/strategy.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 43,
+          "line": 45,
           "fragment": "import { strategy as ruStrategy } from './ru/strategy';"
         }
       },
@@ -2989,7 +2989,7 @@ updated: 2026-10-24
         "to": "app/i18n/en/agents.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 44,
+          "line": 46,
           "fragment": "import { agents as enAgents } from './en/agents';"
         }
       },
@@ -2998,7 +2998,7 @@ updated: 2026-10-24
         "to": "app/i18n/ru/agents.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 45,
+          "line": 47,
           "fragment": "import { agents as ruAgents } from './ru/agents';"
         }
       },
@@ -3007,7 +3007,7 @@ updated: 2026-10-24
         "to": "app/i18n/en/onboarding.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 46,
+          "line": 48,
           "fragment": "import { onboarding as enOnboarding } from './en/onboarding'"
         }
       },
@@ -3016,7 +3016,7 @@ updated: 2026-10-24
         "to": "app/i18n/ru/onboarding.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 47,
+          "line": 49,
           "fragment": "import { onboarding as ruOnboarding } from './ru/onboarding'"
         }
       },
@@ -3025,7 +3025,7 @@ updated: 2026-10-24
         "to": "app/i18n/en/ui-maps.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 48,
+          "line": 50,
           "fragment": "import { uiMaps as enUiMaps } from './en/ui-maps';"
         }
       },
@@ -3034,7 +3034,7 @@ updated: 2026-10-24
         "to": "app/i18n/ru/ui-maps.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 49,
+          "line": 51,
           "fragment": "import { uiMaps as ruUiMaps } from './ru/ui-maps';"
         }
       },
@@ -3043,7 +3043,7 @@ updated: 2026-10-24
         "to": "app/i18n/en/ui-inbox.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 50,
+          "line": 52,
           "fragment": "import { uiInbox as enUiInbox } from './en/ui-inbox';"
         }
       },
@@ -3052,7 +3052,7 @@ updated: 2026-10-24
         "to": "app/i18n/ru/ui-inbox.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 51,
+          "line": 53,
           "fragment": "import { uiInbox as ruUiInbox } from './ru/ui-inbox';"
         }
       },
@@ -3061,7 +3061,7 @@ updated: 2026-10-24
         "to": "app/i18n/en/ui-rest.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 52,
+          "line": 54,
           "fragment": "import { uiRest as enUiRest } from './en/ui-rest';"
         }
       },
@@ -3070,7 +3070,7 @@ updated: 2026-10-24
         "to": "app/i18n/ru/ui-rest.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 53,
+          "line": 55,
           "fragment": "import { uiRest as ruUiRest } from './ru/ui-rest';"
         }
       },
@@ -3079,7 +3079,7 @@ updated: 2026-10-24
         "to": "app/i18n/en/ui-utils.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 54,
+          "line": 56,
           "fragment": "import { uiUtils as enUiUtils } from './en/ui-utils';"
         }
       },
@@ -3088,7 +3088,7 @@ updated: 2026-10-24
         "to": "app/i18n/ru/ui-utils.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 55,
+          "line": 57,
           "fragment": "import { uiUtils as ruUiUtils } from './ru/ui-utils';"
         }
       },
@@ -3097,7 +3097,7 @@ updated: 2026-10-24
         "to": "app/i18n/en/ui-mermaid.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 56,
+          "line": 58,
           "fragment": "import { uiMermaid as enUiMermaid } from './en/ui-mermaid';"
         }
       },
@@ -3106,7 +3106,7 @@ updated: 2026-10-24
         "to": "app/i18n/ru/ui-mermaid.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 57,
+          "line": 59,
           "fragment": "import { uiMermaid as ruUiMermaid } from './ru/ui-mermaid';"
         }
       },
@@ -3115,7 +3115,7 @@ updated: 2026-10-24
         "to": "app/i18n/en/ui-last.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 58,
+          "line": 60,
           "fragment": "import { uiLast as enUiLast } from './en/ui-last';"
         }
       },
@@ -3124,7 +3124,7 @@ updated: 2026-10-24
         "to": "app/i18n/ru/ui-last.ts",
         "evidence": {
           "path": "app/i18n/index.ts",
-          "line": 59,
+          "line": 61,
           "fragment": "import { uiLast as ruUiLast } from './ru/ui-last';"
         }
       },
@@ -3295,7 +3295,7 @@ updated: 2026-10-24
         "to": "server/lib/hierarchy.ts",
         "evidence": {
           "path": "app/pages/projects/[id]/maps.vue",
-          "line": 850,
+          "line": 853,
           "fragment": "import { ancestors, visibleAt, type Edge as HierarchyEdge, t"
         }
       },
@@ -3304,7 +3304,7 @@ updated: 2026-10-24
         "to": "server/lib/custom-maps.ts",
         "evidence": {
           "path": "app/pages/projects/[id]/maps.vue",
-          "line": 1272,
+          "line": 1277,
           "fragment": "import type { CustomMapView as CustomMapContent } from '~~/s"
         }
       },
@@ -3313,7 +3313,7 @@ updated: 2026-10-24
         "to": "server/lib/types.ts",
         "evidence": {
           "path": "app/pages/projects/[id]/maps.vue",
-          "line": 1273,
+          "line": 1278,
           "fragment": "import type { CustomMapDefinition } from '~~/server/lib/type"
         }
       },
@@ -3807,7 +3807,7 @@ updated: 2026-10-24
         "to": "GET /api/llm/usage",
         "evidence": {
           "path": "app/pages/models.vue",
-          "line": 24,
+          "line": 25,
           "fragment": "const { data: usage } = await useFetch<{ month: string; tota"
         }
       },
@@ -3816,7 +3816,7 @@ updated: 2026-10-24
         "to": "GET /api/projects",
         "evidence": {
           "path": "app/pages/models.vue",
-          "line": 25,
+          "line": 26,
           "fragment": "const { data: projectList } = await useFetch<{ projects?: Ar"
         }
       },
@@ -3825,7 +3825,7 @@ updated: 2026-10-24
         "to": "GET /api/projects/:id/llm/queue",
         "evidence": {
           "path": "app/pages/models.vue",
-          "line": 31,
+          "line": 32,
           "fragment": "async function loadQueue() { if (queueProject.value) jobs.va"
         }
       },
@@ -3834,7 +3834,7 @@ updated: 2026-10-24
         "to": "DELETE /api/projects/:id/llm/queue/:param",
         "evidence": {
           "path": "app/pages/models.vue",
-          "line": 32,
+          "line": 33,
           "fragment": "async function cancelJob(id: string) { await $fetch(`/api/pr"
         }
       },
@@ -3843,7 +3843,7 @@ updated: 2026-10-24
         "to": "PUT /api/llm/models",
         "evidence": {
           "path": "app/pages/models.vue",
-          "line": 39,
+          "line": 40,
           "fragment": "const result = await $fetch<{ ok?: boolean }>('/api/llm/mode"
         }
       },
@@ -3852,7 +3852,7 @@ updated: 2026-10-24
         "to": "POST /api/llm/models/check",
         "evidence": {
           "path": "app/pages/models.vue",
-          "line": 45,
+          "line": 46,
           "fragment": "const result = await $fetch<{ ok: boolean; ms?: number; fail"
         }
       },
