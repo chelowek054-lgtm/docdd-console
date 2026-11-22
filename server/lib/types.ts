@@ -108,6 +108,7 @@ export type ViolationCode =
   | 'map_invalid'
   | 'map_lint'
   | 'map_lint_notation'
+  | 'map_required_missing'
   | 'map_evidence_missing'
   | 'map_evidence_stale'
   | 'map_drift'
@@ -226,6 +227,7 @@ export const VIOLATION_LEVELS: Readonly<Record<ViolationCode, Severity>> = {
   map_invalid: 'error',
   map_lint: 'error',
   map_lint_notation: 'warning',
+  map_required_missing: 'warning',
   map_evidence_missing: 'error',
   map_evidence_stale: 'error',
   map_drift: 'error',

@@ -69,9 +69,11 @@ function applyTemplate(template: RoleMapTemplate) {
   idTouched.value = true;
 }
 
-/** Шаблон с движком (ADR-0035): форма не нужна, в манифест пишется строка с `template`. */
+/**
+ * Шаблон с движком (ADR-0035): форма не нужна, в манифест пишется строка с `template`. Кодовой базы
+ * здесь нет: она обязательная (A-0010) и стоит на экране всегда.
+ */
 const ENGINES: { value: string; label: string }[] = [
-  { value: 'codemap', get label() { return t('maps.v.codemap'); } },
   { value: 'dataflow', get label() { return t('maps.v.dataflow'); } },
   { value: 'userflow', get label() { return t('maps.v.userflow'); } }
 ];
