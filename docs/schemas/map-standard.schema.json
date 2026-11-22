@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docdd.dev/schemas/map-standard.schema.json",
+  "title": "Стандарт обозначений типа карты",
+  "description": "Виды узлов и связей шаблона карты: форма, цветовой токен, значок, линия, наконечник, подпись (A-0010, R-0143). Встроенные — в presets/map-types/; проект переопределяет их по частям в maps.standards манифеста.",
+  "type": "object",
+  "required": ["template", "title", "question", "sources", "own", "nodeKinds", "edgeKinds"],
+  "additionalProperties": false,
+  "properties": {
+    "template": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "title": { "type": "string", "minLength": 1 },
+    "question": { "type": "string", "minLength": 1 },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "note"],
+        "additionalProperties": false,
+        "properties": { "name": { "type": "string" }, "note": { "type": "string" } }
+      }
+    },
+    "own": { "type": "array", "items": { "type": "string" } },
+    "defaultNodeKind": { "type": "string" },
+    "defaultEdgeKind": { "type": "string" },
+    "nodeKinds": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/nodeKind" } },
+    "edgeKinds": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/edgeKind" } }
+  },
+  "$defs": {
+    "nodeKind": {
+      "type": "object",
+      "required": ["id", "title", "shape", "color", "icon"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "title": { "type": "string" },
+        "shape": { "enum": ["rounded", "rect", "person", "cylinder", "queue", "package", "cloud", "hexagon", "note"] },
+        "color": { "type": "string", "pattern": "^map-[a-z-]+$", "description": "Имя цветового токена, а не цвет: значение зависит от темы." },
+        "icon": { "type": "string", "pattern": "^i-" },
+        "container": { "type": "boolean" }
+      }
+    },
+    "edgeKind": {
+      "type": "object",
+      "required": ["id", "title", "line", "head", "label"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "title": { "type": "string" },
+        "line": { "enum": ["solid", "dashed", "dotted"] },
+        "head": { "enum": ["arrow", "open", "none"] },
+        "label": { "enum": ["required", "format", "optional"] },
+        "twoWay": { "type": "boolean" }
+      }
+    }
+  }
+}

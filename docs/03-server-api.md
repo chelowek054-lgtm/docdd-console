@@ -960,6 +960,10 @@ Claude Code не найден или отказал в доступе — `503`;
 
 Черновик остаётся черновиком. Подтверждает человек.
 
+Блок стратегической карты проходит линтер карт ([07-maps.md](07-maps.md), «Линтер карт»): ошибка —
+`422 map_lint`, в `details` у каждой находки `code`, `message` со строкой, `target` (узел или связь) и
+`field`. Так же отвечает `map/capability`.
+
 ### `POST /api/projects/:id/map/capability`
 
 Одна возможность функциональной карты — без похода к модели: у этого вида нет
@@ -970,7 +974,7 @@ Claude Code не найден или отказал в доступе — `503`;
 { "action": "add", "capability": { "id": "orders.pay", "title": "Оплата заказа", "parent": "orders" } }
 ```
 
-`capability` может нести и `summary`, `status`, `note`, `priority`, `horizon`
+`capability` может нести и `kind` (вид узла по стандарту: `capability`, `system`, `person`, `external`), `summary`, `status`, `note`, `priority`, `horizon`
 ([07-maps.md](07-maps.md), «Состояние реализации», «Приоритет и горизонт»):
 `add` на уже существующий `id` — это уточнение, побеждает последнее.
 
