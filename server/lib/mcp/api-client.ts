@@ -31,13 +31,14 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   return { get: (path) => send('GET', path), post: (path, body) => send('POST', path, signed(body)) };
 }
 
-interface ErrorBody { error?: { code?: string; message?: string; details?: { message?: string }[] } }
+interface ErrorBody { error?: { code?: string; message?: string; details?: { message?: string }[]; blockers?: { message?: string }[] } }
 
 /** Отказ API называет причину: модель видит её и не повторяет запрос вслепую. */
 export function requireOk(answer: ApiAnswer): unknown {
   if (answer.ok) return answer.data;
   const error = (answer.data as ErrorBody | null)?.error;
-  const details = (error?.details ?? []).map((item) => item.message).filter(Boolean).join('; ');
+  // Отказ с перечнем находок (линтер карт, схема) несёт их в `blockers`: модель видит каждое место.
+  const details = [...(error?.details ?? []), ...(error?.blockers ?? [])].map((item) => item.message).filter(Boolean).join('; ');
   throw new Error(`Отказ консоли (${answer.status}${error?.code ? `, ${error.code}` : ''}): ${error?.message ?? 'без объяснения'}${details ? `: ${details}` : ''}`);
 }
 

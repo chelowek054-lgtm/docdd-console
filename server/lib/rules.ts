@@ -6,7 +6,7 @@ import type { RulesResolution } from './practice-rules';
 import { capabilityFindings } from './coverage';
 import { taskGaps } from './batch-check'; import { brokenMapLinks, inputsNotReady, effectiveHorizon, effectiveOwner, effectivePriority } from './functional';
 import { approvedMaps, checkEvidence, evidenceClaims, foldMaps, parseMapRecord, type MapChange } from './maps';
-import { lintStrategicChange, standardFor } from './map-core';
+import { lintCustomChange, lintStrategicChange, standardFor, type CustomDefinitionLike, type LintFinding } from './map-core';
 import { firstHeading } from './parse';
 import { mockupColors, mockupOf, offTokenColors } from './design-mockups';
 import { DEFAULT_MOCKUPS_DIR, screenSlug } from './design-screens';
@@ -87,6 +87,8 @@ export interface RuleContext {
    * Файловая система остаётся снаружи: правила по-прежнему чистые функции.
    */
   readSource?: (path: string) => string | null;
+  /** Годные определения пользовательских карт (`maps.custom`): стандарт для их линтера (R-0141). */
+  customMaps?: readonly CustomDefinitionLike[];
 }
 
 /** Таблица связей из docs/02-workspace-contract.md, строка в строку. */
@@ -425,10 +427,21 @@ export function checkDocLinks(ctx: RuleContext): Violation[] {
  * намерение — сверять нечего: код ещё не написан. Сверка начинается, когда
  * задачи, которые карту меняют, закрыты.
  */
+/** Находка линтера карт — нарушением проверки: ошибка держит запись, отступление от обозначений — предупреждение. */
+function lintViolation(finding: LintFinding, record: WorkRecord): Violation {
+  return violation(
+    finding.severity === 'error' ? 'map_lint' : 'map_lint_notation',
+    record.id,
+    record.source.path,
+    (finding.line ? `Строка ${finding.line}. ` : '') + finding.message + '.'
+  );
+}
+
 export function checkMaps(ctx: RuleContext): Violation[] {
   const found: Violation[] = [];
   // Сложенная стратегическая карта — для линтера: узел записи сверяется с прежним состоянием узла.
   let strategic: { capabilities: { id: string; title?: string; summary?: string; parent?: string }[] } | null = null;
+  let custom: { nodes: { map?: string; id: string; title?: string; summary?: string; parent?: string }[] } | null = null;
 
   for (const record of ctx.records) {
     if (record.type !== 'map' || !record.id) continue;
@@ -440,14 +453,12 @@ export function checkMaps(ctx: RuleContext): Violation[] {
       const standard = standardFor('strategic')?.standard;
       // Строка — по всему файлу: тело без front matter дало бы номер, которого в редакторе нет.
       const fileText = ctx.readSource?.(record.source.path) ?? undefined;
-      for (const finding of standard ? lintStrategicChange(parsed.change.functional, strategic, standard, fileText) : []) {
-        found.push(violation(
-          finding.severity === 'error' ? 'map_lint' : 'map_lint_notation',
-          record.id,
-          record.source.path,
-          (finding.line ? `Строка ${finding.line}. ` : '') + finding.message + '.'
-        ));
-      }
+      for (const finding of standard ? lintStrategicChange(parsed.change.functional, strategic, standard, fileText) : []) found.push(lintViolation(finding, record));
+    }
+    if ((record.status === 'draft' || record.status === 'review') && parsed.change.custom && ctx.customMaps?.length) {
+      custom ??= foldMaps(approvedMaps(ctx.records).map((item) => ({ id: item.id, change: parseMapRecord(item.body).change }))).custom;
+      const fileText = ctx.readSource?.(record.source.path) ?? undefined;
+      for (const finding of lintCustomChange(parsed.change.custom, ctx.customMaps, custom, fileText)) found.push(lintViolation(finding, record));
     }
     // Отставленная карта (заменена, отменена, отвергнута) больше не читается
     // как текущая — её форма никого не вводит в заблуждение и чинить в ней
