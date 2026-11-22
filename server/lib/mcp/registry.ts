@@ -21,18 +21,18 @@ function withoutSecret(text: string, secret: string | undefined): string {
   return secret ? text.split(secret).join('[скрыто]') : text;
 }
 
-export const READ_ONLY_REASON = 'MCP работает только на чтение: запись доступна при включённом входе (DOCDD_AUTH=on) и токене агента в DOCDD_AGENT_TOKEN.';
+export const READ_ONLY_REASON = 'MCP работает только на чтение: запись доступна на localhost или при включённом входе (DOCDD_AUTH=on) с токеном агента в DOCDD_AGENT_TOKEN.';
 
 export async function callTool(
   registry: ToolRegistry,
   name: string,
   args: Record<string, unknown>,
   ctx: ToolContext,
-  options: { writable: boolean; secret?: string | undefined }
+  options: { writable: boolean; reason?: string | undefined; secret?: string | undefined }
 ): Promise<ToolOutcome> {
   const tool = registry.find(name);
   if (!tool) return { text: `Инструмента \`${name}\` нет`, isError: true };
-  if (tool.access === 'write' && !options.writable) return { text: READ_ONLY_REASON, isError: true };
+  if (tool.access === 'write' && !options.writable) return { text: options.reason ?? READ_ONLY_REASON, isError: true };
   try {
     return { text: withoutSecret(await tool.run(args, ctx), options.secret), isError: false };
   } catch (error) {

@@ -24,9 +24,12 @@ export default defineEventHandler(async (event) => {
     return fail(event, 404, 'project_not_found', `Проект \`${id}\` не найден в списке`);
   }
 
-  const body = await readBody<{ status?: unknown; actor?: unknown; version?: unknown }>(event);
+  const body = await readBody<{ status?: unknown; actor?: unknown; version?: unknown; confirmation?: unknown }>(event);
   const status = typeof body?.status === 'string' ? body.status : '';
-  const actor = typeof body?.actor === 'string' ? body.actor : '';
+  // Подтверждение человека, принесённое моделью (A-0008): подпись журнала несёт вопрос и ответ.
+  const confirmed = confirmedActor(project.root, body, typeof body?.actor === 'string' ? body.actor : '', event.context);
+  if (!confirmed.ok) return fail(event, 400, 'confirmation_invalid', confirmed.message);
+  const actor = confirmed.actor;
   if (!status) {
     return fail(event, 400, 'status_required', 'Не указан статус, в который переводим запись');
   }
@@ -44,7 +47,7 @@ export default defineEventHandler(async (event) => {
     if ((status === 'deferred' || context.record.status === 'deferred') && (event.context as { user?: { agent?: unknown } }).user?.agent) {
       return fail(event, 403, 'agent_deferred', 'В бэклог уводит и возвращает человек: агент может только предложить это текстом');
     }
-    const refusal = architectRefusal(context.record, status, rolesOf(event.context));
+    const refusal = architectRefusal(context.record, status, confirmed.roles ?? rolesOf(event.context));
     if (refusal) return fail(event, 403, refusal.code, refusal.message);
     if (blockers.length > 0) {
       return failWith(
@@ -97,5 +100,6 @@ export default defineEventHandler(async (event) => {
   }
 });
 import { versionConflict } from '../../../../../lib/version';
+import { confirmedActor } from '../../../../../utils/confirmed-actor';
 import { notifyStatus } from '../../../../../utils/notify-events';
 import { rolesOf } from '../../../../../utils/roles-of';

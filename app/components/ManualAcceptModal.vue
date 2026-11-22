@@ -35,16 +35,20 @@ const tasks = computed(() => (props.taskIds ?? []).map((id) => byId.value.get(id
 const pending = computed<IndexRecord[]>(() => {
   const results = index.value?.verificationResults ?? {};
   const ids = new Set<string>(props.verificationIds ?? []);
-  const requirements = new Set(tasks.value.flatMap((task) => task.links.implements ?? []));
-  for (const record of index.value?.records ?? []) {
-    if (record.type !== 'verification') continue;
-    if ((record.links.verifies ?? []).some((target) => requirements.has(target))) ids.add(record.id);
-  }
+  for (const task of tasks.value) for (const id of taskCheckIds(task, index.value?.records ?? [], byId.value)) ids.add(id);
   return [...ids]
     .map((id) => byId.value.get(id))
     .filter((r): r is IndexRecord => !!r && results[r.id]?.state !== 'passed');
 });
 const manual = pending;
+
+/**
+ * Задачи без единой проверки (R-0135): окно заводит ручную проверку к требованию задачи
+ * (или к самой задаче, если требования нет), подтверждает её, отмечает «Проверено» и закрывает задачу.
+ */
+const bare = computed(() => (props.verificationIds?.length ? [] : tasks.value.filter((task) =>
+  task.status === 'in_review' && taskCheckIds(task, index.value?.records ?? [], byId.value).length === 0)));
+const fillable = computed(() => manual.value.length > 0 || bare.value.length > 0);
 
 /**
  * Проверка относится к требованию, а не к задаче: отметка снимет блокировку и с других задач
@@ -94,7 +98,7 @@ const noteProblem = computed(() => {
 });
 const byProblem = computed(() => (by.value.trim().length > 80 ? t('ma.by80') : ''));
 const canAccept = computed(() =>
-  manual.value.length > 0 && by.value.trim() !== '' && note.value.trim() !== ''
+  fillable.value && by.value.trim() !== '' && note.value.trim() !== ''
   && confirmed.value && !noteProblem.value && !byProblem.value && !busy.value && outcome.value === null);
 
 function reason(response: unknown): string | null {
@@ -107,7 +111,16 @@ async function accept() {
   busy.value = true;
   const lines: Line[] = [];
   try {
-    for (const check of manual.value) {
+    const created: IndexRecord[] = [];
+    // Задача без проверок закрывается, только если её новая проверка заведена и отмечена.
+    const held = new Set<string>();
+    const createdFor = new Map<string, string>();
+    for (const task of bare.value) {
+      const made = await createManualCheck(task);
+      if ('record' in made) { created.push(made.record); createdFor.set(made.record.id, task.id); }
+      else { held.add(task.id); lines.push({ id: task.id, ok: false, text: made.problem }); }
+    }
+    for (const check of [...manual.value, ...created]) {
       const response = await $fetch<unknown>(`/api/projects/${props.projectId}/records/${check.id}/verified`, {
         method: 'POST',
         body: {
@@ -117,9 +130,10 @@ async function accept() {
         ignoreResponseError: true
       });
       const problem = reason(response);
+      if (problem && createdFor.has(check.id)) held.add(createdFor.get(check.id) ?? '');
       lines.push({ id: check.id, ok: !problem, text: problem ?? t('ma.marked') });
     }
-    for (const task of [...tasks.value, ...alsoClose.value]) {
+    for (const task of [...tasks.value, ...alsoClose.value].filter((item) => !held.has(item.id))) {
       const response = await $fetch<unknown>(`/api/projects/${props.projectId}/records/${task.id}/status`, {
         method: 'POST',
         body: { status: 'done', actor: actor.value, version: task.version },
@@ -134,6 +148,27 @@ async function accept() {
   } finally {
     busy.value = false;
   }
+}
+
+/** Заводит и подтверждает проверку `manual`: отметка «Проверено» ставится дальше общим путём. */
+async function createManualCheck(task: IndexRecord): Promise<{ record: IndexRecord } | { problem: string }> {
+  const target = task.links.implements?.[0] ?? task.id;
+  const response = await $fetch<{ record?: IndexRecord } | { error: ApiFailure }>(`/api/projects/${props.projectId}/records`, {
+    method: 'POST',
+    body: { type: 'verification', kind: 'manual', title: t('ma.bareTitle', { title: task.title }), links: { verifies: [target] } },
+    ignoreResponseError: true
+  });
+  const record = (response as { record?: IndexRecord }).record;
+  if (reason(response) || !record) return { problem: reason(response) ?? t('ma.bareFailed') };
+  // Черновик подтверждается через «на подтверждении»: прямого draft → approved у проверки нет.
+  for (const status of ['review', 'approved']) {
+    const moved = await $fetch<unknown>(`/api/projects/${props.projectId}/records/${record.id}/status`, {
+      method: 'POST', body: { status, actor: actor.value }, ignoreResponseError: true
+    });
+    const problem = reason(moved);
+    if (problem) return { problem: `${record.id}: ${problem}` };
+  }
+  return { record };
 }
 
 // Окно открывают заново на других записях: прежний итог и поля не тянем.
@@ -163,9 +198,19 @@ watch(open, (value) => {
           {{ t('ma.tasks') }}: <span v-for="task in tasks" :key="task.id" class="mr-2 font-mono text-xs">{{ task.id }}</span>
         </p>
 
-        <p v-if="manual.length === 0" class="text-muted">
+        <p v-if="!fillable && outcome === null" class="text-muted">
           {{ t('ma.nothing') }}
         </p>
+
+        <div v-if="bare.length && outcome === null" class="ds-card p-2">
+          <p class="mb-1 font-medium">{{ t('ma.bare') }}</p>
+          <ul class="space-y-0.5">
+            <li v-for="task in bare" :key="task.id">
+              <span class="font-mono text-xs">{{ task.id }}</span> {{ task.title }}
+              <span class="text-xs text-muted">· {{ t('ma.bareTarget', { id: task.links.implements?.[0] ?? task.id }) }}</span>
+            </li>
+          </ul>
+        </div>
 
         <div v-if="manual.length">
           <p class="mb-1 font-medium">{{ t('ma.willMark') }}</p>
@@ -212,7 +257,7 @@ watch(open, (value) => {
           </div>
         </div>
 
-        <template v-if="manual.length && outcome === null">
+        <template v-if="fillable && outcome === null">
           <UFormField v-if="props.roles.length" :label="t('ma.acceptedBy')" :help="t('ma.acceptedHelp')">
             <USelect v-if="!me.required"
               v-model="actor"
@@ -245,7 +290,7 @@ watch(open, (value) => {
         <UButton variant="ghost" color="neutral" @click="open = false">
           {{ outcome ? t('ma.close') : t('ma.cancel') }}
         </UButton>
-        <UButton v-if="outcome === null" :disabled="!canAccept" :loading="busy" @click="accept">{{ t('ma.accept') }}</UButton>
+        <UButton v-if="outcome === null" :disabled="!canAccept" :loading="busy" @click="accept">{{ bare.length ? t('ma.acceptBare') : t('ma.accept') }}</UButton>
       </div>
     </template>
   </UModal>

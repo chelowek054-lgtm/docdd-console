@@ -4,6 +4,7 @@ import { OutsideRootError } from '../../../../../lib/paths';
 import { BULK_DIRECTIONS, type BulkDirection } from '../../../../../lib/transitions';
 import { WorkspaceError } from '../../../../../lib/workspace';
 import { BULK_LIMIT, bulkStatus } from '../../../../../utils/bulk-service';
+import { confirmedActor } from '../../../../../utils/confirmed-actor';
 import { fail } from '../../../../../utils/http';
 import { findProject } from '../../../../../utils/projects';
 
@@ -18,7 +19,7 @@ export default defineEventHandler(async (event) => {
     return fail(event, 404, 'project_not_found', `Проект \`${id}\` не найден в списке`);
   }
 
-  const body = await readBody<{ ids?: unknown; direction?: unknown; actor?: unknown; versions?: unknown }>(event);
+  const body = await readBody<{ ids?: unknown; direction?: unknown; actor?: unknown; versions?: unknown; confirmation?: unknown }>(event);
   const ids = Array.isArray(body?.ids) ? body.ids : [];
   if (ids.length === 0 || !ids.every((item): item is string => typeof item === 'string' && item !== '')) {
     return fail(event, 400, 'ids_required', 'Не названы записи: нужен непустой список номеров');
@@ -31,14 +32,16 @@ export default defineEventHandler(async (event) => {
   if (typeof direction !== 'string' || !BULK_DIRECTIONS.includes(direction as BulkDirection)) {
     return fail(event, 400, 'direction_invalid', 'Направление — `forward`, `back` или `approve`');
   }
-  const actor = typeof body?.actor === 'string' ? body.actor : '';
+  const confirmed = confirmedActor(project.root, body, typeof body?.actor === 'string' ? body.actor : '', event.context);
+  if (!confirmed.ok) return fail(event, 400, 'confirmation_invalid', confirmed.message);
+  const actor = confirmed.actor;
   const stale = staleVersions(project.root, body?.versions);
   if (stale.length > 0) {
     return fail(event, 409, 'record_changed_since_load', `Записи изменили с тех пор, как вы их открыли: ${stale.join(', ')}. Перечитайте и повторите`);
   }
 
   try {
-    return bulkStatus(project.root, ids as string[], direction as BulkDirection, actor, rolesOf(event.context));
+    return bulkStatus(project.root, ids as string[], direction as BulkDirection, actor, confirmed.roles ?? rolesOf(event.context));
   } catch (error) {
     if (error instanceof OutsideRootError) {
       return fail(event, 403, 'outside_root', error.message, error.requested);

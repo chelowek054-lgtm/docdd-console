@@ -8,6 +8,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js'
 
+import { writeAccess } from '../server/lib/confirmation'
 import { callTool, createApiClient, createRegistry, loadTools } from '../server/lib/mcp'
 
 const projectId = env['DOCDD_PROJECT'] ?? ''
@@ -20,14 +21,14 @@ const token = env['DOCDD_AGENT_TOKEN'] || undefined
 const api = createApiClient({ baseUrl, token })
 
 /**
- * Запись — только когда консоль подтвердила вход и признала токен токеном агента.
- * Без входа API не отличает агента от человека, и инструмент смог бы подтвердить запись.
+ * Запись: со входом — только токен агента, без входа — только консоль на localhost (A-0008, R-0134).
+ * Подтверждение человека инструменты несут сами, в поле confirmation.
  */
-async function isWritable(): Promise<boolean> {
-  if (!token) return false
+async function access(): Promise<{ writable: boolean; reason?: string }> {
   const me = await api.get('/api/auth/me').catch(() => null)
   const data = me?.data as { required?: boolean; user?: { agent?: boolean } | null } | null | undefined
-  return data?.required === true && data.user?.agent === true
+  const authRequired = typeof data?.required === 'boolean' ? data.required : null
+  return writeAccess({ baseUrl, authRequired, agent: Boolean(token) && data?.user?.agent === true })
 }
 
 const libDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'server', 'lib')
@@ -42,8 +43,8 @@ server.setRequestHandler(ListToolsRequestSchema, () => ({
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const tool = registry.find(request.params.name)
   // Спрашиваем на каждый вызов записи: токен истекает, а вход могут выключить.
-  const writable = tool?.access === 'write' ? await isWritable() : false
-  const outcome = await callTool(registry, request.params.name, request.params.arguments ?? {}, { api, projectId }, { writable, secret: token })
+  const { writable, reason } = tool?.access === 'write' ? await access() : { writable: false, reason: undefined }
+  const outcome = await callTool(registry, request.params.name, request.params.arguments ?? {}, { api, projectId }, { writable, reason, secret: token })
   return { content: [{ type: 'text', text: outcome.text }], isError: outcome.isError }
 })
 

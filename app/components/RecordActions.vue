@@ -20,6 +20,10 @@ const done = ref('');
 /** Закрытие держит ручная проверка — предлагаем принять её вручную (docs/04-ui.md). */
 const acceptOpen = ref(false);
 const unverified = (blockers: { code: string }[] | undefined) => (blockers ?? []).some((blocker) => blocker.code === 'task_done_unverified');
+// Кнопка стоит рядом с «Закрыть» сразу, а не после отказа (R-0135): проверок нет или не все пройдены.
+const { index, byId } = useProjectIndex(() => props.projectId);
+const needsManual = computed(() => needsManualAccept(byId.value.get(props.recordId), index.value?.records ?? [], byId.value, index.value?.verificationResults ?? {}));
+const manualHere = (action: RecordAction) => (action.status === 'done' && needsManual.value) || (!action.allowed && unverified(action.blockers));
 
 async function run(action: RecordAction) {
   busy.value = action.status;
@@ -93,7 +97,7 @@ const denied = computed(() => allowed('approve'));
             {{ action.blockers.map((blocker) => blocker.message).join(' ') }}
           </p>
           <UButton
-            v-if="!action.allowed && unverified(action.blockers)"
+            v-if="manualHere(action)"
             size="xs"
             variant="soft"
             icon="i-lucide-hand-helping"
@@ -125,7 +129,7 @@ const denied = computed(() => allowed('approve'));
       :description="`${t('rec.journalAdded')} ${done}`"
     />
     <UButton
-      v-if="failure && (failure.code === 'task_done_unverified' || unverified(failure.blockers))"
+      v-if="failure && !needsManual && (failure.code === 'task_done_unverified' || unverified(failure.blockers))"
       class="mt-2"
       size="xs"
       variant="soft"

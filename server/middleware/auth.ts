@@ -64,7 +64,8 @@ export default defineEventHandler(async (event) => {
   }
 
   const roles = team?.find((member) => member.login === user.login)?.roles ?? [];
-  event.context['user'] = { login: user.login, name: user.name, admin: user.admin, roles };
+  // agent — маршрутам: бэклог, сроки и роли из подтверждения различают агента и человека (R-0105, A-0008).
+  event.context['user'] = { login: user.login, name: user.name, admin: user.admin, roles, agent: Boolean(user.agent) };
 
   // Подпись — вошедшим человеком, а не выбором из списка: тело правим до маршрута.
   if (['POST', 'PATCH', 'PUT'].includes(event.method) && !isUsers) {

@@ -6,6 +6,11 @@ export interface ApiClientOptions {
   fetcher?: typeof fetch;
 }
 
+/** Без входа консоль берёт подпись из тела: журнал должен показать, что писала модель через MCP. Со входом подпись ставит сервер. */
+export const MCP_ACTOR = 'модель · MCP';
+const signed = (body: unknown): unknown =>
+  body && typeof body === 'object' && !Array.isArray(body) && !('actor' in body) ? { ...body, actor: MCP_ACTOR } : body;
+
 /** Единственный путь MCP к данным проекта: правила и права проверяет API консоли (A-0002). */
 export function createApiClient(options: ApiClientOptions): ApiClient {
   const fetcher = options.fetcher ?? fetch;
@@ -23,7 +28,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     return { ok: response.ok, status: response.status, data };
   };
 
-  return { get: (path) => send('GET', path), post: (path, body) => send('POST', path, body) };
+  return { get: (path) => send('GET', path), post: (path, body) => send('POST', path, signed(body)) };
 }
 
 interface ErrorBody { error?: { code?: string; message?: string; details?: { message?: string }[] } }

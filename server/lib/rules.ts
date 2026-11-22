@@ -1292,6 +1292,8 @@ function isInside(root: string, path: string): boolean {
  */
 function taskVerificationIds(ctx: RuleContext, task: WorkRecord): Set<string> {
   const ids = new Set<string>(task.links.verified_by ?? []);
+  // Ручная проверка, заведённая прямо к задаче без требования (R-0135), тоже её проверка.
+  for (const edge of incomingEdges(ctx.graph, task.id, 'verifies')) ids.add(edge.from);
   for (const requirementId of task.links.implements ?? []) {
     const requirement = ctx.graph.byId.get(requirementId);
     for (const id of requirement?.links.verified_by ?? []) ids.add(id);
