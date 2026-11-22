@@ -199,7 +199,11 @@ function onAnswer() {
   taskId.value = '';
 }
 
-const { index } = useProjectIndex(projectId);
+const { index, refresh: refreshIndex } = useProjectIndex(projectId);
+/** Подтверждённая карта меняет и картину, и список записей: перечитываем оба. */
+async function onMapRecordsChanged() {
+  await Promise.all([refresh(), refreshIndex()]);
+}
 
 /** Карты, которые есть, но в картину не входят: черновики и заменённые. */
 const aside = computed(() => {
@@ -1440,7 +1444,7 @@ watch(views, (list) => {
         :archive="mapRecords.archive"
         :course="courseCount"
         :roles="index?.project.roles ?? []"
-        @changed="() => refresh()"
+        @changed="onMapRecordsChanged"
       />
 
       <MapInventory v-if="!strategic" :project-id="projectId" @changed="() => refresh()" />

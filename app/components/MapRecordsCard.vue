@@ -36,6 +36,8 @@ const archived = computed(() => props.archive.reduce((sum, group) => sum + group
 const { me, allowed } = useMe(() => props.projectId);
 const denied = computed(() => allowed('approve'));
 const actor = ref(props.roles[0]?.id ?? '');
+// Роли приходят с индексом позже карточки: без этого подпись в журнале вышла бы пустой.
+watch(() => props.roles, (roles) => { if (!actor.value) actor.value = roles[0]?.id ?? ''; });
 const current = ref<IndexRecord | null>(null);
 const panelOpen = computed({ get: () => current.value !== null, set: (value) => { if (!value) current.value = null; } });
 const diff = ref<MapDiffValue | null>(null);
