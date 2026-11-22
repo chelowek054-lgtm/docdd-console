@@ -199,7 +199,11 @@ function onAnswer() {
   taskId.value = '';
 }
 
-const { index } = useProjectIndex(projectId);
+const { index, refresh: refreshIndex } = useProjectIndex(projectId);
+/** Подтверждённая карта меняет и картину, и список записей: перечитываем оба. */
+async function onMapRecordsChanged() {
+  await Promise.all([refresh(), refreshIndex()]);
+}
 
 /** Карты, которые есть, но в картину не входят: черновики и заменённые. */
 const aside = computed(() => {
@@ -228,11 +232,14 @@ const mapRecords = computed(() => {
   const course = new Set(partitionMapRecords(maps.filter((record) => record.status === 'approved'), map.value?.functional.history ?? []).course.map((record) => record.id));
   const all = maps.filter((record) => !course.has(record.id));
   const waiting = (status: string) => status === 'draft' || status === 'review';
-  return [
-    { label: t('maps.grp.approved'), records: all.filter((record) => record.status === 'approved') },
-    { label: t('maps.grp.waiting'), records: all.filter((record) => waiting(record.status)) },
-    { label: t('maps.grp.out'), records: all.filter((record) => record.status !== 'approved' && !waiting(record.status)) }
-  ].filter((group) => group.records.length > 0);
+  // Ждущие — наверх, с «Подтвердить»; остальное — в свёрнутый архив (R-0146).
+  return {
+    pending: all.filter((record) => waiting(record.status)),
+    archive: [
+      { label: t('maps.grp.approved'), records: all.filter((record) => record.status === 'approved') },
+      { label: t('maps.grp.out'), records: all.filter((record) => record.status !== 'approved' && !waiting(record.status)) }
+    ].filter((group) => group.records.length > 0)
+  };
 });
 
 /**
@@ -1429,19 +1436,16 @@ watch(views, (list) => {
         @changed="() => refresh()"
       />
 
-      <!-- Записи карт — аккордеоном, как вектор (MapRecordsCard): длинный список нужен не всегда. -->
+      <!-- Записи карт (R-0146): ждущие наверху с «Подтвердить» и разницей сбоку, остальное — в свёрнутом архиве. -->
       <MapRecordsCard
-        v-if="mapRecords.length"
+        v-if="mapRecords.pending.length || mapRecords.archive.length || courseCount"
         :project-id="projectId"
-        :groups="mapRecords"
-        :waiting="mapRecords.find((group) => group.label === t('maps.grp.waiting'))?.records.length ?? 0"
+        :pending="mapRecords.pending"
+        :archive="mapRecords.archive"
         :course="courseCount"
+        :roles="index?.project.roles ?? []"
+        @changed="onMapRecordsChanged"
       />
-      <!-- Черновик на подтверждение раскрывает карточку сам: «Обновить карты» -->
-      <!-- не должен оставлять его находимым только по номеру из ответа. -->
-      <!-- Свёрнута ли карточка, помнит браузер (как у вектора). -->
-      <!-- Подписи групп — те же maps.grp.*. -->
-      <!-- Ниже — опись файлов. -->
 
       <MapInventory v-if="!strategic" :project-id="projectId" @changed="() => refresh()" />
 
