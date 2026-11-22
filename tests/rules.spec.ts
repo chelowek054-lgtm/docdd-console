@@ -392,6 +392,15 @@ describe('task_done_unverified', () => {
     const ctx = context([verification, done], { policy: { require_verification_before_done: false } });
     expect(taskDoneUnverified(ctx)).toEqual([]);
   });
+
+  it('у закрытой раньше задачи сверяет только свои verified_by, проверки требований — на переходе', () => {
+    const requirementCheck = rec('V-0005', 'verification', 'approved', { links: { verifies: ['R-0004'] } });
+    const requirement = rec('R-0004', 'requirement', 'approved');
+    const closed = rec('T-0002', 'task', 'done', { links: { implements: ['R-0004'], verified_by: ['V-0004'] } });
+    const ctx = context([verification, requirementCheck, requirement, closed], { verifications: { 'V-0004': 'passed' } });
+    expect(taskDoneUnverified(ctx)).toEqual([]);
+    expect(codes(taskDoneUnverified(ctx, true))).toEqual(['task_done_unverified']);
+  });
 });
 
 describe('code_sources_empty_after_feature', () => {
@@ -623,6 +632,30 @@ describe('transition_forbidden', () => {
     const blocked = checkTransition(task, 'done', context([verification, task], { verifications: { 'V-0004': 'failed' } }));
     const allowed = checkTransition(task, 'done', context([verification, task], { verifications: { 'V-0004': 'passed' } }));
     expect(codes(blocked)).toEqual(['task_done_unverified']);
+    expect(allowed).toEqual([]);
+  });
+
+  it('не пускает в done, пока не пройдена проверка требования — через verified_by требования', () => {
+    const verification = rec('V-0004', 'verification', 'approved', { extra: { kind: 'manual' } });
+    const requirement = rec('R-0004', 'requirement', 'approved', { links: { verified_by: ['V-0004'] } });
+    const task = rec('T-0002', 'task', 'in_review', { links: { implements: ['R-0004'] } });
+    const blocked = checkTransition(task, 'done', context([verification, requirement, task]));
+    const allowed = checkTransition(task, 'done', context([verification, requirement, task], { verifications: { 'V-0004': 'passed' } }));
+    expect(codes(blocked)).toEqual(['task_done_unverified']);
+    expect(blocked[0]?.message).toContain('V-0004');
+    expect(allowed).toEqual([]);
+  });
+
+  it('не пускает в done, пока не пройдена проверка с verifies на требование', () => {
+    const verification = rec('V-0004', 'verification', 'approved', { links: { verifies: ['R-0004'] } });
+    const requirement = rec('R-0004', 'requirement', 'approved');
+    const own = rec('V-0005', 'verification', 'approved');
+    const task = rec('T-0002', 'task', 'in_review', { links: { implements: ['R-0004'], verified_by: ['V-0005'] } });
+    const records = [verification, requirement, own, task];
+    const blocked = checkTransition(task, 'done', context(records, { verifications: { 'V-0005': 'passed', 'V-0004': 'failed' } }));
+    const allowed = checkTransition(task, 'done', context(records, { verifications: { 'V-0005': 'passed', 'V-0004': 'passed' } }));
+    expect(codes(blocked)).toEqual(['task_done_unverified']);
+    expect(blocked[0]?.message).toContain('V-0004');
     expect(allowed).toEqual([]);
   });
 });

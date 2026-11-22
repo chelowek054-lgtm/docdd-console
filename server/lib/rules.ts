@@ -898,18 +898,20 @@ export function taskNoRequirement(ctx: RuleContext): Violation[] {
   return found;
 }
 
-export function taskDoneUnverified(ctx: RuleContext, blockEmpty = false): Violation[] {
+export function taskDoneUnverified(ctx: RuleContext, onTransition = false): Violation[] {
   if (!(ctx.policy.require_verification_before_done ?? DEFAULT_POLICY.require_verification_before_done)) {
     return [];
   }
   const found: Violation[] = [];
   for (const task of tasks(ctx)) {
     if (task.status !== 'done') continue;
-    // Закрытые раньше без проверок получают лишь предупреждение; блок — только на переходе.
-    if (blockEmpty && taskVerificationIds(ctx, task).size === 0) {
+    // На переходе — все проверки задачи, включая проверки её требований. Закрытые раньше
+    // сверяются по своим `verified_by`: прежние задачи не ломаются задним числом (ADR-0029).
+    const ids = onTransition ? taskVerificationIds(ctx, task) : new Set(task.links.verified_by ?? []);
+    if (onTransition && ids.size === 0) {
       found.push(violation('task_done_unverified', task.id, task.source.path, NO_VERIFICATION_TEXT + '.'));
     }
-    for (const id of task.links.verified_by ?? []) {
+    for (const id of ids) {
       if (!ctx.graph.byId.has(id)) continue;
       const result = ctx.verifications.get(id);
       if (result === 'passed') continue;
