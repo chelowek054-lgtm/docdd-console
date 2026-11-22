@@ -1,5 +1,7 @@
 import yaml from 'js-yaml';
 
+import { parseConfirmation } from './confirmation';
+
 /**
  * Агенты ролей (R-0091, docs/adr/0033-role-agents.md): определение агента — файл
  * проекта `docs/agents/<id>.md`, ограничения аккаунта агента — здесь, в коде
@@ -103,12 +105,15 @@ function tasksOfCheck(checkId: string, records: readonly AgentRecord[]): AgentRe
 }
 
 /**
- * Можно ли агенту `login` этот запрос — поверх прав его роли. Документы агент
- * не подтверждает никогда, текст не правит, свою работу не принимает.
+ * Можно ли агенту `login` этот запрос — поверх прав его роли. Текст агент не правит никогда.
+ * Документы не подтверждает и свою работу не принимает — пока не принёс подтверждение человека
+ * с вопросом и дословным ответом (A-0008): тогда решение человека, а агент только записывает его.
  */
 export function agentVerdict(login: string, method: string, path: string, body: Record<string, unknown> | null, records: readonly AgentRecord[]): AgentVerdict {
   if (method.toUpperCase() === 'GET') return { allowed: true };
   const byId = new Map(records.map((record) => [record.id, record]));
+  const confirmed = parseConfirmation(body?.['confirmation']);
+  const human = confirmed.ok && confirmed.confirmation !== null;
 
   if (/\/records\/[^/]+\/body\/?$/.test(path)) {
     return { allowed: false, code: 'agent_text_edit', reason: 'Агент не правит текст документов: предложите правку заметкой во входящее' };
@@ -118,10 +123,10 @@ export function agentVerdict(login: string, method: string, path: string, body: 
   const single = /\/records\/([^/]+)\/status\/?$/.exec(path)?.[1];
   if (single) {
     const record = byId.get(decodeURIComponent(single));
-    if (status === 'approved' && record && record.type !== 'task') {
+    if (!human && status === 'approved' && record && record.type !== 'task') {
       return { allowed: false, code: 'agent_document_approve', reason: 'Документы подтверждает только человек' };
     }
-    if (status === 'done' && record?.type === 'task' && assigneeOf(record) === login) {
+    if (!human && status === 'done' && record?.type === 'task' && assigneeOf(record) === login) {
       return { allowed: false, code: 'agent_own_acceptance', reason: 'Свою работу агент не принимает: закрывает задачу ревьюер' };
     }
   }
@@ -129,7 +134,7 @@ export function agentVerdict(login: string, method: string, path: string, body: 
   if (/\/records\/bulk\/status\/?$/.test(path)) {
     const ids = Array.isArray(body?.['ids']) ? (body['ids'] as unknown[]).filter((id): id is string => typeof id === 'string') : [];
     // Массовый переход «вперёд» может подтвердить документ: агенту — только задачи.
-    if (ids.some((id) => byId.get(id)?.type !== 'task')) {
+    if (!human && ids.some((id) => byId.get(id)?.type !== 'task')) {
       return { allowed: false, code: 'agent_document_approve', reason: 'Массовая смена статуса с документами — только человеку: документы подтверждает человек' };
     }
   }
@@ -140,7 +145,7 @@ export function agentVerdict(login: string, method: string, path: string, body: 
   }
 
   const checked = /\/records\/([^/]+)\/verified\/?$/.exec(path)?.[1];
-  if (checked && tasksOfCheck(decodeURIComponent(checked), records).some((task) => assigneeOf(task) === login)) {
+  if (!human && checked && tasksOfCheck(decodeURIComponent(checked), records).some((task) => assigneeOf(task) === login)) {
     return { allowed: false, code: 'agent_own_acceptance', reason: 'Свою работу агент не принимает: «Проверено» по своей задаче ставит другой' };
   }
 

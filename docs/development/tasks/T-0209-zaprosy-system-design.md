@@ -2,11 +2,12 @@
 id: T-0209
 type: task
 title: 'Запросы модели: требования к качеству, метрики, варианты по поводам'
-status: backlog
+status: legacy
 change: feature
 reuse: none
 created: 2026-11-11
-updated: 2026-11-11
+updated: 2026-11-23
+legacy_by: M-0098
 links:
   implements: [R-0126]
   affects: [M-0095]
@@ -24,3 +25,4 @@ links:
 ## Журнал
 
 - 2026-11-11 · заведена черновиком · модель
+- 2026-11-23 · в legacy: курс сменён разбором диктовки 2026-11-22 (docs/inbox/принятое/razbor-2026-11-23.md) · модель по поручению chelowek

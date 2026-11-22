@@ -39,10 +39,13 @@ describe('MCP: инструменты, белый список, режим чт�
   const call = (name: string, args: Record<string, unknown>, writable = true, api = fakeApi()) =>
     callTool(registry, name, args, { api, projectId: 'p' }, { writable, secret: SECRET });
 
-  it('набор инструментов: подтвердить, закрыть и слить нечем', () => {
-    expect(registry.tools.map((tool) => tool.name)).toEqual(['add_journal_line', 'create_draft', 'list_issues', 'move_task', 'next_tasks', 'project_status', 'task_context']);
-    expect(registry.tools.filter((tool) => tool.access === 'write').map((tool) => tool.name).sort()).toEqual(['add_journal_line', 'create_draft', 'move_task']);
-    expect(registry.tools.some((tool) => /approve|merge|close|accept|confirm/i.test(tool.name))).toBe(false);
+  it('набор инструментов: подтверждение — только с вопросом человеку (A-0008), слить нечем', () => {
+    expect(registry.tools.map((tool) => tool.name)).toEqual(['accept_check', 'accept_task', 'add_journal_line', 'approve_records', 'create_draft', 'list_issues', 'move_task', 'next_tasks', 'project_status', 'task_context']);
+    expect(registry.tools.filter((tool) => tool.access === 'write').map((tool) => tool.name).sort()).toEqual(['accept_check', 'accept_task', 'add_journal_line', 'approve_records', 'create_draft', 'move_task']);
+    expect(registry.tools.some((tool) => /merge/i.test(tool.name))).toBe(false);
+    for (const name of ['accept_check', 'accept_task', 'approve_records']) {
+      expect((registry.find(name)?.inputSchema as { required: string[] }).required).toEqual(expect.arrayContaining(['confirmed_by', 'question', 'answer']));
+    }
   });
 
   it('без входа запись отказывает и не доходит до API', async () => {

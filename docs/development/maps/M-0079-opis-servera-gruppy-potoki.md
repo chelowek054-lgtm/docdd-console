@@ -2031,7 +2031,7 @@ updated: 2026-10-24
         "to": "server/lib/permissions.ts",
         "evidence": {
           "path": "server/api/llm/usage.get.ts",
-          "line": 4,
+          "line": 5,
           "fragment": "import { can, type TeamMember } from '../../lib/permissions'"
         }
       },
@@ -2040,7 +2040,7 @@ updated: 2026-10-24
         "to": "server/lib/workspace.ts",
         "evidence": {
           "path": "server/api/llm/usage.get.ts",
-          "line": 5,
+          "line": 6,
           "fragment": "import { readManifest } from '../../lib/workspace';"
         }
       },
@@ -2049,7 +2049,7 @@ updated: 2026-10-24
         "to": "server/utils/http.ts",
         "evidence": {
           "path": "server/api/llm/usage.get.ts",
-          "line": 6,
+          "line": 7,
           "fragment": "import { fail } from '../../utils/http';"
         }
       },
@@ -2058,7 +2058,7 @@ updated: 2026-10-24
         "to": "server/utils/projects.ts",
         "evidence": {
           "path": "server/api/llm/usage.get.ts",
-          "line": 7,
+          "line": 8,
           "fragment": "import { findProject } from '../../utils/projects';"
         }
       },
@@ -2067,7 +2067,7 @@ updated: 2026-10-24
         "to": "server/utils/llm-usage-store.ts",
         "evidence": {
           "path": "server/api/llm/usage.get.ts",
-          "line": 8,
+          "line": 9,
           "fragment": "import { readUsage } from '../../utils/llm-usage-store';"
         }
       },
@@ -5190,7 +5190,7 @@ updated: 2026-10-24
         "to": "server/lib/version.ts",
         "evidence": {
           "path": "server/api/projects/[id]/records/[recordId]/status.post.ts",
-          "line": 99,
+          "line": 102,
           "fragment": "import { versionConflict } from '../../../../../lib/version'"
         }
       },
@@ -5199,7 +5199,7 @@ updated: 2026-10-24
         "to": "server/utils/notify-events.ts",
         "evidence": {
           "path": "server/api/projects/[id]/records/[recordId]/status.post.ts",
-          "line": 100,
+          "line": 104,
           "fragment": "import { notifyStatus } from '../../../../../utils/notify-ev"
         }
       },
@@ -5280,7 +5280,7 @@ updated: 2026-10-24
         "to": "server/utils/http.ts",
         "evidence": {
           "path": "server/api/projects/[id]/records/[recordId]/verified.post.ts",
-          "line": 5,
+          "line": 6,
           "fragment": "import { fail } from '../../../../../utils/http';"
         }
       },
@@ -5289,7 +5289,7 @@ updated: 2026-10-24
         "to": "server/utils/projects.ts",
         "evidence": {
           "path": "server/api/projects/[id]/records/[recordId]/verified.post.ts",
-          "line": 6,
+          "line": 7,
           "fragment": "import { findProject } from '../../../../../utils/projects';"
         }
       },
@@ -5298,7 +5298,7 @@ updated: 2026-10-24
         "to": "server/utils/verified-service.ts",
         "evidence": {
           "path": "server/api/projects/[id]/records/[recordId]/verified.post.ts",
-          "line": 7,
+          "line": 8,
           "fragment": "import { markVerified } from '../../../../../utils/verified-"
         }
       },
@@ -5433,7 +5433,7 @@ updated: 2026-10-24
         "to": "server/utils/http.ts",
         "evidence": {
           "path": "server/api/projects/[id]/records/bulk/status.post.ts",
-          "line": 7,
+          "line": 8,
           "fragment": "import { fail } from '../../../../../utils/http';"
         }
       },
@@ -5442,7 +5442,7 @@ updated: 2026-10-24
         "to": "server/utils/projects.ts",
         "evidence": {
           "path": "server/api/projects/[id]/records/bulk/status.post.ts",
-          "line": 8,
+          "line": 9,
           "fragment": "import { findProject } from '../../../../../utils/projects';"
         }
       },
@@ -5451,7 +5451,7 @@ updated: 2026-10-24
         "to": "server/utils/record-write.ts",
         "evidence": {
           "path": "server/api/projects/[id]/records/bulk/status.post.ts",
-          "line": 52,
+          "line": 55,
           "fragment": "import { staleVersions } from '../../../../../utils/record-w"
         }
       },
@@ -7530,7 +7530,7 @@ updated: 2026-10-24
         "to": "server/lib/paths.ts",
         "evidence": {
           "path": "server/utils/design-screens-service.ts",
-          "line": 20,
+          "line": 21,
           "fragment": "import { normalizeRoot, resolveInside } from '../lib/paths';"
         }
       },
@@ -7539,7 +7539,7 @@ updated: 2026-10-24
         "to": "server/lib/workspace.ts",
         "evidence": {
           "path": "server/utils/design-screens-service.ts",
-          "line": 21,
+          "line": 22,
           "fragment": "import { readManifest, readWorkspace } from '../lib/workspac"
         }
       },
@@ -7548,7 +7548,7 @@ updated: 2026-10-24
         "to": "server/lib/design.ts",
         "evidence": {
           "path": "server/utils/design-screens-service.ts",
-          "line": 22,
+          "line": 23,
           "fragment": "import { themeNames } from '../lib/design';"
         }
       },
@@ -7557,7 +7557,7 @@ updated: 2026-10-24
         "to": "server/utils/design-service.ts",
         "evidence": {
           "path": "server/utils/design-screens-service.ts",
-          "line": 23,
+          "line": 24,
           "fragment": "import { projectDesign } from './design-service';"
         }
       },

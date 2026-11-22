@@ -2,9 +2,10 @@
 id: R-0126
 type: requirement
 title: 'Модель и справка: System Design по порядку'
-status: draft
+status: legacy
 created: 2026-11-11
-updated: 2026-11-11
+updated: 2026-11-23
+legacy_by: M-0098
 links:
   verified_by: [V-0136]
 ---
@@ -26,3 +27,4 @@ links:
 ## Журнал
 
 - 2026-11-11 · заведена черновиком · модель
+- 2026-11-23 · в legacy: курс сменён разбором диктовки 2026-11-22 (docs/inbox/принятое/razbor-2026-11-23.md) · модель по поручению chelowek

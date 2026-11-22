@@ -2,10 +2,11 @@
 id: V-0135
 type: verification
 title: 'Панель решений архитектора на «Стратегии»'
-status: draft
+status: legacy
 kind: manual
 created: 2026-11-11
-updated: 2026-11-11
+updated: 2026-11-23
+legacy_by: M-0098
 links:
   verifies: [R-0125]
 ---
@@ -19,3 +20,4 @@ links:
 ## Журнал
 
 - 2026-11-11 · заведена черновиком · модель
+- 2026-11-23 · в legacy: курс сменён разбором диктовки 2026-11-22 (docs/inbox/принятое/razbor-2026-11-23.md) · модель по поручению chelowek

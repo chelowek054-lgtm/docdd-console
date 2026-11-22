@@ -2,6 +2,7 @@ import { defineEventHandler, getRouterParam, readBody } from 'h3';
 
 import { OutsideRootError } from '../../../../../lib/paths';
 import { WorkspaceError } from '../../../../../lib/workspace';
+import { confirmedActor } from '../../../../../utils/confirmed-actor';
 import { fail } from '../../../../../utils/http';
 import { findProject } from '../../../../../utils/projects';
 import { markVerified } from '../../../../../utils/verified-service';
@@ -18,11 +19,13 @@ export default defineEventHandler(async (event) => {
     return fail(event, 404, 'project_not_found', `Проект \`${id}\` не найден в списке`);
   }
 
-  const body = await readBody<{ verified?: unknown; actor?: unknown; by?: unknown; note?: unknown; steps?: unknown }>(event);
+  const body = await readBody<{ verified?: unknown; actor?: unknown; by?: unknown; note?: unknown; steps?: unknown; confirmation?: unknown }>(event);
   if (typeof body?.verified !== 'boolean') {
     return fail(event, 400, 'verified_required', 'Не сказано, ставится отметка или снимается: нужно `verified: true` или `false`');
   }
-  const actor = typeof body.actor === 'string' ? body.actor : '';
+  const confirmed = confirmedActor(project.root, body, typeof body.actor === 'string' ? body.actor : '', event.context);
+  if (!confirmed.ok) return fail(event, 400, 'confirmation_invalid', confirmed.message);
+  const actor = confirmed.actor;
   const by = typeof body.by === 'string' ? body.by.trim() : '';
   const note = typeof body.note === 'string' ? body.note.trim() : '';
   if (by.length > 80) return fail(event, 400, 'by_too_long', 'Имя проверившего — не длиннее 80 знаков');
