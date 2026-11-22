@@ -106,6 +106,8 @@ export type ViolationCode =
   | 'doc_link_missing'
   // карты
   | 'map_invalid'
+  | 'map_lint'
+  | 'map_lint_notation'
   | 'map_evidence_missing'
   | 'map_evidence_stale'
   | 'map_drift'
@@ -222,6 +224,8 @@ export const VIOLATION_LEVELS: Readonly<Record<ViolationCode, Severity>> = {
   code_link_missing: 'warning',
   doc_link_missing: 'warning',
   map_invalid: 'error',
+  map_lint: 'error',
+  map_lint_notation: 'warning',
   map_evidence_missing: 'error',
   map_evidence_stale: 'error',
   map_drift: 'error',

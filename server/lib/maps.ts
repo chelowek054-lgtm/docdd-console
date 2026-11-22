@@ -97,6 +97,8 @@ export interface FunctionalPart {
   vision?: Vision;
   capabilities?: {
     id: string; title?: string; parent?: string; summary?: string;
+    /** Вид узла по стандарту стратегической карты (R-0143): возможность, система, человек, внешняя система. Нет — возможность. */
+    kind?: string;
     /** Состояние реализации; нет поля — «не оценено» (docs/07-maps.md). */
     status?: ImplStatus; note?: string;
     /** Насколько важна и когда нужна; нет поля — «без приоритета», «без горизонта» (docs/07-maps.md). */

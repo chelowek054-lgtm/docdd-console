@@ -1,0 +1,30 @@
+{
+  "template": "domain",
+  "title": "Доменная карта",
+  "question": "Почему: предметная область и её законы",
+  "sources": [
+    { "name": "DDD, карта контекстов", "note": "ограниченные контексты и агрегаты, связи контекстов" },
+    { "name": "Event Storming", "note": "доменные события и правила как отдельные узлы" }
+  ],
+  "own": [
+    "узел «закон» — правило предметной области, которое продукт обязан соблюдать",
+    "связь «ограничивает» — закон, который держит понятие или процесс"
+  ],
+  "defaultNodeKind": "concept",
+  "defaultEdgeKind": "relates",
+  "nodeKinds": [
+    { "id": "context", "title": "Контекст", "shape": "rounded", "color": "map-ddd", "icon": "i-lucide-square-dashed", "container": true },
+    { "id": "aggregate", "title": "Агрегат", "shape": "hexagon", "color": "map-ddd-strong", "icon": "i-lucide-hexagon", "container": true },
+    { "id": "concept", "title": "Понятие", "shape": "rounded", "color": "map-ddd", "icon": "i-lucide-book-open", "container": false },
+    { "id": "rule", "title": "Закон", "shape": "note", "color": "map-ddd-strong", "icon": "i-lucide-scale", "container": false },
+    { "id": "event", "title": "Событие", "shape": "rect", "color": "map-infra", "icon": "i-lucide-zap", "container": false },
+    { "id": "actor", "title": "Участник", "shape": "person", "color": "map-person", "icon": "i-lucide-user", "container": false }
+  ],
+  "edgeKinds": [
+    { "id": "relates", "title": "связано с", "line": "solid", "head": "none", "label": "optional" },
+    { "id": "causes", "title": "вызывает", "line": "dashed", "head": "open", "label": "optional" },
+    { "id": "constrains", "title": "ограничивает", "line": "dotted", "head": "arrow", "label": "required" },
+    { "id": "owns", "title": "владеет", "line": "solid", "head": "arrow", "label": "optional" },
+    { "id": "translates", "title": "переводит понятия (связь контекстов)", "line": "solid", "head": "arrow", "label": "required", "twoWay": true }
+  ]
+}

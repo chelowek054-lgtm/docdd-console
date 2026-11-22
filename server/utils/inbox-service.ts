@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path';
 
 import { withIntentMap } from '../lib/intent-map';
 import { parseProposal, resolveLinks, titleOf, usableRelations, type Note, type ProposedRecord } from '../lib/inbox';
+import { lintErrors, lintStrategicChange, overridesFrom, standardFor } from '../lib/map-core';
 import { parseRecord } from '../lib/parse';
 import { normalizeRoot, resolveInside, toProjectPath } from '../lib/paths';
 import { nextId, recordTemplate, slugify } from '../lib/scaffold';
@@ -211,6 +212,7 @@ export function createRecords(root: string, original: readonly ProposedRecord[],
   const standing = proposed.some((record) => record.type === 'map' && record.relations?.length)
     ? buildProjectMap(normalized).functional.capabilities
     : [];
+  let strategicNow: { id: string; title?: string; summary?: string; parent?: string }[] | null = null;
 
   for (const record of proposed) {
     const id = assigned.get(record.key) as string;
@@ -244,6 +246,14 @@ export function createRecords(root: string, original: readonly ProposedRecord[],
       ? usableRelations(record.relations, capabilities ?? [], standing)
       : { relations: [], problems: [] };
     problems.push(...relations.problems.map((problem) => `${record.title}: ${problem}`));
+    // Линтер карт (R-0141): возможность без имени или назначения, связь без подписи формата — сразу в отчёт.
+    if (record.type === 'map' && (capabilities?.length || relations.relations.length)) {
+      const standard = standardFor('strategic', overridesFrom(workspace.manifest.maps?.['standards']))?.standard;
+      strategicNow ??= buildProjectMap(normalized).functional.capabilities;
+      const known = [...strategicNow, ...proposed.flatMap((item) => (item.type === 'map' && item !== record ? item.capabilities ?? [] : []))];
+      const findings = standard ? lintStrategicChange({ added: { capabilities: capabilities ?? [], relations: relations.relations } }, { capabilities: known }, standard) : [];
+      problems.push(...lintErrors(findings).map((item) => `${record.title}: линтер карт — ${item.message}`));
+    }
 
     const text = recordTemplate({
       id,

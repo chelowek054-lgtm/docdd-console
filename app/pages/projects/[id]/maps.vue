@@ -1887,6 +1887,7 @@ watch(views, (list) => {
                   @show-all="showCapAll"
                 />
                 <FunctionalLegendBar v-if="current.legend" :legend="current.legend" />
+                <MapNotation template="strategic" />
                 <UCheckbox v-if="currentUser.user && map.functional.capabilities.length" v-model="myZone" :label="t('maps.myZone')" />
                 <p v-if="!current.text" class="text-sm text-muted">
                   {{ map.functional.capabilities.length ? t('maps.noMatch') : t('maps.notDescribed') }}

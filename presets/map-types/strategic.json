@@ -1,0 +1,27 @@
+{
+  "template": "strategic",
+  "title": "Стратегическая карта",
+  "question": "Куда движется проект",
+  "sources": [
+    { "name": "Карта возможностей (business capability map)", "note": "возможности деревом: родитель — крупная возможность, дети — её части" },
+    { "name": "C4, уровень контекста", "note": "люди и внешние системы вокруг продукта" }
+  ],
+  "own": [
+    "пять видов связей между возможностями (зависит, пользуется, передаёт данные, запускает, заменяет) — словарь DocDD",
+    "у «передаёт данные» подпись называет формат"
+  ],
+  "defaultNodeKind": "capability",
+  "nodeKinds": [
+    { "id": "capability", "title": "Возможность", "shape": "rounded", "color": "map-capability", "icon": "i-lucide-target", "container": true },
+    { "id": "system", "title": "Система (продукт)", "shape": "rect", "color": "map-layer-domain", "icon": "i-lucide-box", "container": true },
+    { "id": "person", "title": "Человек, роль", "shape": "person", "color": "map-person", "icon": "i-lucide-user", "container": false },
+    { "id": "external", "title": "Внешняя система", "shape": "cloud", "color": "map-external", "icon": "i-lucide-cloud", "container": false }
+  ],
+  "edgeKinds": [
+    { "id": "depends", "title": "зависит от", "line": "solid", "head": "arrow", "label": "optional" },
+    { "id": "uses", "title": "пользуется", "line": "solid", "head": "arrow", "label": "optional" },
+    { "id": "feeds", "title": "передаёт данные в", "line": "dashed", "head": "arrow", "label": "format" },
+    { "id": "triggers", "title": "запускает", "line": "dashed", "head": "open", "label": "optional" },
+    { "id": "replaces", "title": "заменяет", "line": "dotted", "head": "arrow", "label": "optional" }
+  ]
+}

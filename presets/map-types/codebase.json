@@ -1,0 +1,29 @@
+{
+  "template": "codebase",
+  "title": "Кодовая база",
+  "question": "Что сделано сейчас",
+  "sources": [
+    { "name": "UML, диаграмма пакетов", "note": "группы и модули вложенностью, импорт — зависимость со стрелкой" },
+    { "name": "UML, диаграмма компонентов", "note": "модуль — компонент со входом" }
+  ],
+  "own": [
+    "внешний пакет — серым облаком",
+    "слои чистой архитектуры окрашены от синего к бирюзовому, если проект их объявил"
+  ],
+  "defaultNodeKind": "module",
+  "defaultEdgeKind": "imports",
+  "nodeKinds": [
+    { "id": "group", "title": "Группа", "shape": "package", "color": "map-layer-domain", "icon": "i-lucide-folder", "container": true },
+    { "id": "module", "title": "Модуль", "shape": "rounded", "color": "map-layer-application", "icon": "i-lucide-file-code", "container": true },
+    { "id": "domain", "title": "Слой domain", "shape": "rounded", "color": "map-layer-domain", "icon": "i-lucide-shapes", "container": true },
+    { "id": "application", "title": "Слой application", "shape": "rounded", "color": "map-layer-application", "icon": "i-lucide-workflow", "container": true },
+    { "id": "infrastructure", "title": "Слой infrastructure", "shape": "rounded", "color": "map-layer-infrastructure", "icon": "i-lucide-plug", "container": true },
+    { "id": "ui", "title": "Интерфейс", "shape": "rounded", "color": "map-ui", "icon": "i-lucide-monitor", "container": true },
+    { "id": "external", "title": "Внешний пакет", "shape": "cloud", "color": "map-external", "icon": "i-lucide-package", "container": false }
+  ],
+  "edgeKinds": [
+    { "id": "imports", "title": "импортирует", "line": "solid", "head": "arrow", "label": "optional" },
+    { "id": "data", "title": "передаёт данные", "line": "dashed", "head": "arrow", "label": "format" },
+    { "id": "event", "title": "событие", "line": "dashed", "head": "open", "label": "optional" }
+  ]
+}
