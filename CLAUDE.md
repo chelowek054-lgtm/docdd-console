@@ -120,4 +120,5 @@ npm run check -- .
 и в изменении нет того, о чём не договаривались. `tests/self-map.spec.ts` падает, когда код уехал
 из-под карты: сдвинул строки — поправь свидетельства в `docs/development/maps`.
 
-Текущая работа к релизу — [RELEASE-1.0.0-HANDOFF.md](RELEASE-1.0.0-HANDOFF.md).
+В Windows при блокировке `npm.ps1` политикой PowerShell запускай те же команды через
+`npm.cmd`. Для Codex есть [AGENTS.md](AGENTS.md) с порядком работы на этом репозитории.
