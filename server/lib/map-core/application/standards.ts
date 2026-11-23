@@ -1,4 +1,7 @@
 import codebase from '../../../../presets/map-types/codebase.json';
+import embedded from '../../../../presets/map-types/embedded.json';
+import gamedev from '../../../../presets/map-types/gamedev.json';
+import research from '../../../../presets/map-types/research.json';
 import domain from '../../../../presets/map-types/domain.json';
 import strategic from '../../../../presets/map-types/strategic.json';
 import sysdesign from '../../../../presets/map-types/sysdesign.json';
@@ -19,16 +22,21 @@ export const BUILTIN_STANDARDS: Readonly<Record<string, MapStandard>> = {
 /** Прежние имена видов в файлах (ADR-0035): `functional` — стратегическая, `codemap` — кодовая база. */
 const ALIASES: Readonly<Record<string, string>> = { functional: 'strategic', codemap: 'codebase' };
 
+export const INDUSTRY_STANDARDS: Readonly<Record<string, MapStandard>> = {
+  gamedev: gamedev as MapStandard, embedded: embedded as MapStandard, research: research as MapStandard
+};
+const ALL_STANDARDS = { ...BUILTIN_STANDARDS, ...INDUSTRY_STANDARDS };
+
 export function builtinTemplate(name: string): string | null {
   const id = ALIASES[name] ?? name;
-  return BUILTIN_STANDARDS[id] ? id : null;
+  return Object.hasOwn(ALL_STANDARDS, id) ? id : null;
 }
 
 /** Стандарт шаблона с переопределениями проекта (`maps.standards` в манифесте). */
 export function standardFor(name: string, overrides: readonly StandardOverride[] = []): { standard: MapStandard; problems: string[] } | null {
   const id = builtinTemplate(name);
   if (!id) return null;
-  let standard = BUILTIN_STANDARDS[id] as MapStandard;
+  let standard = ALL_STANDARDS[id] as MapStandard;
   const problems: string[] = [];
   for (const override of overrides) {
     if (builtinTemplate(override.extends) !== id) continue;

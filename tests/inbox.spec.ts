@@ -435,7 +435,7 @@ describe('карта из входящего', () => {
         type: 'map',
         title: 'Приём пациента',
         body: 'Со слов врача: приём — отдельная возможность системы.',
-        capabilities: [{ id: 'priyom', title: 'Приём пациента' }],
+        capabilities: [{ id: 'priyom', title: 'Приём пациента', summary: 'Врач принимает пациента' }],
         notes: []
       }],
       []
@@ -463,7 +463,7 @@ describe('карта из входящего', () => {
     const text = readFileSync(join(root, mapPath), 'utf8');
     const parsed = parseMapRecord(text);
     expect(parsed.problems).toEqual([]);
-    expect(parsed.change.functional?.added?.capabilities).toEqual([{ id: 'priyom', title: 'Приём пациента' }]);
+    expect(parsed.change.functional?.added?.capabilities).toEqual([{ id: 'priyom', title: 'Приём пациента', summary: 'Врач принимает пациента' }]);
   });
 });
 

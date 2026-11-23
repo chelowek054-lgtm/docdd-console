@@ -16,9 +16,32 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "nodes": { "type": "array", "items": { "$ref": "#/$defs/node" } },
+        "edges": { "type": "array", "items": { "$ref": "#/$defs/edge" } },
         "contexts": { "type": "array", "items": { "$ref": "#/$defs/context" } },
         "aggregates": { "type": "array", "items": { "$ref": "#/$defs/aggregate" } },
         "relations": { "type": "array", "items": { "$ref": "#/$defs/relation" } }
+      }
+    },
+    "node": {
+      "type": "object", "required": ["id"], "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["concept", "rule", "event", "actor", "context", "aggregate", "process"] },
+        "summary": { "type": "string" },
+        "sources": { "type": "array", "items": { "type": "string" } },
+        "capabilities": { "type": "array", "items": { "type": "string" } },
+        "sysdesign": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "edge": {
+      "type": "object", "required": ["from", "to", "type"], "additionalProperties": false,
+      "properties": {
+        "from": { "type": "string", "minLength": 1 },
+        "to": { "type": "string", "minLength": 1 },
+        "type": { "enum": ["causes", "constrains", "owns", "translates", "relates"] },
+        "summary": { "type": "string" }
       }
     },
     "context": {

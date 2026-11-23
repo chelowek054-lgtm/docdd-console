@@ -26,10 +26,26 @@ const theme = computed<'light' | 'dark'>(() => (colorMode.value === 'dark' ? 'da
 const standard = standardFor('strategic')?.standard ?? null;
 
 const FLOW_ID = 'map-editor';
-const { fitView, screenToFlowCoordinate } = useVueFlow(FLOW_ID);
+const { fitView, screenToFlowCoordinate, getSelectedNodes, getSelectedEdges } = useVueFlow(FLOW_ID);
 
 const freshNodes = ref<FlowCapability[]>([]);
 const freshEdges = ref<FlowRelation[]>([]);
+/** Правки стоящих узлов (узел целиком: запись карты объявляет его заново) и удаления (R-0147). */
+const editedNodes = ref<FlowCapability[]>([]);
+const removedNodes = ref<string[]>([]);
+const removedEdges = ref<FlowRelation[]>([]);
+const edgeKey = (edge: FlowRelation) => `${edge.from}>${edge.to}:${edge.type}`;
+/** Картина на холсте: подтверждённое с правками и удалениями плюс новое. */
+const shownCapabilities = computed(() => {
+  const gone = new Set(removedNodes.value);
+  const edits = new Map(editedNodes.value.map((node) => [node.id, node]));
+  return [...props.capabilities.filter((node) => !gone.has(node.id)).map((node) => edits.get(node.id) ?? node), ...freshNodes.value];
+});
+const shownRelations = computed(() => {
+  const gone = new Set(removedNodes.value);
+  const cut = new Set(removedEdges.value.map(edgeKey));
+  return props.relations.filter((edge) => !cut.has(edgeKey(edge)) && !gone.has(edge.from) && !gone.has(edge.to));
+});
 const nodes = ref<FlowNode[]>([]);
 const edges = ref<FlowEdge[]>([]);
 /** Перетащенные узлы держат место до новой раскладки: иначе обновление карты сбрасывало бы их. */
@@ -47,8 +63,8 @@ async function elkInstance() {
 
 async function rebuild(relayout: boolean) {
   if (!standard) return;
-  const graph = flowGraph([...props.capabilities, ...freshNodes.value], [...props.relations], standard, theme.value);
-  const fresh = new Set(freshNodes.value.map((node) => node.id));
+  const graph = flowGraph(shownCapabilities.value, shownRelations.value, standard, theme.value);
+  const fresh = new Set([...freshNodes.value, ...editedNodes.value].map((node) => node.id));
   const graphNodes = graph.nodes.map((node) => (fresh.has(node.id) ? { ...node, data: { ...node.data, fresh: true } } : node));
   const graphEdges = [...graph.edges, ...freshEdges.value.map((edge) => flowEdge(edge, standard, true))];
   if (relayout) moved.clear();
@@ -83,23 +99,89 @@ function onPaneMenu(event: MouseEvent) {
 const taken = computed(() => new Set([...props.capabilities, ...freshNodes.value].map((item) => item.id)));
 // Пустое значение пункт выбора не принимает — «без родителя» назван отдельным значением.
 const NO_PARENT = '-';
-const nodeForm = reactive({ open: false, kind: '', id: '', title: '', summary: '', parent: NO_PARENT, idTouched: false, at: { x: 0, y: 0 } });
+const nodeForm = reactive({ open: false, mode: 'add' as 'add' | 'edit', kind: '', id: '', title: '', summary: '', parent: NO_PARENT, idTouched: false, at: { x: 0, y: 0 } });
 function pickKind(kind: string) {
   if (!menu.value) return;
-  Object.assign(nodeForm, { open: true, kind, id: '', title: '', summary: '', parent: NO_PARENT, idTouched: false, at: menu.value.at });
+  Object.assign(nodeForm, { open: true, mode: 'add', kind, id: '', title: '', summary: '', parent: NO_PARENT, idTouched: false, at: menu.value.at });
   menu.value = null;
 }
 watch(() => [nodeForm.title, nodeForm.parent], () => {
-  if (!nodeForm.idTouched && nodeForm.title) nodeForm.id = suggestId(nodeForm.title, taken.value, nodeForm.parent === NO_PARENT ? undefined : nodeForm.parent);
+  if (nodeForm.mode === 'add' && !nodeForm.idTouched && nodeForm.title) nodeForm.id = suggestId(nodeForm.title, taken.value, nodeForm.parent === NO_PARENT ? undefined : nodeForm.parent);
 });
-const parentItems = computed(() => [{ label: t('maps.editor.noParent'), value: NO_PARENT }, ...[...props.capabilities, ...freshNodes.value].map((item) => ({ label: `${item.title ?? item.id} (${item.id})`, value: item.id }))]);
+const parentItems = computed(() => [{ label: t('maps.editor.noParent'), value: NO_PARENT }, ...shownCapabilities.value.filter((item) => item.id !== nodeForm.id).map((item) => ({ label: `${item.title ?? item.id} (${item.id})`, value: item.id }))]);
 const nodeProblem = computed(() => {
   if (!/^[A-Za-z0-9][A-Za-z0-9.-]*$/.test(nodeForm.id)) return t('maps.editor.badId');
-  if (taken.value.has(nodeForm.id)) return t('maps.editor.takenId');
+  if (nodeForm.mode === 'add' && taken.value.has(nodeForm.id)) return t('maps.editor.takenId');
   if (!nodeForm.title.trim() || !nodeForm.summary.trim()) return t('maps.editor.needFields');
   return '';
 });
+/** Поля узла, которые пишет запись карты: служебные следы сложения (`declaredBy`, `pending`) — нет. */
+const NODE_KEYS = ['id', 'title', 'parent', 'kind', 'summary', 'status', 'note', 'priority', 'horizon', 'inputs', 'outputs', 'mapLinks', 'dashboards'] as const;
+function openEdit(id: string) {
+  const node = shownCapabilities.value.find((item) => item.id === id);
+  if (!node || !standard) return;
+  Object.assign(nodeForm, {
+    open: true, mode: 'edit', kind: node.kind ?? standard.defaultNodeKind ?? 'capability', id: node.id,
+    title: node.title ?? '', summary: node.summary ?? '', parent: node.parent ?? NO_PARENT, idTouched: true, at: { x: 0, y: 0 }
+  });
+}
+function onNodeDoubleClick(event: { node: { id: string } }) {
+  openEdit(event.node.id);
+}
+function saveEdit() {
+  if (nodeProblem.value || !standard) return;
+  const changes = {
+    title: nodeForm.title.trim(), summary: nodeForm.summary.trim(),
+    parent: nodeForm.parent !== NO_PARENT ? nodeForm.parent : undefined,
+    kind: nodeForm.kind !== standard.defaultNodeKind ? nodeForm.kind : undefined
+  };
+  const freshAt = freshNodes.value.findIndex((item) => item.id === nodeForm.id);
+  if (freshAt !== -1) {
+    freshNodes.value[freshAt] = clean({ ...freshNodes.value[freshAt], ...changes } as FlowCapability);
+  } else {
+    const base = props.capabilities.find((item) => item.id === nodeForm.id) as Record<string, unknown> | undefined;
+    const kept = Object.fromEntries(NODE_KEYS.flatMap((key) => (base?.[key] !== undefined ? [[key, base[key]]] : [])));
+    const next = clean({ ...kept, ...changes, id: nodeForm.id } as FlowCapability);
+    editedNodes.value = [...editedNodes.value.filter((item) => item.id !== next.id), next];
+  }
+  nodeForm.open = false;
+  void rebuild(false);
+}
+/** Пустое поле — значит поля нет: `undefined` в записи карты не пишется. */
+function clean(node: FlowCapability): FlowCapability {
+  return Object.fromEntries(Object.entries(node).filter(([, value]) => value !== undefined && value !== '')) as unknown as FlowCapability;
+}
+
+/** Delete убирает выбранное: новое — с холста, подтверждённое — разделом `removed` черновика. */
+function removeSelected() {
+  const nodeIds = getSelectedNodes.value.map((node) => node.id);
+  const edgeList = getSelectedEdges.value.filter((edge) => !(edge.data as { structural?: boolean } | undefined)?.structural);
+  if (nodeIds.length === 0 && edgeList.length === 0) return;
+  const freshIds = new Set(freshNodes.value.map((node) => node.id));
+  freshNodes.value = freshNodes.value.filter((node) => !nodeIds.includes(node.id));
+  editedNodes.value = editedNodes.value.filter((node) => !nodeIds.includes(node.id));
+  removedNodes.value = [...new Set([...removedNodes.value, ...nodeIds.filter((id) => !freshIds.has(id))])];
+  const gone = new Set(nodeIds);
+  freshEdges.value = freshEdges.value.filter((edge) => !gone.has(edge.from) && !gone.has(edge.to));
+  for (const edge of edgeList) {
+    const relation = { from: edge.source, to: edge.target, type: String((edge.data as { kind?: string } | undefined)?.kind ?? '') };
+    const freshAt = freshEdges.value.findIndex((item) => edgeKey(item) === edgeKey(relation));
+    if (freshAt !== -1) freshEdges.value.splice(freshAt, 1);
+    else removedEdges.value = [...removedEdges.value, relation];
+  }
+  void rebuild(false);
+}
+function onKey(event: KeyboardEvent) {
+  const target = event.target as HTMLElement | null;
+  if (target && ['INPUT', 'TEXTAREA'].includes(target.tagName)) return;
+  if (event.key === 'Delete' || event.key === 'Backspace') {
+    event.preventDefault();
+    removeSelected();
+  }
+}
+
 function addNode() {
+  if (nodeForm.mode === 'edit') { saveEdit(); return; }
   if (nodeProblem.value || !standard) return;
   const item: FlowCapability = {
     id: nodeForm.id, title: nodeForm.title.trim(), summary: nodeForm.summary.trim(),
@@ -131,10 +213,23 @@ function addEdge() {
   void rebuild(false);
 }
 
-const pendingCount = computed(() => freshNodes.value.length + freshEdges.value.length);
-function reset() {
+const pendingCount = computed(() => freshNodes.value.length + freshEdges.value.length + editedNodes.value.length + removedNodes.value.length + removedEdges.value.length);
+function clearEdits() {
   freshNodes.value = [];
   freshEdges.value = [];
+  editedNodes.value = [];
+  removedNodes.value = [];
+  removedEdges.value = [];
+}
+/** Убранный узел уносит свои подтверждённые связи: иначе на карте остались бы связи в никуда. */
+const removedRelations = computed(() => {
+  const gone = new Set(removedNodes.value);
+  const touching = props.relations.filter((edge) => gone.has(edge.from) || gone.has(edge.to));
+  const all = new Map([...removedEdges.value, ...touching].map((edge) => [edgeKey(edge), { from: edge.from, to: edge.to, type: edge.type }]));
+  return [...all.values()];
+});
+function reset() {
+  clearEdits();
   failure.value = null;
   void rebuild(false);
 }
@@ -148,10 +243,10 @@ async function save() {
   failure.value = null;
   savedNote.value = '';
   try {
-    const titles = freshNodes.value.map((node) => node.title ?? node.id);
+    const titles = [...freshNodes.value, ...editedNodes.value].map((node) => node.title ?? node.id).concat(removedNodes.value.map((id) => `−${id}`));
     const response = await $fetch<{ record?: { id: string }; error?: { message: string; blockers?: { message: string }[] } }>(
       `/api/projects/${props.projectId}/map/draft`,
-      { method: 'POST', body: { answer: editorDraft(freshNodes.value, freshEdges.value), title: t('maps.editor.draftTitle', { what: titles.length ? titles.join(', ') : t('maps.editor.links') }) }, ignoreResponseError: true }
+      { method: 'POST', body: { answer: editorDraft([...freshNodes.value, ...editedNodes.value], freshEdges.value, removedNodes.value, removedRelations.value), title: t('maps.editor.draftTitle', { what: titles.length ? titles.join(', ') : t('maps.editor.links') }) }, ignoreResponseError: true }
     );
     if (response.error) {
       failure.value = { message: response.error.message, blockers: (response.error.blockers ?? []).map((item) => item.message) };
@@ -159,8 +254,7 @@ async function save() {
     }
     const id = response.record?.id ?? '';
     savedNote.value = t('maps.editor.saved', { id });
-    freshNodes.value = [];
-    freshEdges.value = [];
+    clearEdits();
     await rebuild(false);
     emit('saved', id);
   } finally {
@@ -188,7 +282,7 @@ async function save() {
     </UAlert>
     <p v-if="savedNote" class="text-sm text-success" data-map-editor-saved>{{ savedNote }}</p>
 
-    <div ref="shell" class="relative h-[560px] overflow-hidden rounded-lg border border-default" @click="menu = null">
+    <div ref="shell" class="relative h-[560px] overflow-hidden rounded-lg border border-default" tabindex="0" data-map-editor-canvas @click="menu = null" @keydown="onKey">
       <VueFlow
         :id="FLOW_ID"
         v-model:nodes="nodes"
@@ -197,9 +291,11 @@ async function save() {
         :max-zoom="2"
         :default-edge-options="{ type: 'default' }"
         :connection-radius="24"
+        :delete-key-code="null"
         @pane-context-menu="onPaneMenu"
         @connect="onConnect"
         @node-drag-stop="onNodeDragStop"
+        @node-double-click="onNodeDoubleClick"
       >
         <template #node-map="node">
           <div
@@ -246,17 +342,18 @@ async function save() {
       </div>
     </div>
 
-    <UModal v-model:open="nodeForm.open" :title="t('maps.editor.nodeTitle')">
+    <UModal v-model:open="nodeForm.open" :title="nodeForm.mode === 'edit' ? t('maps.editor.editTitle', { id: nodeForm.id }) : t('maps.editor.nodeTitle')">
       <template #body>
         <div class="space-y-3" data-map-editor-node-form>
           <UFormField :label="t('maps.editor.fTitle')"><UInput v-model="nodeForm.title" class="w-full" name="title" /></UFormField>
           <UFormField :label="t('maps.editor.fSummary')"><UTextarea v-model="nodeForm.summary" class="w-full" :rows="2" name="summary" /></UFormField>
+          <UFormField v-if="nodeForm.mode === 'edit'" :label="t('maps.editor.fNodeKind')"><USelect v-model="nodeForm.kind" :items="(standard?.nodeKinds ?? []).map((kind) => ({ label: kind.title, value: kind.id }))" class="w-full" /></UFormField>
           <UFormField :label="t('maps.editor.fParent')"><USelect v-model="nodeForm.parent" :items="parentItems" class="w-full" /></UFormField>
-          <UFormField :label="t('maps.editor.fId')"><UInput v-model="nodeForm.id" class="w-full font-mono" name="id" @update:model-value="nodeForm.idTouched = true" /></UFormField>
+          <UFormField :label="t('maps.editor.fId')"><UInput v-model="nodeForm.id" class="w-full font-mono" name="id" :disabled="nodeForm.mode === 'edit'" @update:model-value="nodeForm.idTouched = true" /></UFormField>
           <p v-if="nodeProblem" class="text-xs text-muted">{{ nodeProblem }}</p>
           <div class="flex justify-end gap-2">
             <UButton variant="ghost" color="neutral" @click="nodeForm.open = false">{{ t('maps.editor.cancel') }}</UButton>
-            <UButton :disabled="!!nodeProblem" data-map-editor-add-node @click="addNode">{{ t('maps.editor.add') }}</UButton>
+            <UButton :disabled="!!nodeProblem" data-map-editor-add-node @click="addNode">{{ nodeForm.mode === 'edit' ? t('maps.editor.apply') : t('maps.editor.add') }}</UButton>
           </div>
         </div>
       </template>

@@ -5,6 +5,8 @@ import type { ErrorObject, ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
 
 import codemapSchema from '../../docs/schemas/codemap.schema.json';
+import mlStageSchema from '../../docs/schemas/ml-stage.schema.json';
+import sysdesignSchema from '../../docs/schemas/sysdesign.schema.json';
 import dataflowSchema from '../../docs/schemas/dataflow.schema.json';
 import evidenceSchema from '../../docs/schemas/evidence.schema.json';
 import frontmatterSchema from '../../docs/schemas/frontmatter.schema.json';
@@ -37,11 +39,17 @@ applyFormats(ajv);
 
 // Свидетельство общее для трёх карт, поэтому регистрируется по своему $id.
 ajv.addSchema(evidenceSchema);
+ajv.addSchema(mlStageSchema);
 
 const validateFrontmatterSchema = ajv.compile(frontmatterSchema);
 const validateProjectSchema = ajv.compile(projectSchema);
 const validateReportSchema = ajv.compile(reportSchema);
 const validateCodemapSchema = ajv.compile(codemapSchema);
+const validateSystemSchema = ajv.compile(sysdesignSchema);
+
+export function validateSysdesign(data: unknown): SchemaIssue[] {
+  return run(validateSystemSchema, data);
+}
 const validateDataflowSchema = ajv.compile(dataflowSchema);
 const validateUserflowSchema = ajv.compile(userflowSchema);
 const validateFunctionalSchema = ajv.compile(functionalSchema);

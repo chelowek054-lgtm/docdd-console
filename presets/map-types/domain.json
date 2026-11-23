@@ -16,6 +16,7 @@
     { "id": "context", "title": "Контекст", "shape": "rounded", "color": "map-ddd", "icon": "i-lucide-square-dashed", "container": true },
     { "id": "aggregate", "title": "Агрегат", "shape": "hexagon", "color": "map-ddd-strong", "icon": "i-lucide-hexagon", "container": true },
     { "id": "concept", "title": "Понятие", "shape": "rounded", "color": "map-ddd", "icon": "i-lucide-book-open", "container": false },
+    { "id": "process", "title": "Процесс", "shape": "rounded", "color": "map-ddd", "icon": "i-lucide-workflow", "container": false },
     { "id": "rule", "title": "Закон", "shape": "note", "color": "map-ddd-strong", "icon": "i-lucide-scale", "container": false },
     { "id": "event", "title": "Событие", "shape": "rect", "color": "map-infra", "icon": "i-lucide-zap", "container": false },
     { "id": "actor", "title": "Участник", "shape": "person", "color": "map-person", "icon": "i-lucide-user", "container": false }

@@ -1,12 +1,14 @@
 import { findDependencyCycles, incomingEdges, outgoing, type Graph } from './graph';
 import { checkArchitecture } from './architecture';
+import { codebaseWarnings } from './codebase';
+import { qualityWarnings, standardWarnings } from './system-design';
 import { domainFindings } from './domain-map';
 import { buildReferenceIndex, sameIndex, type ReferenceEntry } from './reference';
 import type { RulesResolution } from './practice-rules';
 import { capabilityFindings } from './coverage';
 import { taskGaps } from './batch-check'; import { brokenMapLinks, inputsNotReady, effectiveHorizon, effectiveOwner, effectivePriority } from './functional';
 import { approvedMaps, checkEvidence, evidenceClaims, foldMaps, parseMapRecord, type MapChange } from './maps';
-import { lintCustomChange, lintStrategicChange, missingRequired, standardFor, type CustomDefinitionLike, type LintFinding } from './map-core';
+import { lintDomainChange, lintCustomChange, lintStrategicChange, missingRequired, standardFor, type CustomDefinitionLike, type LintFinding } from './map-core';
 import { firstHeading } from './parse';
 import { mockupColors, mockupOf, offTokenColors } from './design-mockups';
 import { DEFAULT_MOCKUPS_DIR, screenSlug } from './design-screens';
@@ -41,6 +43,7 @@ import {
 } from './design-export';
 
 export interface RuleContext {
+  codebaseThresholds?: NonNullable<ProjectManifest['maps']>['thresholds'];
   records: readonly WorkRecord[];
   graph: Graph;
   policy: Policy;
@@ -442,6 +445,7 @@ export function checkMaps(ctx: RuleContext): Violation[] {
   const found: Violation[] = [];
   // Сложенная стратегическая карта — для линтера: узел записи сверяется с прежним состоянием узла.
   let strategic: { capabilities: { id: string; title?: string; summary?: string; parent?: string }[] } | null = null;
+  let domain: ReturnType<typeof foldMaps>['domain'] | undefined;
   let custom: { nodes: { map?: string; id: string; title?: string; summary?: string; parent?: string }[] } | null = null;
 
   for (const record of ctx.records) {
@@ -455,6 +459,15 @@ export function checkMaps(ctx: RuleContext): Violation[] {
       // Строка — по всему файлу: тело без front matter дало бы номер, которого в редакторе нет.
       const fileText = ctx.readSource?.(record.source.path) ?? undefined;
       for (const finding of standard ? lintStrategicChange(parsed.change.functional, strategic, standard, fileText) : []) found.push(lintViolation(finding, record));
+    }
+    if ((record.status === 'draft' || record.status === 'review') && parsed.change.domain) {
+      domain ??= foldMaps(approvedMaps(ctx.records).map((item) => ({ id: item.id, change: parseMapRecord(item.body).change }))).domain;
+      const standard = standardFor('domain')?.standard;
+      if (standard) {
+        for (const item of lintDomainChange(parsed.change.domain, domain, standard, ctx.readSource?.(record.source.path) ?? undefined)) {
+          found.push(lintViolation(item, record));
+        }
+      }
     }
     if ((record.status === 'draft' || record.status === 'review') && parsed.change.custom && ctx.customMaps?.length) {
       custom ??= foldMaps(approvedMaps(ctx.records).map((item) => ({ id: item.id, change: parseMapRecord(item.body).change }))).custom;
@@ -495,19 +508,29 @@ export function checkMaps(ctx: RuleContext): Violation[] {
  * пропусков. Кодовая база — только у проекта с кодом.
  */
 export function checkRequiredMaps(ctx: RuleContext): Violation[] {
-  if (!ctx.records.some((record) => record.type === 'map')) return [];
+  const warnings = qualityWarnings(ctx.records).map((item) => violation(item.code, item.detail, item.location, 'Требование к качеству без проверки-метрики.'));
+  if (!ctx.records.some((record) => record.type === 'map')) return warnings;
   const folded = foldMaps(approvedMaps(ctx.records).map((item) => ({ id: item.id, change: parseMapRecord(item.body).change })));
   const filled = new Set<string>();
+  if (folded.codemap.modules.length) warnings.push(...codebaseWarnings(
+    folded.codemap.modules, ctx.code.files, ctx.codebaseThresholds, ctx.architecture?.entries, ctx.readSource
+  ));
+  if (folded.sysdesign.nodes.length) filled.add('sysdesign');
+  if (ctx.readSource) {
+    for (const item of standardWarnings(folded.sysdesign.standards, ctx.readSource)) {
+      warnings.push(violation(item.code, null, item.detail.split(' · ')[0] ?? '', `Стандарт ${item.location}: ${item.detail}`));
+    }
+  }
   if (folded.functional.capabilities.length > 0) filled.add('functional');
-  if (folded.domain.contexts.length > 0) filled.add('domain');
+  if (folded.domain.contexts.length > 0 || folded.domain.nodes?.length) filled.add('domain');
   if (folded.codemap.modules.length > 0) filled.add('codemap');
   const titles: Record<string, string> = { strategic: 'стратегической', domain: 'доменной', codebase: 'кодовой базы' };
-  return missingRequired(filled, ctx.code.roots.length > 0).map((template) => violation(
+  return warnings.concat(missingRequired(filled, ctx.code.roots.length > 0).map((template) => violation(
     'map_required_missing',
     null,
     `${DEVELOPMENT_DIR}/project.yaml`,
     `Нет подтверждённой ${titles[template.id] ?? template.id} карты (${template.id}: ${template.question}). Это одна из обязательных карт (docs/07-maps.md).`
-  ));
+  )));
 }
 
 function verifyEvidence(ctx: RuleContext, id: string, path: string, change: MapChange): Violation[] {
@@ -670,6 +693,7 @@ export function domainRules(ctx: RuleContext): Violation[] {
   const pathOf = new Map(ctx.records.map((record) => [record.id, record.source.path]));
   const findings = domainFindings({
     domain: folded.domain,
+    profile: ctx.architecture?.profile,
     hasCode: ctx.code.roots.length > 0 || folded.codemap.modules.length > 0,
     capabilities: folded.functional.capabilities,
     modules: folded.codemap.modules,

@@ -12,6 +12,7 @@ import { RISK_LABEL, STATUS_STYLE, statusText, tasksText, type CapabilityView } 
 const { t } = useT();
 
 export interface Capability {
+  kind?: string;
   id: string;
   title?: string;
   parent?: string;

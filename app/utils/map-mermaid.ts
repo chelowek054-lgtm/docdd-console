@@ -1,3 +1,4 @@
+import { standardFor, tokenColor } from '../../server/lib/map-core';
 import {
   COVERAGE_LABEL,
   FUNCTIONAL_GHOST_LIMIT,
@@ -299,14 +300,19 @@ export function codemapMermaid(map: ProjectMap, options: CodemapOptions = {}): M
     layers.set(layer, [...(layers.get(layer) ?? []), module]);
   }
 
-  lines.push(...classDefs(new Set(layers.keys()), 'layer'));
+  const notation = standardFor('codebase')!.standard;
+  for (const kind of notation.nodeKinds) {
+    lines.push(`    classDef notation_${kind.id} fill:transparent,stroke:${tokenColor(kind.color, 'light')},stroke-width:2px;`);
+  }
 
   for (const [layer, items] of layers) {
     lines.push(`    subgraph ${nodeId('layer', layer)}["${label(layer)}"]`);
     for (const module of items) {
       const node = nodeId('m', module.id);
-      lines.push(`        ${node}["${label(module.title ?? module.id)}"]:::${nodeId('layer', layer)}`);
-      details[node] = [module.id, module.title, tr('t83.m6.layer', { layer })].filter(Boolean).join(LF);
+      const kind = notation.nodeKinds.find((item) => item.id === (module.kind ?? module.layer)) ?? notation.nodeKinds.find((item) => item.id === 'module')!;
+      const caption = label(module.title ?? module.id) + (module.summary ? '<br/>' + label(module.summary, 70) : '');
+      lines.push(`        ${node}("${caption}"):::notation_${kind.id}`);
+      details[node] = [module.id, module.title, module.summary, tr('t83.m6.layer', { layer })].filter(Boolean).join(LF);
       if (module.path) paths[node] = module.path;
       nodes[node] = {
         id: module.id, title: module.title, layer, path: module.path,

@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { ContextTree, ContextRelation, DomainState } from '~~/server/lib/domain-map';
+import { standardFor } from '~~/server/lib/map-core';
+import { domainGraph } from '~/utils/domain-graph';
 
 /**
  * Доменная карта на экране «Стратегия» (R-0119, A-0004): вторая после стратегической.
@@ -17,6 +19,13 @@ const { data, pending } = useFetch<DomainView>(() => `/api/projects/${props.proj
 
 const trees = computed(() => data.value?.domainTree ?? []);
 const relations = computed<ContextRelation[]>(() => data.value?.domain?.relations ?? []);
+const view = ref<'graph' | 'cards'>('graph');
+const graph = computed(() => data.value?.domain ? domainGraph(data.value.domain) : { nodes: [], edges: [] });
+const subjectNodes = computed(() => data.value?.domain?.nodes ?? []);
+const subjectTitles = computed(() => new Map(subjectNodes.value.map((node) => [node.id, node.title ?? node.id])));
+const notation = standardFor('domain')!.standard;
+const kinds = new Map(notation.nodeKinds.map((kind) => [kind.id, kind.title]));
+const edgeTitles = new Map(notation.edgeKinds.map((edge) => [edge.id, edge.title]));
 const titleOf = computed(() => new Map(trees.value.map((item) => [item.context.id, item.context.title ?? item.context.id])));
 const KIND_COLOR: Record<string, 'primary' | 'neutral' | 'info'> = { core: 'primary', supporting: 'info', generic: 'neutral' };
 </script>
@@ -29,12 +38,24 @@ const KIND_COLOR: Record<string, 'primary' | 'neutral' | 'info'> = { core: 'prim
     </div>
 
     <p v-if="pending && !data" class="text-sm text-muted">{{ t('st2.loading') }}</p>
-    <div v-else-if="!trees.length" class="rounded-lg border border-dashed border-warning/50 p-6 text-sm">
+    <div v-else-if="!graph.nodes.length" class="rounded-lg border border-dashed border-warning/50 p-6 text-sm">
       <p class="font-medium">{{ t('dm.empty') }}</p>
       <p class="mt-1 text-muted">{{ t('dm.emptyHint') }}</p>
     </div>
 
-    <div v-else class="grid gap-3 lg:grid-cols-2">
+    <div v-else class="flex gap-1">
+      <UButton v-for="item in (['graph', 'cards'] as const)" :key="item" size="sm" color="neutral"
+        :variant="view === item ? 'solid' : 'outline'" :aria-pressed="view === item" @click="view = item">
+        {{ t(item === 'graph' ? 'maps.graph' : 'dm.cards') }}
+      </UButton>
+    </div>
+    <LazyStandardMapGraph v-if="graph.nodes.length && view === 'graph'" template="domain" :nodes="graph.nodes" :edges="graph.edges" />
+    <div v-if="view === 'cards'" class="grid gap-3 lg:grid-cols-2">
+      <UCard v-for="node in subjectNodes" :key="`subject:${node.id}`">
+        <p class="text-xs text-muted">{{ kinds.get(node.kind ?? 'concept') ?? node.kind }}</p>
+        <p class="font-medium">{{ node.title ?? node.id }}</p>
+        <p v-if="node.summary" class="text-sm text-muted">{{ node.summary }}</p>
+      </UCard>
       <UCard v-for="tree in trees" :key="tree.context.id" :ui="{ body: 'space-y-3' }">
         <div class="flex flex-wrap items-start gap-2">
           <UIcon name="i-lucide-boxes" class="mt-0.5 size-5 shrink-0 text-primary" />
@@ -98,7 +119,14 @@ const KIND_COLOR: Record<string, 'primary' | 'neutral' | 'info'> = { core: 'prim
       </UCard>
     </div>
 
-    <div v-if="relations.length" class="text-sm">
+    <ul v-if="view === 'cards' && data?.domain?.edges?.length" class="text-sm">
+      <li v-for="edge in data.domain.edges" :key="`${edge.from}>${edge.to}:${edge.type}`">
+        {{ subjectTitles.get(edge.from) ?? edge.from }} → {{ subjectTitles.get(edge.to) ?? edge.to }}
+        <UBadge color="neutral" variant="outline" size="sm">{{ edgeTitles.get(edge.type) ?? edge.type }}</UBadge>
+        <span v-if="edge.summary" class="text-muted"> {{ edge.summary }}</span>
+      </li>
+    </ul>
+    <div v-if="view === 'cards' && relations.length" class="text-sm">
       <p class="text-xs font-medium text-muted">{{ t('dm.relations') }}</p>
       <ul>
         <li v-for="relation in relations" :key="`${relation.from}>${relation.to}:${relation.kind}`">

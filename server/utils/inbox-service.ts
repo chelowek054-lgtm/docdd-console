@@ -246,13 +246,19 @@ export function createRecords(root: string, original: readonly ProposedRecord[],
       ? usableRelations(record.relations, capabilities ?? [], standing)
       : { relations: [], problems: [] };
     problems.push(...relations.problems.map((problem) => `${record.title}: ${problem}`));
-    // Линтер карт (R-0141): возможность без имени или назначения, связь без подписи формата — сразу в отчёт.
+    // Линтер карт (R-0141, R-0147): карта с ошибкой не заводится — модель не обходит обязательное;
+    // в отчёте каждая находка с узлом и полем, остальные записи плана заводятся.
     if (record.type === 'map' && (capabilities?.length || relations.relations.length)) {
       const standard = standardFor('strategic', overridesFrom(workspace.manifest.maps?.['standards']))?.standard;
       strategicNow ??= buildProjectMap(normalized).functional.capabilities;
       const known = [...strategicNow, ...proposed.flatMap((item) => (item.type === 'map' && item !== record ? item.capabilities ?? [] : []))];
       const findings = standard ? lintStrategicChange({ added: { capabilities: capabilities ?? [], relations: relations.relations } }, { capabilities: known }, standard) : [];
-      problems.push(...lintErrors(findings).map((item) => `${record.title}: линтер карт — ${item.message}`));
+      const errors = lintErrors(findings);
+      if (errors.length > 0) {
+        problems.push(...errors.map((item) => `${record.title}: линтер карт — ${item.message} (узел \`${item.target}\`, поле \`${item.field}\`)`));
+        problems.push(`${record.title}: карта не прошла линтер — запись не заведена.`);
+        continue;
+      }
     }
 
     const text = recordTemplate({

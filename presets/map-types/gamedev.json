@@ -1,0 +1,70 @@
+{
+  "template": "gamedev",
+  "title": "Дизайн-документ игры",
+  "question": "Как связаны механики, сцены, роли и игровые ассеты",
+  "sources": [
+    {
+      "name": "R-0153",
+      "note": "Базовые отраслевые обозначения проекта"
+    }
+  ],
+  "own": [],
+  "defaultNodeKind": "mechanic",
+  "nodeKinds": [
+    {
+      "id": "mechanic",
+      "title": "Механика",
+      "shape": "hexagon",
+      "color": "map-ddd",
+      "icon": "i-lucide-puzzle",
+      "container": true
+    },
+    {
+      "id": "scene",
+      "title": "Сцена",
+      "shape": "package",
+      "color": "map-ui",
+      "icon": "i-lucide-clapperboard",
+      "container": true
+    },
+    {
+      "id": "asset",
+      "title": "Ассет",
+      "shape": "rect",
+      "color": "map-infra",
+      "icon": "i-lucide-box",
+      "container": true
+    },
+    {
+      "id": "role",
+      "title": "Роль",
+      "shape": "person",
+      "color": "map-person",
+      "icon": "i-lucide-user",
+      "container": true
+    }
+  ],
+  "edgeKinds": [
+    {
+      "id": "uses",
+      "title": "использует",
+      "line": "solid",
+      "head": "arrow",
+      "label": "optional"
+    },
+    {
+      "id": "feeds",
+      "title": "поставляет ассет",
+      "line": "solid",
+      "head": "arrow",
+      "label": "optional"
+    },
+    {
+      "id": "triggers",
+      "title": "запускает",
+      "line": "solid",
+      "head": "arrow",
+      "label": "optional"
+    }
+  ]
+}

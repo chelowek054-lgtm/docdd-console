@@ -26,19 +26,20 @@ describe('шаблоны карт', () => {
     expect(templateOfKind('codemap')?.id).toBe('codebase');
   });
 
-  it('System Design без своего блока не требуется: завести её пока нечем', () => {
-    expect(missingRequired(new Set(), true).map((item) => item.id)).toEqual(['strategic', 'domain', 'codebase']);
+  it('System Design имеет собственный блок и входит в обязательные карты', () => {
+    expect(missingRequired(new Set(), true).map((item) => item.id)).toEqual(['strategic', 'domain', 'sysdesign', 'codebase']);
   });
 });
 
 describe('map_required_missing (V-0150)', () => {
   it('проект без доменной карты: предупреждение её называет', () => {
     const found = missing([strategicMap], ['src']);
-    expect(found).toEqual([expect.stringContaining('доменной'), expect.stringContaining('кодовой базы')]);
+    expect(found).toHaveLength(3);
+    expect(found).toEqual(expect.arrayContaining([expect.stringContaining('доменной'), expect.stringContaining('sysdesign'), expect.stringContaining('кодовой базы')]));
   });
 
   it('у проекта без кода кодовую базу не требует', () => {
-    expect(missing([strategicMap])).toEqual([expect.stringContaining('доменной')]);
+    expect(missing([strategicMap])).toEqual([expect.stringContaining('доменной'), expect.stringContaining('sysdesign')]);
   });
 
   it('проект, ещё не заведший ни одной карты, пропусками не засыпается', () => {

@@ -1,0 +1,15 @@
+{
+  "$id": "https://docdd/ml-stage.schema.json",
+  "type": "object",
+  "required": ["inputs", "outputs", "state"],
+  "properties": {
+    "inputs": { "type": "array", "items": { "$ref": "#/$defs/port" } },
+    "outputs": { "type": "array", "items": { "$ref": "#/$defs/port" } },
+    "state": { "type": "string", "minLength": 1 },
+    "verifications": { "type": "array", "items": { "type": "string", "pattern": "^V-[0-9]{4}$" } }
+  },
+  "$defs": { "port": {
+    "type": "object", "required": ["name", "format"],
+    "properties": { "name": { "type": "string", "minLength": 1 }, "format": { "type": "string", "minLength": 1 } }
+  } }
+}

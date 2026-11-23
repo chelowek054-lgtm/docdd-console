@@ -60,6 +60,7 @@ export interface CustomDefinitionsResult {
 
 /** Узел пользовательской карты в форме возможности: экран рисует его тем же деревом. */
 export interface CustomNodeView extends CapabilityLike {
+  kind?: string;
   links?: CustomLinks | undefined;
   declaredBy?: string | undefined;
   pending?: boolean | undefined;
@@ -196,6 +197,7 @@ export function customMapView(projectMap: Pick<ProjectMap, 'custom'>, def: Custo
     .filter((node) => node.map === def.id)
     .map((node): CustomNodeView => ({
       id: node.id,
+      ...(node.kind ? { kind: node.kind } : {}),
       title: node.title,
       parent: node.parent,
       summary: node.summary,

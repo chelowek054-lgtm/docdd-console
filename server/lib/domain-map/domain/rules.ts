@@ -23,6 +23,7 @@ export interface DomainFinding {
 
 export interface DomainInput {
   domain: DomainState;
+  profile?: string | undefined;
   /** В проекте есть код: названы папки кода или в кодовой карте есть модули. */
   hasCode: boolean;
   capabilities: readonly { id: string; title?: string | undefined; parent?: string | undefined; priority?: string | undefined; horizon?: string | undefined; declaredBy?: string | undefined }[];
@@ -36,7 +37,14 @@ export interface DomainInput {
 export function domainFindings(input: DomainInput): DomainFinding[] {
   const { domain } = input;
   const found: DomainFinding[] = [];
-  const empty = domain.contexts.length === 0;
+  const nodes = new Set((domain.nodes ?? []).map((node) => node.id));
+  for (const edge of domain.edges ?? []) {
+    if (!nodes.has(edge.from) || !nodes.has(edge.to)) {
+      found.push({ code: 'domain_relation_unknown', record: edge.declaredBy ?? null,
+        message: `Связь ${edge.from} → ${edge.to} ссылается на отсутствующий узел доменной карты.` });
+    }
+  }
+  const empty = domain.contexts.length === 0 && nodes.size === 0;
 
   if (empty) {
     if (input.hasCode) {
@@ -47,6 +55,8 @@ export function domainFindings(input: DomainInput): DomainFinding[] {
     }
     return found;
   }
+
+  if (domain.contexts.length === 0 || input.profile && input.profile !== 'ddd-clean') return found;
 
   const known = new Set(domain.contexts.map((item) => item.id));
   for (const relation of domain.relations) {

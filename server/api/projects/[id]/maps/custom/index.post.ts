@@ -94,6 +94,7 @@ function asDefinition(body: Record<string, unknown> | null | undefined): Record<
   return {
     id: trim(body['id']),
     title: trim(body['title']),
+    ...(typeof body['notation'] === 'string' ? { notation: body['notation'] } : {}),
     ...(summary !== undefined && summary !== '' ? { summary } : {}),
     node: node && typeof node === 'object' ? { label: trim(node['label']), plural: trim(node['plural']) } : node,
     ...(body['relations'] !== undefined ? { relations: body['relations'] } : {}),

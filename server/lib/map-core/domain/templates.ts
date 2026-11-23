@@ -24,7 +24,7 @@ export interface MapTemplate {
 export const MAP_TEMPLATES: readonly MapTemplate[] = [
   { id: 'strategic', kind: 'functional', required: true, question: 'куда движется проект', capabilities: ['nesting', 'health', 'status', 'standard'] },
   { id: 'domain', kind: 'domain', required: true, question: 'почему: предметная область и её законы', capabilities: ['nesting', 'standard'] },
-  { id: 'sysdesign', kind: null, required: true, question: 'как будет реализовано', capabilities: ['nesting', 'standard'] },
+  { id: 'sysdesign', kind: 'sysdesign', required: true, question: 'как будет реализовано', capabilities: ['nesting', 'standard', 'reconcile'] },
   { id: 'codebase', kind: 'codemap', required: true, needsCode: true, question: 'что сделано сейчас', capabilities: ['nesting', 'evidence', 'reconcile', 'standard'] },
   { id: 'dataflow', kind: 'dataflow', required: false, question: 'откуда и куда идут данные', capabilities: ['evidence', 'reconcile'] },
   { id: 'userflow', kind: 'userflow', required: false, question: 'как человек идёт по экранам', capabilities: ['evidence', 'reconcile'] }

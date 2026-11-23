@@ -761,6 +761,7 @@ const startTab = route.query['fgroup'] || route.query['fkind'] || route.query['f
   ? 'dataflow'
   : route.query['group'] || route.query['view'] ? 'codemap' : 'functional';
 const shown = ref<'codemap' | 'dataflow' | 'userflow' | 'functional'>(startTab);
+const codeTab = ref<'inventory' | 'graph'>(route.query['group'] || route.query['view'] ? 'graph' : 'inventory');
 const current = computed(() => views.value.find((view) => view.key === shown.value));
 
 /**
@@ -1340,7 +1341,7 @@ const requiredTabs = computed(() => [
   { key: 'functional', title: t('maps.v.functional'), active: !asideShown.value && shown.value === 'functional', open: () => { shown.value = 'functional'; customShown.value = null; } },
   { key: 'domain', title: t('maps.v.domain'), active: requiredShown.value === 'domain', open: () => { requiredShown.value = 'domain'; } },
   { key: 'sysdesign', title: t('maps.v.sysdesign'), active: requiredShown.value === 'sysdesign', open: () => { requiredShown.value = 'sysdesign'; } },
-  { key: 'codemap', title: t('maps.v.codemap'), active: !asideShown.value && shown.value === 'codemap', open: () => { shown.value = 'codemap'; customShown.value = null; } }
+  { key: 'codemap', title: t('maps.v.codemap'), active: !asideShown.value && shown.value === 'codemap', open: () => { codeTab.value = 'inventory'; shown.value = 'codemap'; customShown.value = null; } }
 ]);
 
 /** Открытая рабочая карта, которую этот человек вправе удалить (ADR-0036): создатель или администратор. */
@@ -1480,7 +1481,6 @@ watch(views, (list) => {
         @changed="onMapRecordsChanged"
       />
 
-      <MapInventory v-if="!strategic" :project-id="projectId" @changed="() => refresh()" />
 
       <PromptPanel
         v-if="!strategic"
@@ -1595,8 +1595,15 @@ watch(views, (list) => {
         :contours="map.functional.capabilities.filter((item) => !item.parent).map((item) => ({ id: item.id, title: item.title }))"
         @created="() => refresh()"
       />
+      <!-- Короткая форма (R-0147): маленькому проекту хватает «откуда, куда, зачем». -->
+      <StrategyShortForm
+        v-if="map && !asideShown && shown === 'functional' && map.functional.capabilities.length === 0"
+        :project-id="projectId"
+        @saved="onMapRecordsChanged"
+      />
+      <ResearchMapPanel v-if="customCurrent?.notation === 'research'" :key="projectId" :project-id="projectId" />
       <CustomMapView
-        v-if="customCurrent"
+        v-else-if="customCurrent"
         :project-id="projectId"
         :definition="customCurrent"
         :nodes="customMaps.maps[customCurrent.id]?.nodes ?? []"
@@ -1604,14 +1611,19 @@ watch(views, (list) => {
         @changed="refreshCustom"
       />
       <DomainMapPanel v-if="!strategic && requiredShown === 'domain'" :project-id="projectId" />
-      <UCard v-if="!strategic && requiredShown === 'sysdesign'" data-required-empty="sysdesign">
-        <h2 class="font-medium">{{ t('maps.v.sysdesign') }}</h2>
-        <p class="text-sm text-muted">{{ t('maps.q.sysdesign') }}</p>
-        <p class="mt-3 text-sm text-muted">{{ t('maps.sysdesign.empty') }}</p>
-      </UCard>
+      <template v-if="!asideShown && shown === 'codemap'">
+        <div class="flex gap-1">
+          <UButton v-for="tab in (['inventory', 'graph'] as const)" :key="tab" color="neutral" size="sm"
+            :variant="tab === codeTab ? 'solid' : 'outline'" :aria-pressed="tab === codeTab" @click="codeTab = tab">
+            {{ t(tab === 'inventory' ? 'maps.codeInventory' : 'maps.graph') }}
+          </UButton>
+        </div>
+        <MapInventory v-if="codeTab === 'inventory'" :project-id="projectId" @changed="() => refresh()" />
+      </template>
+      <SystemDesignPanel v-if="!strategic && requiredShown === 'sysdesign'" :key="projectId" :project-id="projectId" />
 
       <div
-        v-if="map && map.from.length === 0"
+        v-if="map && map.from.length === 0 && !(shown === 'codemap' && codeTab === 'inventory')"
         v-show="!asideShown"
         class="rounded-lg border border-dashed border-default p-8 text-center text-sm text-muted"
       >
@@ -1638,7 +1650,7 @@ watch(views, (list) => {
         </template>
       </div>
 
-      <template v-else-if="map">
+      <template v-else-if="map && !(shown === 'codemap' && codeTab === 'inventory')">
         <!-- Подвкладка на вид карты: у каждой свой смысл (вопрос, на который
              она отвечает), а не просто разные данные под одной кнопкой. -->
 

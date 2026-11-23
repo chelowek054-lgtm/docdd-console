@@ -50,11 +50,12 @@ interface Spec { nodes: string[]; edges: string[]; nodeKey: (item: any) => strin
 
 const pairKey = (item: any) => `${item.from}>${item.to}`;
 const SPECS: Record<MapStructure, Spec> = {
+  sysdesign: { nodes: ['nodes', 'standards'], edges: ['relations'], nodeKey: (i) => i.language && !i.detail ? 'standard:' + i.id : i.id, edgeKey: (i) => JSON.stringify([i.from, i.to, i.kind]), edgeLabel: (i) => i.label ?? i.kind },
   codemap: { nodes: ['modules', 'groups'], edges: ['imports'], nodeKey: (i) => i.id, edgeKey: pairKey, edgeLabel: () => 'import' },
   dataflow: { nodes: ['sources'], edges: ['flows'], nodeKey: (i) => i.id, edgeKey: pairKey, edgeLabel: (i) => i.direction ?? '' },
   userflow: { nodes: ['screens'], edges: ['transitions', 'calls'], nodeKey: (i) => i.id, edgeKey: pairKey, edgeLabel: (i) => i.trigger ?? '' },
   functional: { nodes: ['capabilities'], edges: ['relations'], nodeKey: (i) => i.id, edgeKey: (i) => `${pairKey(i)}:${i.type}`, edgeLabel: (i) => i.type ?? '' },
-  domain: { nodes: ['contexts', 'aggregates'], edges: ['relations'], nodeKey: (i) => i.id, edgeKey: (i) => `${pairKey(i)}:${i.kind}`, edgeLabel: (i) => i.kind ?? '' },
+  domain: { nodes: ['nodes', 'contexts', 'aggregates'], edges: ['edges', 'relations'], nodeKey: (i) => i.id, edgeKey: (i) => JSON.stringify([i.from, i.to, i.type ?? i.kind]), edgeLabel: (i) => i.summary ?? i.type ?? i.kind ?? '' },
   custom: { nodes: ['nodes'], edges: ['relations'], nodeKey: (i) => `${i.map}:${i.id}`, edgeKey: (i) => `${i.map}:${pairKey(i)}:${i.type}`, edgeLabel: (i) => i.type ?? '' }
 };
 
@@ -75,8 +76,17 @@ function diffStructure(structure: MapStructure, before: ProjectMap, after: Proje
   const groupBefore = withGroupOf(before);
   const groupAfter = withGroupOf(after);
   const items = (map: ProjectMap, fields: string[], groups: Map<string, string>) =>
-    fields.flatMap((field) => ((map as any)[structure][field] as any[]).map((item) => (
-      structure === 'codemap' && field === 'modules' ? { ...item, group: groups.get(item.id) } : item)));
+    fields.flatMap((field) => (((map as any)[structure][field] ?? []) as any[]).map((item) => {
+      if (structure === 'codemap' && field === 'modules') return { ...item, group: groups.get(item.id) };
+      if (structure === 'domain') {
+        if (field === 'edges' || field === 'relations') {
+          const prefix = field === 'edges' ? 'nodes' : 'contexts';
+          return { ...item, from: `${prefix}:${item.from}`, to: `${prefix}:${item.to}` };
+        }
+        return { ...item, title: item.title ?? item.id, id: `${field}:${item.id}` };
+      }
+      return item;
+    }));
 
   const nodes: DiffNode[] = [];
   const was = new Map(items(before, spec.nodes, groupBefore).map((item) => [spec.nodeKey(item), item]));

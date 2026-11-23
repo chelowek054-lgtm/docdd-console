@@ -89,6 +89,6 @@ export function resolveProjectRules(root: string): RulesResolution {
     manifest: manifest.architecture,
     general: generalRuleRecords(withBuiltin(manifest.sources?.shared ?? [])),
     local,
-    auto: profileUses(foldMaps(approvedMaps(records).map((record) => ({ id: record.id, change: parseMapRecord(record.body).change }))).domain)
+    auto: profileUses(foldMaps(approvedMaps(records).map((record) => ({ id: record.id, change: parseMapRecord(record.body).change }))).domain, manifest.architecture?.profile)
   });
 }

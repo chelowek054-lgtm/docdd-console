@@ -1,0 +1,363 @@
+{
+  "type": "object",
+  "properties": {
+    "added": {
+      "$ref": "#/$defs/part"
+    },
+    "removed": {
+      "$ref": "#/$defs/remove"
+    }
+  },
+  "required": [],
+  "$defs": {
+    "part": {
+      "type": "object",
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/node"
+          }
+        },
+        "relations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/relation"
+          }
+        },
+        "standards": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/standard"
+          }
+        }
+      },
+      "required": []
+    },
+    "remove": {
+      "type": "object",
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            },
+            "required": [
+              "id"
+            ]
+          }
+        },
+        "relations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "from": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "to": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "kind": {
+                "enum": [
+                  "call",
+                  "event",
+                  "data",
+                  "roundtrip",
+                  "depends"
+                ]
+              }
+            },
+            "required": [
+              "from",
+              "to",
+              "kind"
+            ]
+          }
+        },
+        "standards": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            },
+            "required": [
+              "id"
+            ]
+          }
+        }
+      },
+      "required": []
+    },
+    "node": {
+      "type": "object",
+      "properties": {
+        "ml": { "$ref": "https://docdd/ml-stage.schema.json" },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "kind": {
+          "enum": [
+            "system",
+            "container",
+            "component",
+            "database",
+            "queue",
+            "deployment",
+            "ui",
+            "person",
+            "external"
+          ]
+        },
+        "realized_by": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          }
+        },
+        "decisions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^A-[0-9]{4}$"
+          }
+        },
+        "contract": {
+          "type": "string",
+          "pattern": "^C-[0-9]{4}$"
+        },
+        "detail": {
+          "enum": [
+            "template",
+            "detailed"
+          ]
+        },
+        "reference": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          }
+        },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          }
+        },
+        "formats": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "minItems": 1
+        },
+        "load": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "number",
+              "minimum": 0
+            },
+            "unit": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            }
+          },
+          "required": [
+            "value",
+            "unit"
+          ]
+        },
+        "hot_path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "algorithm": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "language": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "runtime": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "kind",
+        "realized_by",
+        "detail"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "detail": {
+                "const": "template"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "reference"
+            ]
+          },
+          "else": {
+            "required": [
+              "inputs",
+              "outputs",
+              "formats",
+              "load",
+              "hot_path",
+              "algorithm",
+              "language",
+              "runtime"
+            ]
+          }
+        }
+      ]
+    },
+    "relation": {
+      "type": "object",
+      "properties": {
+        "from": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "to": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "kind": {
+          "enum": [
+            "call",
+            "event",
+            "data",
+            "roundtrip",
+            "depends"
+          ]
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        }
+      },
+      "required": [
+        "from",
+        "to",
+        "kind"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "call",
+                  "event",
+                  "data",
+                  "roundtrip"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "label"
+            ]
+          }
+        }
+      ]
+    },
+    "standard": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "language": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "configs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          }
+        },
+        "coverage_min": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "coverage_report": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        }
+      },
+      "required": [
+        "id",
+        "language",
+        "configs"
+      ],
+      "dependentRequired": {
+        "coverage_min": [
+          "coverage_report"
+        ]
+      }
+    }
+  }
+}

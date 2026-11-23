@@ -104,14 +104,14 @@ interface ElkLike {
 }
 
 /** Раскладка слоями слева направо (elkjs): позиции узлов; связи рисует холст сам кривыми Безье. */
-export async function layoutWithElk(elk: ElkLike, nodes: readonly FlowNode[], edges: readonly FlowEdge[]): Promise<FlowNode[]> {
+export async function layoutWithElk(elk: ElkLike, nodes: readonly FlowNode[], edges: readonly FlowEdge[], layerGap = 72): Promise<FlowNode[]> {
   const graph = {
     id: 'root',
     layoutOptions: {
       'elk.algorithm': 'layered',
       'elk.direction': 'RIGHT',
       'elk.spacing.nodeNode': '32',
-      'elk.layered.spacing.nodeNodeBetweenLayers': '72'
+      'elk.layered.spacing.nodeNodeBetweenLayers': String(layerGap)
     },
     children: nodes.map((node) => ({ id: node.id, width: NODE_WIDTH, height: NODE_HEIGHT })),
     edges: edges.map((edge) => ({ id: edge.id, sources: [edge.source], targets: [edge.target] }))
@@ -121,9 +121,18 @@ export async function layoutWithElk(elk: ElkLike, nodes: readonly FlowNode[], ed
   return nodes.map((node) => ({ ...node, position: at.get(node.id) ?? node.position }));
 }
 
-/** Правка мышью — блок записи стратегической карты: новые узлы и новые связи одним черновиком. */
-export function editorDraft(nodes: readonly FlowCapability[], relations: readonly FlowRelation[]): string {
-  return blockText({ kind: 'strategic' }, { nodes: nodes.map((node) => ({ ...node })), edges: relations.map((edge) => ({ ...edge })) });
+/** Правка мышью — блок записи стратегической карты: новое и изменённое в `added`, убранное в `removed`. */
+export function editorDraft(
+  nodes: readonly FlowCapability[],
+  relations: readonly FlowRelation[],
+  removedNodes: readonly string[] = [],
+  removedRelations: readonly FlowRelation[] = []
+): string {
+  return blockText(
+    { kind: 'strategic' },
+    { nodes: nodes.map((node) => ({ ...node })), edges: relations.map((edge) => ({ ...edge })) },
+    { nodes: removedNodes.map((id) => ({ id })), edges: removedRelations.map((edge) => ({ from: edge.from, to: edge.to, type: edge.type })) }
+  );
 }
 
 /** id нового узла из имени: латиница, цифры, точки и дефисы; занятый — с номером. */

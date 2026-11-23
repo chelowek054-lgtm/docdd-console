@@ -1,0 +1,70 @@
+{
+  "template": "research",
+  "title": "Развилки",
+  "question": "Какие варианты проверили и почему выбрали решение",
+  "sources": [
+    {
+      "name": "R-0152",
+      "note": "Базовые отраслевые обозначения проекта"
+    }
+  ],
+  "own": [],
+  "defaultNodeKind": "hypothesis",
+  "nodeKinds": [
+    {
+      "id": "hypothesis",
+      "title": "Гипотеза",
+      "shape": "note",
+      "color": "map-ddd",
+      "icon": "i-lucide-lightbulb",
+      "container": true
+    },
+    {
+      "id": "experiment",
+      "title": "Эксперимент",
+      "shape": "rect",
+      "color": "map-infra",
+      "icon": "i-lucide-flask-conical",
+      "container": true
+    },
+    {
+      "id": "metric",
+      "title": "Измерение",
+      "shape": "rect",
+      "color": "map-ui",
+      "icon": "i-lucide-ruler",
+      "container": true
+    },
+    {
+      "id": "decision",
+      "title": "Решение",
+      "shape": "hexagon",
+      "color": "map-capability",
+      "icon": "i-lucide-git-branch",
+      "container": true
+    }
+  ],
+  "edgeKinds": [
+    {
+      "id": "triggers",
+      "title": "ведёт к",
+      "line": "solid",
+      "head": "arrow",
+      "label": "optional"
+    },
+    {
+      "id": "replaces",
+      "title": "заменяет",
+      "line": "dashed",
+      "head": "arrow",
+      "label": "optional"
+    },
+    {
+      "id": "feeds",
+      "title": "подтверждает результат",
+      "line": "solid",
+      "head": "arrow",
+      "label": "optional"
+    }
+  ]
+}

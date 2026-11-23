@@ -57,6 +57,7 @@
       "then": {
         "properties": {
           "id": { "pattern": "^R-[0-9]{4}$" },
+          "quality": { "enum": ["load", "latency", "availability", "recovery", "data", "security", "observability"] },
           "status": { "enum": ["draft", "review", "approved", "superseded", "dropped", "legacy", "deferred"] }
         }
       }
