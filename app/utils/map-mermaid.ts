@@ -25,6 +25,7 @@ import {
 } from '../../server/lib/flow-groups';
 import {
   groupCard,
+  importLabel,
   type GhostNode,
   type GroupCard,
   type GroupImport,
@@ -350,10 +351,13 @@ export function codemapMermaid(map: ProjectMap, options: CodemapOptions = {}): M
   );
 
   const edges: MermaidEdge[] = [];
+  const ghostEdges = new Set(options.ghostImports ?? []);
   for (const edge of [...imports, ...(options.ghostImports ?? [])]) {
     const from = nodeId('m', edge.from);
     const to = nodeId('m', edge.to);
-    lines.push(`    ${from} --> ${to}`);
+    // Связь с внешним узлом подписана тем, что через неё приходит (R-0145): имена из строки импорта.
+    const names = ghostEdges.has(edge) ? importLabel(edge.evidence.fragment) : null;
+    lines.push(names ? `    ${from} -->|"${label(names, 40)}"| ${to}` : `    ${from} --> ${to}`);
     const arch = options.violations?.get(violationKey(edge.from, edge.to));
     edges.push({
       from, to, evidence: edge.evidence, status: edge.status, declaredBy: edge.declaredBy, pending: edge.pending,

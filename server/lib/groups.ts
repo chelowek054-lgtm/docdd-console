@@ -519,3 +519,78 @@ export function foldGroupImports(
     importsOf: (edge) => edge.members.flatMap((member) => origin.get(member) ?? [])
   };
 }
+
+// --- граница открытой группы (A-0010 п. 9, R-0145, T-0229) ---
+// В конце файла: карта M-0001 держит номера строк-свидетельств выше.
+
+/**
+ * Внешние узлы открытой группы: все модули других групп, с которыми у неё есть импорты, — по краю
+ * диаграммы, как призраки выбранного модуля, но для всей группы. Больше `GHOST_LIMIT` — сворачиваются
+ * в узлы-группы, и концы связей переписываются на них.
+ */
+export function groupBoundary(
+  grouping: Grouping,
+  groupId: string,
+  modules: readonly GroupModule[],
+  imports: readonly GroupImport[]
+): { ghosts: GhostNode[]; imports: GroupImport[] } {
+  const inside = (id: string) => grouping.groupOf(id) === groupId;
+  const touching = imports.filter((item) => inside(item.from) !== inside(item.to));
+  const outer = (item: GroupImport) => (inside(item.from) ? item.to : item.from);
+  const distinct = [...new Set(touching.map(outer))];
+  const byId = new Map(modules.map((module) => [module.id, module]));
+  const titleOfGroup = (id: string) => grouping.byId.get(id)?.title ?? id;
+
+  if (distinct.length <= GHOST_LIMIT) {
+    return {
+      ghosts: distinct.map((id) => {
+        const key = grouping.groupOf(id);
+        return { id, title: byId.get(id)?.title, groupId: key, groupTitle: titleOfGroup(key) };
+      }),
+      imports: touching
+    };
+  }
+  const counts = new Map<string, Set<string>>();
+  for (const id of distinct) {
+    const key = grouping.groupOf(id);
+    counts.set(key, (counts.get(key) ?? new Set()).add(id));
+  }
+  const ghostId = (key: string) => `group:${key}`;
+  return {
+    ghosts: [...counts].map(([key, ids]) => ({ id: ghostId(key), title: titleOfGroup(key), groupId: key, groupTitle: titleOfGroup(key), collapsed: ids.size })),
+    imports: touching.map((item) => {
+      const key = grouping.groupOf(outer(item));
+      return inside(item.from) ? { ...item, to: ghostId(key) } : { ...item, from: ghostId(key) };
+    })
+  };
+}
+
+/**
+ * Что приходит по связи — имена из строки импорта-свидетельства: `import { a, b as c } from`,
+ * `import X from`, `import * as X`, `from m import a, b`, `const { a } = require(...)`. Не разобрать — null:
+ * подпись не выдумывается.
+ */
+export function importLabel(fragment: string, max = 40): string | null {
+  const text = fragment.trim();
+  const clean = (list: string) => list.split(',')
+    .map((part) => part.trim().replace(/^type\s+/, '').split(/\s+as\s+/)[0]?.trim() ?? '')
+    .filter((name) => /^[A-Za-z_$][\w$]*$/.test(name));
+  let names: string[] = [];
+  const braces = /(?:import|export)\s+(?:type\s+)?(?:[A-Za-z_$][\w$]*\s*,\s*)?\{([^}]*)\}/.exec(text)
+    ?? /(?:const|let|var)\s+\{([^}]*)\}\s*=\s*require\(/.exec(text);
+  const python = /^from\s+\S+\s+import\s+\(?([^)#]+)\)?/.exec(text);
+  const star = /import\s+\*\s+as\s+([A-Za-z_$][\w$]*)/.exec(text);
+  const single = /import\s+(?:type\s+)?([A-Za-z_$][\w$]*)\s+from/.exec(text);
+  if (braces?.[1]) names = clean(braces[1]);
+  else if (python?.[1]) names = clean(python[1]);
+  else if (star?.[1]) names = [star[1]];
+  else if (single?.[1]) names = [single[1]];
+  if (names.length === 0) return null;
+  let label = '';
+  for (const [at, name] of names.entries()) {
+    const next = label ? `${label}, ${name}` : name;
+    if (next.length > max) return at === 0 ? name.slice(0, max) : `${label} +${names.length - at}`;
+    label = next;
+  }
+  return label;
+}
