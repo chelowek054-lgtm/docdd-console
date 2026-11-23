@@ -1595,6 +1595,12 @@ watch(views, (list) => {
         :contours="map.functional.capabilities.filter((item) => !item.parent).map((item) => ({ id: item.id, title: item.title }))"
         @created="() => refresh()"
       />
+      <!-- Короткая форма (R-0147): маленькому проекту хватает «откуда, куда, зачем». -->
+      <StrategyShortForm
+        v-if="map && !asideShown && shown === 'functional' && map.functional.capabilities.length === 0"
+        :project-id="projectId"
+        @saved="onMapRecordsChanged"
+      />
       <CustomMapView
         v-if="customCurrent"
         :project-id="projectId"

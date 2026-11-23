@@ -80,7 +80,8 @@ export function wizardPlan(input: WizardInput): WizardPlan {
   const records: ProposedRecord[] = [{
     key: 'map', type: 'map', title: 'Вектор и первые возможности',
     vision: { problem: vision.problem.trim(), audience: vision.audience.trim(), outcome: vision.outcome.trim(), not: vision.not.trim() },
-    capabilities: features.map((feature, at) => ({ id: ids[at] as string, title: feature.title.trim(), priority: 'must', horizon: 'now' }))
+    // Назначение обязательно (линтер карт, R-0147): описание возможности из мастера, нет его — её имя.
+    capabilities: features.map((feature, at) => ({ id: ids[at] as string, title: feature.title.trim(), summary: (feature.requirement ?? feature.title).trim(), priority: 'must', horizon: 'now' }))
   }];
   features.forEach((feature, at) => {
     const n = at + 1;
