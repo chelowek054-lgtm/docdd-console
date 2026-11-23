@@ -65,6 +65,7 @@ const props = defineProps<{
   endpoint?: string;
   /** Свои виды связей рабочей карты; стиль переводит вид в один из пяти для «ждёт» и циклов. */
   relationKinds?: readonly { id: string; label: string; style: RelationType }[];
+  nodeKinds?: readonly { id: string; title: string }[];
   /** id нового узла из названия; у рабочей карты id — только латиница (custommap.schema.json). */
   idOf?: (title: string) => string;
 }>();
@@ -162,6 +163,7 @@ const formOpen = ref(false);
 const editingId = ref<string | null>(null);
 const formTitle = ref('');
 const formSummary = ref('');
+const formKind = ref('');
 const formStatus = ref<ImplStatus | 'unrated'>('unrated');
 const formNote = ref('');
 const formPriority = ref<Priority | 'none'>('none');
@@ -183,6 +185,7 @@ const horizonItems = [
 function resetForm() {
   formTitle.value = '';
   formSummary.value = '';
+  formKind.value = props.nodeKinds?.[0]?.id ?? '';
   formStatus.value = 'unrated';
   formNote.value = '';
   formPriority.value = 'none';
@@ -204,6 +207,7 @@ function openEdit(item: Capability) {
   editingId.value = item.id;
   formTitle.value = item.title ?? '';
   formSummary.value = item.summary ?? '';
+  formKind.value = item.kind ?? props.nodeKinds?.[0]?.id ?? '';
   formStatus.value = item.status ?? 'unrated';
   formNote.value = item.note ?? '';
   // Свои значения, а не унаследованные: унаследованное правится у родителя.
@@ -252,7 +256,8 @@ async function post(body: Record<string, unknown>, label: string): Promise<boole
 }
 
 async function saveCapability(capability: Capability, label: string) {
-  if (await post({ action: 'add', capability }, label)) closeForm();
+  const kind = props.nodeKinds?.some((option) => option.id === formKind.value) ? formKind.value : undefined;
+  if (await post({ action: 'add', capability: { ...capability, ...(kind ? { kind } : {}) } }, label)) closeForm();
 }
 
 function onSubmit() {
@@ -463,6 +468,8 @@ function hidePanel(event?: FocusEvent) {
           :placeholder="t('t83.functional-tree.9')"
           @keyup.enter="onSubmit"
         />
+        <USelect v-if="nodeKinds?.length" v-model="formKind" aria-label="Вид узла"
+          :items="nodeKinds.map((kind) => ({ label: kind.title, value: kind.id }))" />
         <UButton :loading="saving" :disabled="!formTitle.trim()" @click="onSubmit">{{ t('t83.functional-tree.10') }}</UButton>
         <UButton variant="ghost" color="neutral" @click="closeForm">{{ t('t83.functional-tree.11') }}</UButton>
       </div>

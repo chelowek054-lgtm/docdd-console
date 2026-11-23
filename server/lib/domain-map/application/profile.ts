@@ -7,7 +7,8 @@ import type { DomainState } from '../domain/model';
  */
 export const DDD_PROFILE = 'ddd-clean';
 
-export function profileUses(domain: DomainState): { profile: string; root: string; context: string }[] {
+export function profileUses(domain: DomainState, profile?: string): { profile: string; root: string; context: string }[] {
+  if (profile && profile !== DDD_PROFILE) return [];
   const seen = new Set<string>();
   const uses: { profile: string; root: string; context: string }[] = [];
   for (const context of domain.contexts) {

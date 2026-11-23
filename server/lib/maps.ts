@@ -2,6 +2,9 @@ import type { Horizon, ImplStatus, Priority, RelationType } from './functional';
 import { validateCodemap, validateDataflow, validateDomain, validateFunctional, validateSkipped, validateUserflow, validateCustom } from './schema';
 import { emptyDomain, type DomainPart, type DomainState } from './domain-map';
 import type { WorkRecord } from './types';
+import type { MlStage } from './industry-maps';
+import type { SystemChange, SystemDesign } from './system-design';
+import { validateSysdesign } from './schema';
 import { yamlSafe } from './write';
 
 const LF = String.fromCharCode(10);
@@ -13,7 +16,7 @@ const LF = String.fromCharCode(10);
  * (docs/adr/0007-maps-lead-code.md).
  */
 
-export type MapStructure = 'codemap' | 'dataflow' | 'userflow' | 'functional' | 'domain' | 'custom';
+export type MapStructure = 'codemap' | 'dataflow' | 'userflow' | 'functional' | 'domain' | 'sysdesign' | 'custom';
 
 export interface Evidence {
   path: string;
@@ -39,7 +42,7 @@ export interface ApiItem {
 
 export interface CodemapPart {
   modules?: {
-    id: string; title?: string; layer?: string; path?: string;
+    id: string; title?: string; layer?: string; path?: string; ml?: MlStage;
     summary?: string; api?: ApiItem[]; declaredBy?: string; pending?: boolean;
   }[];
   imports?: {
@@ -118,6 +121,7 @@ export interface SkippedFile {
 }
 
 export interface MapChange {
+  sysdesign?: SystemChange;
   codemap?: { added?: CodemapPart; removed?: CodemapPart };
   dataflow?: { added?: DataflowPart; removed?: DataflowPart };
   userflow?: { added?: UserflowPart; removed?: UserflowPart };
@@ -163,6 +167,15 @@ interface MapKind {
 }
 
 const MAP_KINDS: readonly MapKind[] = [
+  {
+    name: 'sysdesign',
+    validate: validateSysdesign,
+    fields: [
+      { name: 'nodes', keyOf: (item) => item.id },
+      { name: 'relations', keyOf: (item) => JSON.stringify([item.from, item.to, item.kind]) },
+      { name: 'standards', keyOf: (item) => item.id }
+    ]
+  },
   {
     name: 'codemap',
     validate: validateCodemap,
@@ -223,6 +236,8 @@ const MAP_KINDS: readonly MapKind[] = [
     name: 'domain',
     validate: validateDomain,
     fields: [
+      { name: 'nodes', keyOf: (item) => item.id },
+      { name: 'edges', keyOf: (item) => JSON.stringify([item.from, item.to, item.type]) },
       { name: 'contexts', keyOf: (item) => item.id },
       { name: 'aggregates', keyOf: (item) => item.id },
       { name: 'relations', keyOf: (item) => `${item.from}>${item.to}:${item.kind}` }
@@ -457,6 +472,7 @@ export function approvedMaps(records: readonly WorkRecord[]): WorkRecord[] {
 
 /** Сложенная картина проекта: производное от подтверждённых карт. */
 export interface ProjectMap {
+  sysdesign: SystemDesign;
   codemap: Required<CodemapPart>;
   dataflow: Required<DataflowPart>;
   userflow: Required<UserflowPart>; custom: { nodes: CustomNode[]; relations: CustomRelation[] };
@@ -473,6 +489,7 @@ export interface ProjectMap {
 
 export function emptyProjectMap(): ProjectMap {
   return {
+    sysdesign: { nodes: [], relations: [], standards: [] },
     codemap: { modules: [], imports: [], groups: [] },
     dataflow: { sources: [], flows: [] },
     userflow: { screens: [], transitions: [], calls: [] }, custom: { nodes: [], relations: [] },
@@ -604,6 +621,7 @@ export interface CustomLinks {
 }
 
 export interface CustomNode {
+  kind?: string;
   /** Какой пользовательской карте принадлежит; в блоке может стоять один раз на весь блок. */
   map: string;
   id: string; title?: string; parent?: string; summary?: string;

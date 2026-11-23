@@ -1,9 +1,10 @@
 // Стратегия и здоровье узла (R-0084, R-0085).
 export const strategy: Record<string, string> = {
   'dm.title': 'Domain map',
-  'dm.hint': 'Second after the strategic map: bounded contexts, their language and aggregates - down to code layers and files.',
+  'dm.hint': 'Domain concepts, events, rules and their relationships.',
+  'dm.cards': 'Cards',
   'dm.empty': 'There is no domain map.',
-  'dm.emptyHint': 'A project with code must have one (A-0004): add a map record with a docdd-domain block - contexts with a code root, language, aggregates with invariants, context relations. The interview and inbox triage propose it as a draft.',
+  'dm.emptyHint': 'Add concepts and relationships to a map record with a docdd-domain block.',
   'dm.kind.core': 'core',
   'dm.kind.supporting': 'supporting',
   'dm.kind.generic': 'generic',

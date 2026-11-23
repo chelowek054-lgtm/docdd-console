@@ -5,8 +5,8 @@ import type { DomainState } from '../domain/model';
  * какими словами называть и что охраняет корень агрегата. Пустая карта — пустая строка.
  */
 export function domainText(domain: DomainState): string {
-  if (domain.contexts.length === 0) return '';
-  const lines: string[] = [];
+  const lines = (domain.nodes ?? []).map((node) => `- ${node.title ?? node.id} (${node.kind ?? 'concept'}): ${node.summary ?? ''}`);
+  for (const edge of domain.edges ?? []) lines.push(`- ${edge.from} → ${edge.to} (${edge.type}) ${edge.summary ?? ''}`.trimEnd());
   for (const context of domain.contexts) {
     lines.push(`- Контекст \`${context.id}\`${context.title ? ` «${context.title}»` : ''}${context.kind ? ` (${context.kind})` : ''}${context.root ? `, корень \`${context.root}\`` : ''}${context.capabilities?.length ? `; возможности: ${context.capabilities.join(', ')}` : ''}`);
     const terms = context.language ?? [];

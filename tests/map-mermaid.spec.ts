@@ -46,16 +46,15 @@ describe('codemapMermaid', () => {
     expect(text).toContain('flowchart LR');
     expect(text).toContain('["ядро"]');
     expect(text).toContain('["экраны"]');
-    expect(text).toContain('["Разбор"]');
+    expect(text).toContain('("Разбор")');
   });
 
-  it('красит модуль по слою — классом, назначенным по имени слоя', () => {
+  it('использует стандартный вид модуля для неизвестного слоя', () => {
     const { text } = codemapMermaid(mapWith({
       codemap: { modules: [{ id: 'server/lib/parse.ts', title: 'Разбор', layer: 'ядро' }], imports: [] }
     }));
-    // Тот же слой между перерисовками красится в тот же класс — по имени, не по случаю.
-    expect(text).toContain(':::layer_ядро');
-    expect(text).toContain('classDef layer_ядро fill:');
+    expect(text).toContain(':::notation_module');
+    expect(text).toContain('classDef notation_module fill:');
   });
 
   it('узел, упомянутый только в связи, показывает путём, а не идентификатором', () => {

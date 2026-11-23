@@ -1,15 +1,17 @@
 import { lintGraph, type LintFinding, type LintNode } from '../domain/lint';
 import type { MapStandard } from '../domain/standard';
+import { INDUSTRY_STANDARDS } from './standards';
 
 /** Определение пользовательской карты в той мере, что нужна линтеру. */
 export interface CustomDefinitionLike {
   id: string;
   title: string;
+  notation?: unknown;
   node: { label: string };
   relations: readonly { id: string; label: string }[];
 }
 
-interface CustomNodeIn { map?: string | undefined; id: string; title?: string | undefined; summary?: string | undefined; parent?: string | undefined }
+interface CustomNodeIn { map?: string | undefined; id: string; kind?: string | undefined; title?: string | undefined; summary?: string | undefined; parent?: string | undefined }
 interface CustomRelationIn { map?: string | undefined; from: string; to: string; type: string; summary?: string | undefined }
 
 export interface CustomChangeLike {
@@ -22,6 +24,9 @@ export interface CustomChangeLike {
  * один. Подписи связей необязательны: определение их не требует, а линтер не вводит правил сверх него.
  */
 export function customStandard(definition: CustomDefinitionLike): MapStandard {
+  if (typeof definition.notation === 'string' && Object.hasOwn(INDUSTRY_STANDARDS, definition.notation)) {
+    return INDUSTRY_STANDARDS[definition.notation]!;
+  }
   return {
     template: definition.id,
     title: definition.title,
@@ -48,10 +53,10 @@ export function lintCustomChange(
   for (const mapId of maps) {
     const definition = definitions.find((item) => item.id === mapId);
     if (!definition) continue; // неизвестную карту называет разбор записи, не линтер
-    const known = new Map<string, LintNode>(existing.nodes.filter((node) => node.map === mapId).map((node) => [node.id, { id: node.id, title: node.title, summary: node.summary, parent: node.parent }]));
+    const known = new Map<string, LintNode>(existing.nodes.filter((node) => node.map === mapId).map((node) => [node.id, { ...node }]));
     const nodes = (change.added.nodes ?? []).filter((node) => mapOf(node) === mapId).map((node) => {
       const before = known.get(node.id);
-      return { id: node.id, title: node.title ?? before?.title, summary: node.summary ?? before?.summary, parent: node.parent ?? before?.parent };
+      return { id: node.id, kind: node.kind ?? before?.kind, title: node.title ?? before?.title, summary: node.summary ?? before?.summary, parent: node.parent ?? before?.parent };
     });
     const edges = (change.added.relations ?? []).filter((edge) => mapOf(edge) === mapId).map((edge) => ({ from: edge.from, to: edge.to, kind: edge.type, label: edge.summary }));
     found.push(...lintGraph({ nodes, edges, known, ...(text ? { text } : {}) }, customStandard(definition)));

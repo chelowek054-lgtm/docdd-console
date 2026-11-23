@@ -1,0 +1,70 @@
+{
+  "template": "embedded",
+  "title": "Embedded",
+  "question": "Как связаны аппаратные блоки, шины, прошивка и радиомодули",
+  "sources": [
+    {
+      "name": "R-0153",
+      "note": "Базовые отраслевые обозначения проекта"
+    }
+  ],
+  "own": [],
+  "defaultNodeKind": "hardware",
+  "nodeKinds": [
+    {
+      "id": "hardware",
+      "title": "Аппаратный блок",
+      "shape": "hexagon",
+      "color": "map-infra",
+      "icon": "i-lucide-cpu",
+      "container": true
+    },
+    {
+      "id": "bus",
+      "title": "Шина",
+      "shape": "queue",
+      "color": "map-layer-interface",
+      "icon": "i-lucide-cable",
+      "container": true
+    },
+    {
+      "id": "firmware",
+      "title": "Прошивка",
+      "shape": "package",
+      "color": "map-layer-application",
+      "icon": "i-lucide-binary",
+      "container": true
+    },
+    {
+      "id": "radio",
+      "title": "Радиомодуль",
+      "shape": "rect",
+      "color": "map-external",
+      "icon": "i-lucide-radio",
+      "container": true
+    }
+  ],
+  "edgeKinds": [
+    {
+      "id": "depends",
+      "title": "зависит от",
+      "line": "solid",
+      "head": "arrow",
+      "label": "optional"
+    },
+    {
+      "id": "feeds",
+      "title": "передаёт сигнал",
+      "line": "solid",
+      "head": "arrow",
+      "label": "optional"
+    },
+    {
+      "id": "uses",
+      "title": "использует",
+      "line": "solid",
+      "head": "arrow",
+      "label": "optional"
+    }
+  ]
+}

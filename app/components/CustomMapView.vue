@@ -25,6 +25,7 @@ import { ancestors, depthOf } from '~~/server/lib/hierarchy';
 import { slugify } from '~~/server/lib/scaffold';
 import type { CustomNodeView, CustomRelationView } from '~~/server/lib/custom-maps';
 import type { CustomMapDefinition } from '~~/server/lib/types';
+import { INDUSTRY_STANDARDS } from '~~/server/lib/map-core';
 import { functionalMermaid, fromNodeId, type FunctionalMode, type MapSelection } from '~/utils/map-mermaid';
 import type { Capability } from './FunctionalTreeNode.vue';
 const { t } = useT();
@@ -128,6 +129,14 @@ const shownNodes = computed(() => tree.value.filter((node) => kept.value.has(nod
 const shownRelations = computed(() =>
   relations.value.filter((edge) => !hiddenKinds.value.includes(edge.type) && kept.value.has(edge.from) && kept.value.has(edge.to))
 );
+const notation = computed(() => typeof props.definition.notation === 'string' && Object.hasOwn(INDUSTRY_STANDARDS, props.definition.notation) ? props.definition.notation : '');
+const industryNodes = computed(() => props.nodes.filter((node) => kept.value.has(node.id)).map((node) => ({
+  id: node.id, title: node.title ?? node.id, summary: node.summary ?? '', ...(node.kind ? { kind: node.kind } : {}),
+  ...(node.parent ? { parent: node.parent } : {})
+})));
+const industryEdges = computed(() => shownRelations.value.map((edge) => ({
+  from: edge.from, to: edge.to, type: edge.type, summary: edge.summary ?? kindLabel.value.get(edge.type) ?? edge.type
+})));
 
 const kindCounts = computed(() => {
   const counts: Record<string, number> = {};
@@ -348,12 +357,16 @@ const depthOfGroup = computed(() => (group.value ? depthOf(group.value, tree.val
         :filter="null"
         :endpoint="endpoint"
         :relation-kinds="definition.relations"
+        v-bind="notation ? { nodeKinds: INDUSTRY_STANDARDS[notation]!.nodeKinds } : {}"
         :id-of="idOf"
         @select="(value) => (selection = value)"
         @changed="emit('changed')"
       />
 
-      <template v-if="view === 'graph'">
+      <ClientOnly v-if="notation && view === 'graph'">
+        <StandardMapGraph :template="notation" :nodes="industryNodes" :edges="industryEdges" />
+      </ClientOnly>
+      <template v-else-if="view === 'graph'">
         <FunctionalGraphBar
           v-if="nodes.length"
           v-model:mode="mode"

@@ -39,3 +39,19 @@ export function lintStrategicChange(
 function toNode(item: CapabilityIn): LintNode {
   return { id: item.id, kind: item.kind, title: item.title, summary: item.summary, parent: item.parent };
 }
+
+export function lintDomainChange(
+  change: { added?: { nodes?: CapabilityIn[]; edges?: RelationIn[] }; removed?: { nodes?: { id: string }[]; edges?: RelationIn[] } },
+  existing: { nodes?: CapabilityIn[]; edges?: RelationIn[] },
+  standard: MapStandard,
+  text?: string
+): LintFinding[] {
+  const removed = new Set(change.removed?.nodes?.map((node) => node.id));
+  const key = (edge: RelationIn) => JSON.stringify([edge.from, edge.to, edge.type]);
+  const removedEdges = new Set(change.removed?.edges?.map(key));
+  const affected = (existing.edges ?? []).filter((edge) =>
+    (removed.has(edge.from) || removed.has(edge.to)) && !removedEdges.has(key(edge)));
+  return lintStrategicChange({
+    added: { capabilities: change.added?.nodes, relations: [...affected, ...(change.added?.edges ?? [])] }
+  }, { capabilities: (existing.nodes ?? []).filter((item) => !removed.has(item.id)) }, standard, text);
+}

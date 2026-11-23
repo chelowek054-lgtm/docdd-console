@@ -154,7 +154,7 @@ export function resolveRules(input: {
     };
   }
 
-  const config: ArchitectureConfig = {};
+  const config: ArchitectureConfig = input.manifest?.profile ? { profile: input.manifest.profile } : {};
   const owner = new Map<string, { source: string; level: RuleLevel; value: unknown; rule: EffectiveRule }>();
   const rules: EffectiveRule[] = [];
   const conflicts: RulesResolution['conflicts'] = [];

@@ -4,6 +4,7 @@
 import type { ApiFailure } from '~/composables/useProjectIndex';
 import { slugify } from '~~/server/lib/scaffold';
 import { ROLE_MAP_TEMPLATES, type RoleMapTemplate } from '~~/server/lib/role-maps';
+import { industryDefinitions } from '~~/server/lib/industry-maps';
 import type { CustomMapDefinition, CustomMapFeature, CustomRelationStyle } from '~~/server/lib/types';
 const { t } = useT();
 
@@ -160,6 +161,10 @@ async function send(body: CustomMapDefinition | { template: string }) {
             <UButton v-for="template in ROLE_MAP_TEMPLATES" :key="template.role" size="xs" variant="soft" color="neutral" @click="applyTemplate(template)">{{ template.name }}</UButton>
           </div>
           <p class="text-xs text-muted">{{ t('t83.custom-map-form.4') }}</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <UButton v-for="definition in industryDefinitions()" :key="definition.id" type="button"
+            size="xs" variant="soft" :loading="busy" @click="send(definition)">{{ definition.title }}</UButton>
         </div>
         <UFormField :label="t('t83.custom-map-form.5')" required>
           <UInput v-model="form.title" class="w-full" :placeholder="t('t83.custom-map-form.6')" />

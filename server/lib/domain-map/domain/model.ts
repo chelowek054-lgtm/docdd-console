@@ -54,7 +54,28 @@ export interface ContextRelation {
   declaredBy?: string;
 }
 
+export interface DomainNode {
+  id: string;
+  title?: string;
+  kind?: string;
+  summary?: string;
+  sources?: string[];
+  capabilities?: string[];
+  sysdesign?: string[];
+  declaredBy?: string;
+}
+
+export interface DomainEdge {
+  from: string;
+  to: string;
+  type: string;
+  summary?: string;
+  declaredBy?: string;
+}
+
 export interface DomainPart {
+  nodes?: DomainNode[];
+  edges?: DomainEdge[];
   contexts?: DomainContext[];
   aggregates?: DomainAggregate[];
   relations?: ContextRelation[];
@@ -62,12 +83,14 @@ export interface DomainPart {
 
 /** Сложенная доменная карта проекта. */
 export interface DomainState {
+  nodes?: DomainNode[];
+  edges?: DomainEdge[];
   contexts: DomainContext[];
   aggregates: DomainAggregate[];
   relations: ContextRelation[];
 }
 
-export const emptyDomain = (): DomainState => ({ contexts: [], aggregates: [], relations: [] });
+export const emptyDomain = (): DomainState => ({ nodes: [], edges: [], contexts: [], aggregates: [], relations: [] });
 
 /** Области, где решает только архитектор (R-0120). */
 export const ARCHITECT_AREAS = ['topology', 'storage', 'transactions'] as const;

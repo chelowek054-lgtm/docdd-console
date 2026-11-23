@@ -104,14 +104,14 @@ interface ElkLike {
 }
 
 /** Раскладка слоями слева направо (elkjs): позиции узлов; связи рисует холст сам кривыми Безье. */
-export async function layoutWithElk(elk: ElkLike, nodes: readonly FlowNode[], edges: readonly FlowEdge[]): Promise<FlowNode[]> {
+export async function layoutWithElk(elk: ElkLike, nodes: readonly FlowNode[], edges: readonly FlowEdge[], layerGap = 72): Promise<FlowNode[]> {
   const graph = {
     id: 'root',
     layoutOptions: {
       'elk.algorithm': 'layered',
       'elk.direction': 'RIGHT',
       'elk.spacing.nodeNode': '32',
-      'elk.layered.spacing.nodeNodeBetweenLayers': '72'
+      'elk.layered.spacing.nodeNodeBetweenLayers': String(layerGap)
     },
     children: nodes.map((node) => ({ id: node.id, width: NODE_WIDTH, height: NODE_HEIGHT })),
     edges: edges.map((edge) => ({ id: edge.id, sources: [edge.source], targets: [edge.target] }))

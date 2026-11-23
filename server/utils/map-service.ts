@@ -128,7 +128,7 @@ function countUnverified(map: ProjectMap): number {
 }
 
 // Доменная карта — вторая после стратегической (A-0004).
-export const MAP_KINDS = ['functional', 'domain', 'codebase', 'flows', 'journeys', 'custom'] as const;
+export const MAP_KINDS = ['functional', 'domain', 'sysdesign', 'codebase', 'flows', 'journeys', 'custom'] as const;
 export type MapKind = (typeof MAP_KINDS)[number];
 
 /** Числа для ярлыков вкладок: считаются по полному виду, но отдаются без содержимого других видов. */
@@ -164,6 +164,7 @@ export function mapKindView(full: ProjectMapResult, kind: MapKind): Record<strin
   const part: Record<MapKind, Record<string, unknown>> = {
     functional: { functional: full.functional },
     domain: { domain: full.domain, domainTree: full.domainTree },
+    sysdesign: { sysdesign: full.sysdesign },
     codebase: { codemap: full.codemap },
     flows: { dataflow: full.dataflow },
     journeys: { userflow: full.userflow },

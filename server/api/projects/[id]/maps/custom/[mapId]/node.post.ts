@@ -66,6 +66,7 @@ export default defineEventHandler(async (event) => {
       // Узел в своде заменяется целиком, а форма дерева ссылок не знает: без этого правка названия стёрла бы их.
       const before = current().find((item) => item.id === node.id);
       if (action === 'add' && !node.links && before?.links) node.links = before.links;
+      if (action === 'add' && !node.kind && before?.kind) node.kind = before.kind;
       change = action === 'add'
         ? { map: mapId, added: { nodes: [{ map: mapId, ...node }] } }
         : { map: mapId, removed: { nodes: [{ map: mapId, id: node.id }] } };
@@ -182,7 +183,7 @@ function asNode(value: unknown): NodeInput | null {
   const id = text(raw['id']);
   if (!id) return null;
   const node: Record<string, unknown> = { id };
-  for (const key of ['title', 'parent', 'summary', 'status', 'note', 'priority', 'horizon'] as const) {
+  for (const key of ['title', 'kind', 'parent', 'summary', 'status', 'note', 'priority', 'horizon'] as const) {
     const item = text(raw[key]);
     if (item) node[key] = item;
   }

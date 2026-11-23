@@ -11,6 +11,12 @@
   "properties": {
     "contract": { "const": "docdd.workspace/1" },
     "runner": { "type": "string" },
+    "run_id": { "type": "string", "minLength": 1 },
+    "measurements": { "type": "object", "propertyNames": { "pattern": "^V-[0-9]{4}$" }, "additionalProperties": {
+      "type": "array", "items": { "type": "object", "required": ["name", "value", "unit"], "properties": {
+        "name": { "type": "string" }, "value": { "type": "number" }, "unit": { "type": "string" }
+      } }
+    } },
     "started_at": { "type": "string", "format": "date-time" },
     "total": { "type": "integer", "minimum": 0 },
     "failed": { "type": "integer", "minimum": 0 },

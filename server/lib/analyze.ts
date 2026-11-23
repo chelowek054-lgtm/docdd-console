@@ -96,7 +96,7 @@ export function analyze(input: AnalyzeInput): AnalyzeResult {
     .map((record) => ({ id: record.id, body: record.body }));
   // Профиль DDD + Clean ложится на корни контекстов доменной карты сам (R-0118).
   const domain = foldMaps(approvedMaps(records).map((record) => ({ id: record.id, change: parseMapRecord(record.body).change }))).domain;
-  const rules: RulesResolution = resolveRules({ manifest: input.manifest?.architecture, general: input.generalRules ?? [], local, auto: profileUses(domain) });
+  const rules: RulesResolution = resolveRules({ manifest: input.manifest?.architecture, general: input.generalRules ?? [], local, auto: profileUses(domain, input.manifest?.architecture?.profile) });
   // Токены дизайна: те же источники, что у правил, — читаются блоки `docdd-design`.
   const design = resolveDesign({ general: input.generalRules ?? [], local });
   const ctx: RuleContext = {
@@ -104,6 +104,7 @@ export function analyze(input: AnalyzeInput): AnalyzeResult {
     graph,
     policy: input.manifest?.policy ?? {},
     ...(input.manifest?.gates ? { gates: input.manifest.gates } : {}),
+    codebaseThresholds: input.manifest?.maps?.thresholds,
     ...(rules.config ? { architecture: rules.config } : {}),
     ...(input.manifest?.paths?.reference
       ? { reference: { path: `${DEVELOPMENT_DIR}/${input.manifest.paths.reference}/INDEX.md`, staleDays: input.manifest.policy?.reference_stale_days ?? 180 } }

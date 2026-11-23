@@ -63,9 +63,11 @@ const expected = [
   'map_evidence_missing M-0003',
   'map_evidence_stale M-0005',
   'map_invalid M-0002',
-  // Обязательные карты (A-0010): двух из них в примере нет.
+  // В примере отсутствуют три обязательные карты.
   'map_required_missing docs/development/project.yaml',
   'map_required_missing docs/development/project.yaml',
+  'map_required_missing docs/development/project.yaml',
+  'module_purpose_missing M-0001',
   'parse_failed docs/development/design/D-9998-broken.md',
   'requirement_unimplemented R-0002',
   'requirement_unverified R-0002',
@@ -109,7 +111,7 @@ describe('набор файлов-примеров', () => {
     // transition_forbidden отвечает на запрос действия, а не на состояние
     // набора записей, поэтому в этом списке его нет — он проверен в rules.spec.
     const covered = new Set(result.violations.map((item) => item.code));
-    expect(covered.size).toBe(30);
+    expect(covered.size).toBe(31);
     expect(covered.has('transition_forbidden')).toBe(false);
   });
 

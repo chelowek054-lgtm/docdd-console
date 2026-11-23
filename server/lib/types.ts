@@ -109,6 +109,10 @@ export type ViolationCode =
   | 'map_lint'
   | 'map_lint_notation'
   | 'map_required_missing'
+  | 'module_purpose_missing' | 'module_too_large' | 'folder_too_large'
+  | 'quality_unmeasured'
+  | 'standard_config_missing'
+  | 'standard_coverage_low'
   | 'map_evidence_missing'
   | 'map_evidence_stale'
   | 'map_drift'
@@ -228,6 +232,10 @@ export const VIOLATION_LEVELS: Readonly<Record<ViolationCode, Severity>> = {
   map_lint: 'error',
   map_lint_notation: 'warning',
   map_required_missing: 'warning',
+  module_purpose_missing: 'warning', module_too_large: 'warning', folder_too_large: 'warning',
+  quality_unmeasured: 'warning',
+  standard_config_missing: 'warning',
+  standard_coverage_low: 'warning',
   map_evidence_missing: 'error',
   map_evidence_stale: 'error',
   map_drift: 'error',
@@ -329,6 +337,8 @@ export interface WorkRecord {
 export type VerificationResult = 'passed' | 'failed' | 'skipped' | 'blocked';
 
 export interface Report {
+  run_id?: string;
+  measurements?: Record<string, { name: string; value: number; unit: string }[]>;
   contract: string;
   runner: string;
   started_at: string;
@@ -379,6 +389,7 @@ export interface SharedSource {
  * Нет секции — нет проверки. Пути — от корня проекта.
  */
 export interface ArchitectureConfig {
+  profile?: string;
   /** Вход модуля по языкам; нет ключа — соглашение языка. */
   entries?: Record<string, string[]>;
   /** Технический общий код: домена не знает. */
@@ -577,6 +588,7 @@ export interface CustomMapDefinition {
 }
 
 export interface MapsManifest {
+  thresholds?: { moduleFiles?: number; moduleLines?: number; folderEntries?: number };
   /** Сырые записи: проверяет и отбирает их customDefinitions (server/lib/custom-maps.ts). */
   custom?: unknown[];
   [key: string]: unknown;
