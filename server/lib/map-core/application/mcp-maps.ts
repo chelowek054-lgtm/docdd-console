@@ -1,18 +1,15 @@
 import { projectPath, requireOk, type ToolContext } from '../../mcp';
 
+import { blockText, type MapEdge, type MapNode, type MapPart, type MapTarget } from './map-block';
+
+export { blockText, type MapEdge, type MapNode, type MapPart, type MapTarget } from './map-block';
+
 /**
  * Общее у инструментов карт для MCP (R-0142): правка уходит черновиком записи `map` через
  * `POST …/map/draft` — тот же разбор, схема и линтер, что у ответа модели на экране. Подтверждает
  * черновик человек (A-0008); отказ линтера возвращается модели с узлом, полем и строкой.
  */
 
-export type MapTarget = { kind: 'strategic' } | { kind: 'custom'; id: string };
-
-export interface MapNode {
-  id: string; title?: string; summary?: string; parent?: string; kind?: string;
-  status?: string; note?: string; priority?: string; horizon?: string;
-}
-export interface MapEdge { from: string; to: string; type: string; summary?: string }
 
 export const MAP_PROPERTY = {
   map: { type: 'string', description: 'Какая карта: strategic (стратегическая, по умолчанию) или id пользовательской карты из манифеста' }
@@ -101,29 +98,6 @@ export async function readMap(ctx: ToolContext, target: MapTarget): Promise<{ no
   }
   const map = data.maps?.[target.id];
   return { nodes: map?.nodes ?? [], edges: map?.relations ?? [] };
-}
-
-export interface MapPart { nodes?: MapNode[]; edges?: MapEdge[] }
-
-/** Блок записи карты: стратегическая — `docdd-functional`, пользовательская — `docdd-custom` с `map`. */
-export function blockText(target: MapTarget, added: MapPart, removed: MapPart = {}): string {
-  const part = (side: MapPart) => {
-    const nodes = side.nodes?.length ? side.nodes : undefined;
-    const edges = side.edges?.length ? side.edges : undefined;
-    if (!nodes && !edges) return undefined;
-    return target.kind === 'strategic'
-      ? { ...(nodes ? { capabilities: nodes } : {}), ...(edges ? { relations: edges } : {}) }
-      : { ...(nodes ? { nodes } : {}), ...(edges ? { relations: edges } : {}) };
-  };
-  const addedPart = part(added);
-  const removedPart = part(removed);
-  const body = {
-    ...(target.kind === 'custom' ? { map: target.id } : {}),
-    ...(addedPart ? { added: addedPart } : {}),
-    ...(removedPart ? { removed: removedPart } : {})
-  };
-  const fence = target.kind === 'strategic' ? 'docdd-functional' : 'docdd-custom';
-  return `\`\`\`${fence}\n${JSON.stringify(body, null, 2)}\n\`\`\`\n`;
 }
 
 /** Черновик записи карты через API. Отказ (схема, линтер) приходит текстом с местом каждой находки. */

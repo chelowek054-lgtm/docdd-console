@@ -768,7 +768,7 @@ const viewMode = ref<'2d' | '3d'>('2d');
  * ничего не пересчитывает.
  */
 // Граф — основной вид, дерево — второй (A-0010).
-const functionalView = ref<'tree' | 'graph'>('graph');
+const functionalView = ref<'tree' | 'graph' | 'editor'>('graph');
 
 /**
  * Общий контейнер диаграммы и карточки — цель разворота на весь экран.
@@ -1644,9 +1644,9 @@ watch(views, (list) => {
                 <UTabs
                   v-if="current.key === 'functional'"
                   v-model="functionalView"
-                  class="ml-auto w-40"
+                  class="ml-auto w-64"
                   size="xs"
-                  :items="[{ label: t('maps.tree'), value: 'tree' }, { label: t('maps.graph'), value: 'graph' }]"
+                  :items="[{ label: t('maps.graph'), value: 'graph' }, { label: t('maps.tree'), value: 'tree' }, { label: t('maps.editor.tab'), value: 'editor' }]"
                 />
                 <template v-else>
                   <!-- Группы или все модули разом — у кодовой базы (docs/04-ui.md, «Группы кодовой карты»). -->
@@ -1898,6 +1898,16 @@ watch(views, (list) => {
                 @select="(value) => (selection = value)"
                 @changed="() => refresh()"
               />
+              <!-- Редактор мышью (R-0144): Vue Flow только в браузере. -->
+              <ClientOnly v-if="functionalView === 'editor'">
+                <MapNotation template="strategic" />
+                <MapFlowEditor
+                  :project-id="projectId"
+                  :capabilities="map.functional.capabilities"
+                  :relations="map.functional.relations"
+                  @saved="onMapRecordsChanged"
+                />
+              </ClientOnly>
               <template v-if="functionalView === 'graph'">
                 <FunctionalGraphBar
                   v-if="map.functional.capabilities.length"
