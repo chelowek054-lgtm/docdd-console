@@ -288,6 +288,16 @@ function goTo(query: { view?: string; group?: string }) {
 const showGroups = () => goTo({ view: 'groups' });
 const showAllModules = () => goTo({ view: 'all' });
 const enterGroup = (groupId: string) => goTo({ group: groupId });
+/** Путь к вложенной группе через родителей (R-0145): каждая ступень — ссылка; последняя — сама группа. */
+const groupCrumbs = computed(() => {
+  if (codemapMode.value !== 'group' || !openGroupId.value) return [];
+  const nodes = new Map((codemapTree()?.nodes ?? []).map((node) => [node.id, node]));
+  const path: { id: string; title: string }[] = [];
+  for (let at = nodes.get(openGroupId.value); at && path.length < 32; at = at.parent ? nodes.get(at.parent) : undefined) {
+    path.unshift({ id: at.id, title: at.title });
+  }
+  return path;
+});
 
 /**
  * Группы на потоках данных (docs/07-maps.md, «Потоки данных», «Группы и
@@ -443,9 +453,10 @@ const codemapView = computed(() => {
   if (codemapMode.value === 'all') return codemapMermaid({ ...value, codemap: base }, { violations: violations.value });
 
   const selected = ghostFor.value && base.modules.some((item) => item.id === ghostFor.value) ? ghostFor.value : null;
+  // Без выбора — внешние узлы всей группы (R-0145); выбор сужает их до соседей модуля.
   const near = selected
     ? ghostNeighbors(found, openGroupId.value, selected, value.codemap.modules, value.codemap.imports)
-    : { ghosts: [], imports: [] };
+    : groupBoundary(found, openGroupId.value, value.codemap.modules, value.codemap.imports);
   return codemapMermaid({ ...value, codemap: base }, {
     violations: violations.value,
     ports: portsOf(found, openGroupId.value, value.codemap.imports),
@@ -856,6 +867,8 @@ function onEdgeClick(edge: MermaidEdge) {
 // рисует прежние диаграммы (`?? ` в `views`).
 // eslint-disable-next-line import/first
 import { ancestors, visibleAt, type Edge as HierarchyEdge, type TreeNode } from '~~/server/lib/hierarchy';
+// Отдельной строкой: строка импорта групп выше — свидетельство карт M-0080…M-0082.
+import { groupBoundary } from '~~/server/lib/groups';
 // eslint-disable-next-line import/first
 import { groupTree } from '~~/server/lib/groups';
 // eslint-disable-next-line import/first
@@ -1724,6 +1737,15 @@ watch(views, (list) => {
               </p>
             </template>
 
+            <!-- Вложенная группа: карточки верхнего уровня у неё нет, путь — через родителей. -->
+            <p v-if="shown === 'codemap' && !openGroupInfo && groupCrumbs.length > 1" class="mb-3 flex flex-wrap items-center gap-1 text-sm" data-group-crumbs>
+              <UButton size="xs" variant="link" color="neutral" icon="i-lucide-chevron-left" @click="showGroups">{{ t('maps.allGroups') }}</UButton>
+              <template v-for="(crumb, at) in groupCrumbs" :key="crumb.id">
+                <span class="text-muted">›</span>
+                <button v-if="at < groupCrumbs.length - 1" type="button" class="hover:underline" @click="enterGroup(crumb.id)">{{ crumb.title }}</button>
+                <span v-else class="font-medium">{{ crumb.title }}</span>
+              </template>
+            </p>
             <template v-if="shown === 'codemap' && codemapMode === 'group' && openGroupInfo">
               <div class="mb-3 space-y-1 text-sm">
                 <p class="flex flex-wrap items-center gap-1">

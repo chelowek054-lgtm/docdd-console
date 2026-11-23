@@ -3295,7 +3295,7 @@ updated: 2026-10-24
         "to": "server/lib/hierarchy.ts",
         "evidence": {
           "path": "app/pages/projects/[id]/maps.vue",
-          "line": 857,
+          "line": 869,
           "fragment": "import { ancestors, visibleAt, type Edge as HierarchyEdge, t"
         }
       },
@@ -3304,7 +3304,7 @@ updated: 2026-10-24
         "to": "server/lib/custom-maps.ts",
         "evidence": {
           "path": "app/pages/projects/[id]/maps.vue",
-          "line": 1281,
+          "line": 1295,
           "fragment": "import type { CustomMapView as CustomMapContent } from '~~/s"
         }
       },
@@ -3313,7 +3313,7 @@ updated: 2026-10-24
         "to": "server/lib/types.ts",
         "evidence": {
           "path": "app/pages/projects/[id]/maps.vue",
-          "line": 1282,
+          "line": 1296,
           "fragment": "import type { CustomMapDefinition } from '~~/server/lib/type"
         }
       },
@@ -3511,7 +3511,7 @@ updated: 2026-10-24
         "to": "server/lib/groups.ts",
         "evidence": {
           "path": "app/utils/map-mermaid.ts",
-          "line": 32,
+          "line": 33,
           "fragment": "} from '../../server/lib/groups';"
         }
       },
@@ -3520,7 +3520,7 @@ updated: 2026-10-24
         "to": "server/lib/layers.ts",
         "evidence": {
           "path": "app/utils/map-mermaid.ts",
-          "line": 34,
+          "line": 35,
           "fragment": "import { layerOf } from '../../server/lib/layers'; import { "
         }
       },
@@ -3529,7 +3529,7 @@ updated: 2026-10-24
         "to": "app/utils/functional-view.ts",
         "evidence": {
           "path": "app/utils/map-mermaid.ts",
-          "line": 44,
+          "line": 45,
           "fragment": "} from './functional-view';"
         }
       },
