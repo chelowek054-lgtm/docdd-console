@@ -26,7 +26,7 @@ import { slugify } from '~~/server/lib/scaffold';
 import type { CustomNodeView, CustomRelationView } from '~~/server/lib/custom-maps';
 import type { CustomMapDefinition } from '~~/server/lib/types';
 import { INDUSTRY_STANDARDS } from '~~/server/lib/map-core';
-import { functionalMermaid, fromNodeId, type FunctionalMode, type MapSelection } from '~/utils/map-mermaid';
+import { functionalMermaid, type FunctionalMode, type MapSelection } from '~/utils/map-mermaid';
 import type { Capability } from './FunctionalTreeNode.vue';
 const { t } = useT();
 
@@ -38,7 +38,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ changed: [] }>();
 
-const view = ref<'tree' | 'graph'>('tree');
+const editingTools = ref<{ openAdd: (parent: string | null) => void; openEdit: (item: Capability) => void; openRelate: (item: Capability) => void; removeCapability: (item: Capability) => Promise<void> }>();
 const hasStatus = computed(() => props.definition.features.includes('status'));
 const hasPriority = computed(() => props.definition.features.includes('priority'));
 const hasHorizon = computed(() => props.definition.features.includes('horizon'));
@@ -215,13 +215,11 @@ const graph = computed(() => functionalMermaid(
     plan: { priority: planPriority.value, horizon: planHorizon.value },
     onlyRisks: onlyRisks.value,
     legendInside: false,
-    selected: focus.value,
+    selected: impactOn.value ? focus.value : null,
     impact: impactOn.value,
     maxDepth: maxDepth.value
   }
 ));
-const pendingIds = computed(() => new Set(Object.entries(graph.value.nodes ?? {}).filter(([, node]) => node.pending).map(([key]) => key)));
-const ghostIds = computed(() => new Set(Object.entries(graph.value.nodes ?? {}).filter(([, node]) => node.ghost).map(([key]) => key)));
 
 function go(query: Record<string, string | undefined>) {
   selection.value = null;
@@ -240,6 +238,14 @@ watch(selection, (value) => {
     impactOn.value = false;
   }
 });
+const editableNode = computed(() => {
+  const current = selection.value;
+  return current?.kind === 'node' ? shownNodes.value.find((node) => node.id === current.id) : undefined;
+});
+function selectIndustry(id: string) {
+  const node = shownNodes.value.find((item) => item.id === id);
+  selection.value = node ? { kind: 'node', ...node } : null;
+}
 function onNodeClick(key: string) {
   const node = graph.value.nodes?.[key];
   if (node) selection.value = { kind: 'node', ...node };
@@ -276,12 +282,6 @@ const depthOfGroup = computed(() => (group.value ? depthOf(group.value, tree.val
           <h2 class="font-medium">{{ definition.title }}</h2>
           <p v-if="definition.summary" class="text-sm text-muted">{{ definition.summary }}</p>
         </div>
-        <UTabs
-          v-model="view"
-          class="ml-auto w-40"
-          size="xs"
-          :items="[{ label: t('t83.m2.tree'), value: 'tree' }, { label: t('t83.m2.graph'), value: 'graph' }]"
-        />
       </div>
     </template>
 
@@ -302,7 +302,7 @@ const depthOfGroup = computed(() => (group.value ? depthOf(group.value, tree.val
           :placeholder="t('t83.custom-map-view.3')"
         />
         <!-- В графе приоритет, горизонт и виды связей фильтрует панель графа — двух одинаковых полос не держим. -->
-        <template v-if="view === 'tree'">
+        <template>
           <USelect
             v-if="hasPriority"
             :model-value="priorityFilter ?? undefined"
@@ -348,7 +348,7 @@ const depthOfGroup = computed(() => (group.value ? depthOf(group.value, tree.val
       <FunctionalTree
         v-model:marks="marks"
         v-model:relation-marks="relationMarks"
-        :tree-hidden="view !== 'tree'"
+        ref="editingTools" tree-hidden graph-editing
         :project-id="projectId"
         :capabilities="shownNodes"
         :saved="saved"
@@ -363,10 +363,17 @@ const depthOfGroup = computed(() => (group.value ? depthOf(group.value, tree.val
         @changed="emit('changed')"
       />
 
-      <ClientOnly v-if="notation && view === 'graph'">
-        <StandardMapGraph :template="notation" :nodes="industryNodes" :edges="industryEdges" />
+      <div class="flex flex-wrap gap-1">
+        <UButton size="xs" variant="ghost" :disabled="!editableNode" @click="editableNode && editingTools?.openAdd(editableNode.id)">{{ t('mapGraph.addChild') }}</UButton>
+        <UButton size="xs" variant="ghost" :disabled="!editableNode" @click="editableNode && editingTools?.openEdit(editableNode)">{{ t('mapGraph.edit') }}</UButton>
+        <UButton size="xs" variant="ghost" :disabled="!editableNode" @click="editableNode && editingTools?.openRelate(editableNode)">{{ t('mapGraph.connect') }}</UButton>
+        <UButton size="xs" variant="ghost" :disabled="!editableNode" @click="editableNode && editingTools?.removeCapability(editableNode)">{{ t('mapGraph.remove') }}</UButton>
+      </div>
+
+      <ClientOnly v-if="notation">
+        <StandardMapGraph :template="notation" :nodes="industryNodes" :edges="industryEdges" :view-id="definition.id" @select="selectIndustry" />
       </ClientOnly>
-      <template v-else-if="view === 'graph'">
+      <template v-else>
         <FunctionalGraphBar
           v-if="nodes.length"
           v-model:mode="mode"
@@ -384,22 +391,9 @@ const depthOfGroup = computed(() => (group.value ? depthOf(group.value, tree.val
         />
         <FunctionalLegendBar v-if="graph.legend" :legend="graph.legend" />
         <p v-if="!graph.text" class="text-sm text-muted">{{ nodes.length ? t('t83.m2.nothingFilters') : t('t83.m2.nothingToDraw') }}</p>
-        <MermaidDiagram
-          v-else
-          :id="`custom-${definition.id}`"
-          :key="`${definition.id}:${level}:${group ?? ''}:${maxDepth ?? ''}`"
-          :source="graph.text"
-          :details="graph.details"
-          :paths="graph.paths"
-          :edges="graph.edges"
-          :neighbors="graph.neighbors"
-          :pending-ids="pendingIds"
-          :ghost-ids="ghostIds"
-          :focus-key="focus && level !== 'groups' ? fromNodeId(focus) : null"
-          :keep-view="true"
-          @node-click="onNodeClick"
-          @node-dblclick="onNodeDblClick"
-          @background-click="selection = null"
+        <ProjectedMapGraph
+          v-else :graph="graph" template="strategic" :view-id="definition.id"
+          @select="onNodeClick" @open="onNodeDblClick" @clear="selection = null"
         />
       </template>
     </div>

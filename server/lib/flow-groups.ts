@@ -172,10 +172,12 @@ export const FLOW_GHOST_LIMIT = 12;
 export function flowGhosts(
   context: FlowContext,
   groupId: string,
-  selectedId: string,
+  selectedId: string | undefined,
   flows: readonly FlowItem[]
 ): { ghosts: FlowGhost[]; flows: FlowItem[] } {
-  const touched = context.sources.has(selectedId)
+  const touched = selectedId === undefined
+    ? new Set(flows.filter((flow) => codeGroupOf(flow.from, context) === groupId).map((flow) => flow.to))
+    : context.sources.has(selectedId)
     ? new Set([selectedId])
     : new Set(flows.filter((flow) => flow.from === selectedId).map((flow) => flow.to));
   const outside = flows.filter((flow) => touched.has(flow.to) && codeGroupOf(flow.from, context) !== groupId);

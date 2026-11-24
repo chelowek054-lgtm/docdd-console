@@ -55,6 +55,7 @@ export interface ContextRelation {
 }
 
 export interface DomainNode {
+  parent?: string;
   id: string;
   title?: string;
   kind?: string;

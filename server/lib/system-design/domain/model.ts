@@ -1,4 +1,5 @@
 export interface SystemNode {
+  parent?: string;
   ml?: import('../../industry-maps').MlStage;
   id: string;
   title: string;

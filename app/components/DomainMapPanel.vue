@@ -19,7 +19,6 @@ const { data, pending } = useFetch<DomainView>(() => `/api/projects/${props.proj
 
 const trees = computed(() => data.value?.domainTree ?? []);
 const relations = computed<ContextRelation[]>(() => data.value?.domain?.relations ?? []);
-const view = ref<'graph' | 'cards'>('graph');
 const graph = computed(() => data.value?.domain ? domainGraph(data.value.domain) : { nodes: [], edges: [] });
 const subjectNodes = computed(() => data.value?.domain?.nodes ?? []);
 const subjectTitles = computed(() => new Map(subjectNodes.value.map((node) => [node.id, node.title ?? node.id])));
@@ -43,20 +42,16 @@ const KIND_COLOR: Record<string, 'primary' | 'neutral' | 'info'> = { core: 'prim
       <p class="mt-1 text-muted">{{ t('dm.emptyHint') }}</p>
     </div>
 
-    <div v-else class="flex gap-1">
-      <UButton v-for="item in (['graph', 'cards'] as const)" :key="item" size="sm" color="neutral"
-        :variant="view === item ? 'solid' : 'outline'" :aria-pressed="view === item" @click="view = item">
-        {{ t(item === 'graph' ? 'maps.graph' : 'dm.cards') }}
-      </UButton>
-    </div>
-    <LazyStandardMapGraph v-if="graph.nodes.length && view === 'graph'" template="domain" :nodes="graph.nodes" :edges="graph.edges" />
-    <div v-if="view === 'cards'" class="grid gap-3 lg:grid-cols-2">
-      <UCard v-for="node in subjectNodes" :key="`subject:${node.id}`">
+    <MapGroupDraft :project-id="projectId" kind="domain" :nodes="subjectNodes" />
+    <LazyStandardMapGraph v-if="graph.nodes.length" template="domain" :nodes="graph.nodes" :edges="graph.edges">
+      <template #node-details="{ node: selected }">
+        <div class="mt-2 space-y-2">
+      <UCard v-for="node in subjectNodes.filter((item) => selected.id === 'node:' + item.id)" :key="`subject:${node.id}`">
         <p class="text-xs text-muted">{{ kinds.get(node.kind ?? 'concept') ?? node.kind }}</p>
         <p class="font-medium">{{ node.title ?? node.id }}</p>
         <p v-if="node.summary" class="text-sm text-muted">{{ node.summary }}</p>
       </UCard>
-      <UCard v-for="tree in trees" :key="tree.context.id" :ui="{ body: 'space-y-3' }">
+      <UCard v-for="tree in trees.filter((item) => selected.id === 'context:' + item.context.id || item.aggregates.some((aggregate) => selected.id === 'aggregate:' + aggregate.id))" :key="tree.context.id" :ui="{ body: 'space-y-3' }">
         <div class="flex flex-wrap items-start gap-2">
           <UIcon name="i-lucide-boxes" class="mt-0.5 size-5 shrink-0 text-primary" />
           <div class="min-w-0 flex-1">
@@ -81,7 +76,7 @@ const KIND_COLOR: Record<string, 'primary' | 'neutral' | 'info'> = { core: 'prim
           </ul>
         </div>
 
-        <div v-for="aggregate in tree.aggregates" :key="aggregate.id" class="rounded-md border border-default p-2 text-sm">
+        <div v-for="aggregate in tree.aggregates.filter((item) => selected.id === 'context:' + tree.context.id || selected.id === 'aggregate:' + item.id)" :key="aggregate.id" class="rounded-md border border-default p-2 text-sm">
           <p class="font-medium">{{ t('dm.aggregate') }}: {{ aggregate.title ?? aggregate.id }}<span v-if="aggregate.root" class="text-muted"> · {{ t('dm.root') }} <code>{{ aggregate.root }}</code></span></p>
           <ul v-if="aggregate.invariants?.length" class="mt-1 list-disc pl-5 text-xs">
             <li v-for="rule in aggregate.invariants" :key="rule">{{ rule }}</li>
@@ -119,22 +114,24 @@ const KIND_COLOR: Record<string, 'primary' | 'neutral' | 'info'> = { core: 'prim
       </UCard>
     </div>
 
-    <ul v-if="view === 'cards' && data?.domain?.edges?.length" class="text-sm">
-      <li v-for="edge in data.domain.edges" :key="`${edge.from}>${edge.to}:${edge.type}`">
+    <ul v-if="data?.domain?.edges?.length" class="text-sm">
+      <li v-for="edge in data.domain.edges.filter((item) => [item.from, item.to].some((id) => selected.id === 'node:' + id))" :key="`${edge.from}>${edge.to}:${edge.type}`">
         {{ subjectTitles.get(edge.from) ?? edge.from }} → {{ subjectTitles.get(edge.to) ?? edge.to }}
         <UBadge color="neutral" variant="outline" size="sm">{{ edgeTitles.get(edge.type) ?? edge.type }}</UBadge>
         <span v-if="edge.summary" class="text-muted"> {{ edge.summary }}</span>
       </li>
     </ul>
-    <div v-if="view === 'cards' && relations.length" class="text-sm">
+    <div v-if="relations.length" class="text-sm">
       <p class="text-xs font-medium text-muted">{{ t('dm.relations') }}</p>
       <ul>
-        <li v-for="relation in relations" :key="`${relation.from}>${relation.to}:${relation.kind}`">
+        <li v-for="relation in relations.filter((item) => [item.from, item.to].some((id) => selected.id === 'context:' + id))" :key="`${relation.from}>${relation.to}:${relation.kind}`">
           {{ titleOf.get(relation.from) ?? relation.from }} → {{ titleOf.get(relation.to) ?? relation.to }}
           <UBadge color="neutral" variant="outline" size="sm">{{ relation.kind }}</UBadge>
           <span v-if="relation.summary" class="text-muted"> {{ relation.summary }}</span>
         </li>
       </ul>
     </div>
+      </template>
+    </LazyStandardMapGraph>
   </section>
 </template>

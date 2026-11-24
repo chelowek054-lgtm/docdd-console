@@ -5,7 +5,7 @@ import type { FlowCapability, FlowRelation } from './map-flow';
 export function domainGraph(domain: DomainState) {
   const standard = standardFor('domain')!.standard;
   const edgeTitles = new Map(standard.edgeKinds.map((kind) => [kind.id, kind.title]));
-  const nodes: FlowCapability[] = (domain.nodes ?? []).map((node) => ({ ...node, id: 'node:' + node.id }));
+  const nodes: FlowCapability[] = (domain.nodes ?? []).map((node) => ({ ...node, id: 'node:' + node.id, ...(node.parent ? { parent: 'node:' + node.parent } : {}) }));
   const edges: FlowRelation[] = (domain.edges ?? []).map((edge) => {
     const kind = edgeTitles.get(edge.type) ?? edge.type;
     return { ...edge, from: 'node:' + edge.from, to: 'node:' + edge.to, summary: edge.summary ? kind + ' · ' + edge.summary : kind };
@@ -14,7 +14,7 @@ export function domainGraph(domain: DomainState) {
     nodes.push({ ...context, id: 'context:' + context.id, title: context.title ?? context.id, kind: 'context' });
   }
   for (const aggregate of domain.aggregates) {
-    nodes.push({ id: 'aggregate:' + aggregate.id, title: aggregate.title ?? aggregate.id, kind: 'aggregate' });
+    nodes.push({ id: 'aggregate:' + aggregate.id, title: aggregate.title ?? aggregate.id, kind: 'aggregate', ...(aggregate.context ? { parent: 'context:' + aggregate.context } : {}) });
     if (aggregate.context) edges.push({ from: 'context:' + aggregate.context, to: 'aggregate:' + aggregate.id, type: 'owns' });
   }
   for (const relation of domain.relations) {

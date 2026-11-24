@@ -1,5 +1,5 @@
 import { customDefinitions } from '../lib/custom-maps';
-import { lintDomainChange, lintCustomChange, lintStrategicChange, overridesFrom, standardFor, type LintFinding } from '../lib/map-core';
+import { lintDomainChange, lintCustomChange, lintMapParents, lintStrategicChange, overridesFrom, standardFor, type LintFinding } from '../lib/map-core';
 import type { MapChange } from '../lib/maps';
 import { readWorkspace } from '../lib/workspace';
 import { buildProjectMap } from './map-service';
@@ -9,7 +9,7 @@ import { buildProjectMap } from './map-service';
  * с узлом, полем и строкой. Переопределения стандарта — из `maps.standards` манифеста.
  */
 export function lintMapChange(root: string, change: MapChange, text?: string): LintFinding[] {
-  if (!change.functional && !change.custom && !change.domain) return [];
+  if (!change.functional && !change.custom && !change.domain && !change.sysdesign) return [];
   const manifest = readWorkspace(root).manifest;
   const picture = buildProjectMap(root);
   const found: LintFinding[] = [];
@@ -20,7 +20,11 @@ export function lintMapChange(root: string, change: MapChange, text?: string): L
   if (change.domain) {
     const standard = standardFor('domain', overridesFrom(manifest.maps?.['standards']))?.standard;
     if (standard) found.push(...lintDomainChange(change.domain, picture.domain, standard, text));
+    found.push(...lintMapParents(change.domain.added?.nodes ?? [], change.domain.removed?.nodes ?? [], picture.domain.nodes ?? []));
   }
+  if (change.sysdesign) found.push(...lintMapParents(
+    change.sysdesign.added?.nodes ?? [], change.sysdesign.removed?.nodes ?? [], picture.sysdesign.nodes
+  ));
   if (change.custom) found.push(...lintCustomChange(change.custom, customDefinitions(manifest).definitions, picture.custom, text));
   return found;
 }

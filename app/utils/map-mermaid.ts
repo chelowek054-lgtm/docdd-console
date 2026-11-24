@@ -224,7 +224,6 @@ const PALETTE = [
   '#DBEAFE', '#DCFCE7', '#FEF3C7', '#FCE7F3', '#E0E7FF', '#FFEDD5', '#CCFBF1', '#F3E8FF'
 ];
 
-/** Тот же цвет по слою/категории для 3D-режима (`MermaidDiagram3D.vue`) — одна палитра на оба вида. */
 export function colorOf(key: string): string {
   let hash = 0;
   for (let at = 0; at < key.length; at += 1) hash = (hash * 31 + key.charCodeAt(at)) >>> 0;
@@ -309,7 +308,7 @@ export function codemapMermaid(map: ProjectMap, options: CodemapOptions = {}): M
     lines.push(`    subgraph ${nodeId('layer', layer)}["${label(layer)}"]`);
     for (const module of items) {
       const node = nodeId('m', module.id);
-      const kind = notation.nodeKinds.find((item) => item.id === (module.kind ?? module.layer)) ?? notation.nodeKinds.find((item) => item.id === 'module')!;
+      const kind = notation.nodeKinds.find((item) => item.id === module.layer) ?? notation.nodeKinds.find((item) => item.id === 'module')!;
       const caption = label(module.title ?? module.id) + (module.summary ? '<br/>' + label(module.summary, 70) : '');
       lines.push(`        ${node}("${caption}"):::notation_${kind.id}`);
       details[node] = [module.id, module.title, module.summary, tr('t83.m6.layer', { layer })].filter(Boolean).join(LF);

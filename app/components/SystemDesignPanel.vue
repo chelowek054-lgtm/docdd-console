@@ -12,6 +12,8 @@ const { data: report, status, error: compareError, execute } = useFetch<{ differ
   { immediate: false, server: false, watch: false }
 );
 const design = computed(() => data.value?.sysdesign);
+const nodes = computed(() => design.value?.nodes.map((node) => ({ ...node, summary: node.reference })) ?? []);
+const showStandards = ref(false);
 const edges = computed(() => design.value?.relations.map((edge) => ({
   from: edge.from, to: edge.to, type: edge.kind, summary: edge.label
 })) ?? []);
@@ -25,9 +27,14 @@ const edges = computed(() => design.value?.relations.map((edge) => ({
     <template v-else-if="design">
       <p v-if="!design.nodes.length">{{ t('maps.sysdesign.empty') }}</p>
       <template v-else>
-        <LazyStandardMapGraph template="sysdesign" :nodes="design.nodes" :edges="edges" />
-        <details v-for="node in design.nodes" :key="node.id" class="rounded border border-default p-2">
-          <summary>{{ node.title }}</summary>
+        <MapGroupDraft :project-id="projectId" kind="sysdesign" :nodes="design.nodes" />
+        <LazyStandardMapGraph template="sysdesign" :nodes="nodes" :edges="edges">
+          <template #toolbar>
+            <UButton size="xs" :loading="status === 'pending'" @click="execute()">{{ t('sd.compare') }}</UButton>
+            <UButton v-if="design.standards.length" size="xs" variant="outline" :aria-expanded="showStandards" @click="showStandards = !showStandards">{{ t('sd.standards') }}</UButton>
+          </template>
+          <template #node-details="{ node: selected }">
+            <template v-for="node in design.nodes.filter((item) => item.id === selected.id)" :key="node.id">
           <dl class="mt-2 grid gap-1 text-sm">
             <template v-for="field in (['reference', 'inputs', 'outputs', 'formats', 'hot_path', 'algorithm', 'language', 'runtime', 'realized_by'] as const)" :key="field">
               <div v-if="node[field]?.length"><dt class="inline font-medium">{{ t('sd.' + field) }} · </dt><dd class="inline">{{ Array.isArray(node[field]) ? (node[field] as string[]).join(', ') : node[field] }}</dd></div>
@@ -38,8 +45,9 @@ const edges = computed(() => design.value?.relations.map((edge) => ({
               <NuxtLink v-for="id in node.decisions" :key="id" class="mr-2 underline" :to="`/projects/${projectId}/records/${id}`">{{ id }}</NuxtLink>
             </div>
           </dl>
-        </details>
-        <UButton :loading="status === 'pending'" @click="execute()">{{ t('sd.compare') }}</UButton>
+            </template>
+          </template>
+        </LazyStandardMapGraph>
         <p v-if="compareError" role="alert">{{ compareError.message }}</p>
         <div v-else-if="report" aria-live="polite">
           <p v-if="!report.differences.length">{{ t('sd.clean') }}</p>
@@ -50,10 +58,9 @@ const edges = computed(() => design.value?.relations.map((edge) => ({
           </ul>
         </div>
       </template>
-      <details v-if="design.standards.length">
-        <summary>{{ t('sd.standards') }}</summary>
+      <div v-if="showStandards">
         <p v-for="standard in design.standards" :key="standard.id">{{ standard.language }} · {{ standard.configs.join(', ') }} <span v-if="standard.coverage_min !== undefined">· ≥ {{ standard.coverage_min }}%</span></p>
-      </details>
+      </div>
     </template>
   </section>
 </template>

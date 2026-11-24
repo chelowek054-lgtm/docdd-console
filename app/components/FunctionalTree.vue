@@ -58,6 +58,7 @@ const props = defineProps<{
    * оттуда же, где его видно (docs/04-ui.md, «Отметки состояния — пачкой»).
    */
   treeHidden?: boolean;
+  graphEditing?: boolean;
   /**
    * Куда писать правки; по умолчанию — стратегическая карта. Рабочая карта
    * (ADR-0028, п. 3) рисуется этим же деревом и пишет в свой маршрут.
@@ -300,6 +301,8 @@ async function removeCapability(item: Capability) {
   await post({ action: 'remove', capability: { id: item.id } }, t('t83.m2.ft.removed', { title: item.title ?? item.id }));
 }
 
+defineExpose({ openAdd, openEdit, openRelate, removeCapability });
+
 async function saveMarks() {
   const statuses = Object.entries(marks.value).map(([id, value]) => ({
     id,
@@ -418,7 +421,7 @@ function hidePanel(event?: FocusEvent) {
 <template>
   <div>
     <div class="mb-3 flex flex-wrap items-center gap-3">
-      <UButton v-show="!treeHidden" size="xs" icon="i-lucide-plus" variant="soft" @click="openAdd(null)">
+      <UButton v-show="!treeHidden || graphEditing" size="xs" icon="i-lucide-plus" variant="soft" @click="openAdd(null)">
         {{ t('t83.functional-tree.1') }}
       </UButton>
 
@@ -457,7 +460,7 @@ function hidePanel(event?: FocusEvent) {
       :description="failure.detail"
     />
 
-    <UCard v-if="formOpen" v-show="!treeHidden" class="mb-3">
+    <UCard v-if="formOpen" v-show="!treeHidden || graphEditing" class="mb-3">
       <p class="mb-2 text-sm text-muted">
         {{ editingId ? t('t83.m2.ft.editTitle') : t('t83.m2.ft.newTitle') }}
       </p>
@@ -505,7 +508,7 @@ function hidePanel(event?: FocusEvent) {
       />
     </UCard>
 
-    <UCard v-if="relateFrom" v-show="!treeHidden" class="mb-3">
+    <UCard v-if="relateFrom" v-show="!treeHidden || graphEditing" class="mb-3">
       <p class="mb-2 text-sm text-muted">
         {{ t('t83.functional-tree.14', { p: relateFrom.title ?? relateFrom.id }) }}
       </p>

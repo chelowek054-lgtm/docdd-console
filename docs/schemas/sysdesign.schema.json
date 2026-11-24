@@ -107,6 +107,7 @@
     "node": {
       "type": "object",
       "properties": {
+        "parent": { "type": "string", "minLength": 1 },
         "ml": { "$ref": "https://docdd/ml-stage.schema.json" },
         "id": {
           "type": "string",

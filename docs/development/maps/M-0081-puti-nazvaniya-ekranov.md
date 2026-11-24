@@ -52,7 +52,7 @@ updated: 2026-10-24
         "evidence": {
           "path": "app/pages/projects/[id]/maps.vue",
           "line": 32,
-          "fragment": "import { ghostNeighbors, groupCard, groupModules, groupScope"
+          "fragment": "import { groupCard, groupModules, groupScope, portsOf }"
         }
       },
       {
@@ -69,7 +69,7 @@ updated: 2026-10-24
         "to": "server/lib/hierarchy.ts",
         "evidence": {
           "path": "app/pages/projects/[id]/maps.vue",
-          "line": 869,
+          "line": 827,
           "fragment": "import { ancestors, visibleAt, type Edge as HierarchyEdge, t"
         }
       },
@@ -78,7 +78,7 @@ updated: 2026-10-24
         "to": "server/lib/custom-maps.ts",
         "evidence": {
           "path": "app/pages/projects/[id]/maps.vue",
-          "line": 1295,
+          "line": 1253,
           "fragment": "import type { CustomMapView as CustomMapContent } from '~~/s"
         }
       },
@@ -87,7 +87,7 @@ updated: 2026-10-24
         "to": "server/lib/types.ts",
         "evidence": {
           "path": "app/pages/projects/[id]/maps.vue",
-          "line": 1296,
+          "line": 1254,
           "fragment": "import type { CustomMapDefinition } from '~~/server/lib/type"
         }
       }

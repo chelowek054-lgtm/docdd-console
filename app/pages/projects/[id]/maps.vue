@@ -29,7 +29,7 @@ import {
   kindScope,
   type FlowItem
 } from '~~/server/lib/flow-groups';
-import { ghostNeighbors, groupCard, groupModules, groupScope, portsOf } from '~~/server/lib/groups';
+import { groupCard, groupModules, groupScope, portsOf } from '~~/server/lib/groups';
 import { layerOf } from '~~/server/lib/layers';
 import type { ProjectMap } from '~~/server/lib/maps';
 import { emptyProjectMap } from '~~/server/lib/maps';
@@ -278,11 +278,9 @@ const capabilityTitles = computed(() => Object.fromEntries(
 ));
 
 /** Выбранный модуль открытой группы — его соседи из других групп показываются «призраками». */
-const ghostFor = ref<string | null>(null);
 
 function goTo(query: { view?: string; group?: string }) {
   selection.value = null;
-  ghostFor.value = null;
   void router.push({ query: { ...route.query, view: undefined, group: undefined, open: undefined, depth: undefined, ...query } });
 }
 const showGroups = () => goTo({ view: 'groups' });
@@ -333,7 +331,6 @@ const flowGroupTitle = computed(() => flowGrouping.value?.codeGroups.find((group
 
 function goFlow(query: { fview?: string; fgroup?: string; fkind?: string }) {
   selection.value = null;
-  ghostFor.value = null;
   void router.push({ query: { ...route.query, fview: undefined, fgroup: undefined, fkind: undefined, ...query } });
 }
 const showFlowGroups = () => goFlow({ fview: 'groups' });
@@ -362,7 +359,6 @@ const scopeKey = computed(() => `${codemapMode.value}:${openGroupId.value}`);
 watch([scopeKey, flowScopeKey], () => {
   chosenHiddenLayers.value = null;
   selection.value = null;
-  ghostFor.value = null;
 });
 
 /**
@@ -452,11 +448,7 @@ const codemapView = computed(() => {
   const base = filteredCodemap.value ?? value.codemap;
   if (codemapMode.value === 'all') return codemapMermaid({ ...value, codemap: base }, { violations: violations.value });
 
-  const selected = ghostFor.value && base.modules.some((item) => item.id === ghostFor.value) ? ghostFor.value : null;
-  // Без выбора — внешние узлы всей группы (R-0145); выбор сужает их до соседей модуля.
-  const near = selected
-    ? ghostNeighbors(found, openGroupId.value, selected, value.codemap.modules, value.codemap.imports)
-    : groupBoundary(found, openGroupId.value, value.codemap.modules, value.codemap.imports);
+  const near = groupBoundary(found, openGroupId.value, value.codemap.modules, value.codemap.imports);
   return codemapMermaid({ ...value, codemap: base }, {
     violations: violations.value,
     ports: portsOf(found, openGroupId.value, value.codemap.imports),
@@ -511,13 +503,7 @@ const dataflowView = computed(() => {
     return dataflowMermaid(restricted(rewritten));
   }
 
-  const selected = ghostFor.value
-    && (scope.flows.some((flow) => flow.from === ghostFor.value) || scope.sources.some((source) => source.id === ghostFor.value))
-    ? ghostFor.value
-    : null;
-  const near = selected
-    ? flowGhosts(ctx, flowGroupId.value, selected, value.dataflow.flows)
-    : { ghosts: [], flows: [] };
+  const near = flowGhosts(ctx, flowGroupId.value, undefined, value.dataflow.flows);
   return dataflowMermaid(restricted(scope.flows), {
     selectableFrom: true,
     ghosts: near.ghosts,
@@ -530,11 +516,6 @@ const dataflowView = computed(() => {
 });
 
 /** Выбранный узел группы кода — по нему диаграмма держит фокус. */
-const flowFocusKey = computed(() => {
-  const id = ghostFor.value;
-  if (!id || flowMode.value !== 'code' || !map.value) return null;
-  return map.value.dataflow.sources.some((source) => source.id === id) ? sourceNodeId(id) : fromNodeId(id);
-});
 
 /** Переключатель «Группы» / «Все …» — у кодовой карты и у потоков данных, когда есть из чего выбирать. */
 const hasGroupSwitch = computed(() => {
@@ -551,13 +532,6 @@ const flowKindLabel = computed(() => {
 });
 
 /** Узлы-призраки: полупрозрачные (0.65), а не 0.5 — это другое, чем «карта не устоялась». */
-const ghostNodeIds = computed(() => {
-  const set = new Set<string>();
-  for (const [key, node] of Object.entries(current.value?.nodes ?? {})) {
-    if (node.ghost) set.add(key);
-  }
-  return set;
-});
 
 /**
  * Узлы, объявленные картой, которая ещё не устоялась (`server/lib/maps.ts`,
@@ -565,13 +539,6 @@ const ghostNodeIds = computed(() => {
  * поле каждый по-своему, MermaidDiagram.vue берёт его отдельным id-списком,
  * т.к. не получает полный `nodes`).
  */
-const pendingNodeIds = computed(() => {
-  const set = new Set<string>();
-  for (const [key, node] of Object.entries(current.value?.nodes ?? {})) {
-    if (node.pending) set.add(key);
-  }
-  return set;
-});
 
 /**
  * Состояние реализации функциональной карты: отметки, ещё не сохранённые в
@@ -743,7 +710,7 @@ const views = computed(() => {
         plan: { priority: planPriority.value, horizon: planHorizon.value },
         onlyRisks: onlyRisks.value,
         legendInside: false,
-        selected: capFocus.value,
+        selected: impactOn.value ? capFocus.value : null,
         impact: impactOn.value
       }))
     }
@@ -764,13 +731,6 @@ const shown = ref<'codemap' | 'dataflow' | 'userflow' | 'functional'>(startTab);
 const codeTab = ref<'inventory' | 'graph'>(route.query['group'] || route.query['view'] ? 'graph' : 'inventory');
 const current = computed(() => views.value.find((view) => view.key === shown.value));
 
-/**
- * 2D — основной режим: детерминированная раскладка по слоям, читаемая без
- * привыкания. 3D — переключатель поверх неё же для обзора плотной картины
- * (`MermaidDiagram3D.vue`); функциональной карте (дерево, не граф связей) он
- * не идёт — у неё связей вообще нет (docs/07-maps.md), 3D нечего раскладывать.
- */
-const viewMode = ref<'2d' | '3d'>('2d');
 
 /**
  * У функциональной карты свой переключатель — дерево (читает доменный
@@ -834,8 +794,6 @@ function onNodeClick(id: string) {
   }
   selection.value = { kind: 'node', ...node };
   // Выбранный модуль открытой группы показывает соседей из других групп; призрак выбором не становится.
-  if (shown.value === 'codemap' && codemapMode.value === 'group' && !node.ghost) ghostFor.value = node.id;
-  if (shown.value === 'dataflow' && flowMode.value === 'code' && !node.ghost) ghostFor.value = node.id;
 }
 function onNodeDblClick(id: string) {
   const node = current.value?.nodes?.[id];
@@ -852,7 +810,6 @@ function openGroupFromCard(groupId: string) {
 }
 function onBackgroundClick() {
   selection.value = null;
-  ghostFor.value = null;
 }
 function onEdgeClick(edge: MermaidEdge) {
   if (edge.link) {
@@ -1657,7 +1614,7 @@ watch(views, (list) => {
         <!-- Общий контейнер диаграммы и карточки узла: на весь экран
              разворачивается он, а не сама диаграмма, — иначе карточка (портал
              рядом) из фуллскрина не видна (docs/04-ui.md, «Карты»). -->
-        <div v-show="!asideShown" ref="stage" class="[&:fullscreen]:overflow-auto [&:fullscreen]:bg-default [&:fullscreen]:p-4">
+        <div v-if="!asideShown" ref="stage" class="[&:fullscreen]:overflow-auto [&:fullscreen]:bg-default [&:fullscreen]:p-4">
           <UCard v-if="current">
             <template #header>
               <div class="flex flex-wrap items-center gap-3">
@@ -1695,16 +1652,11 @@ watch(views, (list) => {
                       {{ current.key === 'dataflow' ? t('maps.allFlows') : t('maps.allModules') }}
                     </UButton>
                   </div>
-                  <UTabs
-                    v-model="viewMode"
-                    :class="hasGroupSwitch ? 'w-40' : 'ml-auto w-40'"
-                    size="xs"
-                    :items="[{ label: '2D', value: '2d' }, { label: '3D', value: '3d' }]"
-                  />
+
                 </template>
                 <!-- Число уже видно бейджем на вкладке — здесь дублировать незачем. -->
                 <UButton
-                  v-if="current.text && (current.key === 'functional' ? functionalView === 'graph' : viewMode === '2d')"
+                  v-if="current.text && (current.key !== 'functional' || functionalView === 'graph')"
                   size="sm"
                   variant="ghost"
                   color="neutral"
@@ -1966,23 +1918,10 @@ watch(views, (list) => {
                 </p>
                 <template v-else>
                   <!-- Легенда — полоса над схемой (FunctionalLegendBar), вне холста. -->
-                  <MermaidDiagram
-                    :key="`${capLevel}:${capGroupId}`"
-                    :source="current.text"
-                    :details="current.details"
-                    :paths="current.paths"
-                    :edges="current.edges"
-                    :neighbors="current.neighbors"
-                    :pending-ids="pendingNodeIds"
-                    :ghost-ids="ghostNodeIds"
-                    :focus-key="capFocus && capLevel !== 'groups' ? fromNodeId(capFocus) : null"
-                    :keep-view="true"
-                    :fullscreen-target="stage"
-                    :id="`map-${current.key}`"
-                    @node-click="onNodeClick"
-                    @node-dblclick="onNodeDblClick"
-                    @background-click="onBackgroundClick"
-                    @edge-click="onEdgeClick"
+                  <ProjectedMapGraph
+                    :graph="current" template="strategic" :view-id="`strategy:${capGroupId ?? ''}`"
+                    @select="onNodeClick" @open="onNodeDblClick"
+                    @clear="onBackgroundClick" @relation="onEdgeClick"
                   />
                 </template>
               </template>
@@ -2006,37 +1945,14 @@ watch(views, (list) => {
               <p v-if="!current.text" class="text-sm text-muted">
                 {{ t('maps.notDescribed') }}
               </p>
-              <MermaidDiagram3D
-                v-else-if="viewMode === '3d'"
-                :key="scopeKey"
-                :nodes="current.nodes"
-                :edges="current.edges"
-                :fullscreen-target="stage"
-                :id="`map-${current.key}-3d`"
-                @node-click="onNodeClick"
-                @edge-click="onEdgeClick"
-              />
+
               <!-- Ключ — область (все / группы / одна группа): другая область — новый вид, а выбор модуля внутри
                    области перерисовывает диаграмму, не сбрасывая масштаб. -->
-              <MermaidDiagram
-                v-else
-                :key="shown === 'codemap' ? scopeKey : shown === 'dataflow' ? flowScopeKey : shown"
-                :source="current.text"
-                :details="current.details"
-                :paths="current.paths"
-                :edges="current.edges"
-                :neighbors="current.neighbors"
-                :pending-ids="pendingNodeIds"
-                :ghost-ids="ghostNodeIds"
-                :focus-key="shown === 'codemap' && ghostFor ? moduleNodeId(ghostFor) : shown === 'dataflow' ? flowFocusKey : null"
-                :keep-view="true"
-                :fullscreen-target="stage"
-                :id="`map-${current.key}`"
-                @node-click="onNodeClick"
-                @node-dblclick="onNodeDblClick"
-                @background-click="onBackgroundClick"
-                @edge-click="onEdgeClick"
-              />
+              <ProjectedMapGraph v-else
+                    :graph="current" template="codebase" :view-id="`${shown}:${scopeKey}:${flowScopeKey}`"
+                    @select="onNodeClick" @open="onNodeDblClick"
+                    @clear="onBackgroundClick" @relation="onEdgeClick"
+                  />
             </template>
           </UCard>
 

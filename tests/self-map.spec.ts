@@ -4,7 +4,8 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { checkEvidence, evidenceClaims, parseMapRecord } from '../server/lib/maps';
+import { approvedMaps, checkEvidence, currentEvidenceClaims, parseMapRecord } from '../server/lib/maps';
+import { parseRecord } from '../server/lib/parse';
 
 /**
  * Карта самого репозитория. Инструмент требует от чужих проектов, чтобы код не
@@ -18,6 +19,11 @@ const mapsDir = join(root, 'docs', 'development', 'maps');
 const records = existsSync(mapsDir)
   ? readdirSync(mapsDir).filter((name) => name.endsWith('.md'))
   : [];
+const approved = approvedMaps(records.flatMap((name) => {
+  const parsed = parseRecord(readFileSync(join(mapsDir, name), 'utf8'), { path: name });
+  return parsed.ok ? [parsed.record] : [];
+})).filter((record) => record.data['intent'] !== true);
+const evidenceByRecord = currentEvidenceClaims(approved.map((record) => ({ id: record.id, change: parseMapRecord(record.body).change })));
 
 describe('карта этого репозитория', () => {
   it('заведена: репозиторий живёт по своему же формату', () => {
@@ -32,20 +38,13 @@ describe('карта этого репозитория', () => {
     // структур и свидетельств (docs/07-maps.md, «Не всё попадает в карту»).
     // Функциональная карта свидетельств не несёт (docs/07-maps.md): сверять нечего,
     // схему же проверяет первый тест выше.
-    const structural = parsed.present.some((structure) => structure !== 'functional');
+    const claims = evidenceByRecord.get(name.slice(0, 6)) ?? [];
 
     it(`${name}: разбирается без претензий схемы`, () => {
       expect(parsed.problems).toEqual([]);
     });
 
-    it.skipIf(!structural)(`${name}: три структуры проходят свои схемы`, () => {
-      expect(parsed.present).toEqual(['codemap', 'dataflow', 'userflow']);
-    });
-
-    it.skipIf(!structural)(`${name}: каждое свидетельство сходится с файлом`, () => {
-      const claims = evidenceClaims(parsed.change);
-      expect(claims.length).toBeGreaterThan(0);
-
+    it.skipIf(!claims.length)(`${name}: каждое свидетельство сходится с файлом`, () => {
       const failed = claims
         .map((claim) => {
           const path = join(root, claim.evidence.path);

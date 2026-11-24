@@ -412,7 +412,7 @@ updated: 2026-10-11
         {"from":"server/lib/prompt.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/prompt.ts","line":3,"fragment":"import type { ArchitectureConfig, IssueDto } from './types';"}},
         {"from":"server/lib/reports.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/reports.ts","line":1,"fragment":"import type { Report, VerificationOutcome, VerificationResul"}},
         {"from":"server/lib/rules.ts","to":"server/lib/graph.ts","evidence":{"path":"server/lib/rules.ts","line":1,"fragment":"import { findDependencyCycles, incomingEdges, outgoing, type"}},
-        {"from":"server/lib/rules.ts","to":"server/lib/maps.ts","evidence":{"path":"server/lib/rules.ts","line":8,"fragment":"import { approvedMaps, checkEvidence, evidenceClaims, foldMa"}},
+        {"from":"server/lib/rules.ts","to":"server/lib/maps.ts","evidence":{"path":"server/lib/rules.ts","line":10,"fragment":"import { approvedMaps, checkEvidence, currentEvidenceClaims,"}},
         {"from":"server/lib/rules.ts","to":"server/lib/parse.ts","evidence":{"path":"server/lib/rules.ts","line":9,"fragment":"import { firstHeading } from './parse';"}},
         {"from":"server/lib/scaffold.ts","to":"server/lib/types.ts","evidence":{"path":"server/lib/scaffold.ts","line":1,"fragment":"import { PREFIX_BY_TYPE, RECORD_TYPES, SECTION_BY_TYPE, type"}},
         {"from":"server/lib/scaffold.ts","to":"server/lib/write.ts","evidence":{"path":"server/lib/scaffold.ts","line":2,"fragment":"import { journalLine, yamlSafe } from './write';"}},

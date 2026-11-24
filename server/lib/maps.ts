@@ -382,6 +382,21 @@ export function evidenceClaims(change: MapChange): EvidenceClaim[] {
 
 export type EvidenceVerdict = 'ok' | 'missing' | 'stale' | 'still_present' | 'pending';
 
+/** An explicit removal retires the matching earlier claim without erasing its history. */
+export function currentEvidenceClaims(changes: readonly { id: string; change: MapChange }[]): Map<string, EvidenceClaim[]> {
+  const result = new Map<string, EvidenceClaim[]>();
+  const retired = new Set<string>();
+  const key = ({ structure, label, evidence }: EvidenceClaim) => JSON.stringify([structure, label, evidence.path, evidence.fragment]);
+  for (const { id, change } of [...changes].reverse()) {
+    const claims = evidenceClaims(change);
+    result.set(id, claims.filter((claim) => claim.side === 'removed' || !retired.has(key(claim))));
+    for (const claim of claims) {
+      if (claim.side === 'removed') retired.add(key(claim));
+    }
+  }
+  return result;
+}
+
 /** Насколько строка могла уехать, чтобы свидетельство всё ещё считалось живым. */
 const DRIFT_LINES = 3;
 

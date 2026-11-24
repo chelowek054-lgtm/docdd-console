@@ -7,8 +7,8 @@ import { buildReferenceIndex, sameIndex, type ReferenceEntry } from './reference
 import type { RulesResolution } from './practice-rules';
 import { capabilityFindings } from './coverage';
 import { taskGaps } from './batch-check'; import { brokenMapLinks, inputsNotReady, effectiveHorizon, effectiveOwner, effectivePriority } from './functional';
-import { approvedMaps, checkEvidence, evidenceClaims, foldMaps, parseMapRecord, type MapChange } from './maps';
-import { lintDomainChange, lintCustomChange, lintStrategicChange, missingRequired, standardFor, type CustomDefinitionLike, type LintFinding } from './map-core';
+import { approvedMaps, checkEvidence, currentEvidenceClaims, type EvidenceClaim, foldMaps, parseMapRecord } from './maps';
+import { lintDomainChange, lintCustomChange, lintMapParents, lintStrategicChange, missingRequired, standardFor, type CustomDefinitionLike, type LintFinding } from './map-core';
 import { firstHeading } from './parse';
 import { mockupColors, mockupOf, offTokenColors } from './design-mockups';
 import { DEFAULT_MOCKUPS_DIR, screenSlug } from './design-screens';
@@ -442,10 +442,14 @@ function lintViolation(finding: LintFinding, record: WorkRecord): Violation {
 }
 
 export function checkMaps(ctx: RuleContext): Violation[] {
+  const activeEvidence = currentEvidenceClaims(approvedMaps(ctx.records)
+    .filter((record) => record.data['intent'] !== true && settled(ctx, record.id))
+    .map((record) => ({ id: record.id, change: parseMapRecord(record.body).change })));
   const found: Violation[] = [];
   // Сложенная стратегическая карта — для линтера: узел записи сверяется с прежним состоянием узла.
   let strategic: { capabilities: { id: string; title?: string; summary?: string; parent?: string }[] } | null = null;
   let domain: ReturnType<typeof foldMaps>['domain'] | undefined;
+  let sysdesign: ReturnType<typeof foldMaps>['sysdesign'] | undefined;
   let custom: { nodes: { map?: string; id: string; title?: string; summary?: string; parent?: string }[] } | null = null;
 
   for (const record of ctx.records) {
@@ -462,11 +466,22 @@ export function checkMaps(ctx: RuleContext): Violation[] {
     }
     if ((record.status === 'draft' || record.status === 'review') && parsed.change.domain) {
       domain ??= foldMaps(approvedMaps(ctx.records).map((item) => ({ id: item.id, change: parseMapRecord(item.body).change }))).domain;
+      const { added, removed } = parsed.change.domain;
+      for (const item of lintMapParents(added?.nodes ?? [], removed?.nodes ?? [], domain.nodes ?? [])) {
+        found.push(lintViolation(item, record));
+      }
       const standard = standardFor('domain')?.standard;
       if (standard) {
         for (const item of lintDomainChange(parsed.change.domain, domain, standard, ctx.readSource?.(record.source.path) ?? undefined)) {
           found.push(lintViolation(item, record));
         }
+      }
+    }
+    if ((record.status === 'draft' || record.status === 'review') && parsed.change.sysdesign) {
+      sysdesign ??= foldMaps(approvedMaps(ctx.records).map((item) => ({ id: item.id, change: parseMapRecord(item.body).change }))).sysdesign;
+      const { added, removed } = parsed.change.sysdesign;
+      for (const item of lintMapParents(added?.nodes ?? [], removed?.nodes ?? [], sysdesign.nodes)) {
+        found.push(lintViolation(item, record));
       }
     }
     if ((record.status === 'draft' || record.status === 'review') && parsed.change.custom && ctx.customMaps?.length) {
@@ -496,7 +511,7 @@ export function checkMaps(ctx: RuleContext): Violation[] {
     // Незакрытая задача означает, что кода ещё нет: это план, а не расхождение.
     if (!settled(ctx, record.id)) continue;
 
-    found.push(...verifyEvidence(ctx, record.id, record.source.path, parsed.change));
+    found.push(...verifyEvidence(ctx, record.id, record.source.path, activeEvidence.get(record.id) ?? []));
   }
 
   return found;
@@ -533,12 +548,12 @@ export function checkRequiredMaps(ctx: RuleContext): Violation[] {
   )));
 }
 
-function verifyEvidence(ctx: RuleContext, id: string, path: string, change: MapChange): Violation[] {
+function verifyEvidence(ctx: RuleContext, id: string, path: string, claims: readonly EvidenceClaim[]): Violation[] {
   const found: Violation[] = [];
   const read = ctx.readSource;
   if (!read) return found;
 
-  for (const claim of evidenceClaims(change)) {
+  for (const claim of claims) {
     const verdict = checkEvidence(claim.evidence, read(claim.evidence.path), claim.side);
     const where = `\`${claim.evidence.path}\`:${claim.evidence.line}`;
 

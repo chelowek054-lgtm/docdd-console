@@ -26,6 +26,7 @@
     "node": {
       "type": "object", "required": ["id"], "additionalProperties": false,
       "properties": {
+        "parent": { "type": "string", "minLength": 1 },
         "id": { "type": "string", "minLength": 1 },
         "title": { "type": "string", "minLength": 1 },
         "kind": { "enum": ["concept", "rule", "event", "actor", "context", "aggregate", "process"] },
