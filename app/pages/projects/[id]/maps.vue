@@ -392,12 +392,12 @@ const chosenHiddenLayers = ref<Set<string> | null>(null);
 /**
  * Слои кодовой базы — чипы над диаграммой. Клик изолирует: остаётся виден
  * только этот слой, повторный клик по нему же возвращает все. На крупной
- * базе, пока человек ни разу не тронул чипы, изолирован сам маленький слой
- * — не все сотни модулей разом (docs/07-maps.md, «Крупная кодовая база»).
+ * базе детальный вид может начать с самого маленького слоя. Обзор групп
+ * сворачивает все слои, чтобы показать границы всей кодовой базы.
  */
 const hiddenLayers = computed(() => {
   if (chosenHiddenLayers.value) return chosenHiddenLayers.value;
-  if (!isLargeCodemap.value || !smallestLayer.value || groupFoldsChildren()) return new Set<string>();
+  if (codemapMode.value === 'groups' || !isLargeCodemap.value || !smallestLayer.value || groupFoldsChildren()) return new Set<string>();
   return new Set(allLayers.value.filter((layer) => layer !== smallestLayer.value));
 });
 function toggleLayer(layer: string) {
@@ -958,7 +958,7 @@ function foldedDiagram(
     lines.push(`    ${id}["${foldText(node.title)}${tail}"]${cls ? `:::${cls}` : ''}`);
     out.details[id] = node.expandable ? t('t83.m2.fold.collapsed', { title: node.title, size: node.size, unit }) : node.title;
     out.nodes[id] = {
-      id: node.key, title: node.title, ...(node.summary ? { summary: node.summary } : {}), ...node.extra,
+      id: node.key, title: node.title, expandable: node.expandable, ...(node.summary ? { summary: node.summary } : {}), ...node.extra,
       ...(ghost ? { ghost: { groupId: node.key, groupTitle: node.title } } : {})
     };
   }

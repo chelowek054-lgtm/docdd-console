@@ -15,7 +15,7 @@ const nodes = computed(() => {
       id,
       title: node?.title ?? node?.id ?? props.graph.details[id] ?? id,
       ...(node?.summary ? { summary: node.summary } : {}),
-      ...(props.template === 'codebase' && node?.group ? { kind: 'group' } : {})
+      ...(props.template === 'codebase' && (node?.group || node?.expandable) ? { kind: 'group' } : {})
     };
   });
 });

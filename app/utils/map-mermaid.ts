@@ -105,6 +105,7 @@ export interface LinkCard {
 
 export interface MermaidNode {
   id: string;
+  expandable?: boolean;
   title?: string;
   layer?: string;
   path?: string;
