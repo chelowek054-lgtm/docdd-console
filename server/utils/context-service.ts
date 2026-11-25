@@ -20,6 +20,9 @@ const GLOSSARY_ROLES = new Set(['analyst', 'domain']);
 
 /** Что нужно каждому виду запроса; чего нет в списке, в пакет не попадает. */
 export const NEEDS: Record<string, ContextNeeds> = {
+  'chat-general': { kinds: ['record', 'links', 'vision'], depth: 1, budget: 4_000 },
+  'chat-developer': { kinds: ['record', 'links', 'codemap'], depth: 1, budget: 6_000 },
+  'chat-architect': { kinds: ['record', 'links', 'capability', 'vision'], depth: 1, budget: 6_000 },
   ask: { kinds: ['record', 'links', 'capability', 'vision', 'glossary'], depth: 1, budget: 24_000 },
   task: { kinds: ['record', 'links', 'capability', 'vision', 'reference', 'glossary', 'codemap'], depth: 1, linkKinds: ['implements', 'depends_on', 'reuses', 'affects', 'refines'], budget: 40_000 },
   fix: { kinds: ['record', 'issues', 'vision'], depth: 0, budget: 12_000 },

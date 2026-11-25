@@ -4,6 +4,7 @@ import { renderContextPack } from '../../../../lib/context-pack';
 import { fail } from '../../../../utils/http';
 import { packFor } from '../../../../utils/context-service';
 import { findProject } from '../../../../utils/projects';
+import { fingerprintProject, memoByFingerprint } from '../../../../utils/memo';
 
 /** Грубая оценка: около трёх знаков русского текста на токен. Цена — ориентир, а не счёт. */
 const CHARS_PER_TOKEN = 3;
@@ -27,7 +28,11 @@ export default defineEventHandler(async (event) => {
   const allowConfidential = body?.allowConfidential === true;
 
   try {
-    const pack = packFor(project.root, centerId, typeof body?.need === 'string' ? body.need : 'ask');
+    const need = typeof body?.need === 'string' ? body.need : 'ask';
+    const build = () => packFor(project.root, centerId, need);
+    const pack = ['chat-general', 'chat-developer', 'chat-architect'].includes(need)
+      ? memoByFingerprint(project.root, JSON.stringify(['chat-context', centerId, need]), () => fingerprintProject(project.root), build)
+      : build();
     const sent = pack.chunks.filter((chunk) => !exclude.has(chunk.key) && (allowConfidential || !chunk.confidential));
     const size = sent.reduce((sum, chunk) => sum + chunk.size, 0);
     const tokens = Math.ceil(size / CHARS_PER_TOKEN);

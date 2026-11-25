@@ -81,7 +81,7 @@ const allEntries = computed<NavEntry[]>(() => {
   if (!projectId.value) return [];
   const base = `/projects/${projectId.value}`;
   return [
-    { kind: 'link', key: 'overview', label: t('nav.overview'), to: base }, { kind: 'link', key: 'strategy', label: t('nav.strategy'), to: `${base}/strategy` },
+    { kind: 'link', key: 'overview', label: t('nav.overview'), to: base },
     {
       kind: 'group',
       label: t('nav.documents'),
@@ -99,6 +99,7 @@ const allEntries = computed<NavEntry[]>(() => {
       label: t('nav.work'),
       links: [
         { key: 'tasks', label: t('nav.tasks'), to: `${base}/work?tab=tasks`, count: openTasks.value },
+        { key: 'chat', label: t('nav.chat'), to: `${base}/chat` },
         { key: 'phases', label: t('nav.phases'), to: `${base}/work?tab=phases`, count: openPhases.value },
         { key: 'backlog', label: t('nav.backlog'), to: `${base}/work?tab=backlog` },
         { key: 'manager', label: t('nav.manager'), to: `${base}/manager` },
@@ -116,7 +117,6 @@ const allEntries = computed<NavEntry[]>(() => {
         { key: 'graph', label: t('nav.graph'), to: `${base}/verify?tab=graph` }
       ]
     },
-    { kind: 'link', key: 'maps', label: t('nav.maps'), to: `${base}/maps`, count: unconfirmed('map') },
     {
       kind: 'group',
       label: t('nav.fill'),
@@ -144,6 +144,19 @@ const entries = computed<NavEntry[]>(() => allEntries.value.flatMap((entry): Nav
   return links.length ? [{ ...entry, links }] : [];
 }));
 
+const overviewGroup = computed<Extract<NavEntry, { kind: 'group' }> | null>(() => {
+  if (!projectId.value) return null;
+  const base = `/projects/${projectId.value}`;
+  const links: NavLink[] = [
+    { key: 'overview', label: t('nav.overview'), to: base },
+    { key: 'strategy', label: t('nav.strategy'), to: `${base}/strategy` },
+    { key: 'maps', label: t('nav.maps'), to: `${base}/maps`, count: unconfirmed('map') }
+  ];
+  return { kind: 'group', label: t('nav.overview'), links: links.filter((link) => navVisible(link.key, role.value)) };
+});
+
+const overviewActive = computed(() => overviewGroup.value?.links.some((link) => link.to === route.path) ?? false);
+
 /**
  * Пункты меню для глобального поиска — если человек потерялся (docs/04-ui.md, «Поиск»):
  * видимые роли пункты проекта и общие экраны консоли.
@@ -152,6 +165,9 @@ const searchLinks = computed(() => [
   ...entries.value.flatMap((entry) => (entry.kind === 'link'
     ? [{ label: entry.label, group: '', to: entry.to, hints: NAV_HINTS[entry.key] }]
     : entry.links.map((link) => ({ label: link.label, group: entry.label, to: link.to, hints: NAV_HINTS[link.key] })))),
+  ...(overviewGroup.value?.links.filter((link) => link.key !== 'overview').map((link) => ({
+    label: link.label, group: t('nav.overview'), to: link.to, hints: NAV_HINTS[link.key]
+  })) ?? []),
   { label: t('nav.portfolio'), group: '', to: '/portfolio', hints: 'портфель все проекты portfolio' },
   { label: t('nav.usage'), group: '', to: '/usage', hints: 'как пользоваться помощь инструкция справка help' },
   { label: t('nav.allProjects'), group: '', to: '/', hints: 'проекты список выбрать проект projects' }
@@ -246,8 +262,9 @@ function linkActive(to: string, links: NavLink[]): boolean {
 }
 
 /** Группа, в которой открыт экран: её пункты — строкой вкладок под шапкой. */
-const activeGroup = computed(() => entries.value.find((entry): entry is Extract<NavEntry, { kind: 'group' }> =>
-  entry.kind === 'group' && entry.links.some((link) => link.to.split('?')[0] === route.path)) ?? null);
+const activeGroup = computed(() => overviewActive.value ? overviewGroup.value
+  : entries.value.find((entry): entry is Extract<NavEntry, { kind: 'group' }> =>
+    entry.kind === 'group' && entry.links.some((link) => link.to.split('?')[0] === route.path)) ?? null);
 
 /** Вкладка документов различается запросом, а подсветка — по пути экрана. */
 function isActive(to: string): boolean {
@@ -272,7 +289,7 @@ function isActive(to: string): boolean {
             <UButton
               v-if="entry.kind === 'link'"
               :to="entry.to"
-              :variant="isActive(entry.to) ? 'soft' : 'ghost'"
+              :variant="(entry.key === 'overview' ? overviewActive : isActive(entry.to)) ? 'soft' : 'ghost'"
               color="neutral"
               size="sm"
               class="whitespace-nowrap"

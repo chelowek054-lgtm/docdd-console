@@ -12,7 +12,7 @@ export type NavRoleChoice = NavRole | '';
 
 export type NavKey =
   | 'overview' | 'strategy' | 'requirements' | 'designDocs' | 'decisions' | 'contracts' | 'reference' | 'glossary'
-  | 'tasks' | 'phases' | 'manager' | 'releases'
+  | 'tasks' | 'phases' | 'manager' | 'releases' | 'chat'
   | 'checks' | 'run' | 'results' | 'issues' | 'graph'
   | 'maps' | 'inbox' | 'import' | 'onboarding'
   | 'design' | 'analyst' | 'practices';
@@ -31,7 +31,7 @@ const BY_ROLE: Record<NavRole, readonly NavKey[]> = {
 };
 
 /** Обзор нужен всем: это первый экран проекта. */
-const ALWAYS: readonly NavKey[] = ['overview'];
+const ALWAYS: readonly NavKey[] = ['overview', 'chat'];
 
 export function navVisible(key: NavKey, role: NavRoleChoice): boolean {
   if (!role || ALWAYS.includes(key)) return true;
@@ -56,6 +56,7 @@ export const NAV_HINTS: Record<NavKey, string> = {
   reference: 'справочник справки библиотеки зависимости переиспользование reference',
   glossary: 'глоссарий термины словарь glossary terms',
   tasks: 'задачи тикеты задача jira бэклог tasks backlog',
+  chat: 'чат модель помощник harness chat assistant',
   phases: 'фазы этапы спринты план порядок phases sprints',
   manager: 'менеджер доска канбан дорожная карта вехи сводка заказчику board roadmap',
   releases: 'релизы версии выкладка окружения прод деплой releases deploy',
