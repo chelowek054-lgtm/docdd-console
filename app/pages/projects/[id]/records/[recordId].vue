@@ -89,6 +89,8 @@ function entries(
         <h1 class="text-xl font-semibold">{{ detail.record.title }}</h1>
         <UBadge color="neutral" variant="subtle">{{ typeLabel(detail.record.type) }}</UBadge>
         <StatusBadge :status="detail.record.status" :type="detail.record.type" />
+        <UButton v-if="detail.record.type === 'task' || detail.record.type === 'phase'" size="xs" variant="soft"
+          :to="{ path: '/projects/' + encodeURIComponent(projectId) + '/chat', query: { record: recordId } }">{{ t('chat.openRecord') }}</UButton>
       </div>
 
       <p class="text-sm text-muted">

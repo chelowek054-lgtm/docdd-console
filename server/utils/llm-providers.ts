@@ -1,10 +1,23 @@
-import { listProviders, registerProvider, unregisterProvider } from '../lib/llm-provider';
+import { listProviders, registerProvider, unregisterProvider, type Provider } from '../lib/llm-provider';
 
 import { anthropicProvider } from './llm-anthropic';
 import { claudeCodeProvider } from './llm-claude';
 import { openAiProvider } from './llm-openai';
 import { codexProvider, geminiProvider } from './llm-agents';
-import { loadLlmSettings } from './llm-settings';
+import { loadLlmSettings, type ProviderSetting } from './llm-settings';
+
+export const apiProvider = (setting: ProviderSetting) => setting.type === 'anthropic' ? anthropicProvider(setting) : openAiProvider(setting);
+
+export async function probeProvider(provider: Provider, model?: string) {
+  const result = await provider.ask({
+    prompt: 'Ответь одним словом: привет. Не используй инструменты.',
+    model,
+    access: 'none',
+    timeoutMs: 30000,
+    maxOutputTokens: 512
+  });
+  return result.ok ? { ok: true as const, ms: result.ms } : { ok: false as const, failure: { code: result.failure.code } };
+}
 
 /**
  * Собирает реестр из настроек. Вызывается при каждой правке настроек, поэтому
@@ -17,7 +30,7 @@ export async function syncProviders(): Promise<void> {
   for (const setting of settings.providers) {
     if (setting.enabled === false) continue;
     wanted.add(setting.id);
-    registerProvider(setting.type === 'anthropic' ? anthropicProvider(setting) : openAiProvider(setting));
+    registerProvider(apiProvider(setting));
   }
   // Codex/Gemini подключаются, только если в llm.json названы: `"agents": ["codex-cli", "gemini-cli"]`.
   const named = Array.isArray(settings['agents']) ? settings['agents'] : [];

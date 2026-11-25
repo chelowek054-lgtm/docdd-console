@@ -14,7 +14,7 @@ import { sharedDenied } from '../../utils/mode';
  * (docs/adr/0008-llm-through-claude-code.md).
  */
 export default defineEventHandler(async (event) => {
-  const denied = sharedDenied(event, 'Свободный запрос к модели'); if (denied) return denied; const body = await readBody<{ prompt?: unknown; projectId?: unknown; tools?: unknown; contextTokens?: unknown }>(event);
+  const denied = sharedDenied(event, 'Свободный запрос к модели'); if (denied) return denied; const body = await readBody<{ prompt?: unknown; projectId?: unknown; tools?: unknown; contextTokens?: unknown; trace?: unknown }>(event);
   const prompt = typeof body?.prompt === 'string' ? body.prompt.trim() : '';
   const projectId = typeof body?.projectId === 'string' ? body.projectId : '';
 
@@ -30,7 +30,12 @@ export default defineEventHandler(async (event) => {
   const project = await findProject(projectId);
   const stream = feedStream(event, projectId);
 
-  const result: Awaited<ReturnType<typeof ask>> = await askRouted('ask', { projectId, user: ((event.context as { user?: { login?: string } }).user?.login) ?? 'local', onJob: (id) => stream.queued(id) }, prompt, {
+  let provider: string | undefined;
+  const onProvider = body?.trace === true ? (label: string) => {
+    provider = label;
+    stream.send('action', { kind: 'action', text: label });
+  } : undefined;
+  const result: Awaited<ReturnType<typeof ask>> = await askRouted('ask', { projectId, user: ((event.context as { user?: { login?: string } }).user?.login) ?? 'local', onJob: (id) => stream.queued(id), onProvider }, prompt, {
     ...(project ? { cwd: project.root } : {}),
     // Сигнал соединения не передаём: обновление страницы не отменяет задание (ADR-0034), отмена — DELETE ленты или очереди.
     // Этот запрос спрашивает, а не чинит: до подтверждения человеком в
@@ -52,6 +57,6 @@ export default defineEventHandler(async (event) => {
 
   const contextTokens = Array.isArray(body?.contextTokens)
     ? body.contextTokens.filter((token): token is string => typeof token === 'string').slice(0, 32) : [];
-  stream.send('done', { answer: result.answer, ms: result.ms, ...(contextTokens.length ? { contextTokens } : {}) });
+  stream.send('done', { answer: result.answer, ms: result.ms, ...(provider ? { provider } : {}), ...(contextTokens.length ? { contextTokens } : {}) });
   stream.close();
 });

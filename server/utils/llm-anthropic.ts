@@ -32,7 +32,7 @@ export function anthropicProvider(setting: ProviderSetting): Provider {
           headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
           body: JSON.stringify({
             model: request.model ?? setting.model,
-            max_tokens: 8192,
+            max_tokens: request.maxOutputTokens ?? 8192,
             stream: streaming,
             ...(request.system ? { system: [{ type: 'text', text: request.system, cache_control: { type: 'ephemeral' } }] } : {}),
             messages: [{ role: 'user', content: request.prompt }]

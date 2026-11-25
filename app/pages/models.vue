@@ -2,7 +2,7 @@
 // Экран администратора «Модели»: провайдеры и ключи (T-0022). Значение ключа
 // сюда не приходит — только факт, что он найден; вписанный новый уходит на сервер.
 interface Setting { clearKey?: boolean; id: string; label?: string; type: 'openai' | 'anthropic'; baseUrl?: string; model: string; apiKeyEnv?: string; apiKey?: string; closedData?: boolean; enabled?: boolean; hasKey?: boolean }
-interface Loaded { routes?: Record<string, { providerId: string; model?: string }>; providers: Setting[]; registry: Array<{ id: string; label: string; kind: string; available: boolean; reason?: string }> }
+interface Loaded { agents?: string[]; routes?: Record<string, { providerId: string; model?: string }>; providers: Setting[]; registry: Array<{ id: string; label: string; kind: string; available: boolean; reason?: string }> }
 const { t, locale } = useT();
 const { data, refresh } = await useFetch<Loaded | { error: { message: string } }>('/api/llm/models', { ignoreResponseError: true });
 const error = computed(() => (data.value && 'error' in data.value ? data.value.error.message : ''));
@@ -14,7 +14,7 @@ const saved = ref('');
 // Таблица «вид запроса → модель»: смена модели не требует правки кода (T-0023).
 const routes = ref<Array<{ kind: string; providerId: string; model: string }>>([]);
 watchEffect(() => { if (data.value && 'providers' in data.value) routes.value = Object.entries(data.value.routes ?? {}).map(([kind, r]) => ({ kind, providerId: r.providerId, model: r.model ?? '' })); });
-const providerIds = computed(() => ['claude-code', ...providers.value.map((p) => p.id)]);
+const providerIds = computed(() => ['claude-code', ...agents.value, ...providers.value.map((p) => p.id)]);
 function addRoute() { routes.value.push({ kind: 'ask', providerId: 'claude-code', model: '' }); }
 const routesBody = () => Object.fromEntries(routes.value.filter((r) => r.kind).map((r) => [r.kind, { providerId: r.providerId, ...(r.model ? { model: r.model } : {}) }]));
 // Расходы за месяц (оценка по символам) и очередь запросов выбранного проекта (T-0024, T-0026).
@@ -33,59 +33,152 @@ async function loadQueue() { if (queueProject.value) jobs.value = (await $fetch<
 async function cancelJob(id: string) { await $fetch(`/api/projects/${encodeURIComponent(queueProject.value)}/llm/queue/${id}`, { method: 'DELETE' }).catch(() => null); await loadQueue(); }
 onMounted(() => { void loadQueue(); const timer = setInterval(() => void loadQueue(), 3000); onBeforeUnmount(() => clearInterval(timer)); });
 
-function add() {
-  providers.value.push({ id: `provider-${providers.value.length + 1}`, type: 'openai', baseUrl: 'http://localhost:11434/v1', model: '' });
-}
+const cliProviders = computed(() => registry.value.filter((item) => item.kind === 'agent'));
+const connection = ref<'cli' | 'api'>(routes.value.find((route) => route.kind === 'ask')?.providerId.match(/^(claude-code|codex-cli|gemini-cli)$/) ? 'cli' : 'api');
+const saving = ref(false);
+const probe = ref<{ id: string; ok: boolean }>();
+const savedChat = computed(() => data.value && 'providers' in data.value ? (data.value.routes?.ask?.providerId ?? 'claude-code') : 'claude-code');
+const cliOptions = computed(() => [
+  { id: 'claude-code', label: 'Claude Code' },
+  { id: 'codex-cli', label: 'Codex CLI' },
+  ...cliProviders.value.filter((item) => !['claude-code', 'codex-cli'].includes(item.id))
+].map((item) => ({ ...item, status: cliProviders.value.find((entry) => entry.id === item.id) })));
+const chatLabel = computed(() => cliOptions.value.find((item) => item.id === savedChat.value)?.label
+  ?? (data.value && 'providers' in data.value ? data.value.providers.find((item) => item.id === savedChat.value)?.label : undefined)
+  ?? savedChat.value);
+
 async function save() {
-  const result = await $fetch<{ ok?: boolean }>('/api/llm/models', { method: 'PUT', body: { providers: providers.value, routes: routesBody() }, ignoreResponseError: true } as never).catch(() => null);
-  saved.value = result?.ok ? t('mod.saved') : t('mod.notSaved');
-  await refresh();
+  if (saving.value) return false;
+  saving.value = true;
+  saved.value = '';
+  probe.value = undefined;
+  const outgoingRoutes = routesBody();
+  try {
+    const result = await $fetch<{ ok?: boolean; error?: { message: string }; verification?: { ok: boolean } }>('/api/llm/models', {
+      method: 'PUT',
+      body: { providers: providers.value, routes: outgoingRoutes, agents: agents.value, verifyChat: true },
+      ignoreResponseError: true
+    } as never).catch(() => null);
+    if (result?.verification && outgoingRoutes.ask) probe.value = { id: outgoingRoutes.ask.providerId, ok: result.verification.ok };
+    saved.value = probe.value ? '' : (result?.ok ? t('mod.saved') : (result?.error?.message ?? t('mod.notSaved')));
+    if (result?.ok) await refresh();
+    return result?.ok === true;
+  } finally {
+    saving.value = false;
+  }
 }
 async function check(id: string) {
   checks.value[id] = t('mod.checking');
   const result = await $fetch<{ ok: boolean; ms?: number; failure?: { message: string } }>('/api/llm/models/check', { method: 'POST', body: { id } }).catch(() => null);
   checks.value[id] = result?.ok ? t('mod.linkOk', { ms: result.ms ?? 0 }) : (result?.failure?.message ?? t('mod.noLink'));
 }
+
+const presets = {
+  local: { id: 'provider', baseUrl: 'http://localhost:11434/v1', model: '' },
+  openrouter: { id: 'openrouter', label: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1', model: '' },
+  deepseek: { id: 'deepseek', label: 'DeepSeek', baseUrl: 'https://api.deepseek.com', model: 'deepseek-flash' }
+};
+const agents = ref<string[]>([]);
+watchEffect(() => {
+  if (data.value && 'providers' in data.value) agents.value = [...(data.value.agents ?? [])];
+});
+function add(preset: keyof typeof presets = 'local') {
+  const config = presets[preset];
+  let suffix = preset === 'local' ? 1 : 0;
+  const id = () => suffix ? `${config.id}-${suffix}` : config.id;
+  while (providers.value.some((provider) => provider.id === id())) suffix++;
+  providers.value.push({ ...config, id: id(), type: 'openai' });
+}
+async function useInChat(providerId: string) {
+  if (saving.value) return;
+  const previousRoutes = routes.value.map((route) => ({ ...route }));
+  const previousAgents = [...agents.value];
+  if (providerId === 'codex-cli' && !agents.value.includes(providerId)) agents.value.push(providerId);
+  const route = routes.value.find((item) => item.kind === 'ask');
+  if (route) Object.assign(route, { providerId, model: '' });
+  else routes.value.push({ kind: 'ask', providerId, model: '' });
+  if (await save()) return;
+  routes.value = previousRoutes;
+  agents.value = previousAgents;
+}
 </script>
 
 <template>
   <UContainer class="space-y-4 py-6">
     <h1 class="text-xl font-semibold">{{ t('mod.title') }}</h1>
-    <p class="text-sm text-muted">{{ t('mod.keyHint') }}</p>
     <p v-if="error" class="text-error">{{ error }}</p>
     <template v-else>
-      <ul class="text-sm">
-        <li v-for="item in registry" :key="item.id">{{ item.label }} ({{ item.kind === 'agent' ? t('mod.agent') : t('mod.chat') }}) — {{ item.available ? t('mod.available') : (item.reason ?? t('mod.unavailable')) }}</li>
-      </ul>
-      <div v-for="(p, at) in providers" :key="at" class="grid grid-cols-2 gap-2 border-t border-default py-3">
-        <UInput v-model="p.id" :placeholder="t('mod.id')" />
-        <USelect v-model="p.type" :items="['openai', 'anthropic']" />
-        <UInput v-model="p.baseUrl" :placeholder="t('mod.baseUrl')" />
-        <UInput v-model="p.model" :placeholder="t('mod.model')" />
-        <UInput v-model="p.apiKeyEnv" :placeholder="t('mod.keyEnv')" />
-        <UInput v-model="p.apiKey" type="password" :placeholder="p.hasKey ? t('mod.keyFound') : t('mod.keyOptional')" />
-        <UButton v-if="p.hasKey" size="xs" variant="ghost" color="error" @click="p.clearKey = true; p.apiKey = ''; p.hasKey = false">{{ t('t83.models.1') }}</UButton>
-        <span v-if="p.clearKey" class="text-xs text-muted">{{ t('t83.models.2') }}</span>
-        <UCheckbox v-model="p.closedData" :label="t('mod.closed')" />
-        <div class="flex items-center gap-2">
-          <UButton variant="ghost" color="neutral" @click="check(p.id)">{{ t('mod.check') }}</UButton>
-          <span class="text-sm text-muted">{{ checks[p.id] }}</span>
-          <UButton variant="ghost" color="error" @click="providers.splice(at, 1)">{{ t('mod.remove') }}</UButton>
+      <div class="flex flex-wrap items-center gap-3">
+        <UTabs v-model="connection" :content="false" :items="[{ label: t('mod.apiTab'), value: 'api' }, { label: t('mod.cliTab'), value: 'cli' }]" />
+        <UBadge variant="soft" color="neutral">{{ t('mod.currentChat', { name: chatLabel }) }}</UBadge>
+      </div>
+      <p v-if="saved" role="status" class="text-sm">{{ saved }}</p>
+      <section v-if="connection === 'cli'" class="max-w-3xl space-y-3">
+        <p class="text-sm text-muted">{{ t('mod.cliHint') }}</p>
+        <div v-for="item in cliOptions" :key="item.id" class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-default p-4">
+          <div>
+            <h2 class="font-medium">{{ item.label }}</h2>
+            <p class="text-sm text-muted">{{ item.status?.available ? t('mod.available') : (item.status ? t('mod.cliUnavailable') : t('mod.cliNotEnabled')) }}</p>
+            <p v-if="probe?.id === item.id" role="status" class="flex items-center gap-1 text-sm" :class="probe.ok ? 'text-success' : 'text-error'">
+              <UIcon :name="probe.ok ? 'i-lucide-check' : 'i-lucide-x'" />
+              {{ t(probe.ok ? 'mod.probeOk' : 'mod.pickCli') }}
+            </p>
+          </div>
+          <UButton :loading="saving" :disabled="savedChat === item.id || (!!item.status && !item.status.available)" @click="useInChat(item.id)">{{ savedChat === item.id ? t('mod.inChat') : t('mod.useCli') }}</UButton>
         </div>
-      </div>
-      <h2 class="pt-3 font-medium">{{ t('mod.routes') }}</h2>
-      <div v-for="(r, at) in routes" :key="'r' + at" class="flex items-center gap-2">
-        <UInput v-model="r.kind" :placeholder="t('mod.kind')" />
-        <USelect v-model="r.providerId" :items="providerIds" />
-        <UInput v-model="r.model" :placeholder="t('mod.modelOptional')" />
-        <UButton variant="ghost" color="error" @click="routes.splice(at, 1)">{{ t('mod.remove') }}</UButton>
-      </div>
-      <UButton variant="ghost" color="neutral" @click="addRoute">{{ t('mod.addRoute') }}</UButton>
-      <div class="flex items-center gap-2">
-        <UButton variant="ghost" color="neutral" @click="add">{{ t('mod.addProvider') }}</UButton>
-        <UButton @click="save">{{ t('mod.save') }}</UButton>
-        <span class="text-sm text-muted">{{ saved }}</span>
-      </div>
+      </section>
+      <section v-else class="max-w-3xl space-y-3">
+        <p class="text-sm text-muted">{{ t('mod.apiHint') }}</p>
+        <div class="flex flex-wrap gap-2">
+          <UButton variant="soft" @click="add('deepseek')">{{ t('mod.addDeepSeek') }}</UButton>
+          <UButton variant="soft" @click="add('openrouter')">{{ t('mod.addOpenRouter') }}</UButton>
+          <UButton variant="ghost" color="neutral" @click="add()">{{ t('mod.addProvider') }}</UButton>
+        </div>
+        <form v-for="(p, at) in providers" :key="at" class="space-y-4 rounded-lg border border-default p-4" @input="probe = undefined" @submit.prevent="useInChat(p.id)">
+          <h2 class="font-medium">{{ p.label || p.id }}</h2>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <UFormField :label="t('mod.apiKey')" name="apiKey">
+              <UInput v-model="p.apiKey" type="password" autocomplete="off" class="w-full" :placeholder="p.hasKey ? t('mod.keyFound') : t('mod.pasteKey')" @update:model-value="p.clearKey = false" />
+            </UFormField>
+            <UFormField :label="t('mod.modelId')" name="model">
+              <UInput v-model.trim="p.model" required class="w-full" :color="probe?.id === p.id && !probe.ok ? 'error' : undefined" :aria-invalid="probe?.id === p.id && !probe.ok ? true : undefined" :placeholder="p.label === 'OpenRouter' ? 'openai/gpt-5' : p.label === 'DeepSeek' ? presets.deepseek.model : ''" />
+            </UFormField>
+          </div>
+          <details :open="p.id.startsWith('provider-') || undefined">
+            <summary class="cursor-pointer text-sm text-muted">{{ t('mod.advanced') }}</summary>
+            <div class="mt-3 grid gap-3 sm:grid-cols-2">
+              <UFormField :label="t('mod.id')"><UInput v-model="p.id" class="w-full" /></UFormField>
+              <UFormField :label="t('mod.protocol')"><USelect v-model="p.type" :items="['openai', 'anthropic']" class="w-full" /></UFormField>
+              <UFormField :label="t('mod.baseUrl')"><UInput v-model="p.baseUrl" class="w-full" /></UFormField>
+              <UFormField :label="t('mod.keyEnv')"><UInput v-model="p.apiKeyEnv" class="w-full" /></UFormField>
+              <UCheckbox v-model="p.closedData" :label="t('mod.closed')" />
+              <UButton v-if="p.hasKey" size="xs" variant="ghost" color="error" @click="p.clearKey = true; p.apiKey = ''; p.hasKey = false">{{ t('t83.models.1') }}</UButton>
+              <span v-if="p.clearKey" class="text-xs text-muted">{{ t('t83.models.2') }}</span>
+              <UButton variant="ghost" color="neutral" @click="check(p.id)">{{ t('mod.check') }}</UButton>
+              <span class="text-sm text-muted">{{ checks[p.id] }}</span>
+            </div>
+          </details>
+          <div class="flex flex-wrap gap-2">
+            <UButton type="submit" :loading="saving" :disabled="!p.model.trim()">{{ t('mod.saveAndUse') }}</UButton>
+            <UButton variant="ghost" color="error" @click="providers.splice(at, 1); routes = routes.filter((route) => route.providerId !== p.id)">{{ t('mod.remove') }}</UButton>
+          </div>
+          <p v-if="probe?.id === p.id" role="status" class="flex items-center gap-1 text-sm" :class="probe.ok ? 'text-success' : 'text-error'">
+            <UIcon :name="probe.ok ? 'i-lucide-check' : 'i-lucide-x'" />
+            {{ t(probe.ok ? 'mod.probeOk' : 'mod.pickModel') }}
+          </p>
+        </form>
+      </section>
+      <details class="max-w-3xl space-y-3 rounded-lg border border-default p-4">
+        <summary class="cursor-pointer font-medium">{{ t('mod.routes') }}</summary>
+        <div v-for="(r, at) in routes" :key="'r' + at" class="flex flex-wrap items-center gap-2">
+          <UInput v-model="r.kind" :placeholder="t('mod.kind')" />
+          <USelect v-model="r.providerId" :items="providerIds" />
+          <UInput v-model="r.model" :placeholder="t('mod.modelOptional')" />
+          <UButton variant="ghost" color="error" @click="routes.splice(at, 1)">{{ t('mod.remove') }}</UButton>
+        </div>
+        <UButton variant="ghost" color="neutral" @click="addRoute">{{ t('mod.addRoute') }}</UButton>
+      </details>
+      <UButton variant="outline" :loading="saving" @click="save">{{ t('mod.save') }}</UButton>
       <h2 class="pt-3 font-medium">{{ t('mod.spend', { month: usage?.month ?? '' }) }}</h2>
       <p v-if="usage" class="text-sm">{{ t('mod.requests') }}: {{ usage.total.requests }}, {{ money(usage.total) }}</p>
       <ul v-if="usage" class="text-sm text-muted">

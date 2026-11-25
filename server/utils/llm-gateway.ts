@@ -15,7 +15,7 @@ import { recordUsage } from './llm-usage-store';
  * напрямую, и таблица маршрутов, очередь и учёт лежали отдельно от реального пути.
  */
 
-export interface RouteContext { projectId: string; user: string; /** Задача запроса: по ней считается расход (R-0109). */ taskId?: string; /** Модель агента (R-0100): перекрывает модель маршрута. */ model?: string; /** Идентификатор задания: по нему клиент найдёт ответ после обновления страницы. */ onJob?: (id: string) => void }
+export interface RouteContext { projectId: string; user: string; /** Задача запроса: по ней считается расход (R-0109). */ taskId?: string; /** Модель агента (R-0100): перекрывает модель маршрута. */ model?: string; /** Идентификатор задания: по нему клиент найдёт ответ после обновления страницы. */ onJob?: (id: string) => void; onProvider?: (label: string) => void }
 
 /** Одна очередь на сервер: лимиты модели общие у всей команды. Предел — DOCDD_LLM_PARALLEL, по умолчанию 2. */
 export const llmQueue = new LlmQueue(Math.max(1, Number(process.env.DOCDD_LLM_PARALLEL) || 2), 200, (job) => saveJob(job), BOOT_ID);
@@ -56,6 +56,10 @@ export async function askRouted(kind: string, ctx: RouteContext, prompt: string,
       // Только сигнал очереди (явная отмена через DELETE): закрытие соединения браузера запрос не обрывает.
       const merged = { signal: queueSignal };
       try {
+        if (ctx.onProvider) {
+          const activeModel = model ?? (await loadLlmSettings()).providers.find((item) => item.id === providerId)?.model;
+          ctx.onProvider([provider.label, activeModel].filter(Boolean).join(' · '));
+        }
         // Claude Code по умолчанию идёт прежним путём ask(): лента событий и сессии не меняются.
         result = providerId === 'claude-code' && !model
           ? await ask(prompt, { ...options, signal: merged.signal, ...(tokenLimit ? { tokenLimit } : {}) })

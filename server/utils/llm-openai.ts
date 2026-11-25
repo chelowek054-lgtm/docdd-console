@@ -35,6 +35,7 @@ export function openAiProvider(setting: ProviderSetting): Provider {
           headers: { 'content-type': 'application/json', ...(key ? { authorization: `Bearer ${key}` } : {}) },
           body: JSON.stringify({
             model: request.model ?? setting.model,
+            ...(request.maxOutputTokens ? { max_tokens: request.maxOutputTokens } : {}),
             stream: streaming,
             messages: [
               ...(request.system ? [{ role: 'system', content: request.system }] : []),

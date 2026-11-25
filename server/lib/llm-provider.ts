@@ -30,6 +30,7 @@ export interface ProviderRequest {
   model?: string;
   timeoutMs?: number;
   maxBytes?: number;
+  maxOutputTokens?: number;
   signal?: AbortSignal;
   /** Лента хода работы; задана — провайдер стримит, не задана — один ответ. */
   onEvent?: (event: ModelEvent) => void;

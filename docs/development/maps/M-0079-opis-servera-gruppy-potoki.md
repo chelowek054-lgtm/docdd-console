@@ -2005,7 +2005,7 @@ updated: 2026-10-24
         "evidence": {
           "path": "server/api/llm/models/index.put.ts",
           "line": 6,
-          "fragment": "import { syncProviders } from '../../../utils/llm-providers'"
+          "fragment": "import { apiProvider, probeProvider, syncProviders } from '../../../utils/llm-providers'"
         }
       },
       {
@@ -2013,7 +2013,7 @@ updated: 2026-10-24
         "to": "server/utils/llm-settings.ts",
         "evidence": {
           "path": "server/api/llm/models/index.put.ts",
-          "line": 7,
+          "line": 9,
           "fragment": "import { loadLlmSettings, saveLlmSettings, type ProviderSett"
         }
       },
@@ -8008,7 +8008,7 @@ updated: 2026-10-24
         "evidence": {
           "path": "server/utils/llm-providers.ts",
           "line": 7,
-          "fragment": "import { loadLlmSettings } from './llm-settings';"
+          "fragment": "import { loadLlmSettings, type ProviderSetting } from './llm-settings';"
         }
       },
       {

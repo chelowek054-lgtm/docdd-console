@@ -3,7 +3,9 @@ import { defineEventHandler, readBody } from 'h3';
 import { parseRoutingTable } from '../../../lib/llm-routing';
 import { duplicateId } from '../../../lib/llm-provider';
 import { fail } from '../../../utils/http';
-import { syncProviders } from '../../../utils/llm-providers';
+import { apiProvider, probeProvider, syncProviders } from '../../../utils/llm-providers';
+import { claudeCodeProvider } from '../../../utils/llm-claude';
+import { codexProvider, geminiProvider } from '../../../utils/llm-agents';
 import { loadLlmSettings, saveLlmSettings, type ProviderSetting } from '../../../utils/llm-settings';
 
 /**
@@ -13,7 +15,7 @@ import { loadLlmSettings, saveLlmSettings, type ProviderSetting } from '../../..
 export default defineEventHandler(async (event) => {
   const user = (event.context as { user?: { admin?: unknown } }).user;
   if (user && user.admin !== true) return fail(event, 403, 'forbidden', 'Модели настраивает только администратор');
-  const body = (await readBody(event)) as { providers?: Array<Partial<ProviderSetting> & { hasKey?: boolean }> } | null;
+  const body = (await readBody(event)) as { providers?: Array<Partial<ProviderSetting> & { hasKey?: boolean }>; agents?: unknown; routes?: unknown; verifyChat?: boolean } | null;
   if (!body || !Array.isArray(body.providers)) return fail(event, 400, 'bad-request', 'Ожидался список providers');
   const current = await loadLlmSettings();
   const providers: ProviderSetting[] = [];
@@ -29,7 +31,32 @@ export default defineEventHandler(async (event) => {
     const { hasKey: _derived, clearKey: _clear, apiKey: _typed, ...rest } = item as typeof item & { clearKey?: unknown };
     providers.push({ ...(rest as ProviderSetting), ...(apiKey ? { apiKey } : {}) });
   }
-  await saveLlmSettings({ ...current, providers, ...((body as { routes?: unknown }).routes !== undefined ? { routes: parseRoutingTable((body as { routes?: unknown }).routes) } : {}) });
+  const agents = body.agents;
+  if (agents !== undefined && (!Array.isArray(agents) || agents.some((id) => id !== 'codex-cli' && id !== 'gemini-cli'))) {
+    return fail(event, 400, 'bad-request', 'Неизвестный CLI-агент');
+  }
+  const routes = parseRoutingTable(body.routes ?? current.routes);
+  let verification;
+  if (body.verifyChat === true && routes.ask) {
+    const { providerId, model } = routes.ask;
+    const setting = providers.find((item) => item.id === providerId && item.enabled !== false);
+    const enabledAgents = Array.isArray(agents) ? agents : (Array.isArray(current.agents) ? current.agents : []);
+    const cli = providerId === 'claude-code' ? claudeCodeProvider : [
+      { id: 'codex-cli', create: codexProvider },
+      { id: 'gemini-cli', create: geminiProvider }
+    ].find(({ id }) => id === providerId && enabledAgents.includes(id))?.create();
+    const provider = cli ?? (setting ? apiProvider(setting) : undefined);
+    verification = provider ? await probeProvider(provider, model) : { ok: false as const, failure: { code: 'unavailable' } };
+    if (!verification.ok) return { ok: false, verification };
+    if (JSON.stringify(await loadLlmSettings()) !== JSON.stringify(current)) {
+      return fail(event, 409, 'conflict', 'Настройки моделей изменились во время проверки. Обновите страницу и повторите.');
+    }
+  }
+  await saveLlmSettings({
+    ...current, providers,
+    ...(Array.isArray(agents) ? { agents: [...new Set(agents)] } : {}),
+    ...(body.routes !== undefined ? { routes } : {})
+  });
   await syncProviders();
-  return { ok: true };
+  return { ok: true, ...(verification ? { verification } : {}) };
 });

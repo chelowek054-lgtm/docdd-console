@@ -3843,8 +3843,8 @@ updated: 2026-10-24
         "to": "PUT /api/llm/models",
         "evidence": {
           "path": "app/pages/models.vue",
-          "line": 40,
-          "fragment": "const result = await $fetch<{ ok?: boolean }>('/api/llm/mode"
+          "line": 57,
+          "fragment": "const result = await $fetch<{ ok?: boolean; error?: { message: string }; verification?"
         }
       },
       {
@@ -3852,7 +3852,7 @@ updated: 2026-10-24
         "to": "POST /api/llm/models/check",
         "evidence": {
           "path": "app/pages/models.vue",
-          "line": 46,
+          "line": 72,
           "fragment": "const result = await $fetch<{ ok: boolean; ms?: number; fail"
         }
       },

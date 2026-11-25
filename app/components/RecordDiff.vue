@@ -7,6 +7,7 @@ import type { RecordDiff } from '~~/server/lib/record-diff';
  * зависит строка журнала при подтверждении.
  */
 const props = defineProps<{ projectId: string; recordId: string; status: string; type?: string }>();
+const emit = defineEmits<{ viewed: [] }>();
 
 const open = ref(false);
 const diff = ref<RecordDiff | null>(null); const { t } = useT();
@@ -22,6 +23,7 @@ async function toggle() {
     if ('error' in answer) { error.value = answer.error.message; return; }
     diff.value = answer; if (props.type === 'map') void loadMap();
     await $fetch(`/api/projects/${props.projectId}/records/${props.recordId}/diff/viewed`, { method: 'POST' });
+    emit('viewed');
   } catch (cause) {
     error.value = String(cause);
   }

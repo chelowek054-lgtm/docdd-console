@@ -8,6 +8,7 @@ const props = defineProps<{
   recordId: string;
   actions: RecordAction[];
   roles: { id: string; name: string }[];
+  version?: string;
 }>();
 
 const emit = defineEmits<{ changed: [record?: IndexRecord] }>(); const { t } = useT();
@@ -34,7 +35,7 @@ async function run(action: RecordAction) {
       `/api/projects/${props.projectId}/records/${props.recordId}/status`,
       {
         method: 'POST',
-        body: { status: action.status, actor: actor.value },
+        body: { status: action.status, actor: actor.value, version: props.version },
         // Отказ приходит телом ответа: причину показываем как есть.
         ignoreResponseError: true
       }
