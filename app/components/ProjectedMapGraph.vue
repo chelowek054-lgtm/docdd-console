@@ -49,7 +49,7 @@ defineExpose({
 </script>
 
 <template>
-  <LazyStandardMapGraph ref="canvas" projected :template="template" :nodes="nodes" :edges="edges" :view-id="viewId" :map-id="mapId" :indicators="indicators" :frame-title="frameTitle"
+  <LazyStandardMapGraph ref="canvas" projected :template="template" :nodes="nodes" :edges="edges" :view-id="viewId" :map-id="mapId" :indicators="indicators" :frame-title="frameTitle" :frame-hierarchy="graph.frameHierarchy"
     @select="emit('select', $event)" @open="emit('open', $event)"
     @relation="onRelation" @clear="emit('clear')">
     <template #navigation><slot name="navigation" /></template>

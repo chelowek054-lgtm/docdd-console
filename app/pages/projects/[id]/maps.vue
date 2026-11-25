@@ -397,7 +397,7 @@ const chosenHiddenLayers = ref<Set<string> | null>(null);
  */
 const hiddenLayers = computed(() => {
   if (chosenHiddenLayers.value) return chosenHiddenLayers.value;
-  if (codemapMode.value === 'groups' || !isLargeCodemap.value || !smallestLayer.value || groupFoldsChildren()) return new Set<string>();
+  if (route.query.view !== 'all' || !isLargeCodemap.value || !smallestLayer.value || groupFoldsChildren()) return new Set<string>();
   return new Set(allLayers.value.filter((layer) => layer !== smallestLayer.value));
 });
 function toggleLayer(layer: string) {
@@ -992,35 +992,39 @@ const codemapDepth = computed<DepthOutput | null>(() => {
   const value = map.value;
   if (!value) return null;
   const base = filteredCodemap.value ?? value.codemap;
-  const tree = groupTree(base.modules, base.imports, value.codemap.groups);
+  const tree = groupTree(value.codemap.modules, value.codemap.imports, value.codemap.groups);
   if (!tree.nodes.length) return null;
   const groupIds = new Set(tree.nodes.map((node) => node.id));
-  // Начальная глубина и переключатель используют одну и ту же иерархию.
   const defaultScope = route.query.view === 'all' ? null : { level: openGroupId.value ? 1 : 0, open: openGroupId.value || null };
   const params = depthParams(groupIds, openGroupId.value) ?? defaultScope;
   if (!params) return null;
-  // Модуль висит под своей самой глубокой группой; модуль с id группы деревом не дублируется.
   const modules = new Set(base.modules.map((item) => item.id));
   for (const edge of base.imports) { modules.add(edge.from); modules.add(edge.to); }
   const treeNodes = [
     ...tree.nodes.map((node) => ({ id: node.id, parent: node.parent })),
-    ...[...modules].filter((id) => !groupIds.has(id)).map((id) => ({ id, parent: tree.groupOf(id) }))
+    ...[...new Set([...value.codemap.modules.map((node) => node.id), ...value.codemap.imports.flatMap(({ from, to }) => [from, to])])]
+      .filter((id) => !groupIds.has(id)).map((id) => ({ id, parent: tree.groupOf(id) }))
   ];
   const visible = (id: string) => visibleAt(id, treeNodes, params.open, params.level);
   const sizes = new Map<string, number>();
   for (const id of modules) sizes.set(visible(id), (sizes.get(visible(id)) ?? 0) + 1);
   const titles = new Map(tree.nodes.map((node) => [node.id, node]));
-  const moduleById = new Map(base.modules.map((item) => [item.id, item]));
+  const moduleById = new Map(value.codemap.modules.map((item) => [item.id, item]));
   const folded = new Map<string, { from: string; to: string; count: number; evidence: MermaidEdge['evidence'] }>();
-  for (const edge of base.imports) {
+  const inside = underFn(params.open, treeNodes);
+  for (const edge of value.codemap.imports) {
+    if (!(modules.has(edge.from) && modules.has(edge.to)) &&
+        !(params.open && (modules.has(edge.from) && !inside(edge.to) || modules.has(edge.to) && !inside(edge.from)))) continue;
     const from = visible(edge.from);
     const to = visible(edge.to);
     if (from === to) continue;
+    if (!sizes.has(from)) sizes.set(from, 1);
+    if (!sizes.has(to)) sizes.set(to, 1);
     const entry = folded.get(`${from}>${to}`) ?? { from, to, count: 0, evidence: edge.evidence };
     entry.count += 1;
     folded.set(`${from}>${to}`, entry);
   }
-  return foldedDiagram(
+  return Object.assign(foldedDiagram(
     [...sizes].map(([key, size]) => ({
       key,
       title: titles.get(key)?.title ?? moduleById.get(key)?.title ?? key,
@@ -1031,7 +1035,7 @@ const codemapDepth = computed<DepthOutput | null>(() => {
     [...folded.values()].map((edge) => ({ ...edge, label: t('t83.m2.import') })),
     t('t83.m2.unit.modules'),
     { focus: foldFocus.value, inside: underFn(params.open, treeNodes) }
-  );
+  ), { frameHierarchy: codeFrameHierarchy(treeNodes, titles, params.open) });
 });
 
 const dataflowDepth = computed<DepthOutput | null>(() => {
@@ -1083,7 +1087,6 @@ const functionalDepth = computed<DepthOutput | null>(() => {
   if (!all.some((item) => item.parent)) return null;
   const params = depthParams(new Set(all.map((item) => item.id)), capGroupId.value) ?? (route.query.capview === 'all' ? null : { level: capGroupId.value ? 1 : 0, open: capGroupId.value || null });
   if (!params) return null;
-  // Состояние и «ждёт» считаются по всему дереву, а не по тому, что осталось под фильтром.
   const views = capabilityViews(all, allRelations, coverage.value);
   const plan = planPredicate(all, { priority: planPriority.value, horizon: planHorizon.value });
   const filter = statusFilter.value;
@@ -1105,7 +1108,6 @@ const functionalDepth = computed<DepthOutput | null>(() => {
   const visible = (id: string) => visibleAt(id, treeNodes, open, params.level);
   const titleOf = new Map(all.map((item) => [item.id, item.title ?? item.id]));
   const byId = new Map(all.map((item) => [item.id, item]));
-  // Признаки риска есть только у нижних возможностей: узел-группа берёт их у всех, кто под ним.
   const flagsUnder = new Map<string, Set<string>>();
   for (const item of kept) {
     const set = flagsUnder.get(visible(item.id)) ?? new Set<string>();
@@ -1248,8 +1250,6 @@ type CustomMapsResponse = {
   owners?: Record<string, string | null>;
 };
 
-// Пользовательские карты (docs/adr/0028-custom-maps.md): вкладки рядом со встроенными
-// видами и форма «Новая карта». Код — в конце скрипта: M-0001 цитирует строки выше.
 import type { CustomMapView as CustomMapContent } from '~~/server/lib/custom-maps';
 import type { CustomMapDefinition } from '~~/server/lib/types';
 const { data: customData, refresh: refreshCustom } = useFetch<CustomMapsResponse | { error: ApiFailure }>(
@@ -1260,6 +1260,16 @@ const customMaps = computed<CustomMapsResponse>(() =>
     ? customData.value
     : { definitions: [], problems: [], maps: {}, engines: [] }
 );
+function codeFrameHierarchy(
+  nodes: readonly TreeNode[], titles: ReadonlyMap<string, { title: string }>, open: string | null
+) {
+  const inside = underFn(open, nodes);
+  return nodes.map(({ id, parent }) => ({
+    id: foldId('d', id), title: titles.get(id)?.title ?? id,
+    ...(parent && id !== open ? { parent: foldId('d', parent) } : {}),
+    ...(!inside(id) ? { external: true } : {})
+  }));
+}
 const strategicCanvas = ref<{
   editorViewport(): { x: number; y: number; zoom: number } | undefined;
   editorPositions(): Record<string, { x: number; y: number }>;

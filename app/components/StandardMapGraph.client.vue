@@ -8,7 +8,7 @@ import '@vue-flow/controls/dist/style.css';
 
 import { isolatedMapNodes, standardFor } from '~~/server/lib/map-core';
 import { flowNode, layoutWithElk, type FlowCapability, type FlowNode, type FlowRelation } from '~/utils/map-flow';
-import { compactMapFrame, filterMapRelations, frameCollision, frameEndpoint, frameMembers, mapFrames, mapLinePorts, mapLinkAppearance, mapSvg, relationLevel, simpleMapLines, spaceMapGroups } from '~/utils/map-presentation';
+import { compactMapFrame, filterMapRelations, frameCollision, frameEndpoint, frameMembers, mapFrames, mapLinePorts, mapLinkAppearance, mapSvg, relationLevel, seedGroupedMapLayout, simpleMapLines, spaceMapGroups } from '~/utils/map-presentation';
 import { mapScope } from '~/utils/map-scope';
 import { MAP_SHAPES } from '~/utils/map-shapes';
 import { restoreMapPositions, type MapPositions } from '~/utils/map-layout-restore';
@@ -21,6 +21,7 @@ const props = defineProps<{
   viewId?: string;
   mapId?: string;
   frameTitle?: string;
+  frameHierarchy?: { id: string; title: string; parent?: string; external?: boolean }[];
   indicators?: Record<string, { children?: number; incoming?: number; outgoing?: number; muted?: boolean }>;
 }>();
 const emit = defineEmits<{
@@ -209,6 +210,7 @@ const graph = computed(() => {
 });
 const placed = shallowRef<FlowNode[]>([]);
 const frameNodes = computed(() => {
+  if (props.frameHierarchy) return props.frameHierarchy;
   if (!props.frameTitle) return props.nodes.map((node) => {
     if (node.id !== open.value) return node;
     const root = { ...node };
@@ -218,9 +220,10 @@ const frameNodes = computed(() => {
   const frameId = '__open-group-frame';
   return [{ id: frameId, title: props.frameTitle }, ...props.nodes.map((node) => ({ ...node, parent: frameId }))];
 });
-const externalNodes = computed(() => props.frameTitle
-  ? new Set(Object.keys(props.indicators ?? {}).filter((id) => props.indicators?.[id]?.muted))
-  : scope.value.outside);
+const externalNodes = computed(() => props.frameHierarchy
+  ? new Set(props.frameHierarchy.filter((node) => node.external).map((node) => node.id))
+  : props.frameTitle ? new Set(Object.keys(props.indicators ?? {}).filter((id) => props.indicators?.[id]?.muted))
+    : scope.value.outside);
 const frames = computed(() => mapFrames(frameNodes.value, placed.value, externalNodes.value)
   .sort((a, b) => (b.right - b.left) * (b.bottom - b.top) - (a.right - a.left) * (a.bottom - a.top)));
 let drag: {
@@ -322,7 +325,9 @@ function resetLayout() {
 watch([graph, resetVersion, storageKey, sharedPositions], async ([value], _, onCleanup) => {
   let current = true;
   onCleanup(() => { current = false; });
-  const nodes = await layoutWithElk(elk, value.nodes, value.edges, 90);
+  const nodes = props.frameHierarchy && value.nodes.length > 150
+    ? seedGroupedMapLayout(value.nodes, frameNodes.value)
+    : await layoutWithElk(elk, value.nodes, value.edges, 90);
   const { positions, exact, automatic } = readLayout();
   if (current) {
     drag = undefined;

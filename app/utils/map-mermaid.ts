@@ -156,6 +156,7 @@ export interface FunctionalLegend {
 
 export interface MermaidOutput {
   text: string;
+  frameHierarchy?: { id: string; title: string; parent?: string; external?: boolean }[];
   /** Только у графа состояния функциональной карты. */
   legend?: FunctionalLegend;
   /** Легенда остальных карт — полоса над схемой (`MapLegendBar.vue`). */

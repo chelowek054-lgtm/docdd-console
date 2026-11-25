@@ -52,6 +52,26 @@ const FRAME_PADDING = 12;
 const FRAME_HEADER = 16;
 const ITEM_GAP = 14;
 
+export function seedGroupedMapLayout(nodes: readonly FlowNode[], hierarchy: readonly FlowCapability[]) {
+  const parents = new Map(hierarchy.map((node) => [node.id, node.parent]));
+  const sizes = new Map<string | undefined, number>();
+  const indexes = new Map<string | undefined, number>();
+  for (const node of nodes) {
+    const parent = parents.get(node.id);
+    sizes.set(parent, (sizes.get(parent) ?? 0) + 1);
+  }
+  return nodes.map((node) => {
+    const parent = parents.get(node.id);
+    const index = indexes.get(parent) ?? 0;
+    indexes.set(parent, index + 1);
+    const columns = Math.ceil(Math.sqrt((sizes.get(parent) ?? 1) * 0.75));
+    return { ...node, position: {
+      x: (index % columns) * (NODE_WIDTH + ITEM_GAP),
+      y: Math.floor(index / columns) * (NODE_HEIGHT + ITEM_GAP)
+    } };
+  });
+}
+
 export function spaceMapGroups(all: FlowCapability[], visible: FlowNode[], external: ReadonlySet<string>,
   links: readonly { from: string; to: string }[] = [], balanceOverview = true, compactGaps = { x: 32, y: 20 }) {
   const parents = new Map(all.map((node) => [node.id, node.parent]));
