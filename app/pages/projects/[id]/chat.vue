@@ -20,17 +20,19 @@ const projectId = computed(() => String(route.params.id ?? ''));
 const base = computed(() => `/api/projects/${encodeURIComponent(projectId.value)}`);
 const { records } = useProjectIndex(projectId);
 const { me } = useMe(projectId);
-const storageKey = computed(() => `docdd-chat-v1:${me.value.user?.login ?? 'local'}:${projectId.value}`);
+const chats = useProjectChats<Turn>(projectId);
+const { active, summaries, error: chatError, loading } = chats;
 const role = useCookie<string>('docdd-role');
 const effectiveRole = computed(() => role.value || (me.value.roles?.length === 1 ? me.value.roles[0] : ''));
 const picked = ref<Profile>();
 watch(effectiveRole, () => { picked.value = undefined; });
 const profile = computed<Profile>({
-  get: () => picked.value ?? (effectiveRole.value === 'developer' || effectiveRole.value === 'architect' ? effectiveRole.value : 'general'),
-  set: (value) => { picked.value = value; selected.value = ''; }
+  get: () => picked.value ?? (mode.value === 'map' ? 'architect' : mode.value === 'task' ? 'developer'
+    : effectiveRole.value === 'developer' || effectiveRole.value === 'architect' ? effectiveRole.value : 'general'),
+  set: (value) => { picked.value = value; }
 });
-const selected = ref('');
-const phase = ref('');
+const selected = computed(() => active.value?.record ?? '');
+const phase = computed(() => active.value?.phase ?? '');
 const mode = ref<ChatMode>('ask');
 const map = ref('functional');
 const maps = ['functional', 'domain', 'sysdesign'];
@@ -38,17 +40,74 @@ const input = ref('');
 const preparing = ref(false);
 let preparation: AbortController | undefined;
 const feed = ref<HTMLElement>();
-const conversations = useState<Record<string, Turn[]>>('project-chat', () => ({}));
-const turns = computed(() => conversations.value[storageKey.value] ?? []);
-const phases = computed(() => records.value.filter((record) => record.type === 'phase'));
-const focused = computed(() => records.value.find((record) => record.id === (selected.value || phase.value)));
-const options = computed(() => records.value.filter((record) =>
-  !templates[profile.value].types.length || templates[profile.value].types.includes(record.type)));
-const { running, elapsed, outcome, log, stream, cancel } = useModelRequest(() => `${projectId.value}:chat`, {
+const turns = computed(() => active.value?.turns ?? []);
+const focused = computed(() => records.value.find((record) => record.id === selected.value));
+const focusedPhase = computed(() => records.value.find((record) => record.id === phase.value));
+const contextOpen = ref(false);
+const contextQuery = ref('');
+const contextFilter = ref('all');
+const filters = ['all', 'task', 'phase', 'map', 'document'];
+const contextResults = computed(() => {
+  const query = contextQuery.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  return records.value.filter((item) => {
+    const filter = contextFilter.value;
+    if (filter === 'document' ? ['task', 'phase', 'map'].includes(item.type) : filter !== 'all' && item.type !== filter) return false;
+    const haystack = (item.id + ' ' + item.title).toLowerCase();
+    return query.every((part) => haystack.includes(part));
+  }).slice(0, 40);
+});
+const query = ref('');
+const archived = ref(false);
+const visibleChats = computed(() => summaries.value.filter((item) =>
+  item.archived === archived.value && (item.title + ' ' + item.record + ' ' + item.phase).toLowerCase().includes(query.value.trim().toLowerCase())));
+const naming = ref(false);
+const title = ref('');
+const creating = ref(false);
+
+watch(() => active.value?.id, () => { mode.value = 'ask'; input.value = ''; naming.value = false; });
+
+async function newChat() {
+  if (creating.value) return;
+  creating.value = true;
+  try {
+    const chat = await chats.create();
+    if (chat) { archived.value = false; await chats.open(chat.id); }
+  } finally {
+    creating.value = false;
+  }
+}
+
+async function focus(type: 'record' | 'phase', id: string) {
+  const chat = active.value;
+  if (!chat) return;
+  chat[type] = id;
+  contextOpen.value = false;
+  await chats.persist(chat);
+}
+
+async function rename() {
+  if (!active.value || !title.value.trim()) return;
+  active.value.title = title.value.trim();
+  naming.value = false;
+  await chats.persist(active.value);
+}
+
+async function archive() {
+  const chat = active.value;
+  if (!chat) return;
+  chat.archived = !chat.archived;
+  if (await chats.persist(chat)) archived.value = chat.archived;
+  else chat.archived = !chat.archived;
+}
+
+const { running, elapsed, outcome, log, stream, cancel } = useModelRequest(() => `${projectId.value}:chat:${active.value?.id ?? 'new'}`, {
   label: t('nav.chat'),
   onRecovered(result) {
     const last = turns.value.at(-1);
-    if (last && !last.answer) acceptReply(last, result as Reply);
+    if (last && !last.answer && active.value) {
+      acceptReply(last, result as Reply);
+      void chats.persist(active.value);
+    }
   }
 });
 const busy = computed(() => preparing.value || running.value);
@@ -56,38 +115,6 @@ function acceptReply(turn: Turn, result: Reply) {
   Object.assign(turn, result, { stage: 'answered', draft: chatDraft(turn.mode ?? 'ask', result.answer, turn.map) });
 }
 
-onMounted(() => {
-  watch(storageKey, (key) => {
-    picked.value = undefined;
-    phase.value = '';
-    mode.value = 'ask';
-    map.value = 'functional';
-    selected.value = '';
-    try {
-      const text = sessionStorage.getItem(key);
-      const saved = text ? JSON.parse(text) : undefined;
-      if (saved) {
-        if (!running.value && !conversations.value[key]) {
-          conversations.value[key] = (saved.turns as Turn[]).map((turn) =>
-            turn.answer || turn.stage === 'failedStage' ? turn : { ...turn, stage: 'cancelled' });
-        }
-        picked.value = saved.profile;
-        phase.value = saved.phase;
-        mode.value = saved.mode;
-        map.value = saved.map;
-        selected.value = saved.selected;
-      }
-    } catch { /* Storage can be unavailable. */ }
-    if (typeof route.query.record === 'string') selected.value = route.query.record;
-  }, { immediate: true });
-  watch([storageKey, turns, profile, phase, mode, map, selected], () => {
-    try {
-      sessionStorage.setItem(storageKey.value, JSON.stringify({
-        turns: turns.value.slice(-30), profile: profile.value, phase: phase.value, mode: mode.value, map: map.value, selected: selected.value
-      }));
-    } catch { /* Keep the current session available in memory. */ }
-  }, { deep: true });
-});
 const streamingText = computed(() => log.value.filter((line) => line.kind === 'text').map((line) => line.text).join(''));
 const runningProvider = computed(() => log.value.find((line) => line.kind === 'action')?.text);
 function stop() {
@@ -103,17 +130,20 @@ watch(() => [turns.value.length, turns.value.at(-1)?.answer, streamingText.value
 
 async function send(retry?: Turn) {
   const question = (retry?.question ?? input.value).trim();
-  if (!question || busy.value) return;
+  const chat = active.value;
+  if (!question || busy.value || !chat || chat.archived) return;
   const project = projectId.value;
-  const session = storageKey.value;
+  const session = chat.id;
   const api = base.value;
   const turn: Turn = retry ?? { question, profile: profile.value, sources: [], center: selected.value || phase.value || undefined, phase: phase.value || undefined, mode: mode.value, map: mode.value === 'map' ? map.value : undefined };
   const earlier = turns.value.filter((item) => item.answer && item.profile === turn.profile).slice(-2);
   if (!retry) {
-    conversations.value[session] = [...turns.value, turn];
+    if (!chat.turns.length && chat.title === t('chat.newChat')) chat.title = question.slice(0, 65);
+    chat.turns.push(turn);
     input.value = '';
+    mode.value = 'ask';
   }
-  const current = conversations.value[session]!.at(-1)!;
+  const current = chat.turns.at(-1)!;
   const controller = new AbortController();
   preparation = controller;
   const { signal } = controller;
@@ -143,7 +173,7 @@ async function send(retry?: Turn) {
       current.sources = pack.chunks.filter((chunk) => !chunk.withheld && !chunk.excluded && chunk.key.startsWith('record:'))
         .map((chunk) => ({ id: chunk.key.slice(7), title: chunk.title }));
     }
-    if (signal.aborted || storageKey.value !== session) {
+    if (signal.aborted || active.value?.id !== session) {
       current.stage = 'cancelled';
       return;
     }
@@ -161,7 +191,7 @@ async function send(retry?: Turn) {
       current.mapToken = contextToken;
       drafting = `Предложи изменение только в блоке docdd-${mapId} по схеме. Если сведений мало, задай вопрос.\n${instructions}\n${JSON.stringify({ schema, standard, nodes, page })}`;
     }
-    if (signal.aborted || storageKey.value !== session) {
+    if (signal.aborted || active.value?.id !== session) {
       current.stage = 'cancelled';
       return;
     }
@@ -176,31 +206,60 @@ async function send(retry?: Turn) {
     current.stage = 'waiting';
     preparation = undefined;
     preparing.value = false;
+    void chats.persist(chat, api + '/chat');
     const result = await stream<Reply>('/api/llm/ask', { projectId: project, prompt, tools: false, trace: true });
     if (result) acceptReply(current, result);
-    else if (storageKey.value === session) {
+    else if (active.value?.id === session) {
       current.provider = runningProvider.value;
       current.stage = outcome.value?.kind === 'cancelled' ? 'cancelled' : 'failedStage';
     }
   } catch {
     current.stage = signal.aborted ? 'cancelled' : 'failedStage';
   } finally {
-    preparation = undefined;
-    preparing.value = false;
+    if (preparation === controller) { preparation = undefined; preparing.value = false; }
+    void chats.persist(chat, api + '/chat');
   }
 }
 </script>
 
 <template>
-  <section class="mx-auto grid w-full max-w-7xl items-start gap-4 lg:grid-cols-[minmax(0,1fr)_19rem]">
+  <section class="mx-auto grid min-w-0 w-full max-w-7xl items-start gap-4 lg:grid-cols-[16rem_minmax(0,1fr)]">
+    <aside class="min-w-0 space-y-3 rounded-xl border border-default p-3">
+      <UButton block icon="i-lucide-plus" :loading="creating" @click="newChat">{{ t('chat.newChat') }}</UButton>
+      <UInput v-model="query" class="w-full" icon="i-lucide-search" :placeholder="t('chat.findChats')" :aria-label="t('chat.findChats')" />
+      <UCheckbox v-model="archived" :label="t('chat.archived')" />
+      <ul class="max-h-[62vh] space-y-1 overflow-auto">
+        <li v-for="item in visibleChats" :key="item.id">
+          <NuxtLink :to="{ query: { chat: item.id } }" class="block rounded-lg px-3 py-2 text-sm hover:bg-elevated"
+            :class="active?.id === item.id ? 'bg-elevated font-medium' : ''" :aria-current="active?.id === item.id ? 'page' : undefined">
+            <span class="block truncate" :title="item.title">{{ item.title }}</span>
+            <span v-if="item.record || item.phase" class="block truncate text-xs text-muted">{{ item.record || item.phase }}</span>
+          </NuxtLink>
+        </li>
+      </ul>
+    </aside>
     <div class="min-w-0 overflow-hidden rounded-xl border border-default">
       <header class="flex flex-wrap items-center justify-between gap-2 border-b border-default px-5 py-4">
-        <div class="min-w-0">
-          <h1 class="text-xl font-semibold">{{ t('nav.chat') }}</h1>
-          <p class="truncate text-sm text-muted">{{ projectId }}<template v-if="focused"> · {{ focused.id }} {{ focused.title }}</template></p>
+        <div class="min-w-0 flex-1">
+          <form v-if="naming" class="flex gap-2" @submit.prevent="rename">
+            <UInput v-model="title" maxlength="140" class="min-w-0 flex-1" :aria-label="t('chat.rename')" />
+            <UButton type="submit">{{ t('chat.saveName') }}</UButton>
+          </form>
+          <h1 v-else class="break-words text-xl font-semibold">{{ active?.title ?? t('nav.chat') }}</h1>
+          <p class="truncate text-sm text-muted">{{ projectId }}<template v-if="focused"> · {{ focused.id }} {{ focused.title }}</template><template v-if="focusedPhase"> · {{ focusedPhase.id }} {{ focusedPhase.title }}</template></p>
         </div>
-        <UBadge color="neutral" variant="soft">{{ t(`chat.mode.${mode}`) }}</UBadge>
+        <div v-if="active" class="flex flex-wrap items-center gap-1">
+          <UButton size="sm" variant="soft" icon="i-lucide-folder-search" :disabled="active.archived || busy"
+            @click="contextQuery = ''; contextFilter = 'all'; contextOpen = true">{{ t('chat.context') }}</UButton>
+          <UDropdownMenu :items="[
+            { label: t('chat.rename'), onSelect: () => { title = active?.title ?? ''; naming = true; } },
+            { label: t(active.archived ? 'chat.restore' : 'chat.archive'), disabled: busy, onSelect: archive }
+          ]">
+            <UButton size="sm" color="neutral" variant="ghost" icon="i-lucide-ellipsis" :aria-label="t('chat.manageChat')" />
+          </UDropdownMenu>
+        </div>
       </header>
+      <p v-if="chatError" class="px-4 pt-3 text-sm text-error" role="alert">{{ chatError }}</p>
       <div ref="feed" class="h-[56vh] min-h-72 space-y-5 overflow-y-auto px-4 py-5 sm:px-6">
         <div v-if="!turns.length" class="mx-auto flex h-full max-w-md flex-col items-center justify-center text-center">
           <UIcon name="i-lucide-search" class="mb-3 size-6 text-primary" />
@@ -229,8 +288,8 @@ async function send(retry?: Turn) {
                 :to="`/projects/${encodeURIComponent(projectId)}/records/${encodeURIComponent(source.id)}`"
                 class="mt-1 block break-words text-primary hover:underline">{{ source.id }} · {{ source.title }}</NuxtLink>
             </details>
-            <ChatDraftCard v-if="turn.draft" :project-id="projectId" :draft="turn.draft"
-              :context-tokens="turn.mapToken ? [turn.mapToken] : []" @changed="turn.draft = $event" />
+            <ChatDraftCard v-if="turn.draft" :key="active?.id" :project-id="projectId" :draft="turn.draft"
+              :context-tokens="turn.mapToken ? [turn.mapToken] : []" @changed="turn.draft = $event; active && chats.persist(active)" />
             <p v-else-if="turn.answer || (index === turns.length - 1 && running && streamingText)"
               class="whitespace-pre-wrap break-words text-sm leading-relaxed">{{ turn.answer || streamingText }}</p>
             <UButton v-if="index === turns.length - 1 && !busy && (turn.stage === 'failedStage' || turn.stage === 'cancelled')"
@@ -238,8 +297,19 @@ async function send(retry?: Turn) {
           </div>
         </article>
       </div>
-      <div class="space-y-2 border-t border-default bg-default p-4">
+      <div v-if="active && !active.archived" class="space-y-2 border-t border-default bg-default p-4">
         <ModelProgress :running="running" :elapsed="elapsed" :outcome="outcome?.kind === 'failure' ? outcome : null" @cancel="stop" />
+        <div class="flex flex-wrap items-center gap-2">
+          <UDropdownMenu :items="[
+            { label: t('chat.mode.ask'), onSelect: () => { mode = 'ask'; } },
+            { label: t('chat.mode.task'), onSelect: () => { mode = 'task'; } },
+            { label: t('chat.mode.map'), onSelect: () => { mode = 'map'; } }
+          ]">
+            <UButton size="xs" variant="soft" :disabled="busy" icon="i-lucide-chevron-down">{{ t(mode === 'ask' ? 'chat.actions' : `chat.mode.${mode}`) }}</UButton>
+          </UDropdownMenu>
+          <USelect v-if="mode === 'map'" v-model="map" size="xs" :disabled="busy"
+            :items="maps.map((value) => ({ value, label: t(`chat.map.${value}`) }))" :aria-label="t('chat.mode.map')" />
+        </div>
         <form class="flex flex-wrap items-end gap-2" @submit.prevent="send()">
           <UTextarea v-model="input" :rows="2" :maxlength="4000" :aria-label="t('chat.question')"
             :placeholder="t('chat.question')" class="min-w-0 flex-1" />
@@ -247,40 +317,38 @@ async function send(retry?: Turn) {
           <UButton type="submit" :disabled="busy || !input.trim()" icon="i-lucide-send">{{ t('chat.send') }}</UButton>
         </form>
       </div>
+      <div v-else-if="!loading && !active" class="border-t border-default p-4">
+        <UButton icon="i-lucide-plus" :loading="creating" @click="newChat">{{ t('chat.newChat') }}</UButton>
+      </div>
     </div>
-    <aside class="space-y-4 rounded-xl border border-default p-4">
-      <h2 class="font-semibold">{{ t('chat.context') }}</h2>
-      <label class="grid gap-1 text-sm">{{ t('chat.modeLabel') }}
-        <select v-model="mode" :disabled="busy" class="rounded border border-default bg-default p-2">
-          <option v-for="item in (['ask', 'task', 'map'] as const)" :key="item" :value="item">{{ t(`chat.mode.${item}`) }}</option>
-        </select>
-      </label>
-      <label v-if="mode === 'map'" class="grid gap-1 text-sm">{{ t('chat.mode.map') }}
-        <select v-model="map" :disabled="busy" class="rounded border border-default bg-default p-2">
-          <option v-for="item in maps" :key="item" :value="item">{{ t(`chat.map.${item}`) }}</option>
-        </select>
-      </label>
-      <label class="grid gap-1 text-sm">{{ t('chat.phase') }}
-        <select v-model="phase" :disabled="busy" class="max-w-full rounded border border-default bg-default p-2">
-          <option value="">{{ t('chat.noPhase') }}</option>
-          <option v-for="item in phases" :key="item.id" :value="item.id">{{ item.id }} · {{ item.title }}</option>
-        </select>
-      </label>
-      <label class="grid gap-1 text-sm">{{ t('chat.profile') }}
-        <select v-model="profile" :disabled="busy" class="rounded border border-default bg-default p-2">
-          <option v-for="(_, key) in templates" :key="key" :value="key">{{ t(`chat.${key}`) }}</option>
-        </select>
-      </label>
-      <label class="grid min-w-0 gap-1 text-sm">{{ t('chat.record') }}
-        <select v-model="selected" :disabled="busy" class="max-w-full rounded border border-default bg-default p-2">
-          <option value="">{{ t('chat.auto') }}</option>
-          <option v-for="item in options" :key="item.id" :value="item.id">{{ item.id }} · {{ item.title }}</option>
-        </select>
-      </label>
-      <ul class="space-y-2 border-t border-default pt-4 text-sm text-muted">
-        <li class="flex gap-2"><UIcon name="i-lucide-database" class="mt-0.5 size-4 shrink-0 text-primary" />{{ t('chat.localIndex') }}</li>
-        <li class="flex gap-2"><UIcon name="i-lucide-shield" class="mt-0.5 size-4 shrink-0" />{{ t(mode === 'ask' ? 'chat.fileAccess' : 'chat.writeAccess') }}</li>
-      </ul>
-    </aside>
+    <UModal v-model:open="contextOpen" :title="t('chat.context')" :description="t('chat.localIndex')">
+      <template #body>
+        <div class="min-w-0 space-y-3">
+          <UInput v-model="contextQuery" autofocus icon="i-lucide-search" class="w-full" :placeholder="t('chat.findContext')" :aria-label="t('chat.findContext')" />
+          <div class="flex flex-wrap gap-1">
+            <UButton v-for="filter in filters" :key="filter" size="xs" :variant="filter === contextFilter ? 'soft' : 'ghost'"
+              @click="contextFilter = filter">{{ t(`chat.filter.${filter}`) }}</UButton>
+          </div>
+          <ul class="max-h-[40vh] overflow-y-auto">
+            <li v-for="item in contextResults" :key="item.id">
+              <button type="button" class="flex w-full min-w-0 gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-elevated"
+                @click="focus(item.type === 'phase' ? 'phase' : 'record', item.id)">
+                <span class="shrink-0 font-mono text-xs text-muted">{{ item.id }}</span>
+                <span class="min-w-0 [overflow-wrap:anywhere]">{{ item.title }}</span>
+              </button>
+            </li>
+          </ul>
+          <div class="flex flex-wrap gap-1">
+            <UButton v-if="selected" size="xs" variant="ghost" @click="focus('record', '')">{{ t('chat.unpin', { id: selected }) }}</UButton>
+            <UButton v-if="phase" size="xs" variant="ghost" @click="focus('phase', '')">{{ t('chat.unpin', { id: phase }) }}</UButton>
+          </div>
+          <details class="text-sm text-muted">
+            <summary class="cursor-pointer">{{ t('chat.profile') }} · {{ t(`chat.${profile}`) }}</summary>
+            <USelect v-model="profile" class="my-2 w-full" :items="Object.keys(templates).map((value) => ({ value, label: t(`chat.${value}`) }))" />
+            <p>{{ t(mode === 'ask' ? 'chat.fileAccess' : 'chat.writeAccess') }}</p>
+          </details>
+        </div>
+      </template>
+    </UModal>
   </section>
 </template>

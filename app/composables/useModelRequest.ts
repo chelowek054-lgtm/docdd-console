@@ -68,12 +68,13 @@ export function useModelRequest(key: MaybeRefOrGetter<string>, options: ModelReq
    */
   async function stream<T>(url: string, body: unknown, settings: { background?: boolean } = {}): Promise<T | null> {
     started = true;
-    const answer = await store.stream<T>(jobKey.value, meta(), url, body);
+    const key = jobKey.value;
+    const answer = await store.stream<T>(key, meta(), url, body);
     if (settings.background) {
-      store.acknowledge(jobKey.value);
+      store.acknowledge(key);
       return answer;
     }
-    return store.jobs[jobKey.value]?.orphaned ? null : answer;
+    return store.jobs[key]?.orphaned ? null : answer;
   }
 
   async function run<T>(call: (signal: AbortSignal) => Promise<T | { error: ApiFailure }>): Promise<T | null> {

@@ -71,6 +71,7 @@ export function can(
 export function actionFor(method: string, path: string, body?: unknown): Action {
   const verb = method.toUpperCase();
   if (verb === 'GET' || verb === 'HEAD' || verb === 'OPTIONS') return 'read';
+  if (verb === 'PUT' && /^\/api\/projects\/[^/]+\/chat\/?$/.test(path)) return 'read';
   // Предпросмотр ничего не пишет.
   if (/\/preview\/?$/.test(path) || /\/progress-question\/?$/.test(path)) return 'read';
   if (/^\/api\/projects\/?$/.test(path) || /^\/api\/projects\/init\/?$/.test(path) || /^\/api\/projects\/[^/]+\/?$/.test(path)) {
