@@ -8,6 +8,7 @@ import { fail, failWith } from '../../../../utils/http';
 import { createRecords, proposalOf } from '../../../../utils/inbox-service';
 import { findProject } from '../../../../utils/projects';
 import { missingMapContexts, targetsOfMapChange } from '../../../../utils/map-context';
+import { lintDetails, lintMapChange } from '../../../../utils/map-lint';
 
 /**
  * Завести записи по подтверждённому человеком списку (docs/10-inbox.md).
@@ -57,14 +58,24 @@ export default defineEventHandler(async (event) => {
     if (body?.source === 'model' || body?.contextTokens !== undefined || typeof body?.answer === 'string' ||
         (event.context['user'] as { agent?: boolean } | undefined)?.agent) {
       const targets = new Set<string>();
+      const changes = [];
       for (const row of proposed.filter((item) => item.type === 'map')) {
         const parsed = parseMapRecord(row.body ?? '');
+        if (parsed.problems.length) return failWith(event, 422, 'map_invalid', 'Блок карты не прошёл схему',
+          parsed.problems.map((problem) => ({ code: problem.structure, message: problem.message })));
         for (const map of targetsOfMapChange(parsed.change, parsed.present)) targets.add(map);
         if (row.domain) targets.add('domain');
         if (row.vision || row.capabilities?.length || row.relations?.length || !parsed.present.length && !row.domain) targets.add('functional');
+        changes.push({ parsed, row });
       }
       const missing = missingMapContexts(root, id, [...targets], body?.contextTokens);
       if (missing.length) return fail(event, 409, 'map_context_required', 'Перечитайте контекст карты: map_get в MCP или GET /map/context?map=<вид>', missing.join(', '));
+      for (const { parsed, row } of changes) {
+        const change = { ...parsed.change, ...(row.domain ? { domain: { added: row.domain } } : {}) };
+        if (!Object.keys(change).length) continue;
+        const blockers = lintDetails(lintMapChange(root, change, row.body));
+        if (blockers.length) return failWith(event, 422, 'map_lint', 'Карта не прошла линтер: черновик не создан', blockers);
+      }
     }
     const outcome = createRecords(root, proposed, notes);
     return outcome.ok ? outcome : fail(event, 409, outcome.code, outcome.message);

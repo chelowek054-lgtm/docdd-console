@@ -394,7 +394,7 @@ watch([graph, resetVersion, storageKey, sharedPositions], async ([value], _, onC
       <slot name="toolbar" />
     </div>
     <div class="relative isolate overflow-hidden rounded-lg border border-default"
-      :class="fullscreen ? 'min-h-0 flex-1' : ['aspect-video min-h-64 w-full max-h-[75vh]', !projected && '2xl:pr-80']">
+      :class="fullscreen ? 'min-h-0 flex-1' : ['aspect-video min-h-64 w-full max-h-[75vh]', !projected && (detail || link) && '2xl:pr-80']">
       <aside v-if="detail || link" class="absolute inset-y-0 right-0 z-20 w-full max-w-xs overflow-auto border-l border-default bg-default p-3" :aria-label="t('mapGraph.inspector')">
         <UButton class="float-right" icon="i-lucide-x" :aria-label="t('mapGraph.close')" variant="ghost" @click="clearSelection" />
         <template v-if="detail">
