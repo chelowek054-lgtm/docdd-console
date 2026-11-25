@@ -286,7 +286,7 @@ const depthOfGroup = computed(() => (group.value ? depthOf(group.value, tree.val
     </template>
 
     <div class="space-y-4">
-      <MapDepthBar kind="custom" :tree="tree" />
+      <MapDepthBar kind="custom" :tree="tree" :title="definition.title" />
       <MapSplitHints v-if="group" :group-id="group" :nodes="splitNodes" :edges="splitEdges" />
 
       <div v-if="nodes.length" class="flex flex-wrap items-center gap-2 text-sm">
@@ -371,7 +371,7 @@ const depthOfGroup = computed(() => (group.value ? depthOf(group.value, tree.val
       </div>
 
       <ClientOnly v-if="notation">
-        <StandardMapGraph :template="notation" :nodes="industryNodes" :edges="industryEdges" :view-id="definition.id" @select="selectIndustry" />
+        <StandardMapGraph :template="notation" :nodes="industryNodes" :edges="industryEdges" :view-id="definition.id" :map-id="'custom:' + definition.id" @select="selectIndustry" />
       </ClientOnly>
       <template v-else>
         <FunctionalGraphBar
@@ -392,7 +392,7 @@ const depthOfGroup = computed(() => (group.value ? depthOf(group.value, tree.val
         <FunctionalLegendBar v-if="graph.legend" :legend="graph.legend" />
         <p v-if="!graph.text" class="text-sm text-muted">{{ nodes.length ? t('t83.m2.nothingFilters') : t('t83.m2.nothingToDraw') }}</p>
         <ProjectedMapGraph
-          v-else :graph="graph" template="strategic" :view-id="definition.id"
+          v-else :graph="graph" template="strategic" :view-id="definition.id" :map-id="'custom:' + definition.id" :frame-title="groupTitle || undefined"
           @select="onNodeClick" @open="onNodeDblClick" @clear="selection = null"
         />
       </template>

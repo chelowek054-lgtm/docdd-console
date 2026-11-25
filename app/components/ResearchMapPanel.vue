@@ -70,7 +70,7 @@ const graph = computed(() => {
       <template v-else>
         <USelect :model-value="decision.id" :items="items" :aria-label="t('maps.research.decisions')" class="w-full max-w-xl" @update:model-value="selected = $event" />
         <ClientOnly>
-          <StandardMapGraph :key="decision.id" template="research" :nodes="graph.nodes" :edges="graph.edges" />
+          <StandardMapGraph :key="decision.id" template="research" :view-id="decision.id" :nodes="graph.nodes" :edges="graph.edges" />
         </ClientOnly>
         <p class="text-sm">
           <NuxtLink :to="`/projects/${encodeURIComponent(projectId)}/records/${decision.id}`" class="text-primary hover:underline">{{ decision.id }}</NuxtLink>

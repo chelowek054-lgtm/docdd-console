@@ -42,6 +42,25 @@ import { designPrompt } from '../../../../lib/prompt';
 import { projectDesign } from '../../../../utils/design-service';
 import { projectScreens } from '../../../../utils/design-screens-service'; import { projectStoryPairs } from '../../../../utils/design-catalog-service'; import { withStoryPairs } from '../../../../lib/design-port'; import { packExtra } from '../../../../utils/context-service';
 import { reviewerOf, roleName } from '../../../../lib/reviewer';
+import { buildMapContext, targetsOfMapChange } from '../../../../utils/map-context';
+
+function withMapContext(root: string, projectId: string, targets: readonly string[],
+  result: { prompt: string; count: number }) {
+  const contexts = targets.map((target) => {
+    const context = buildMapContext(root, projectId, target, { limit: 12 });
+    if (!context) throw new Error(`Неизвестная карта для запроса: ${target}`);
+    return context;
+  });
+  const sections = contexts.map(({ map, question, instructions, schema, additionalSchemas, standard, current, sources }) =>
+    [`### ${map}: ${question}`, instructions, 'Поля записи и действующие обозначения',
+      JSON.stringify({ schema, additionalSchemas, standard }), 'Текущее состояние и источники',
+      JSON.stringify({ current, sources })].join('\n'));
+  return {
+    ...result,
+    prompt: ['## Контекст карты DocDD', ...sections, result.prompt].join('\n\n'),
+    contextTokens: contexts.map(({ contextToken }) => contextToken)
+  };
+}
 
 /**
  * Сборка запроса к модели по шаблону из репозитория. Приложение подставляет
@@ -119,7 +138,7 @@ export default defineEventHandler(async (event) => {
       }
 
       const state = await mapsState(project.root);
-      return {
+      return withMapContext(project.root, id, ['codemap', 'dataflow', 'userflow'], {
         prompt: mapsPrompt(await template('update-maps.md'), {
           ...state,
           inventory: {
@@ -132,7 +151,7 @@ export default defineEventHandler(async (event) => {
           }
         }, mapSchemas()),
         count: inventory.next.length
-      };
+      });
     }
 
     if (kind === 'inbox') {
@@ -172,7 +191,7 @@ export default defineEventHandler(async (event) => {
         prompt += String.fromCharCode(10, 10) + strategyIntentBlock(await template('strategy-intent.md'), contour, vision);
       }
       if (body?.mode === 'grill') prompt += String.fromCharCode(10, 10) + grillPlanBlock(await template('grill-plan.md'));
-      return { prompt, count: notes.length };
+      return withMapContext(project.root, id, ['functional', 'domain'], { prompt, count: notes.length });
     }
 
     if (kind === 'phases') {
@@ -215,10 +234,12 @@ export default defineEventHandler(async (event) => {
       if (answer.trim() === '') {
         return fail(event, 400, 'answer_required', 'Нечего править: прошлого ответа нет');
       }
-      return {
+      const parsed = parseMapRecord(answer);
+      const targets = targetsOfMapChange(parsed.change, parsed.present);
+      return withMapContext(project.root, id, targets.length ? targets : ['codemap', 'dataflow', 'userflow'], {
         prompt: mapFixPrompt(await template('fix-map-answer.md'), answer, problems),
         count: problems.length
-      };
+      });
     }
 
     if (kind === 'verify') {
@@ -234,14 +255,14 @@ export default defineEventHandler(async (event) => {
       // «Как есть» (R-0078): устройство из подтверждённых карт и то, что уже заведено, — модель читает код сама.
       const picture = buildProjectMap(project.root);
       const index = loadIndex(project.root);
-      return {
+      return withMapContext(project.root, id, ['functional', 'domain'], {
         prompt: asIsPrompt(await template('as-is.md'), {
           modules: picture.codemap.modules, screens: picture.userflow.screens, sources: picture.dataflow.sources,
           capabilities: picture.functional.capabilities,
           requirements: index.records.filter((record) => record.type === 'requirement').map((record) => ({ id: record.id, title: record.title }))
         }),
         count: picture.codemap.modules.length + picture.userflow.screens.length
-      };
+      });
     }
 
     if (kind === 'functional-check') {
@@ -249,10 +270,10 @@ export default defineEventHandler(async (event) => {
       if (capabilities.length === 0) {
         return fail(event, 422, 'functional_empty', 'В функциональной карте нет ни одной возможности: сверять нечего');
       }
-      return {
+      return withMapContext(project.root, id, ['functional'], {
         prompt: functionalCheckPrompt(await template('functional-check.md'), capabilities),
         count: capabilities.length
-      };
+      });
     }
 
     if (kind === 'relations') {
@@ -260,10 +281,10 @@ export default defineEventHandler(async (event) => {
       if (capabilities.length < 2) {
         return fail(event, 422, 'relations_nothing_to_link', 'В функциональной карте меньше двух возможностей: связывать нечего');
       }
-      return {
+      return withMapContext(project.root, id, ['functional'], {
         prompt: relationsPrompt(await template('relations.md'), capabilities, relations),
         count: capabilities.length
-      };
+      });
     }
 
     if (kind === 'groups') {
@@ -274,7 +295,9 @@ export default defineEventHandler(async (event) => {
       if (modules.length === 0) {
         return fail(event, 422, 'groups_nothing_to_group', 'В кодовой карте нет ни одного модуля: группировать нечего');
       }
-      return { prompt: groupsPrompt(await template('groups.md'), modules, groups, map.functional.capabilities), count: modules.length };
+      return withMapContext(project.root, id, ['codemap'], {
+        prompt: groupsPrompt(await template('groups.md'), modules, groups, map.functional.capabilities), count: modules.length
+      });
     }
 
     if (kind === 'architecture') {
@@ -287,7 +310,7 @@ export default defineEventHandler(async (event) => {
       if (modules.length === 0) {
         return fail(event, 422, 'architecture_no_modules', 'Не найдено ни одного модуля с входом: проверьте `architecture.entries` и `sources.code`');
       }
-      return {
+      return withMapContext(project.root, id, ['codemap', 'sysdesign'], {
         prompt: architecturePrompt(await template('architecture-audit.md'), {
           rules,
           modules: modules.map((module) => ({ dir: module.id, entry: module.entry, parent: module.parent })),
@@ -298,7 +321,7 @@ export default defineEventHandler(async (event) => {
           practices: connectedPractices(withBuiltin(readWorkspace(project.root).manifest.sources?.shared ?? []))
         }),
         count: modules.length
-      };
+      });
     }
 
     if (kind === 'priority') {

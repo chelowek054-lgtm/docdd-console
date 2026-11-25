@@ -1,6 +1,31 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
 
+.vue-flow .vue-flow__controls {
+  border: 1px solid var(--ui-border);
+  border-radius: 0.375rem;
+  overflow: hidden;
+}
+
+.vue-flow .vue-flow__controls-button {
+  background: var(--ui-bg-elevated);
+  color: var(--ui-text);
+  border-color: var(--ui-border);
+}
+
+.vue-flow .vue-flow__controls-button svg {
+  fill: currentColor;
+}
+
+.vue-flow .vue-flow__controls-button:hover:not(:disabled) {
+  background: var(--ui-bg-accented);
+}
+
+.vue-flow .vue-flow__controls-button:focus-visible {
+  outline: 2px solid var(--ui-primary);
+  outline-offset: -2px;
+}
+
 /*
  * Оформление берётся из Nuxt UI токенами, а не переопределением её стилей
  * снаружи (ADR-0005). Здесь — только выбор палитры.

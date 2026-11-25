@@ -41,7 +41,7 @@ const route = useRoute();
  */
 const props = withDefaults(defineProps<{ scope?: 'strategic' | 'working' }>(), { scope: 'working' });
 const strategic = props.scope === 'strategic';
-const projectId = computed(() => String(route.params['id'] ?? '')); const { me: currentUser } = useMe(projectId);
+const projectId = computed(() => String(route.params['id'] ?? '')); const { me: currentUser, allowed } = useMe(projectId);
 
 type MapResponse = ProjectMap & { unverified: number }; type MapKindName = 'functional' | 'codebase' | 'flows' | 'journeys'; const firstKind: MapKindName = strategic ? 'functional' : route.query['fgroup'] || route.query['fkind'] || route.query['fview'] ? 'flows' : route.query['group'] || route.query['view'] ? 'codebase' : 'functional';
 
@@ -96,11 +96,11 @@ const draftFailure = ref<ApiFailure | null>(null);
 const creatingTask = ref(false);
 const taskId = ref('');
 /** Ответ, поправленный моделью: заменяет прошлый, пока его не сохранили. */
-const fixed = ref('');
+const fixed = ref<{ answer: string; contextTokens?: string[] }>();
 
 const { t, tn } = useT(); const { running: fixing, elapsed, outcome, log, stream, cancel } = useModelRequest(() => `${projectId.value}:map-fix`, {
   label: t('maps.fixLabel'),
-  onRecovered: (answer) => acceptFix(answer as { answer: string })
+  onRecovered: (answer) => acceptFix(answer as { answer: string; contextTokens?: string[] })
 });
 
 /** Претензии схемы дословно: их и получит модель. */
@@ -111,7 +111,7 @@ const problems = computed(() => (draftFailure.value?.blockers ?? []).map((blocke
  * только форма (docs/07-maps.md, раздел «Ответ не прошёл схему»).
  */
 async function askToFix(answer: string) {
-  const built = await $fetch<{ prompt: string } | { error: ApiFailure }>(
+  const built = await $fetch<{ prompt: string; contextTokens?: string[] } | { error: ApiFailure }>(
     `/api/projects/${projectId.value}/prompt`,
     { method: 'POST', body: { kind: 'map-fix', answer, problems: problems.value }, ignoreResponseError: true }
   );
@@ -121,29 +121,29 @@ async function askToFix(answer: string) {
     return;
   }
 
-  const result = await stream<{ answer: string }>('/api/llm/ask', {
+  const result = await stream<{ answer: string; contextTokens?: string[] }>('/api/llm/ask', {
     prompt: (built as { prompt: string }).prompt,
-    projectId: projectId.value
+    projectId: projectId.value, contextTokens: 'contextTokens' in built ? built.contextTokens : []
   });
   if (!result) return;
 
   acceptFix(result);
 }
 
-function acceptFix(result: { answer: string }) {
-  fixed.value = result.answer;
+function acceptFix(result: { answer: string; contextTokens?: string[] }) {
+  fixed.value = result;
   draftFailure.value = null;
 }
 
 /** Ответ модели сохраняется черновиком: подтверждает человек, а не приложение. */
-async function saveDraft(answer: string, title?: string) {
+async function saveDraft(answer: string, contextTokens: string[], title?: string) {
   saving.value = true;
   draftFailure.value = null;
   draftId.value = '';
   try {
     const response = await $fetch(`/api/projects/${projectId.value}/map/draft`, {
       method: 'POST',
-      body: { answer, ...(title ? { title } : {}) },
+      body: { answer, source: 'model', contextTokens, ...(title ? { title } : {}) },
       ignoreResponseError: true
     });
     const problem = failureOf(response);
@@ -195,7 +195,7 @@ async function createImplementingTask() {
 function onAnswer() {
   draftId.value = '';
   draftFailure.value = null;
-  fixed.value = '';
+  fixed.value = undefined;
   taskId.value = '';
 }
 
@@ -283,19 +283,7 @@ function goTo(query: { view?: string; group?: string }) {
   selection.value = null;
   void router.push({ query: { ...route.query, view: undefined, group: undefined, open: undefined, depth: undefined, ...query } });
 }
-const showGroups = () => goTo({ view: 'groups' });
-const showAllModules = () => goTo({ view: 'all' });
 const enterGroup = (groupId: string) => goTo({ group: groupId });
-/** Путь к вложенной группе через родителей (R-0145): каждая ступень — ссылка; последняя — сама группа. */
-const groupCrumbs = computed(() => {
-  if (codemapMode.value !== 'group' || !openGroupId.value) return [];
-  const nodes = new Map((codemapTree()?.nodes ?? []).map((node) => [node.id, node]));
-  const path: { id: string; title: string }[] = [];
-  for (let at = nodes.get(openGroupId.value); at && path.length < 32; at = at.parent ? nodes.get(at.parent) : undefined) {
-    path.unshift({ id: at.id, title: at.title });
-  }
-  return path;
-});
 
 /**
  * Группы на потоках данных (docs/07-maps.md, «Потоки данных», «Группы и
@@ -617,10 +605,8 @@ const kindCounts = computed(() => {
 
 function goCap(query: { capview?: string; capgroup?: string }) {
   selection.value = null;
-  void router.push({ query: { ...route.query, capview: undefined, capgroup: undefined, ...query } });
+  void router.push({ query: { ...route.query, capview: undefined, capgroup: undefined, depth: undefined, open: undefined, ...query } });
 }
-const showCapGroups = () => goCap({ capview: 'groups' });
-const showCapAll = () => goCap({ capview: 'all' });
 const enterCapGroup = (groupId: string) => goCap({ capgroup: groupId });
 
 function removeRelation(relation: { from: string; to: string; type: string }) {
@@ -728,7 +714,7 @@ const startTab = route.query['fgroup'] || route.query['fkind'] || route.query['f
   ? 'dataflow'
   : route.query['group'] || route.query['view'] ? 'codemap' : 'functional';
 const shown = ref<'codemap' | 'dataflow' | 'userflow' | 'functional'>(startTab);
-const codeTab = ref<'inventory' | 'graph'>(route.query['group'] || route.query['view'] ? 'graph' : 'inventory');
+const codeTab = ref<'inventory' | 'graph'>('graph');
 const current = computed(() => views.value.find((view) => view.key === shown.value));
 
 
@@ -800,7 +786,7 @@ function onNodeDblClick(id: string) {
   if (shown.value === 'codemap' && codemapMode.value === 'groups' && node?.group) enterGroup(node.group.groupId);
   else if (shown.value === 'codemap' && node && !node.ghost && isTreeGroup(node.id)) enterGroup(node.id);
   if (shown.value === 'dataflow' && flowMode.value === 'groups' && node?.flowGroup) enterFlow(node.flowGroup);
-  if (shown.value === 'functional' && capLevel.value === 'groups' && node?.capabilityGroup) enterCapGroup(node.capabilityGroup);
+  if (shown.value === 'functional' && node?.capabilityGroup && !node.ghost) enterCapGroup(node.capabilityGroup);
 }
 /** «Открыть группу» из карточки: на потоках — группа кода, на кодовой карте — группа модулей. */
 function openGroupFromCard(groupId: string) {
@@ -817,6 +803,20 @@ function onEdgeClick(edge: MermaidEdge) {
     return;
   }
   selection.value = { kind: 'edge', evidence: edge.evidence, status: edge.status, declaredBy: edge.declaredBy };
+}
+
+
+/** Глубина из адреса: уровень от корня (0 — верхние группы) и раскрытая на месте группа. */
+function depthParams(treeIds: ReadonlySet<string>, group = ''): { level: number; open: string | null } | null {
+  const wanted = String(route.query['depth'] ?? '');
+  const rawOpen = String(route.query['open'] ?? '');
+  const explicitOpen = treeIds.has(rawOpen) ? rawOpen : null;
+  const relative = !!wanted && !explicitOpen && treeIds.has(group);
+  const open = explicitOpen ?? (relative ? group : null);
+  const level = wanted === 'all' ? 99 : /^[1-9]\d*$/.test(wanted) ? Number(wanted) - (relative ? 0 : 1) : null;
+  if (level === null && open === null) return null;
+  // Внутри раскрытой группы уровень считается вниз от неё: меньше одного смысла нет.
+  return { level: open ? Math.max(level ?? 1, 1) : level ?? 0, open };
 }
 
 // --- глубина карт (ADR-0027, T-0095) ---
@@ -837,18 +837,6 @@ import { COVERAGE_LABEL, IMPL_LABEL, filterLeaves, isImplStatus, overviewAt, pla
 import type { LinkCard, MermaidNode } from '~/utils/map-mermaid';
 
 type DepthOutput = ReturnType<typeof functionalMermaid>;
-
-/** Глубина из адреса: уровень от корня (0 — верхние группы) и раскрытая на месте группа. */
-function depthParams(treeIds: ReadonlySet<string>): { level: number; open: string | null } | null {
-  const wanted = String(route.query['depth'] ?? '');
-  const rawOpen = String(route.query['open'] ?? '');
-  const open = rawOpen && treeIds.has(rawOpen) ? rawOpen : null;
-  const level = wanted === 'all' ? 99 : /^[1-9]$/.test(wanted) ? Number(wanted) - 1 : null;
-  if (level === null && open === null) return null;
-  // Внутри раскрытой группы уровень считается вниз от неё: меньше одного смысла нет.
-  return { level: open ? Math.max(level ?? 1, 1) : level ?? 0, open };
-}
-
 const foldId = (prefix: string, id: string) => `${prefix}_${id.replace(/[^a-zA-Zа-яА-Я0-9]/g, '_')}`;
 const foldText = (text: string) => text.replace(/["`]/g, "'").slice(0, 40);
 
@@ -1005,11 +993,11 @@ const codemapDepth = computed<DepthOutput | null>(() => {
   if (!value) return null;
   const base = filteredCodemap.value ?? value.codemap;
   const tree = groupTree(base.modules, base.imports, value.codemap.groups);
-  if (!tree.nodes.some((node) => node.parent)) return null;
+  if (!tree.nodes.length) return null;
   const groupIds = new Set(tree.nodes.map((node) => node.id));
-  // Открытая группа с подгруппами показывает их, а не стену модулей: следующий уровень, как «Раскрыть на месте».
-  const hasChildren = groupFoldsChildren();
-  const params = depthParams(groupIds) ?? (hasChildren ? { level: 1, open: openGroupId.value } : null);
+  // Начальная глубина и переключатель используют одну и ту же иерархию.
+  const defaultScope = route.query.view === 'all' ? null : { level: openGroupId.value ? 1 : 0, open: openGroupId.value || null };
+  const params = depthParams(groupIds, openGroupId.value) ?? defaultScope;
   if (!params) return null;
   // Модуль висит под своей самой глубокой группой; модуль с id группы деревом не дублируется.
   const modules = new Set(base.modules.map((item) => item.id));
@@ -1093,7 +1081,7 @@ const dataflowDepth = computed<DepthOutput | null>(() => {
 const functionalDepth = computed<DepthOutput | null>(() => {
   const { capabilities: all, relations: allRelations } = functionalEffective.value;
   if (!all.some((item) => item.parent)) return null;
-  const params = depthParams(new Set(all.map((item) => item.id)));
+  const params = depthParams(new Set(all.map((item) => item.id)), capGroupId.value) ?? (route.query.capview === 'all' ? null : { level: capGroupId.value ? 1 : 0, open: capGroupId.value || null });
   if (!params) return null;
   // Состояние и «ждёт» считаются по всему дереву, а не по тому, что осталось под фильтром.
   const views = capabilityViews(all, allRelations, coverage.value);
@@ -1156,6 +1144,7 @@ const functionalDepth = computed<DepthOutput | null>(() => {
       lines: [score, text].filter(Boolean),
       extra: {
         capability: true,
+        ...(node.expandable ? { capabilityGroup: node.id } : {}),
         ...(item?.note ? { note: item.note } : {}),
         ...(view ? { capabilityView: view } : {})
       }
@@ -1248,10 +1237,6 @@ function nestedScope<M extends { id: string }, I extends { from: string; to: str
   };
 }
 
-// Пользовательские карты (docs/adr/0028-custom-maps.md): вкладки рядом со встроенными
-// видами и форма «Новая карта». Код — в конце скрипта: M-0001 цитирует строки выше.
-import type { CustomMapView as CustomMapContent } from '~~/server/lib/custom-maps';
-import type { CustomMapDefinition } from '~~/server/lib/types';
 
 type CustomMapsResponse = {
   definitions: CustomMapDefinition[];
@@ -1262,6 +1247,11 @@ type CustomMapsResponse = {
   /** Кто завёл строку `maps.custom` (ADR-0036); `null` — неизвестно, удаляет только администратор. */
   owners?: Record<string, string | null>;
 };
+
+// Пользовательские карты (docs/adr/0028-custom-maps.md): вкладки рядом со встроенными
+// видами и форма «Новая карта». Код — в конце скрипта: M-0001 цитирует строки выше.
+import type { CustomMapView as CustomMapContent } from '~~/server/lib/custom-maps';
+import type { CustomMapDefinition } from '~~/server/lib/types';
 const { data: customData, refresh: refreshCustom } = useFetch<CustomMapsResponse | { error: ApiFailure }>(
   () => `/api/projects/${projectId.value}/maps/custom`
 );
@@ -1270,6 +1260,18 @@ const customMaps = computed<CustomMapsResponse>(() =>
     ? customData.value
     : { definitions: [], problems: [], maps: {}, engines: [] }
 );
+const strategicCanvas = ref<{
+  editorViewport(): { x: number; y: number; zoom: number } | undefined;
+  editorPositions(): Record<string, { x: number; y: number }>;
+}>();
+const editorViewport = shallowRef<{ x: number; y: number; zoom: number }>();
+const editorPositions = shallowRef<Record<string, { x: number; y: number }>>();
+watch(functionalView, (view) => {
+  if (view === 'editor') {
+    editorViewport.value = strategicCanvas.value?.editorViewport();
+    editorPositions.value = strategicCanvas.value?.editorPositions();
+  }
+});
 /** Открытая пользовательская карта; null — показан встроенный вид. */
 // Открытая пользовательская карта живёт в адресе (?cmap=), как и её глубина:
 // ссылку на «карту, группу, уровень» можно переслать (ADR-0027).
@@ -1298,7 +1300,7 @@ const requiredTabs = computed(() => [
   { key: 'functional', title: t('maps.v.functional'), active: !asideShown.value && shown.value === 'functional', open: () => { shown.value = 'functional'; customShown.value = null; } },
   { key: 'domain', title: t('maps.v.domain'), active: requiredShown.value === 'domain', open: () => { requiredShown.value = 'domain'; } },
   { key: 'sysdesign', title: t('maps.v.sysdesign'), active: requiredShown.value === 'sysdesign', open: () => { requiredShown.value = 'sysdesign'; } },
-  { key: 'codemap', title: t('maps.v.codemap'), active: !asideShown.value && shown.value === 'codemap', open: () => { codeTab.value = 'inventory'; shown.value = 'codemap'; customShown.value = null; } }
+  { key: 'codemap', title: t('maps.v.codemap'), active: !asideShown.value && shown.value === 'codemap', open: () => { codeTab.value = 'graph'; shown.value = 'codemap'; customShown.value = null; } }
 ]);
 
 /** Открытая рабочая карта, которую этот человек вправе удалить (ADR-0036): создатель или администратор. */
@@ -1447,9 +1449,9 @@ watch(views, (list) => {
         :hint="t('maps.draftHint')"
         @answered="onAnswer"
       >
-        <template #answer="{ answer }">
+        <template #answer="{ answer, contextTokens }">
           <div class="mb-3 flex flex-wrap items-center gap-3">
-            <UButton size="sm" :loading="saving" @click="saveDraft(fixed || answer)">
+            <UButton size="sm" :loading="saving" @click="saveDraft(fixed?.answer ?? answer, fixed?.contextTokens ?? contextTokens)">
               {{ t('maps.saveDraft') }}
             </UButton>
 
@@ -1459,7 +1461,7 @@ watch(views, (list) => {
               size="sm"
               variant="soft"
               icon="i-lucide-wand-sparkles"
-              @click="askToFix(fixed || answer)"
+              @click="askToFix(fixed?.answer ?? answer)"
             >
               {{ t('maps.askFix') }}
             </UButton>
@@ -1503,7 +1505,7 @@ watch(views, (list) => {
 
           <div v-if="fixed" class="mb-3">
             <p class="mb-2 text-sm text-muted">{{ t('maps.fixed') }}</p>
-            <pre class="max-h-72 overflow-auto rounded bg-elevated p-3 text-xs whitespace-pre-wrap">{{ fixed }}</pre>
+            <pre class="max-h-72 overflow-auto rounded bg-elevated p-3 text-xs whitespace-pre-wrap">{{ fixed.answer }}</pre>
           </div>
         </template>
       </PromptPanel>
@@ -1545,6 +1547,8 @@ watch(views, (list) => {
       <p v-if="deletedNote && !strategic" class="text-sm text-muted">{{ deletedNote }}</p>
       <p v-if="!strategic && customData && !views.length && !customMaps.definitions.length" class="rounded-lg border border-dashed border-default p-6 text-center text-sm text-muted">{{ t('maps.noWorking') }}</p>
       <CustomMapForm v-if="!strategic" v-model:open="customFormOpen" :project-id="projectId" :engines="customMaps.engines" @created="onCustomCreated" />
+      <MapAgentInstructions :project-id="projectId"
+        :map="customCurrent ? 'custom:' + customCurrent.id : requiredShown || shown" />
       <!-- Строка намерения (ADR-0037) — над стратегической картой, и на «Картах», и на «Стратегии». -->
       <StrategyIntent
         v-if="map && !asideShown && shown === 'functional'"
@@ -1570,7 +1574,7 @@ watch(views, (list) => {
       <DomainMapPanel v-if="!strategic && requiredShown === 'domain'" :project-id="projectId" />
       <template v-if="!asideShown && shown === 'codemap'">
         <div class="flex gap-1">
-          <UButton v-for="tab in (['inventory', 'graph'] as const)" :key="tab" color="neutral" size="sm"
+          <UButton v-for="tab in (['graph', 'inventory'] as const)" :key="tab" color="neutral" size="sm"
             :variant="tab === codeTab ? 'solid' : 'outline'" :aria-pressed="tab === codeTab" @click="codeTab = tab">
             {{ t(tab === 'inventory' ? 'maps.codeInventory' : 'maps.graph') }}
           </UButton>
@@ -1628,17 +1632,17 @@ watch(views, (list) => {
                   v-model="functionalView"
                   class="ml-auto w-64"
                   size="xs"
-                  :items="[{ label: t('maps.graph'), value: 'graph' }, { label: t('maps.tree'), value: 'tree' }, { label: t('maps.editor.tab'), value: 'editor' }]"
+                  :items="[{ label: t('maps.graph'), value: 'graph' }, { label: t('maps.tree'), value: 'tree' }, ...(allowed('edit_draft').allowed ? [{ label: t('maps.editor.tab'), value: 'editor' }] : [])]"
                 />
                 <template v-else>
                   <!-- Группы или все модули разом — у кодовой базы (docs/04-ui.md, «Группы кодовой карты»). -->
-                  <div v-if="hasGroupSwitch" class="ml-auto flex gap-1">
+                  <div v-if="hasGroupSwitch && shown === 'dataflow'" class="ml-auto flex gap-1">
                     <UButton
                       size="xs"
                       :variant="allShown ? 'outline' : 'solid'"
                       color="neutral"
                       icon="i-lucide-boxes"
-                      @click="current.key === 'dataflow' ? showFlowGroups() : showGroups()"
+                      @click="showFlowGroups"
                     >
                       {{ t('maps.groups') }}
                     </UButton>
@@ -1647,9 +1651,9 @@ watch(views, (list) => {
                       :variant="allShown ? 'solid' : 'outline'"
                       color="neutral"
                       icon="i-lucide-network"
-                      @click="current.key === 'dataflow' ? showAllFlows() : showAllModules()"
+                      @click="showAllFlows"
                     >
-                      {{ current.key === 'dataflow' ? t('maps.allFlows') : t('maps.allModules') }}
+                      {{ t('maps.allFlows') }}
                     </UButton>
                   </div>
 
@@ -1701,22 +1705,9 @@ watch(views, (list) => {
               </p>
             </template>
 
-            <!-- Вложенная группа: карточки верхнего уровня у неё нет, путь — через родителей. -->
-            <p v-if="shown === 'codemap' && !openGroupInfo && groupCrumbs.length > 1" class="mb-3 flex flex-wrap items-center gap-1 text-sm" data-group-crumbs>
-              <UButton size="xs" variant="link" color="neutral" icon="i-lucide-chevron-left" @click="showGroups">{{ t('maps.allGroups') }}</UButton>
-              <template v-for="(crumb, at) in groupCrumbs" :key="crumb.id">
-                <span class="text-muted">›</span>
-                <button v-if="at < groupCrumbs.length - 1" type="button" class="hover:underline" @click="enterGroup(crumb.id)">{{ crumb.title }}</button>
-                <span v-else class="font-medium">{{ crumb.title }}</span>
-              </template>
-            </p>
             <template v-if="shown === 'codemap' && codemapMode === 'group' && openGroupInfo">
               <div class="mb-3 space-y-1 text-sm">
                 <p class="flex flex-wrap items-center gap-1">
-                  <UButton size="xs" variant="link" color="neutral" icon="i-lucide-chevron-left" @click="showGroups">
-                    {{ t('maps.allGroups') }}
-                  </UButton>
-                  <span class="text-muted">›</span>
                   <span class="font-medium">{{ openGroupInfo.title }}</span>
                   <UBadge v-if="openGroupInfo.auto" size="xs" color="neutral" variant="subtle">{{ t('maps.auto') }}</UBadge>
                   <span class="text-muted">· {{ tn('t83.m2.pl.module', openGroupInfo.moduleCount) }}</span>
@@ -1779,9 +1770,9 @@ watch(views, (list) => {
               :hint="t('maps.mapDraftHint')"
               @answered="onAnswer"
             >
-              <template #answer="{ answer }">
+              <template #answer="{ answer, contextTokens }">
                 <div class="mb-3 flex flex-wrap items-center gap-3">
-                  <UButton size="sm" :loading="saving" @click="saveDraft(answer, t('maps.moduleGroups'))">{{ t('maps.saveDraft') }}</UButton>
+                  <UButton size="sm" :loading="saving" @click="saveDraft(answer, contextTokens, t('maps.moduleGroups'))">{{ t('maps.saveDraft') }}</UButton>
                   <NuxtLink
                     v-if="draftId"
                     :to="`/projects/${projectId}/records/${draftId}`"
@@ -1854,7 +1845,7 @@ watch(views, (list) => {
                 </template>
               </PromptPanel>
 
-              <MapDepthBar kind="functional" :capabilities="functionalEffective.capabilities" /><CourseHistory :project-id="projectId" :history="map.functional.history" />
+              <CourseHistory :project-id="projectId" :history="map.functional.history" />
 
               <FunctionalSummary
                 v-if="functionalProgress.total > 0"
@@ -1885,10 +1876,12 @@ watch(views, (list) => {
                 @changed="() => refresh()"
               />
               <!-- Редактор мышью (R-0144): Vue Flow только в браузере. -->
-              <ClientOnly v-if="functionalView === 'editor'">
+              <ClientOnly v-if="functionalView === 'editor' && allowed('edit_draft').allowed">
                 <MapNotation template="strategic" />
                 <MapFlowEditor
                   :project-id="projectId"
+                  :initial-viewport="editorViewport"
+                  :initial-positions="editorPositions"
                   :capabilities="map.functional.capabilities"
                   :relations="map.functional.relations"
                   @saved="onMapRecordsChanged"
@@ -1903,15 +1896,12 @@ watch(views, (list) => {
                   v-model:horizon="planHorizon"
                   v-model:only-risks="onlyRisks"
                   :level="capLevel"
-                  :can-switch="functionalGroups.groups.length >= 2"
-                  :group-title="capGroupTitle"
+                  :can-switch="false"
+                  group-title=""
                   :has-coverage="!!coverage"
                   :kind-counts="kindCounts"
-                  @show-groups="showCapGroups"
-                  @show-all="showCapAll"
                 />
                 <FunctionalLegendBar v-if="current.legend" :legend="current.legend" />
-                <MapNotation template="strategic" />
                 <UCheckbox v-if="currentUser.user && map.functional.capabilities.length" v-model="myZone" :label="t('maps.myZone')" />
                 <p v-if="!current.text" class="text-sm text-muted">
                   {{ map.functional.capabilities.length ? t('maps.noMatch') : t('maps.notDescribed') }}
@@ -1919,10 +1909,13 @@ watch(views, (list) => {
                 <template v-else>
                   <!-- Легенда — полоса над схемой (FunctionalLegendBar), вне холста. -->
                   <ProjectedMapGraph
-                    :graph="current" template="strategic" :view-id="`strategy:${capGroupId ?? ''}`"
+                    ref="strategicCanvas"
+                    :graph="current" template="strategic" map-id="strategy" :view-id="`strategy:${capGroupId ?? ''}`" :frame-title="capGroupTitle || undefined"
                     @select="onNodeClick" @open="onNodeDblClick"
                     @clear="onBackgroundClick" @relation="onEdgeClick"
-                  />
+                  >
+                    <template #navigation><MapDepthBar standard kind="functional" :capabilities="functionalEffective.capabilities" /></template>
+                  </ProjectedMapGraph>
                 </template>
               </template>
             </template>
@@ -1940,7 +1933,9 @@ watch(views, (list) => {
               >
                 {{ t(route.query['calls'] === '1' ? 'maps.callsHide' : 'maps.callsShow', { n: map.userflow.calls.length }) }}
               </UButton>
-              <MapDepthBar v-if="shown !== 'userflow'" :kind="shown === 'dataflow' ? 'dataflow' : 'codemap'" :modules="map.codemap.modules" :imports="map.codemap.imports" :groups="map.codemap.groups" /><ArchitectureNote v-if="shown === 'codemap'":project-id="projectId" :report="architecture" />
+              <MapDepthBar v-if="shown === 'dataflow'" kind="dataflow" :modules="map.codemap.modules" :imports="map.codemap.imports" :groups="map.codemap.groups" />
+              <ArchitectureNote v-if="shown === 'codemap'" :project-id="projectId" :report="architecture" />
+              <MapDepthBar v-if="shown === 'userflow'" kind="userflow" />
               <MapLegendBar v-if="current.mapLegend" :items="current.mapLegend" />
               <p v-if="!current.text" class="text-sm text-muted">
                 {{ t('maps.notDescribed') }}
@@ -1949,10 +1944,14 @@ watch(views, (list) => {
               <!-- Ключ — область (все / группы / одна группа): другая область — новый вид, а выбор модуля внутри
                    области перерисовывает диаграмму, не сбрасывая масштаб. -->
               <ProjectedMapGraph v-else
-                    :graph="current" template="codebase" :view-id="`${shown}:${scopeKey}:${flowScopeKey}`"
+                    :graph="current" template="codebase" :map-id="shown" :view-id="`${shown}:${scopeKey}:${flowScopeKey}`" :frame-title="openGroupInfo?.title"
                     @select="onNodeClick" @open="onNodeDblClick"
                     @clear="onBackgroundClick" @relation="onEdgeClick"
-                  />
+                  >
+                    <template v-if="shown === 'codemap'" #navigation>
+                      <MapDepthBar standard kind="codemap" :modules="map.codemap.modules" :imports="map.codemap.imports" :groups="map.codemap.groups" />
+                    </template>
+                  </ProjectedMapGraph>
             </template>
           </UCard>
 

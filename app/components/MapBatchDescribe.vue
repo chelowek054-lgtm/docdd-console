@@ -46,7 +46,7 @@ const finished = computed(() => batch.finished);
 
 async function step(skip: number, limit: number): Promise<BatchStep> {
   const number = Math.floor(skip / size.value) + 1;
-  const built = await $fetch<{ prompt: string; count: number } | { error: ApiFailure }>(
+  const built = await $fetch<{ prompt: string; count: number; contextTokens: string[] } | { error: ApiFailure }>(
     `/api/projects/${props.projectId}/prompt`,
     { method: 'POST', body: { kind: 'maps', skip, limit }, ignoreResponseError: true }
   );
@@ -65,7 +65,8 @@ async function step(skip: number, limit: number): Promise<BatchStep> {
   // Ответ сохраняется черновиком — тем же путём, что и «Сохранить черновиком» вручную.
   const draft = await $fetch<{ record?: { id: string } } | { error: ApiFailure }>(
     `/api/projects/${props.projectId}/map/draft`,
-    { method: 'POST', body: { answer: result.answer, title: t('t83.m2.batch.title', { n: number }) }, ignoreResponseError: true }
+    { method: 'POST', body: { answer: result.answer, title: t('t83.m2.batch.title', { n: number }), source: 'model',
+      contextTokens: 'contextTokens' in built ? built.contextTokens : [] }, ignoreResponseError: true }
   );
   const refusal = failureOf(draft);
   if (refusal) return { ok: false, reason: t('t83.m2.batch.notSaved', { message: refusal.message }) };

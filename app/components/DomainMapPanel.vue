@@ -11,9 +11,29 @@ import { domainGraph } from '~/utils/domain-graph';
  */
 const props = defineProps<{ projectId: string }>();
 const { t } = useT();
+const route = useRoute();
+const { allowed } = useMe(() => props.projectId);
+const editing = ref(false);
+type Position = { x: number; y: number };
+const reader = ref<{ editorViewport: () => Position & { zoom: number }; editorPositions: () => Record<string, Position> }>();
+const initialViewport = ref<(Position & { zoom: number })>();
+const initialPositions = ref<Record<string, Position>>();
+function toggleEditor() {
+  if (!editing.value && reader.value) {
+    initialPositions.value = Object.fromEntries(Object.entries(reader.value.editorPositions())
+      .filter(([id]) => id.startsWith('node:')).map(([id, position]) => [id.slice(5), position]));
+    initialViewport.value = Object.keys(initialPositions.value).length ? reader.value.editorViewport() : undefined;
+  }
+  editing.value = !editing.value;
+}
+const canEdit = computed(() => allowed('edit_draft').allowed);
+const editorScope = computed(() => {
+  const id = route.query['group-domain'];
+  return typeof id === 'string' && id.startsWith('node:') ? id.slice(5) : '';
+});
 
 interface DomainView { domain?: DomainState; domainTree?: ContextTree[] }
-const { data, pending } = useFetch<DomainView>(() => `/api/projects/${props.projectId}/map?kind=domain`, {
+const { data, pending, refresh } = useFetch<DomainView>(() => `/api/projects/${props.projectId}/map?kind=domain`, {
   key: () => `domain-map:${props.projectId}`, server: false, lazy: true
 });
 
@@ -21,6 +41,7 @@ const trees = computed(() => data.value?.domainTree ?? []);
 const relations = computed<ContextRelation[]>(() => data.value?.domain?.relations ?? []);
 const graph = computed(() => data.value?.domain ? domainGraph(data.value.domain) : { nodes: [], edges: [] });
 const subjectNodes = computed(() => data.value?.domain?.nodes ?? []);
+const subjectEdges = computed(() => data.value?.domain?.edges ?? []);
 const subjectTitles = computed(() => new Map(subjectNodes.value.map((node) => [node.id, node.title ?? node.id])));
 const notation = standardFor('domain')!.standard;
 const kinds = new Map(notation.nodeKinds.map((kind) => [kind.id, kind.title]));
@@ -42,8 +63,13 @@ const KIND_COLOR: Record<string, 'primary' | 'neutral' | 'info'> = { core: 'prim
       <p class="mt-1 text-muted">{{ t('dm.emptyHint') }}</p>
     </div>
 
-    <MapGroupDraft :project-id="projectId" kind="domain" :nodes="subjectNodes" />
-    <LazyStandardMapGraph v-if="graph.nodes.length" template="domain" :nodes="graph.nodes" :edges="graph.edges">
+    <UButton v-if="canEdit" size="sm" variant="soft" :icon="editing ? 'i-lucide-eye' : 'i-lucide-pencil'"
+      :aria-pressed="editing" @click="toggleEditor">{{ t(editing ? 'maps.editor.view' : 'maps.editor.open') }}</UButton>
+    <ClientOnly v-if="editing && canEdit">
+      <MapFlowEditor template="domain" :project-id="projectId" :scope="editorScope" :capabilities="subjectNodes"
+        :relations="subjectEdges" v-bind="{ initialViewport, initialPositions }" @saved="refresh()" />
+    </ClientOnly>
+    <LazyStandardMapGraph v-if="graph.nodes.length" v-show="!editing || !canEdit" ref="reader" template="domain" :nodes="graph.nodes" :edges="graph.edges">
       <template #node-details="{ node: selected }">
         <div class="mt-2 space-y-2">
       <UCard v-for="node in subjectNodes.filter((item) => selected.id === 'node:' + item.id)" :key="`subject:${node.id}`">

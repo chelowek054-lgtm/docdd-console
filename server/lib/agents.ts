@@ -92,7 +92,7 @@ export const AGENT_FORBIDDEN_ACTIONS: ReadonlySet<string> = new Set(['merge', 't
 
 export interface AgentRecord { id: string; type: string; status: string; links: Readonly<Partial<Record<string, readonly string[]>>>; extra?: Readonly<Record<string, unknown>> | undefined }
 
-export interface AgentVerdict { allowed: boolean; code?: 'agent_text_edit' | 'agent_document_approve' | 'agent_own_acceptance'; reason?: string }
+export interface AgentVerdict { allowed: boolean; code?: 'agent_text_edit' | 'agent_document_approve' | 'agent_own_acceptance' | 'map_context_required'; reason?: string }
 
 const assigneeOf = (record: AgentRecord | undefined) => (typeof record?.extra?.['assignee'] === 'string' ? record.extra['assignee'] : '');
 
@@ -110,6 +110,11 @@ function tasksOfCheck(checkId: string, records: readonly AgentRecord[]): AgentRe
  * с вопросом и дословным ответом (A-0008): тогда решение человека, а агент только записывает его.
  */
 export function agentVerdict(login: string, method: string, path: string, body: Record<string, unknown> | null, records: readonly AgentRecord[]): AgentVerdict {
+  if (method === 'POST' && (/\/(?:map\/capability|maps\/custom(?:\/[^/]+\/node)?|onboarding\/wizard|records\/bulk\/link-map)\/?$/.test(path) ||
+      (/\/records\/?$/.test(path) && !path.endsWith('/inbox/records') && body?.['type'] === 'map') ||
+      (/\/import\/?$/.test(path) && Array.isArray(body?.['rows']) && body['rows'].some((row) => row?.type === 'map')))) {
+    return { allowed: false, code: 'map_context_required', reason: 'Для записи карты агент сначала получает контекст через map_get, затем использует map_apply или POST /map/draft' };
+  }
   if (method.toUpperCase() === 'GET') return { allowed: true };
   const byId = new Map(records.map((record) => [record.id, record]));
   const confirmed = parseConfirmation(body?.['confirmation']);

@@ -1,4 +1,5 @@
 import { customDefinitions } from '../lib/custom-maps';
+import { lintMapConnectivity } from '../lib/map-connectivity';
 import { lintDomainChange, lintCustomChange, lintMapParents, lintStrategicChange, overridesFrom, standardFor, type LintFinding } from '../lib/map-core';
 import type { MapChange } from '../lib/maps';
 import { readWorkspace } from '../lib/workspace';
@@ -9,10 +10,10 @@ import { buildProjectMap } from './map-service';
  * с узлом, полем и строкой. Переопределения стандарта — из `maps.standards` манифеста.
  */
 export function lintMapChange(root: string, change: MapChange, text?: string): LintFinding[] {
-  if (!change.functional && !change.custom && !change.domain && !change.sysdesign) return [];
+  if (!Object.keys(change).some((kind) => kind !== 'skipped')) return [];
   const manifest = readWorkspace(root).manifest;
   const picture = buildProjectMap(root);
-  const found: LintFinding[] = [];
+  const found: LintFinding[] = lintMapConnectivity(picture, change);
   if (change.functional) {
     const standard = standardFor('strategic', overridesFrom(manifest.maps?.['standards']))?.standard;
     if (standard) found.push(...lintStrategicChange(change.functional, picture.functional, standard, text));

@@ -1,5 +1,5 @@
 import type { McpTool } from '../../mcp';
-import { listArg, MAP_PROPERTY, mapName, NODE_SCHEMA, nodeOf, postDraft, readMap, targetOf, titleArg, type MapNode } from '../application/mcp-maps';
+import { CONTEXT_PROPERTY, listArg, MAP_PROPERTY, mapName, NODE_SCHEMA, nodeOf, postDraft, readMap, targetOf, titleArg, type MapNode } from '../application/mcp-maps';
 
 const KEEP = ['id', 'title', 'summary', 'parent', 'kind', 'status', 'note', 'priority', 'horizon'] as const;
 
@@ -13,8 +13,8 @@ const tool: McpTool = {
   access: 'write',
   inputSchema: {
     type: 'object',
-    required: ['nodes'],
-    properties: { ...MAP_PROPERTY, nodes: { type: 'array', items: NODE_SCHEMA }, title: { type: 'string', description: 'Название черновика' } }
+    required: ['nodes', 'contextToken'],
+    properties: { ...MAP_PROPERTY, ...CONTEXT_PROPERTY, nodes: { type: 'array', items: NODE_SCHEMA }, title: { type: 'string', description: 'Название черновика' } }
   },
   async run(args, ctx) {
     const target = targetOf(args);
@@ -33,7 +33,7 @@ const tool: McpTool = {
       if (target.kind === 'custom') delete kept['kind'];
       return { ...kept, ...change } as MapNode;
     });
-    return postDraft(ctx, target, titleArg(args, `Правка узлов: ${nodes.map((node) => node.id).join(', ')} — ${mapName(target)}`), { nodes });
+    return postDraft(ctx, target, titleArg(args, `Правка узлов: ${nodes.map((node) => node.id).join(', ')} — ${mapName(target)}`), { nodes }, args['contextToken']);
   }
 };
 export default tool;

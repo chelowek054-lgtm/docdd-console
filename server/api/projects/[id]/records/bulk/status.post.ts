@@ -7,6 +7,7 @@ import { BULK_LIMIT, bulkStatus } from '../../../../../utils/bulk-service';
 import { confirmedActor } from '../../../../../utils/confirmed-actor';
 import { fail } from '../../../../../utils/http';
 import { findProject } from '../../../../../utils/projects';
+import { accountForMapEvent } from '../../../../../utils/map-presentation-request';
 
 /**
  * Массовая смена статуса (docs/03-server-api.md). Целевой статус выбирает
@@ -41,7 +42,8 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    return bulkStatus(project.root, ids as string[], direction as BulkDirection, actor, confirmed.roles ?? rolesOf(event.context));
+    return bulkStatus(project.root, ids as string[], direction as BulkDirection, actor,
+      confirmed.roles ?? rolesOf(event.context), accountForMapEvent(event.context));
   } catch (error) {
     if (error instanceof OutsideRootError) {
       return fail(event, 403, 'outside_root', error.message, error.requested);

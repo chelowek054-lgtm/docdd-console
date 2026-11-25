@@ -20,6 +20,7 @@ const dropped = ref<string[]>([]);
 const created = ref<{ id: string; type: string; title: string }[]>([]);
 const trouble = ref<ApiFailure | null>(null);
 const busy = ref(false);
+const contextTokens = shallowRef<string[]>([]);
 
 const kept = computed(() => proposed.value.filter((record) => !dropped.value.includes(record.key)));
 const toggle = (key: string) => { dropped.value = dropped.value.includes(key) ? dropped.value.filter((item) => item !== key) : [...dropped.value, key]; };
@@ -30,11 +31,13 @@ async function analyse() {
   problems.value = [];
   created.value = [];
   dropped.value = [];
-  const built = await $fetch<{ prompt: string } | { error: ApiFailure }>(`/api/projects/${props.projectId}/prompt`, { method: 'POST', body: { kind: 'as-is' }, ignoreResponseError: true });
+  contextTokens.value = [];
+  const built = await $fetch<{ prompt: string; contextTokens: string[] } | { error: ApiFailure }>(`/api/projects/${props.projectId}/prompt`, { method: 'POST', body: { kind: 'as-is' }, ignoreResponseError: true });
   const problem = failureOf(built);
   if (problem) { trouble.value = problem; return; }
   const answer = await stream<{ answer: string }>('/api/llm/ask', { prompt: (built as { prompt: string }).prompt, projectId: props.projectId });
   if (!answer) return;
+  contextTokens.value = 'contextTokens' in built ? built.contextTokens : [];
   const parsed = await $fetch<{ records: ProposedRecord[]; problems: string[] } | { error: ApiFailure }>(`/api/projects/${props.projectId}/inbox/preview`, { method: 'POST', body: { answer: answer.answer }, ignoreResponseError: true });
   const broken = failureOf(parsed);
   if (broken) { trouble.value = broken; return; }
@@ -46,7 +49,9 @@ async function create() {
   busy.value = true;
   trouble.value = null;
   try {
-    const response = await $fetch<{ created: { id: string; type: string; title: string }[]; problems: string[] } | { error: ApiFailure }>(`/api/projects/${props.projectId}/inbox/records`, { method: 'POST', body: { records: kept.value, notes: [] }, ignoreResponseError: true });
+    const response = await $fetch<{ created: { id: string; type: string; title: string }[]; problems: string[] } | { error: ApiFailure }>(`/api/projects/${props.projectId}/inbox/records`, {
+      method: 'POST', body: { records: kept.value, notes: [], source: 'model', contextTokens: contextTokens.value }, ignoreResponseError: true
+    });
     const problem = failureOf(response);
     if (problem) { trouble.value = problem; return; }
     created.value = (response as { created: { id: string; type: string; title: string }[] }).created;

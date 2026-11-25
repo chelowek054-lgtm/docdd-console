@@ -14,7 +14,7 @@ import { sharedDenied } from '../../utils/mode';
  * (docs/adr/0008-llm-through-claude-code.md).
  */
 export default defineEventHandler(async (event) => {
-  const denied = sharedDenied(event, 'Свободный запрос к модели'); if (denied) return denied; const body = await readBody<{ prompt?: unknown; projectId?: unknown; tools?: unknown }>(event);
+  const denied = sharedDenied(event, 'Свободный запрос к модели'); if (denied) return denied; const body = await readBody<{ prompt?: unknown; projectId?: unknown; tools?: unknown; contextTokens?: unknown }>(event);
   const prompt = typeof body?.prompt === 'string' ? body.prompt.trim() : '';
   const projectId = typeof body?.projectId === 'string' ? body.projectId : '';
 
@@ -50,6 +50,8 @@ export default defineEventHandler(async (event) => {
     return;
   }
 
-  stream.send('done', { answer: result.answer, ms: result.ms });
+  const contextTokens = Array.isArray(body?.contextTokens)
+    ? body.contextTokens.filter((token): token is string => typeof token === 'string').slice(0, 32) : [];
+  stream.send('done', { answer: result.answer, ms: result.ms, ...(contextTokens.length ? { contextTokens } : {}) });
   stream.close();
 });

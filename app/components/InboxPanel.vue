@@ -71,10 +71,11 @@ const skipped = ref<{ note: string; why: string }[]>([]);
 const accepting = ref(false);
 const trouble = ref<ApiFailure | null>(null);
 const saving = ref(false);
+const contextTokens = shallowRef<string[]>([]);
 
 const { running, elapsed, outcome, log, stream, cancel } = useModelRequest(() => `${projectId.value}:inbox`, {
   label: t('t83.m3.inbox.run'),
-  onRecovered: (answer) => afterAnswer(answer as { answer: string })
+  onRecovered: (answer) => afterAnswer(answer as { answer: string; contextTokens?: string[] })
 });
 
 /** Не выбрали ничего — разбираем всё: так чаще всего и нужно. */
@@ -122,28 +123,26 @@ async function analyse() {
   problems.value = [];
   skipped.value = [];
   said.value = '';
+  contextTokens.value = [];
 
-  const built = await $fetch<{ prompt: string } | { error: ApiFailure }>(
+  const built = await $fetch<{ prompt: string; contextTokens: string[] } | { error: ApiFailure }>(
     `/api/projects/${projectId.value}/prompt`,
     { method: 'POST', body: { kind: 'inbox', notes: notes.value }, ignoreResponseError: true }
   );
-  const problem = failureOf(built);
-  if (problem) {
-    trouble.value = problem;
-    return;
-  }
+  if ('error' in built) { trouble.value = built.error; return; }
 
-  const answer = await stream<{ answer: string }>('/api/llm/ask', {
-    prompt: (built as { prompt: string }).prompt,
-    projectId: projectId.value
+  const answer = await stream<{ answer: string; contextTokens?: string[] }>('/api/llm/ask', {
+    prompt: built.prompt,
+    projectId: projectId.value,
+    contextTokens: built.contextTokens
   });
   if (!answer) return;
   await afterAnswer(answer);
 }
 
 /** Ответ модели разбирается в список здесь же: на месте или после возвращения на страницу. */
-async function afterAnswer(answer: { answer: string }) {
-  // Разбираем ответ здесь же, чтобы человек правил список, а не текст.
+async function afterAnswer(answer: { answer: string; contextTokens?: string[] }) {
+  contextTokens.value = answer.contextTokens ?? [];
   const parsed = await $fetch<{ records: ProposedRecord[]; problems: string[]; skipped: { note: string; why: string }[] } | { error: ApiFailure }>(
     `/api/projects/${projectId.value}/inbox/preview`,
     { method: 'POST', body: { answer: answer.answer }, ignoreResponseError: true }
@@ -189,7 +188,7 @@ async function create() {
   try {
     const response = await $fetch<{ created: CreatedRecord[]; problems: string[] } | { error: ApiFailure }>(
       `/api/projects/${projectId.value}/inbox/records`,
-      { method: 'POST', body: { records: kept.value, notes: notes.value }, ignoreResponseError: true }
+      { method: 'POST', body: { records: kept.value, notes: notes.value, source: 'model', contextTokens: contextTokens.value }, ignoreResponseError: true }
     );
     const problem = failureOf(response);
     if (problem) {

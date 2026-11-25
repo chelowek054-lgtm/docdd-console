@@ -73,6 +73,7 @@ export interface MermaidEdge {
   declaredBy?: string;
   /** Карта-источник ещё не устоялась — архитектор описал намерение, кода может не быть (`server/lib/maps.ts`). */
   pending?: boolean;
+  filterType?: 'read' | 'write' | 'both' | 'transition' | 'call';
   /** Связь между группами: исходные импорты, свёрнутые в эту стрелку (`evidence` — первого из них). */
   link?: LinkCard;
   /** Нарушение правил архитектуры (docs/07-maps.md): фиолетовая толстая стрелка и правило словами в карточке. */
@@ -633,7 +634,8 @@ export function dataflowMermaid(map: ProjectMap, options: DataflowOptions = {}):
     const to = flow.direction === 'read' ? nodeId('f', flow.from) : nodeId('s', flow.to);
     lines.push(`    ${from} ${arrow}|${flow.direction}| ${to}`);
     edges.push({
-      from, to, evidence: flow.evidence, status: flow.status, declaredBy: flow.declaredBy, pending: flow.pending
+      from, to, evidence: flow.evidence, status: flow.status, declaredBy: flow.declaredBy, pending: flow.pending,
+      ...(flow.direction === 'read' || flow.direction === 'write' || flow.direction === 'both' ? { filterType: flow.direction } : {})
     });
   }
   styleUnverified(lines, edges);
@@ -795,7 +797,8 @@ export function userflowMermaid(map: ProjectMap, options: UserflowOptions = {}):
     const to = nodeId('u', step.to);
     lines.push(`    ${from} ${arrow}${via} ${to}`);
     edges.push({
-      from, to, evidence: step.evidence, status: step.status, declaredBy: step.declaredBy, pending: step.pending
+      from, to, evidence: step.evidence, status: step.status, declaredBy: step.declaredBy, pending: step.pending,
+      filterType: 'transition'
     });
   }
   for (const call of shownCalls) {
@@ -806,7 +809,8 @@ export function userflowMermaid(map: ProjectMap, options: UserflowOptions = {}):
     const from = nodeId('u', call.from);
     lines.push(`    ${from} -.-> ${node}`);
     edges.push({
-      from, to: node, evidence: call.evidence, status: call.status, declaredBy: call.declaredBy, pending: call.pending
+      from, to: node, evidence: call.evidence, status: call.status, declaredBy: call.declaredBy, pending: call.pending,
+      filterType: 'call'
     });
   }
   // Экраны раздела без переходов mermaid ставит в одну строку на всю ширину; невидимые связи по шесть

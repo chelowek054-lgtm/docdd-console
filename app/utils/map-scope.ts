@@ -31,13 +31,16 @@ export function mapScope(nodes: FlowCapability[], relations: FlowRelation[], ope
   }
   const path = open ? paths.get(open) ?? [] : [];
   const within = (id: string) => !open || paths.get(id)?.includes(open);
+  const maxDepth = Math.max(1, ...nodes.filter((node) => within(node.id)).map((node) => (paths.get(node.id)?.length ?? 0) - path.length));
+  const level = Math.min(maxDepth, Math.max(1, Math.floor(depth) || 1));
   const visible = (id: string) => {
     const parts = paths.get(id) ?? [];
     const divergence = parts.findIndex((part, index) => part !== path[index]);
-    const index = within(id) ? path.length + depth - 1 : Math.max(0, divergence);
+    const index = within(id) ? path.length + level - 1 : Math.max(0, divergence);
     return parts[Math.min(index, parts.length - 1)] ?? id;
   };
   const visibleIds = new Set(nodes.filter((node) => node.id !== open && within(node.id)).map((node) => visible(node.id)));
+  const expanded = new Set([...visibleIds].flatMap((id) => (paths.get(id) ?? []).slice(Math.max(0, path.length - 1), -1)));
   const outside = new Set<string>();
   const edges = new Map<string, ScopedMapEdge>();
   const groups = new Map<string, MapGroupInfo>();
@@ -65,7 +68,6 @@ export function mapScope(nodes: FlowCapability[], relations: FlowRelation[], ope
     if (from === to) continue;
     if (!within(relation.from)) outside.add(from);
     if (!within(relation.to)) outside.add(to);
-    if (relation.from === open || relation.to === open) visibleIds.add(from === open ? from : to);
     const key = JSON.stringify([from, to, relation.type]);
     const edge = edges.get(key) ?? { ...relation, from, to, members: [] };
     edge.members.push(relation);
@@ -73,8 +75,11 @@ export function mapScope(nodes: FlowCapability[], relations: FlowRelation[], ope
     edges.set(key, edge);
   }
   return {
+    maxDepth,
+    level,
+    nodeDepths: new Map([...paths].map(([id, parts]) => [id, parts.length])),
     path: path.flatMap((id) => byId.get(id) ?? []),
-    nodes: nodes.filter((node) => visibleIds.has(node.id) || outside.has(node.id)),
+    nodes: nodes.filter((node) => (visibleIds.has(node.id) && !expanded.has(node.id)) || outside.has(node.id)),
     edges: [...edges.values()],
     groups,
     outside

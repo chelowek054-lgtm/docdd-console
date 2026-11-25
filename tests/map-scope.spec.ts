@@ -3,6 +3,20 @@ import { mapScope } from '../app/utils/map-scope';
 import { lintMapParents } from '../server/lib/map-core';
 import { currentEvidenceClaims, type MapChange } from '../server/lib/maps';
 
+it('limits depth to descendants of the open group', () => {
+  const nodes = [
+    { id: 'a' }, { id: 'b', parent: 'a' }, { id: 'c', parent: 'b' }, { id: 'd', parent: 'c' },
+    { id: 'other' }, { id: 'child', parent: 'other' }
+  ];
+  expect(mapScope(nodes, [], undefined, 1).nodes.map(({ id }) => id)).toEqual(['a', 'other']);
+  expect(mapScope(nodes, [], undefined, 2).nodes.map(({ id }) => id)).toContain('b');
+  const open = mapScope(nodes, [], 'b', 9);
+  expect(open.path.map(({ id }) => id)).toEqual(['a', 'b']);
+  expect(open.maxDepth).toBe(2);
+  expect(open.level).toBe(2);
+  expect(open.nodes.map(({ id }) => id)).toEqual(['d']);
+});
+
 it('counts links across the whole group and preserves original ends across levels', () => {
   const nodes = [
     { id: 'server' }, { id: 'assist', parent: 'server' }, { id: 'retrieve', parent: 'assist' },
@@ -29,6 +43,19 @@ it('rejects cycles and deleting a group that still has children', () => {
   expect(lintMapParents([{ id: 'a', parent: 'b' }], [], nodes)).toContainEqual(expect.objectContaining({ field: 'parent' }));
   expect(lintMapParents([], [{ id: 'a' }], nodes)).toContainEqual(expect.objectContaining({ target: 'b' }));
   expect(lintMapParents([{ id: 'b' }], [{ id: 'a' }], nodes)).toEqual([]);
+});
+
+it('renders expanded groups only as frames, retaining direct links to their IDs', () => {
+  const nodes = [
+    { id: 'client' }, { id: 'screen', parent: 'client' },
+    { id: 'server' }, { id: 'entry', parent: 'server' }, { id: 'api', parent: 'entry' }
+  ];
+  const relation = { from: 'client', to: 'server', type: 'calls' };
+  expect(mapScope(nodes, [relation], undefined, 2).nodes.map(({ id }) => id)).toEqual(['screen', 'entry']);
+  const deep = mapScope(nodes, [relation], undefined, 3);
+  expect(deep.nodes.map(({ id }) => id)).toEqual(['screen', 'api']);
+  expect(deep.edges).toMatchObject([{ ...relation, members: [relation] }]);
+  expect(mapScope(nodes, [relation], 'server', 2).nodes.map(({ id }) => id)).toEqual(['client', 'api']);
 });
 
 it('checks an explicit removal against the source without rechecking the earlier active claim', () => {

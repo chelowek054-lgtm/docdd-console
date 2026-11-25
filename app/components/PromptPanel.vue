@@ -27,6 +27,8 @@ const emit = defineEmits<{ answered: [answer: string] }>();
 
 const open = ref(false);
 const prompt = ref('');
+const promptContext = shallowRef<string[]>([]);
+const answerContext = shallowRef<string[]>([]);
 const count = ref(0);
 const building = ref(false);
 const answer = ref('');
@@ -38,7 +40,7 @@ const { data: llm } = useFetch<{ available: boolean; reason: string | null }>('/
 // Ожидание с counterом и отменой — одно на все места, откуда зовут модель.
 const { running: asking, elapsed, outcome, log, stream, cancel: cancelAsk } = useModelRequest(() => `${props.projectId}:prompt:${props.kind}`, {
   label: props.label,
-  onRecovered: (result) => accept(result as { answer: string })
+  onRecovered: (result) => accept(result as ModelAnswer)
 });
 
 // Страницу открыли заново, а задание этого запроса есть (идёт или кончилось без неё): показываем его, а не кнопку одну.
@@ -47,8 +49,11 @@ onMounted(() => {
 });
 
 /** Запрос собирает сервер по шаблону; ответ — текст и число того, что в него вошло, или причина отказа. */
-async function fetchPrompt(): Promise<{ prompt: string; count: number } | ApiFailure> {
-  const response = await $fetch<{ prompt: string; count: number } | { error: ApiFailure }>(
+interface BuiltPrompt { prompt: string; count: number; contextTokens?: string[] }
+interface ModelAnswer { answer: string; contextTokens?: string[] }
+
+async function fetchPrompt(): Promise<BuiltPrompt | ApiFailure> {
+  const response = await $fetch<BuiltPrompt | { error: ApiFailure }>(
     `/api/projects/${props.projectId}/prompt`,
       {
         method: 'POST',
@@ -62,7 +67,7 @@ async function fetchPrompt(): Promise<{ prompt: string; count: number } | ApiFai
         ignoreResponseError: true
       }
     );
-  return failureOf(response) ?? (response as { prompt: string; count: number });
+  return failureOf(response) ?? (response as BuiltPrompt);
 }
 
 async function build() {
@@ -77,6 +82,7 @@ async function build() {
       return;
     }
     prompt.value = built.prompt;
+    promptContext.value = built.contextTokens ?? [];
     count.value = built.count;
   } finally {
     building.value = false;
@@ -103,6 +109,7 @@ async function copyDirect() {
       return;
     }
     prompt.value = built.prompt;
+    promptContext.value = built.contextTokens ?? [];
     count.value = built.count;
     await navigator.clipboard.writeText(built.prompt);
     copiedDirect.value = true;
@@ -116,9 +123,10 @@ async function send() {
   failure.value = null;
   answer.value = '';
   // Проект называем идентификатором: путь к нему сервер знает сам.
-  const result = await stream<{ answer: string }>('/api/llm/ask', {
+  const result = await stream<ModelAnswer>('/api/llm/ask', {
     prompt: prompt.value,
     projectId: props.projectId,
+    contextTokens: promptContext.value,
     // Порядок по важности ставится по краткому описанию из самого запроса: читать репозиторий модели незачем.
     // Порядок по важности и группы модулей решаются по тексту запроса: код проекта модели читать незачем.
     ...(props.kind === 'priority' || props.kind === 'groups' ? { tools: false } : {})
@@ -129,9 +137,10 @@ async function send() {
 }
 
 /** Ответ принят: на месте или после возвращения на страницу. */
-function accept(result: { answer: string }) {
+function accept(result: ModelAnswer) {
   open.value = true;
   answer.value = result.answer;
+  answerContext.value = result.contextTokens ?? [];
   emit('answered', answer.value);
 }
 </script>
@@ -237,7 +246,7 @@ function accept(result: { answer: string }) {
           <h3 class="font-medium">{{ t('t83.prompt-panel.4') }}</h3>
           <p class="text-sm text-muted">{{ t('t83.prompt-panel.5') }}</p>
         </div>
-        <slot name="answer" :answer="answer" />
+        <slot name="answer" :answer="answer" :context-tokens="answerContext" />
         <div class="docdd-answer">
           <DocumentText :body="answer" />
         </div>

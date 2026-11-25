@@ -34,7 +34,10 @@ function rememberNote(path: string | null) {
 
 const { running, elapsed, outcome, log, stream, cancel } = useModelRequest(() => `${props.projectId}:strategy-intent`, {
   label: t('si.label'),
-  onRecovered: (answer) => void preview((answer as { answer: string }).answer)
+  onRecovered: (result) => {
+    const { answer, contextTokens } = result as { answer: string; contextTokens?: string[] };
+    void preview(answer, contextTokens);
+  }
 });
 
 const asking = useModelRequest(() => `${props.projectId}:strategy-intent-questions`, {
@@ -82,12 +85,15 @@ async function submitAnswers() {
 async function layout() {
   clarify.value = [];
   const path = notePath();
-  const built = await $fetch<{ prompt: string } | { error: ApiFailure }>(`/api/projects/${props.projectId}/prompt`, {
+  const built = await $fetch<{ prompt: string; contextTokens: string[] } | { error: ApiFailure }>(`/api/projects/${props.projectId}/prompt`, {
     method: 'POST', body: { kind: 'inbox', notes: path ? [path] : [], mode: 'strategy', contour: contour.value === ANY ? undefined : contour.value }, ignoreResponseError: true
   });
   if (failureOf(built)) { trouble.value = failureOf(built); return; }
-  const answer = await stream<{ answer: string }>('/api/llm/ask', { prompt: (built as { prompt: string }).prompt, projectId: props.projectId });
-  if (answer) await preview(answer.answer);
+  const answer = await stream<{ answer: string; contextTokens?: string[] }>('/api/llm/ask', {
+    prompt: (built as { prompt: string }).prompt, projectId: props.projectId,
+    contextTokens: 'contextTokens' in built ? built.contextTokens : []
+  });
+  if (answer) await preview(answer.answer, answer.contextTokens);
 }
 
 async function create() {

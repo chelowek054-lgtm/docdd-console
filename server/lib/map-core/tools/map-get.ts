@@ -1,26 +1,30 @@
-import type { McpTool } from '../../mcp';
-import { MAP_PROPERTY, mapName, readMap, targetOf } from '../application/mcp-maps';
+import { projectPath, requireOk, type McpTool } from '../../mcp';
+import { MAP_PROPERTY } from '../application/mcp-maps';
 
-/** Карта компактным текстом: модель видит узлы и связи, прежде чем их править (R-0142). */
+const builtin = new Set(['strategic', 'strategy', 'functional', 'domain', 'sysdesign', 'codemap', 'code', 'codebase', 'dataflow', 'userflow']);
+
 const tool: McpTool = {
   name: 'map_get',
-  description: 'Прочитать карту проекта: узлы (id, вид, имя, назначение, родитель, состояние) и связи. По умолчанию — стратегическая; пользовательская — по id из манифеста.',
+  description: 'Прочитать цель, правила, схему, легенду, состояние и contextToken карты. Перед правкой сначала вызовите этот инструмент.',
   access: 'read',
-  inputSchema: { type: 'object', properties: { ...MAP_PROPERTY } },
+  inputSchema: {
+    type: 'object',
+    properties: {
+      ...MAP_PROPERTY,
+      group: { type: 'string', description: 'ID группы для чтения её части карты' },
+      offset: { type: 'integer', minimum: 0 },
+      limit: { type: 'integer', minimum: 1, maximum: 200 }
+    }
+  },
   async run(args, ctx) {
-    const target = targetOf(args);
-    const { nodes, edges } = await readMap(ctx, target);
-    if (nodes.length === 0 && edges.length === 0) return `${mapName(target)}: пусто. Узлы — map_add_nodes, связи — map_connect.`;
-    const lines = [`${mapName(target)}: узлов ${nodes.length}, связей ${edges.length}.`, '', 'Узлы:'];
-    for (const node of nodes) {
-      const tail = [node.parent ? `в ${node.parent}` : '', node.status ?? ''].filter(Boolean).join(', ');
-      lines.push(`- ${node.id}${node.kind ? ` [${node.kind}]` : ''} «${node.title ?? ''}» — ${node.summary ?? 'без назначения'}${tail ? ` (${tail})` : ''}`);
+    const name = typeof args['map'] === 'string' ? args['map'].trim() : '';
+    const map = !name ? 'functional' : builtin.has(name) || name.startsWith('custom:') ? name : 'custom:' + name;
+    const query = new URLSearchParams({ map });
+    for (const key of ['offset', 'limit', 'group']) {
+      const value = args[key];
+      if (typeof value === 'string' || typeof value === 'number') query.set(key, String(value));
     }
-    if (edges.length > 0) {
-      lines.push('', 'Связи:');
-      for (const edge of edges) lines.push(`- ${edge.from} —${edge.type}→ ${edge.to}${edge.summary ? `: ${edge.summary}` : ''}`);
-    }
-    return lines.join('\n');
+    return JSON.stringify(requireOk(await ctx.api.get(projectPath(ctx.projectId, '/map/context?' + query))), null, 2);
   }
 };
 export default tool;

@@ -25,10 +25,13 @@ function consoleStub() {
   const standard = standardFor('strategic', [])?.standard;
   if (!standard) throw new Error('нет стандарта стратегической карты');
   const api: ApiClient = {
-    get: async (path) => (path.endsWith('/maps/custom')
+    get: async (path) => (path.includes('/map/context?')
+      ? { ok: true, status: 200, data: { instructions: 'Назначение узлов обязательно', contextToken: 'map-context', current: state } }
+      : path.endsWith('/maps/custom')
       ? { ok: true, status: 200, data: { definitions: [], maps: {} } }
       : { ok: true, status: 200, data: { functional: { capabilities: state.capabilities, relations: state.relations } } }),
     post: async (_path, body) => {
+      expect(body).toMatchObject({ source: 'model', contextTokens: ['map-context'] });
       const answer = (body as { answer: string }).answer;
       const parsed = parseMapRecord(answer);
       if (parsed.problems.length > 0) return { ok: false, status: 422, data: { error: { code: 'map_invalid', message: 'схема', blockers: parsed.problems } } };
@@ -55,17 +58,17 @@ function consoleStub() {
 describe('карты через MCP (V-0152)', async () => {
   const registry = createRegistry(await loadTools(libDir));
   const run = (stub: ReturnType<typeof consoleStub>, name: string, args: Record<string, unknown>) =>
-    callTool(registry, name, args, { api: stub.api, projectId: 'p' }, { writable: true, secret: 'x' });
+    callTool(registry, name, { contextToken: 'map-context', ...args }, { api: stub.api, projectId: 'p' }, { writable: true, secret: 'test-auth-secret' });
 
-  it('пять инструментов карт; читать можно без права записи', () => {
+  it('карты читаются без права записи', () => {
     const names = registry.tools.map((tool) => tool.name).filter((name) => name.startsWith('map_'));
-    expect(names).toEqual(['map_add_nodes', 'map_connect', 'map_get', 'map_remove', 'map_update']);
+    expect(names).toEqual(['map_add_nodes', 'map_apply', 'map_connect', 'map_get', 'map_remove', 'map_update']);
     expect(registry.find('map_get')?.access).toBe('read');
   });
 
   it('карта из пустой: три узла и две связи; связь в никуда — отказ с узлом и полем', async () => {
     const stub = consoleStub();
-    expect((await run(stub, 'map_get', {})).text).toContain('пусто');
+    expect(JSON.parse((await run(stub, 'map_get', {})).text)).toMatchObject({ contextToken: 'map-context', current: { capabilities: [], relations: [] } });
     const added = await run(stub, 'map_add_nodes', { nodes: [
       { id: 'shop', title: 'Магазин', summary: 'Продаёт книги' },
       { id: 'shop.cart', title: 'Корзина', summary: 'Собирает заказ', parent: 'shop' },
@@ -80,9 +83,9 @@ describe('карты через MCP (V-0152)', async () => {
     expect(linked.isError).toBe(false);
     expect(stub.state.capabilities.map((item) => item.id)).toEqual(['shop', 'shop.cart', 'pay']);
     expect(stub.state.relations).toHaveLength(2);
-    const text = (await run(stub, 'map_get', {})).text;
-    expect(text).toContain('узлов 3, связей 2');
-    expect(text).toContain('shop.cart —uses→ pay: Оплата заказа');
+    const context = JSON.parse((await run(stub, 'map_get', {})).text);
+    expect(context.current.capabilities).toHaveLength(3);
+    expect(context.current.relations).toContainEqual({ from: 'shop.cart', to: 'pay', type: 'uses', summary: 'Оплата заказа' });
 
     const dangling = await run(stub, 'map_connect', { relations: [{ from: 'shop', to: 'ghost', type: 'uses' }] });
     expect(dangling.isError).toBe(true);
@@ -125,6 +128,20 @@ describe('карты через MCP (V-0152)', async () => {
     const outcome = await callTool(registry, 'map_add_nodes', { nodes: [{ id: 'a' }] }, { api: stub.api, projectId: 'p' }, { writable: false, secret: 'x' });
     expect(outcome.isError).toBe(true);
     expect(stub.drafts).toEqual([]);
+  });
+
+  it('map_apply требует контекст и передаёт его вместе с блоком карты', async () => {
+    const stub = consoleStub();
+    const answer = [
+      '```docdd-functional',
+      '{"added":{"capabilities":[{"id":"a","title":"А","summary":"Назначение"}]}}',
+      '```'
+    ].join('\n');
+    expect((await run(stub, 'map_apply', { answer })).isError).toBe(true);
+    expect(stub.drafts).toEqual([]);
+    const { contextToken } = JSON.parse((await run(stub, 'map_get', {})).text);
+    expect((await run(stub, 'map_apply', { answer, contextTokens: [contextToken] })).isError).toBe(false);
+    expect(stub.drafts).toEqual([answer]);
   });
 });
 

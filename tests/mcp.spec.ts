@@ -40,8 +40,8 @@ describe('MCP: инструменты, белый список, режим чт�
     callTool(registry, name, args, { api, projectId: 'p' }, { writable, secret: SECRET });
 
   it('набор инструментов: подтверждение — только с вопросом человеку (A-0008), слить нечем', () => {
-    expect(registry.tools.map((tool) => tool.name)).toEqual(['accept_check', 'accept_task', 'add_journal_line', 'approve_records', 'create_draft', 'list_issues', 'map_add_nodes', 'map_connect', 'map_get', 'map_remove', 'map_update', 'move_task', 'next_tasks', 'project_status', 'task_context']);
-    expect(registry.tools.filter((tool) => tool.access === 'write').map((tool) => tool.name).sort()).toEqual(['accept_check', 'accept_task', 'add_journal_line', 'approve_records', 'create_draft', 'map_add_nodes', 'map_connect', 'map_remove', 'map_update', 'move_task']);
+    expect(registry.tools.map((tool) => tool.name)).toEqual(['accept_check', 'accept_task', 'add_journal_line', 'approve_records', 'create_draft', 'list_issues', 'map_add_nodes', 'map_apply', 'map_connect', 'map_get', 'map_remove', 'map_update', 'move_task', 'next_tasks', 'project_status', 'task_context']);
+    expect(registry.tools.filter((tool) => tool.access === 'write').map((tool) => tool.name).sort()).toEqual(['accept_check', 'accept_task', 'add_journal_line', 'approve_records', 'create_draft', 'map_add_nodes', 'map_apply', 'map_connect', 'map_remove', 'map_update', 'move_task']);
     expect(registry.tools.some((tool) => /merge/i.test(tool.name))).toBe(false);
     for (const name of ['accept_check', 'accept_task', 'approve_records']) {
       expect((registry.find(name)?.inputSchema as { required: string[] }).required).toEqual(expect.arrayContaining(['confirmed_by', 'question', 'answer']));

@@ -15,6 +15,7 @@ import { loadIndex } from '../../../../utils/index-service';
 import { lintDetails, lintMapChange } from '../../../../utils/map-lint';
 import { findProject } from '../../../../utils/projects';
 import { today } from '../../../../utils/record-write';
+import { missingMapContexts, targetsOfMapChange } from '../../../../utils/map-context';
 
 /**
  * Ответ модели — черновиком записи типа `map`. Приложение проверяет три
@@ -28,7 +29,7 @@ export default defineEventHandler(async (event) => {
     return fail(event, 404, 'project_not_found', `Проект \`${id}\` не найден в списке`);
   }
 
-  const body = await readBody<{ answer?: unknown; title?: unknown }>(event);
+  const body = await readBody<{ answer?: unknown; title?: unknown; source?: unknown; contextTokens?: unknown }>(event);
   const answer = typeof body?.answer === 'string' ? body.answer : '';
   const title = typeof body?.title === 'string' && body.title.trim()
     ? body.title.trim()
@@ -61,6 +62,13 @@ export default defineEventHandler(async (event) => {
 
   try {
     const root = normalizeRoot(project.root);
+    if (body?.source === 'model' || body?.contextTokens !== undefined || (event.context['user'] as { agent?: boolean } | undefined)?.agent) {
+      const maps = targetsOfMapChange(parsed.change, parsed.present);
+      const missing = missingMapContexts(root, id, maps, body?.contextTokens);
+      if (missing.length > 0 || maps.length === 0) {
+        return fail(event, 409, 'map_context_required', 'Перечитайте контекст карты: map_get в MCP или GET /map/context?map=<вид>', missing.join(', '));
+      }
+    }
     const lint = lintDetails(lintMapChange(root, parsed.change, answer));
     if (lint.length > 0) return failWith(event, 422, 'map_lint', 'Карта не прошла линтер: черновик не создан', lint);
     const workspace = readWorkspace(root);

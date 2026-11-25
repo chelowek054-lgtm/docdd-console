@@ -98,7 +98,7 @@ async function createVerification() {
   try {
     const response = await $fetch<{ created: CreatedRecord[] } | { error: ApiFailure }>(
       `/api/projects/${projectId.value}/inbox/records`,
-      { method: 'POST', body: { records: verifyProposed.value, notes: [] }, ignoreResponseError: true }
+      { method: 'POST', body: { records: verifyProposed.value, notes: [], source: 'model' }, ignoreResponseError: true }
     );
     const problem = failureOf(response);
     if (problem) {

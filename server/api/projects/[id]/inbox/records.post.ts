@@ -1,11 +1,13 @@
 import { defineEventHandler, getRouterParam, readBody } from 'h3';
 
 import { isProposedType, type ProposedRecord } from '../../../../lib/inbox';
+import { parseMapRecord } from '../../../../lib/maps';
 import { normalizeRoot, OutsideRootError } from '../../../../lib/paths';
 import { WorkspaceError } from '../../../../lib/workspace';
 import { fail, failWith } from '../../../../utils/http';
 import { createRecords, proposalOf } from '../../../../utils/inbox-service';
 import { findProject } from '../../../../utils/projects';
+import { missingMapContexts, targetsOfMapChange } from '../../../../utils/map-context';
 
 /**
  * Завести записи по подтверждённому человеком списку (docs/10-inbox.md).
@@ -21,7 +23,7 @@ export default defineEventHandler(async (event) => {
     return fail(event, 404, 'project_not_found', `Проект \`${id}\` не найден в списке`);
   }
 
-  const body = await readBody<{ answer?: unknown; records?: unknown; notes?: unknown }>(event);
+  const body = await readBody<{ answer?: unknown; records?: unknown; notes?: unknown; source?: unknown; contextTokens?: unknown }>(event);
   const notes = Array.isArray(body?.notes)
     ? body.notes.filter((note): note is string => typeof note === 'string')
     : [];
@@ -51,7 +53,20 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const outcome = createRecords(normalizeRoot(project.root), proposed, notes);
+    const root = normalizeRoot(project.root);
+    if (body?.source === 'model' || body?.contextTokens !== undefined || typeof body?.answer === 'string' ||
+        (event.context['user'] as { agent?: boolean } | undefined)?.agent) {
+      const targets = new Set<string>();
+      for (const row of proposed.filter((item) => item.type === 'map')) {
+        const parsed = parseMapRecord(row.body ?? '');
+        for (const map of targetsOfMapChange(parsed.change, parsed.present)) targets.add(map);
+        if (row.domain) targets.add('domain');
+        if (row.vision || row.capabilities?.length || row.relations?.length || !parsed.present.length && !row.domain) targets.add('functional');
+      }
+      const missing = missingMapContexts(root, id, [...targets], body?.contextTokens);
+      if (missing.length) return fail(event, 409, 'map_context_required', 'Перечитайте контекст карты: map_get в MCP или GET /map/context?map=<вид>', missing.join(', '));
+    }
+    const outcome = createRecords(root, proposed, notes);
     return outcome.ok ? outcome : fail(event, 409, outcome.code, outcome.message);
   } catch (error) {
     if (error instanceof OutsideRootError) {

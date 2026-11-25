@@ -12,7 +12,10 @@ export { blockText, type MapEdge, type MapNode, type MapPart, type MapTarget } f
 
 
 export const MAP_PROPERTY = {
-  map: { type: 'string', description: 'Какая карта: strategic (стратегическая, по умолчанию) или id пользовательской карты из манифеста' }
+  map: { type: 'string', description: 'Карта: strategic по умолчанию, domain, sysdesign, codemap, dataflow, userflow или custom:<id>. Для остальных видов записи используйте map_apply.' }
+} as const;
+export const CONTEXT_PROPERTY = {
+  contextToken: { type: 'string', description: 'Токен из map_get для этой карты и её текущей ревизии' }
 } as const;
 
 export const NODE_SCHEMA = {
@@ -43,8 +46,10 @@ export const EDGE_SCHEMA = {
 const NODE_FIELDS = ['id', 'title', 'summary', 'parent', 'kind', 'status', 'note', 'priority', 'horizon'] as const;
 
 export function targetOf(args: Record<string, unknown>): MapTarget {
-  const map = typeof args['map'] === 'string' ? args['map'].trim() : '';
-  if (!map || map === 'strategic' || map === 'functional') return { kind: 'strategic' };
+  const requested = typeof args['map'] === 'string' ? args['map'].trim() : '';
+  if (!requested || requested === 'strategic' || requested === 'strategy' || requested === 'functional') return { kind: 'strategic' };
+  if (/^(domain|sysdesign|codemap|codebase|dataflow|userflow)$/.test(requested)) throw new Error('Используйте map_apply и блок схемы из map_get');
+  const map = requested.replace(/^custom:/, '');
   if (!/^[A-Za-z0-9-]+$/.test(map)) throw new Error(`Имя карты \`${map}\`: латиница, цифры и дефис`);
   return { kind: 'custom', id: map };
 }
@@ -101,9 +106,13 @@ export async function readMap(ctx: ToolContext, target: MapTarget): Promise<{ no
 }
 
 /** Черновик записи карты через API. Отказ (схема, линтер) приходит текстом с местом каждой находки. */
-export async function postDraft(ctx: ToolContext, target: MapTarget, title: string, added: MapPart, removed: MapPart = {}): Promise<string> {
-  const answer = blockText(target, added, removed);
-  const data = requireOk(await ctx.api.post(projectPath(ctx.projectId, '/map/draft'), { answer, title })) as {
+export async function postDraft(ctx: ToolContext, target: MapTarget, title: string, added: MapPart, contextToken: unknown, removed: MapPart = {}): Promise<string> {
+  if (typeof contextToken !== 'string' || !contextToken) throw new Error('Сначала прочитайте карту через map_get и передайте её contextToken');
+  return postMapAnswer(ctx, blockText(target, added, removed), [contextToken], title);
+}
+
+export async function postMapAnswer(ctx: ToolContext, answer: string, contextTokens: string[], title: string): Promise<string> {
+  const data = requireOk(await ctx.api.post(projectPath(ctx.projectId, '/map/draft'), { answer, title, source: 'model', contextTokens })) as {
     record?: { id?: string }; path?: string;
   };
   const id = data.record?.id ?? 'черновик';

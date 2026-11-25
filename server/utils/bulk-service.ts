@@ -1,6 +1,7 @@
 import { applyStatusChange } from '../lib/actions';
 import { architectRefusal } from '../lib/domain-map';
 import { newIssues } from '../lib/issues-diff';
+import { recordMapApproval } from '../lib/map-presentation';
 import { checkTransition } from '../lib/rules';
 import type { IssueDto } from '../lib/types';
 import { bulkPath, type BulkDirection } from '../lib/transitions';
@@ -30,6 +31,7 @@ export interface BulkResult {
   /** `link_map` — задача `feature` без карты: отчёт предложит завести общую (docs/04-ui.md). */
   hint?: 'link_map';
   blockers?: { code: string; message: string }[];
+  historyMissed?: string[];
 }
 
 export interface BulkOutcome {
@@ -40,14 +42,15 @@ export interface BulkOutcome {
   results: BulkResult[];
 }
 
-export function bulkStatus(root: string, ids: readonly string[], direction: BulkDirection, actor: string, roles: readonly string[] | null = null): BulkOutcome {
+export function bulkStatus(root: string, ids: readonly string[], direction: BulkDirection, actor: string,
+  roles: readonly string[] | null = null, accountId = 'local'): BulkOutcome {
   const results: BulkResult[] = [];
   const stamp = journalNow(root);
   // Список нарушений до действия: кэш мог устареть от правок снаружи.
   const before = loadIndex(root, true).issues;
 
   for (const id of [...new Set(ids)]) {
-    results.push(moveRecord(root, id, direction, actor, stamp, roles));
+    results.push(moveRecord(root, id, direction, actor, stamp, roles, accountId));
   }
 
   // Индекс пересобираем один раз: после каждой записи он никому не нужен.
@@ -57,7 +60,8 @@ export function bulkStatus(root: string, ids: readonly string[], direction: Bulk
   return { moved, skipped: results.length - moved, newIssues: newIssues(before, after), results };
 }
 
-function moveRecord(root: string, id: string, direction: BulkDirection, actor: string, stamp: string, roles: readonly string[] | null): BulkResult {
+function moveRecord(root: string, id: string, direction: BulkDirection, actor: string, stamp: string,
+  roles: readonly string[] | null, accountId: string): BulkResult {
   const first = openRecord(root, id);
   if (!first) {
     return { id, ok: false, from: '', to: '', code: 'record_not_found', message: `Записи \`${id}\` в проекте нет` };
@@ -77,6 +81,7 @@ function moveRecord(root: string, id: string, direction: BulkDirection, actor: s
   }
 
   const steps: string[] = [];
+  const historyMissed: string[] = [];
   for (const status of path) {
     const context = openRecord(root, id);
     if (!context) break;
@@ -117,11 +122,13 @@ function moveRecord(root: string, id: string, direction: BulkDirection, actor: s
     // Карту подтвердили — описанное ею закрыто (docs/07-maps.md).
     if (context.record.type === 'map' && status === 'approved') {
       markDescribed(root, outcome.text);
+      historyMissed.push(...recordMapApproval(root, id, outcome.text, accountId));
     }
     steps.push(status);
   }
 
-  return { id, ok: true, from, to: steps[steps.length - 1] ?? from, steps };
+  return { id, ok: true, from, to: steps[steps.length - 1] ?? from, steps,
+    ...(historyMissed.length ? { historyMissed } : {}) };
 }
 
 /** Нет карты вовсе — не «карта есть, но черновик»: во втором случае привязывать нечего. */

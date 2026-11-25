@@ -8,7 +8,9 @@ const { t } = useT();
 
 const props = defineProps<{
   /** Какая карта: от неё зависит имя параметра группы в адресе. */
-  kind: 'functional' | 'codemap' | 'dataflow' | 'custom';
+  kind: 'functional' | 'codemap' | 'dataflow' | 'custom' | 'userflow';
+  title?: string;
+  standard?: boolean;
   /** Готовое дерево (пользовательские карты): узлы приходят как есть, без сборки групп. */
   tree?: readonly { id: string; title?: string | undefined; parent?: string | undefined }[];
   capabilities?: readonly { id: string; title?: string | undefined; parent?: string | undefined }[];
@@ -17,8 +19,23 @@ const props = defineProps<{
   groups?: readonly DeclaredGroup[];
 }>();
 
+const mapTitle = computed(() => props.title ?? t('maps.v.' + props.kind));
 const route = useRoute();
 const router = useRouter();
+const fullscreenTarget = shallowRef<HTMLElement>();
+function syncFullscreenTarget() {
+  const root = document.fullscreenElement ?? document.querySelector('[data-map-expanded]');
+  fullscreenTarget.value = root?.querySelector<HTMLElement>('[data-map-depth-target]') ?? undefined;
+}
+onMounted(() => {
+  document.addEventListener('fullscreenchange', syncFullscreenTarget);
+  document.addEventListener('docdd-map-expanded', syncFullscreenTarget);
+  syncFullscreenTarget();
+});
+onUnmounted(() => {
+  document.removeEventListener('fullscreenchange', syncFullscreenTarget);
+  document.removeEventListener('docdd-map-expanded', syncFullscreenTarget);
+});
 
 /** У каждой карты свой параметр группы (так уже устроен адрес экрана). */
 const groupKey = computed(() =>
@@ -36,8 +53,17 @@ const nodes = computed<(TreeNode & { title: string })[]>(() => {
   if (props.kind === 'functional') {
     return (props.capabilities ?? []).map((item) => ({ id: item.id, parent: item.parent, title: item.title ?? item.id }));
   }
-  return groupTree(props.modules ?? [], props.imports ?? [], props.groups ?? []).nodes
-    .map((node) => ({ id: node.id, parent: node.parent, title: node.title }));
+  const tree = groupTree(props.modules ?? [], props.imports ?? [], props.groups ?? []);
+  const groups = tree.nodes.map((node) => ({ id: node.id, parent: node.parent, title: node.title }));
+  if (!props.standard || props.kind !== 'codemap') return groups;
+  const ids = new Set(groups.map((node) => node.id));
+  const modules = new Map((props.modules ?? []).map((module) => [module.id, module.title ?? module.id]));
+  for (const edge of props.imports ?? []) {
+    if (!modules.has(edge.from)) modules.set(edge.from, edge.from);
+    if (!modules.has(edge.to)) modules.set(edge.to, edge.to);
+  }
+  return [...groups, ...[...modules].filter(([id]) => !ids.has(id))
+    .map(([id, title]) => ({ id, title, parent: tree.groupOf(id) }))];
 });
 
 const deepest = computed(() => maxDepth(nodes.value));
@@ -45,6 +71,9 @@ const selected = computed(() => {
   const id = String(route.query[groupKey.value] ?? '');
   return nodes.value.some((node) => node.id === id) ? id : '';
 });
+const relativeDeepest = computed(() => selected.value
+  ? Math.max(1, ...nodes.value.map((node) => ancestors(node.id, nodes.value).indexOf(selected.value) + 1))
+  : deepest.value + 1);
 
 /** Путь от корня к выбранной группе; звено — ссылка на свой уровень. */
 const trail = computed(() => {
@@ -59,7 +88,7 @@ const depth = computed(() => {
   return wanted === 'all' || /^[1-9]$/.test(wanted) ? wanted : '';
 });
 const levels = computed(() => [
-  ...[1, 2, 3].filter((level) => level <= deepest.value + 1).map((level) => ({ value: String(level), label: String(level) })),
+  ...Array.from({ length: Math.min(9, relativeDeepest.value) }, (_, i) => ({ value: String(i + 1), label: String(i + 1) })),
   { value: 'all', get label() { return t('t83.m2.all'); } }
 ]);
 const canOpen = computed(() => !!selected.value && nodes.value.some((node) => node.parent === selected.value));
@@ -71,22 +100,35 @@ function change(query: Record<string, string | undefined>) {
 const goGroup = (id: string | null) => change({ [groupKey.value]: id ?? undefined, [openKey.value]: undefined });
 const setDepth = (value: string) => change({ [depthKey.value]: depth.value === value ? undefined : value, [openKey.value]: undefined });
 const openInPlace = () => change({ [openKey.value]: opened.value ? undefined : selected.value });
+const standardDepth = computed(() => depth.value === 'all' ||
+  (!depth.value && route.query[props.kind === 'functional' ? 'capview' : 'view'] === 'all')
+  ? relativeDeepest.value : Math.min(relativeDeepest.value, Number(depth.value) || 1));
+function standardGroup(id?: string) {
+  change({ [groupKey.value]: id, [openKey.value]: undefined, [depthKey.value]: undefined,
+    [props.kind === 'functional' ? 'capview' : 'view']: undefined });
+}
 </script>
 
 <template>
-  <div v-if="deepest > 0" class="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-    <p class="flex flex-wrap items-center gap-1">
-      <UButton size="xs" variant="link" color="neutral" :disabled="!selected" @click="goGroup(null)">{{ t('t83.map-depth-bar.1') }}</UButton>
+  <MapGraphNavigation v-if="standard" :title="mapTitle" :trail="trail" :max-depth="relativeDeepest" :depth="standardDepth"
+    @enter="standardGroup" @update:depth="change({ [depthKey]: $event === relativeDeepest ? 'all' : String($event), [openKey]: undefined })" />
+  <Teleport v-else :to="fullscreenTarget ?? 'body'" :disabled="!fullscreenTarget">
+  <div class="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+    <nav class="flex flex-wrap items-center gap-1" :aria-label="t('mapGraph.location')">
+      <span class="text-muted">{{ t('mapGraph.location') }}</span>
+      <UButton v-if="selected" size="xs" variant="link" color="neutral" @click="goGroup(null)">{{ mapTitle }}</UButton>
+      <span v-else class="font-medium" aria-current="location">{{ mapTitle }}</span>
       <template v-for="(step, i) in trail" :key="step.id">
         <span class="text-muted">›</span>
         <UButton v-if="i < trail.length - 1" size="xs" variant="link" color="neutral" @click="goGroup(step.id)">
           {{ step.title }}
         </UButton>
-        <span v-else class="font-medium">{{ step.title }}</span>
+        <span v-else class="font-medium" aria-current="location">{{ step.title }}</span>
       </template>
-    </p>
-    <div class="flex items-center gap-1">
-      <span class="text-muted">{{ t('t83.map-depth-bar.2') }}</span>
+    </nav>
+    <UBadge variant="subtle" color="neutral">{{ t('mapGraph.currentLevel', { n: trail.length + 1 }) }}</UBadge>
+    <div v-if="relativeDeepest > 1" class="flex items-center gap-1">
+      <span class="text-muted">{{ t('mapGraph.visibleLevels') }}</span>
       <UButton
         v-for="level in levels"
         :key="level.value"
@@ -109,4 +151,5 @@ const openInPlace = () => change({ [openKey.value]: opened.value ? undefined : s
       {{ t('t83.map-depth-bar.3') }}
     </UButton>
   </div>
+  </Teleport>
 </template>

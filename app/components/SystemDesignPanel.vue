@@ -3,7 +3,23 @@ import type { Difference, SystemDesign } from '~~/server/lib/system-design';
 
 const props = defineProps<{ projectId: string }>();
 const { t } = useT();
-const { data, pending, error } = useFetch<{ sysdesign: SystemDesign }>(
+const route = useRoute();
+const { allowed } = useMe(() => props.projectId);
+const editing = ref(false);
+type Position = { x: number; y: number };
+const reader = ref<{ editorViewport: () => Position & { zoom: number }; editorPositions: () => Record<string, Position> }>();
+const initialViewport = ref<(Position & { zoom: number })>();
+const initialPositions = ref<Record<string, Position>>();
+function toggleEditor() {
+  if (!editing.value && reader.value) {
+    initialPositions.value = reader.value.editorPositions();
+    initialViewport.value = Object.keys(initialPositions.value).length ? reader.value.editorViewport() : undefined;
+  }
+  editing.value = !editing.value;
+}
+const canEdit = computed(() => allowed('edit_draft').allowed);
+const editorScope = computed(() => typeof route.query['group-sysdesign'] === 'string' ? route.query['group-sysdesign'] : '');
+const { data, pending, error, refresh } = useFetch<{ sysdesign: SystemDesign }>(
   () => `/api/projects/${props.projectId}/map?kind=sysdesign`,
   { server: false }
 );
@@ -25,10 +41,15 @@ const edges = computed(() => design.value?.relations.map((edge) => ({
     <p v-if="error" role="alert">{{ error.message }}</p>
     <p v-else-if="pending">{{ t('st2.loading') }}</p>
     <template v-else-if="design">
-      <p v-if="!design.nodes.length">{{ t('maps.sysdesign.empty') }}</p>
-      <template v-else>
-        <MapGroupDraft :project-id="projectId" kind="sysdesign" :nodes="design.nodes" />
-        <LazyStandardMapGraph template="sysdesign" :nodes="nodes" :edges="edges">
+      <UButton v-if="canEdit" size="sm" variant="soft" :icon="editing ? 'i-lucide-eye' : 'i-lucide-pencil'"
+        :aria-pressed="editing" @click="toggleEditor">{{ t(editing ? 'maps.editor.view' : 'maps.editor.open') }}</UButton>
+      <ClientOnly v-if="editing && canEdit">
+        <MapFlowEditor template="sysdesign" :project-id="projectId" :scope="editorScope" :capabilities="nodes"
+          :relations="edges" v-bind="{ initialViewport, initialPositions }" @saved="refresh()" />
+      </ClientOnly>
+      <p v-if="!design.nodes.length && !editing">{{ t('maps.sysdesign.empty') }}</p>
+      <div v-if="design.nodes.length" v-show="!editing || !canEdit" class="space-y-4">
+        <LazyStandardMapGraph ref="reader" template="sysdesign" :nodes="nodes" :edges="edges">
           <template #toolbar>
             <UButton size="xs" :loading="status === 'pending'" @click="execute()">{{ t('sd.compare') }}</UButton>
             <UButton v-if="design.standards.length" size="xs" variant="outline" :aria-expanded="showStandards" @click="showStandards = !showStandards">{{ t('sd.standards') }}</UButton>
@@ -57,7 +78,7 @@ const edges = computed(() => design.value?.relations.map((edge) => ({
             </li>
           </ul>
         </div>
-      </template>
+      </div>
       <div v-if="showStandards">
         <p v-for="standard in design.standards" :key="standard.id">{{ standard.language }} · {{ standard.configs.join(', ') }} <span v-if="standard.coverage_min !== undefined">· ≥ {{ standard.coverage_min }}%</span></p>
       </div>

@@ -1,5 +1,5 @@
 import type { McpTool } from '../../mcp';
-import { listArg, MAP_PROPERTY, mapName, NODE_SCHEMA, nodeOf, postDraft, readMap, targetOf, titleArg } from '../application/mcp-maps';
+import { CONTEXT_PROPERTY, listArg, MAP_PROPERTY, mapName, NODE_SCHEMA, nodeOf, postDraft, readMap, targetOf, titleArg } from '../application/mcp-maps';
 
 /** Новые узлы — черновиком записи карты; уже стоящий узел правит map_update, чтобы не затереть его поля. */
 const tool: McpTool = {
@@ -8,8 +8,8 @@ const tool: McpTool = {
   access: 'write',
   inputSchema: {
     type: 'object',
-    required: ['nodes'],
-    properties: { ...MAP_PROPERTY, nodes: { type: 'array', items: NODE_SCHEMA }, title: { type: 'string', description: 'Название черновика' } }
+    required: ['nodes', 'contextToken'],
+    properties: { ...MAP_PROPERTY, ...CONTEXT_PROPERTY, nodes: { type: 'array', items: NODE_SCHEMA }, title: { type: 'string', description: 'Название черновика' } }
   },
   async run(args, ctx) {
     const target = targetOf(args);
@@ -18,7 +18,7 @@ const tool: McpTool = {
     const current = new Set((await readMap(ctx, target)).nodes.map((node) => node.id));
     const taken = nodes.filter((node) => current.has(node.id)).map((node) => node.id);
     if (taken.length > 0) throw new Error(`Уже на карте: ${taken.join(', ')} — правка через map_update`);
-    return postDraft(ctx, target, titleArg(args, `Узлы: ${nodes.map((node) => node.id).join(', ')} — ${mapName(target)}`), { nodes });
+    return postDraft(ctx, target, titleArg(args, `Узлы: ${nodes.map((node) => node.id).join(', ')} — ${mapName(target)}`), { nodes }, args['contextToken']);
   }
 };
 export default tool;

@@ -91,7 +91,7 @@ const horizonItems = [
         </UButton>
       </div>
 
-      <p v-if="level === 'group'" class="text-sm text-muted">
+      <p v-if="level === 'group' && groupTitle" class="text-sm text-muted">
         <button type="button" class="hover:underline" @click="emit('show-groups')">{{ t('t83.functional-graph-bar.3') }}</button>
         › {{ groupTitle }}
       </p>

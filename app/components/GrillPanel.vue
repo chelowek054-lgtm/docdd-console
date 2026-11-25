@@ -29,7 +29,10 @@ const asking = useModelRequest(() => `${props.projectId}:grill`, {
 });
 const planning = useModelRequest(() => `${props.projectId}:grill-plan`, {
   label: t('gr.planLabel'),
-  onRecovered: (answer) => void proposal.preview((answer as { answer: string }).answer)
+  onRecovered: (result) => {
+    const { answer, contextTokens } = result as { answer: string; contextTokens?: string[] };
+    void proposal.preview(answer, contextTokens);
+  }
 });
 const busy = computed(() => asking.running.value || planning.running.value);
 
@@ -73,12 +76,15 @@ function dontKnow(id: string) {
 async function layout() {
   if (!view.value) return;
   proposal.reset();
-  const built = await $fetch<{ prompt: string } | { error: ApiFailure }>(`/api/projects/${props.projectId}/prompt`, {
+  const built = await $fetch<{ prompt: string; contextTokens: string[] } | { error: ApiFailure }>(`/api/projects/${props.projectId}/prompt`, {
     method: 'POST', body: { kind: 'inbox', notes: [view.value.path], mode: 'grill' }, ignoreResponseError: true
   });
   if (failureOf(built)) { proposal.trouble.value = failureOf(built); return; }
-  const answer = await planning.stream<{ answer: string }>('/api/llm/ask', { prompt: (built as { prompt: string }).prompt, projectId: props.projectId });
-  if (answer) await proposal.preview(answer.answer);
+  const answer = await planning.stream<{ answer: string; contextTokens?: string[] }>('/api/llm/ask', {
+    prompt: (built as { prompt: string }).prompt, projectId: props.projectId,
+    contextTokens: 'contextTokens' in built ? built.contextTokens : []
+  });
+  if (answer) await proposal.preview(answer.answer, answer.contextTokens);
 }
 
 async function createRecords() {

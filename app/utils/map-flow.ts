@@ -7,7 +7,9 @@ import { blockText, tokenColor, type MapStandard } from '../../server/lib/map-co
  */
 
 export interface FlowCapability { id: string; title?: string; summary?: string; parent?: string; kind?: string; status?: string }
-export interface FlowRelation { from: string; to: string; type: string; summary?: string }
+export interface FlowRelation {
+  from: string; to: string; type: string; summary?: string; filterType?: string; count?: number;
+}
 
 export interface FlowNodeData {
   title: string;
@@ -104,7 +106,7 @@ interface ElkLike {
 }
 
 /** Раскладка слоями слева направо (elkjs): позиции узлов; связи рисует холст сам кривыми Безье. */
-export async function layoutWithElk(elk: ElkLike, nodes: readonly FlowNode[], edges: readonly FlowEdge[], layerGap = 72): Promise<FlowNode[]> {
+export async function layoutWithElk(elk: ElkLike, nodes: readonly FlowNode[], edges: readonly Pick<FlowEdge, 'id' | 'source' | 'target'>[], layerGap = 72): Promise<FlowNode[]> {
   const graph = {
     id: 'root',
     layoutOptions: {

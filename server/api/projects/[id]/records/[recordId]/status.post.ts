@@ -10,12 +10,9 @@ import { markDescribed } from '../../../../../utils/inventory-service';
 import { findProject } from '../../../../../utils/projects';
 import { journalNow, openRecordWithBlockers, saveRecord } from '../../../../../utils/record-write';
 import { wasViewed } from '../../../../../utils/record-diff-service';
+import { recordMapApproval } from '../../../../../lib/map-presentation';
+import { accountForMapEvent } from '../../../../../utils/map-presentation-request';
 
-/**
- * Смена статуса. Разрешён переход — меняем `status`, обновляем `updated`,
- * пишем строку в журнал. Запрещён — 409 с перечнем того, что мешает
- * (docs/03-server-api.md). Кнопкой это не обходится.
- */
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id') ?? '';
   const recordId = getRouterParam(event, 'recordId') ?? '';
@@ -84,11 +81,14 @@ export default defineEventHandler(async (event) => {
 
     // Карту подтвердили — значит описанное ею закрыто: отмечаем отпечатки,
     // чтобы следующий заход не переописывал те же файлы (docs/07-maps.md).
+    let historyMissed: string[] = [];
     if (saved.record.type === 'map' && status === 'approved') {
       markDescribed(project.root, outcome.text);
+      historyMissed = recordMapApproval(project.root, recordId, outcome.text, accountForMapEvent(event.context));
     }
 
-    notifyStatus(id, recordId, saved.record.type, status, context.record.data, project.root); return { record: saved.record, journal: outcome.journal };
+    notifyStatus(id, recordId, saved.record.type, status, context.record.data, project.root);
+    return { record: saved.record, journal: outcome.journal, ...(historyMissed.length ? { historyMissed } : {}) };
   } catch (error) {
     if (error instanceof OutsideRootError) {
       return fail(event, 403, 'outside_root', error.message, error.requested);

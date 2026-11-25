@@ -15,15 +15,16 @@ export function useProposal(projectId: () => string) {
   const outsideOk = ref(false);
   const trouble = ref<ApiFailure | null>(null);
   const saving = ref(false);
+  const contextTokens = shallowRef<string[]>([]);
 
   const kept = computed(() => proposed.value.filter((record) => !dropped.value.includes(record.key)));
 
   function reset() {
     trouble.value = null; proposed.value = []; dropped.value = []; problems.value = []; created.value = [];
-    outside.value = null; outsideOk.value = false;
+    outside.value = null; outsideOk.value = false; contextTokens.value = [];
   }
 
-  async function preview(answer: string) {
+  async function preview(answer: string, tokens: string[] = []) {
     outside.value = offVector(answer);
     const parsed = await $fetch<{ records: ProposedRecord[]; problems: string[] } | { error: ApiFailure }>(`/api/projects/${projectId()}/inbox/preview`, {
       method: 'POST', body: { answer }, ignoreResponseError: true
@@ -32,6 +33,7 @@ export function useProposal(projectId: () => string) {
     const result = parsed as { records: ProposedRecord[]; problems: string[] };
     proposed.value = result.records;
     problems.value = result.problems;
+    contextTokens.value = tokens;
   }
 
   /** Заводит то, что человек оставил. Истина — ответ сервера: заведённого могло оказаться меньше. */
@@ -39,7 +41,7 @@ export function useProposal(projectId: () => string) {
     saving.value = true; trouble.value = null;
     try {
       const response = await $fetch<{ created: { id: string; title: string }[]; problems: string[] } | { error: ApiFailure }>(`/api/projects/${projectId()}/inbox/records`, {
-        method: 'POST', body: { records, notes }, ignoreResponseError: true
+        method: 'POST', body: { records, notes, source: 'model', contextTokens: contextTokens.value }, ignoreResponseError: true
       });
       if (failureOf(response)) { trouble.value = failureOf(response); return false; }
       const result = response as { created: { id: string; title: string }[]; problems: string[] };

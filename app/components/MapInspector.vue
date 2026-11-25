@@ -8,6 +8,21 @@ import { RISK_LABEL, STATUS_STYLE, statusText, type CapabilityLink } from '~/uti
 import type { MapSelection } from '~/utils/map-mermaid';
 import type { EvidenceVerdict } from '~~/server/lib/maps'; const { t, tn } = useT();
 
+const fullscreenPortal = shallowRef<HTMLElement>();
+function syncFullscreenPortal() {
+  const element = document.fullscreenElement ?? document.querySelector('[data-map-expanded]');
+  fullscreenPortal.value = element instanceof HTMLElement && element.hasAttribute('data-map-fullscreen') ? element : undefined;
+}
+onMounted(() => {
+  syncFullscreenPortal();
+  document.addEventListener('fullscreenchange', syncFullscreenPortal);
+  document.addEventListener('docdd-map-expanded', syncFullscreenPortal);
+});
+onUnmounted(() => {
+  document.removeEventListener('fullscreenchange', syncFullscreenPortal);
+  document.removeEventListener('docdd-map-expanded', syncFullscreenPortal);
+});
+
 /**
  * Клик по узлу или ребру карты открывает эту карточку сбоку — не уводя с
  * диаграммы (docs/04-ui.md, «Карты»). У узла: что модуль делает (`summary`
@@ -214,7 +229,7 @@ const nodeSummary = computed(() => (props.selection?.kind === 'node' ? props.sel
        где карточка живёт внутри того же контейнера (docs/04-ui.md, «Карты»). -->
   <USlideover
     v-model:open="open"
-    :portal="to ?? true"
+    :portal="fullscreenPortal ?? to ?? true"
     :ui="{ overlay: 'z-50', content: `z-50 ${wide ? 'max-w-[96vw]' : 'max-w-xl'}` }"
   >
     <template #header>
