@@ -49,12 +49,12 @@ const feed = ref<HTMLElement>();
 const turns = computed(() => active.value?.turns ?? []);
 const focused = computed(() => records.value.find((record) => record.id === selected.value));
 const focusedPhase = computed(() => records.value.find((record) => record.id === phase.value));
-const workTask = computed(() => {
-  if (focused.value?.type === 'task') return focused.value;
+const firstReady = computed(() => {
   const covered = new Set(focusedPhase.value?.links.covers ?? []);
   return sortTasks(records.value.filter((record) => record.type === 'task' && record.status === 'ready'
     && (!phase.value || record.phase === phase.value || covered.has(record.id))), records.value, 'importance')[0];
 });
+const workTask = computed(() => focused.value?.type === 'task' ? focused.value : firstReady.value);
 const contextOpen = ref(false);
 const contextQuery = ref('');
 const contextFilter = ref('all');
@@ -146,6 +146,18 @@ async function send(retry?: Turn) {
   const question = (retry?.question ?? input.value).trim();
   const chat = active.value;
   if (!question || busy.value || !chat || chat.archived) return;
+  if (!retry && mode.value === 'ask' && /^(?:давай\s+)?(?:начинай|начни|возьми|бер[её]м|запусти|сделаем|реализуй)(?=\s|[.!?,:]|$)/iu.test(question)) {
+    const id = question.match(/\bT-\d+\b/i)?.[0]?.toUpperCase();
+    const important = /сам[а-яё]*\s+важн|приоритетн/iu.test(question);
+    const target = id ? records.value.find((record) => record.type === 'task' && record.id === id)
+      : important ? firstReady.value : focused.value?.type === 'task' ? focused.value : undefined;
+    if (target) {
+      input.value = '';
+      workOpen.value = true;
+      await focus('record', target.id);
+      return;
+    }
+  }
   const project = projectId.value;
   const session = chat.id;
   const api = base.value;
