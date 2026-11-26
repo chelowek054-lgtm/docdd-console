@@ -270,7 +270,7 @@ async function send(retry?: Turn) {
 </script>
 
 <template>
-  <section class="mx-auto grid h-full min-h-0 w-full min-w-0 max-w-7xl grid-rows-[auto_minmax(0,1fr)] gap-2 lg:grid-cols-[16rem_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] lg:gap-4">
+  <section class="mx-auto grid min-h-0 w-full min-w-0 max-w-7xl grid-rows-[auto_minmax(0,1fr)] gap-2 lg:grid-cols-[16rem_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] lg:gap-4">
     <aside class="grid min-h-0 min-w-0 grid-cols-2 items-center gap-2 overflow-hidden rounded-xl border border-default p-2 lg:flex lg:flex-col lg:items-stretch lg:p-3">
       <UButton block icon="i-lucide-plus" :loading="creating" @click="newChat">{{ t('chat.newChat') }}</UButton>
       <UInput v-model="query" class="w-full" icon="i-lucide-search" :placeholder="t('chat.findChats')" :aria-label="t('chat.findChats')" />
