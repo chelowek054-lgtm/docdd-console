@@ -24,8 +24,11 @@ export default defineEventHandler(async (event) => {
     return fail(event, 404, 'project_not_found', `Проект \`${id}\` не найден в списке`);
   }
 
-  const body = await readBody<{ action?: unknown; actor?: unknown; comment?: unknown }>(event);
+  const body = await readBody<{ action?: unknown; actor?: unknown; comment?: unknown; access?: unknown }>(event);
   const action = typeof body?.action === 'string' ? body.action : '';
+  if (body?.access !== undefined && (body.access !== 'edits' || action !== 'handover' && action !== 'rework')) {
+    return fail(event, 400, 'work_access_invalid', 'Для этого запуска доступна правка в рабочей области задачи');
+  }
   // На общем сервере работа и слияние — только со входом: право work/merge проверяет middleware/auth.ts.
   if (action === 'handover' || action === 'rework' || action === 'agent' || action === 'accept') { const denied = sharedDenied(event, 'Работа над задачей и слияние'); if (denied) return denied; }
   const actor = typeof body?.actor === 'string' ? body.actor : '';
@@ -66,6 +69,7 @@ export default defineEventHandler(async (event) => {
         actor,
         rework: action === 'rework' ? comment : '',
         template: await template('task.md'),
+        ...(body?.access === 'edits' ? { access: 'edits' as const } : {}),
         ...(agent ? { agent: agent.handover } : {}),
         signal: stream.signal,
         onEvent: (modelEvent) => stream.send(modelEvent.kind, modelEvent)

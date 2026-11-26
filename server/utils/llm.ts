@@ -151,6 +151,7 @@ function lookupPath(): string | null {
 }
 
 export interface AskOptions {
+  scopeWorkspace?: boolean;
   system?: string;
   /** Сколько ждать ответа. Зависший процесс не должен вешать сервер. */
   timeoutMs?: number;
@@ -322,7 +323,7 @@ export async function ask(prompt: string, options: AskOptions = {}): Promise<Llm
     // Лента событий нужна, только когда её кто-то показывает.
     if (options.onEvent) args.push(...STREAM_ARGS);
     if (options.resume) args.push('--resume', options.resume);
-    if (options.access) args.push(...(process.env.DOCDD_MODE === 'shared' && options.cwd ? scopedAccessArgs(options.access, options.cwd) : ACCESS_ARGS[options.access]));
+    if (options.access) args.push(...((options.scopeWorkspace || process.env.DOCDD_MODE === 'shared') && options.cwd ? scopedAccessArgs(options.access, options.cwd) : ACCESS_ARGS[options.access]));
     if (options.effort) args.push('--effort', options.effort);
     if (options.system) args.push('--append-system-prompt', options.system.replace(/\r?\n/g, ' '));
 

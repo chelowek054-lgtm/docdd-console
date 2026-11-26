@@ -8025,7 +8025,7 @@ updated: 2026-10-24
         "to": "server/utils/mode.ts",
         "evidence": {
           "path": "server/utils/llm.ts",
-          "line": 595,
+          "line": 596,
           "fragment": "import { rootAllowed } from './mode';"
         }
       },

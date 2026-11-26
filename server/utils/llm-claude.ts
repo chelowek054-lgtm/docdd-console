@@ -20,6 +20,7 @@ export const claudeCodeProvider: Provider = {
       ...(request.timeoutMs !== undefined ? { timeoutMs: request.timeoutMs } : {}),
       ...(request.maxBytes !== undefined ? { maxBytes: request.maxBytes } : {}),
       ...(request.cwd ? { cwd: request.cwd } : {}),
+      ...(request.scopeWorkspace ? { scopeWorkspace: true } : {}),
       ...(request.signal ? { signal: request.signal } : {}),
       ...(request.onEvent ? { onEvent: request.onEvent } : {}),
       ...(request.resume ? { resume: request.resume } : {}),

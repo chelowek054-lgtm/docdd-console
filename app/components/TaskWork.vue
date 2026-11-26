@@ -11,6 +11,7 @@ const props = defineProps<{
   recordId: string;
   status: string;
   roles: { id: string; name: string }[];
+  chatAccess?: 'read' | 'edits';
 }>();
 
 const emit = defineEmits<{ changed: [] }>();
@@ -47,6 +48,7 @@ const { running: working, elapsed, outcome, log, stream, cancel: cancelWork } = 
 });
 
 async function act(action: 'handover' | 'rework' | 'agent' | 'accept' | 'reject') {
+  if (props.chatAccess === 'read' || props.chatAccess && action === 'agent') return;
   failure.value = null;
   if (action !== 'rework') answer.value = '';
 
@@ -60,7 +62,8 @@ async function act(action: 'handover' | 'rework' | 'agent' | 'accept' | 'reject'
     const refused = failureOf(back);
     if (refused) { failure.value = refused; return; }
   }
-  const body = { action, actor: actor.value, comment: comment.value };
+  const body = { action, actor: actor.value, comment: comment.value,
+    ...(props.chatAccess === 'edits' && (action === 'handover' || action === 'rework') ? { access: props.chatAccess } : {}) };
 
   // Модель зовут только `handover` и `rework` — остальное отвечает сразу, и
   // счётчик ожидания там был бы шумом.
@@ -128,20 +131,20 @@ async function afterWork(result: { answer?: string; agent?: AgentReport }, actio
 
     <div class="flex flex-wrap items-center gap-3">
       <UButton v-can="'work'"
-        v-if="!working && agentReady"
+        v-if="!working && agentReady && !chatAccess"
         :disabled="!canHandOver || !llm?.available"
         icon="i-lucide-bot"
         @click="act('agent')"
       >
         {{ t('tw.runAgent', { title: agentReady.title }) }}
       </UButton>
-      <p v-if="agent && 'problem' in agent && !working" class="w-full text-sm text-muted">{{ agent.problem }}</p>
+      <p v-if="agent && 'problem' in agent && !working && !chatAccess" class="w-full text-sm text-muted">{{ agent.problem }}</p>
 
       <UButton v-can="'work'"
         v-if="!working"
         :variant="agentReady ? 'outline' : 'solid'"
         :color="agentReady ? 'neutral' : 'primary'"
-        :disabled="!canHandOver || !llm?.available"
+        :disabled="chatAccess === 'read' || !canHandOver || !llm?.available"
         icon="i-lucide-play"
         @click="act('handover')"
       >
@@ -220,7 +223,7 @@ async function afterWork(result: { answer?: string; agent?: AgentReport }, actio
           <UButton v-can="'work'"
             color="primary"
             :loading="busy === 'accept'"
-            :disabled="state.forbidden.length > 0"
+            :disabled="chatAccess === 'read' || state.forbidden.length > 0"
             @click="act('accept')"
           >
             {{ t('tw.accept') }}
@@ -229,12 +232,12 @@ async function afterWork(result: { answer?: string; agent?: AgentReport }, actio
             variant="outline"
             color="neutral"
             :loading="busy === 'rework'"
-            :disabled="!comment.trim()"
+            :disabled="chatAccess === 'read' || !comment.trim()"
             @click="act('rework')"
           >
             {{ t('tw.rework') }}
           </UButton>
-          <UButton v-can="'work'" variant="ghost" color="neutral" :loading="busy === 'reject'" @click="act('reject')">
+          <UButton v-can="'work'" variant="ghost" color="neutral" :loading="busy === 'reject'" :disabled="chatAccess === 'read'" @click="act('reject')">
             {{ t('tw.reject') }}
           </UButton>
         </div>

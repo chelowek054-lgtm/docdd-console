@@ -99,6 +99,7 @@ export async function handover(
     actor: string;
     rework: string;
     template: string;
+    access?: 'edits';
     signal?: AbortSignal;
     /** Ход работы модели: уходит на экран лентой. */
     onEvent?: (event: ModelEvent) => void;
@@ -138,7 +139,8 @@ export async function handover(
     cwd: worktreeRoot(normalized, record.id),
     // Работа над задачей — это правки, тесты и сборка, и всё это в своём
     // рабочем дереве. Результат человек читает диффом.
-    access: options.agent?.access ?? 'full',
+    access: options.agent?.access ?? options.access ?? 'full',
+    ...(options.access === 'edits' ? { scopeWorkspace: true } : {}),
     ...(resume ? { resume } : {}),
     ...(options.signal ? { signal: options.signal } : {}),
     ...(options.onEvent ? { onEvent: options.onEvent } : {})

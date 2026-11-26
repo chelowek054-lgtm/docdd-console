@@ -36,6 +36,7 @@ export interface ProviderRequest {
   onEvent?: (event: ModelEvent) => void;
   /** Только агенты: рабочая папка, права, продолжение разговора, усилие. */
   cwd?: string;
+  scopeWorkspace?: boolean;
   access?: ProviderAccess;
   resume?: string;
   effort?: 'low';

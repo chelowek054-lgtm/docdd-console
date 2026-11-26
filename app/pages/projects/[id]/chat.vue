@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { SearchHit } from '~~/server/lib/search';
+import { sortTasks } from '~~/server/lib/work-order';
 import { chatDraft, type ChatDraft, type ChatMode } from '~/utils/chat-draft';
 
 type Profile = 'developer' | 'architect' | 'general';
@@ -18,7 +19,7 @@ const { t } = useT();
 const route = useRoute();
 const projectId = computed(() => String(route.params.id ?? ''));
 const base = computed(() => `/api/projects/${encodeURIComponent(projectId.value)}`);
-const { records } = useProjectIndex(projectId);
+const { records, index: projectIndex, refresh: refreshProject } = useProjectIndex(projectId);
 const { me } = useMe(projectId);
 const chats = useProjectChats<Turn>(projectId);
 const { active, summaries, error: chatError, loading } = chats;
@@ -34,6 +35,8 @@ const profile = computed<Profile>({
 const selected = computed(() => active.value?.record ?? '');
 const phase = computed(() => active.value?.phase ?? '');
 const mode = ref<ChatMode>('ask');
+const access = ref<'read' | 'edits'>('read');
+const workOpen = ref(false);
 const map = ref('functional');
 const maps = ['functional', 'domain', 'sysdesign'];
 const searchStopWords = new Set('как что кто где какой какая какие мне нужно хочу может можно сделать расскажи покажи найти my the for what how can show please this that'.split(' '));
@@ -44,6 +47,12 @@ const feed = ref<HTMLElement>();
 const turns = computed(() => active.value?.turns ?? []);
 const focused = computed(() => records.value.find((record) => record.id === selected.value));
 const focusedPhase = computed(() => records.value.find((record) => record.id === phase.value));
+const workTask = computed(() => {
+  if (focused.value?.type === 'task') return focused.value;
+  const covered = new Set(focusedPhase.value?.links.covers ?? []);
+  return sortTasks(records.value.filter((record) => record.type === 'task' && record.status === 'ready'
+    && (!phase.value || record.phase === phase.value || covered.has(record.id))), records.value, 'importance')[0];
+});
 const contextOpen = ref(false);
 const contextQuery = ref('');
 const contextFilter = ref('all');
@@ -65,7 +74,7 @@ const naming = ref(false);
 const title = ref('');
 const creating = ref(false);
 
-watch(() => active.value?.id, () => { mode.value = 'ask'; input.value = ''; naming.value = false; });
+watch(() => active.value?.id, () => { mode.value = 'ask'; access.value = 'read'; workOpen.value = false; input.value = ''; naming.value = false; });
 
 async function newChat() {
   if (creating.value) return;
@@ -281,6 +290,14 @@ async function send(retry?: Turn) {
         </div>
       </header>
       <p v-if="chatError" class="px-4 pt-3 text-sm text-error" role="alert">{{ chatError }}</p>
+      <section v-if="active && workTask && workOpen" class="border-b border-default p-4">
+        <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <h2 class="text-sm font-medium">{{ workTask.id }} · {{ workTask.title }}</h2>
+          <UButton size="xs" variant="ghost" @click="workOpen = false">{{ t('chat.hideWork') }}</UButton>
+        </div>
+        <TaskWork :key="workTask.id" :project-id="projectId" :record-id="workTask.id" :status="workTask.status"
+          :chat-access="active.archived ? 'read' : access" :roles="projectIndex?.project.roles ?? []" @changed="refreshProject" />
+      </section>
       <div ref="feed" class="h-[56vh] min-h-72 space-y-5 overflow-y-auto px-4 py-5 sm:px-6">
         <div v-if="!turns.length" class="mx-auto flex h-full max-w-md flex-col items-center justify-center text-center">
           <UIcon name="i-lucide-search" class="mb-3 size-6 text-primary" />
@@ -321,13 +338,14 @@ async function send(retry?: Turn) {
       <div v-if="active && !active.archived" class="space-y-2 border-t border-default bg-default p-4">
         <ModelProgress :running="running" :elapsed="elapsed" :outcome="outcome?.kind === 'failure' ? outcome : null" @cancel="stop" />
         <div class="flex flex-wrap items-center gap-2">
-          <UDropdownMenu :items="[
-            { label: t('chat.mode.ask'), onSelect: () => { mode = 'ask'; } },
-            { label: t('chat.mode.task'), onSelect: () => { mode = 'task'; } },
-            { label: t('chat.mode.map'), onSelect: () => { mode = 'map'; } }
-          ]">
-            <UButton size="xs" variant="soft" :disabled="busy" icon="i-lucide-chevron-down">{{ t(mode === 'ask' ? 'chat.actions' : `chat.mode.${mode}`) }}</UButton>
-          </UDropdownMenu>
+          <USelect v-model="access" size="xs" :disabled="busy" :aria-label="t('chat.accessLabel')" :items="[
+            { value: 'read', label: t('chat.accessRead') }, { value: 'edits', label: t('chat.accessEdits') },
+            { value: 'full', label: t('chat.accessFull'), disabled: true }
+          ]" />
+          <UButton v-if="access === 'edits' && workTask && !workOpen" size="xs" variant="soft" icon="i-lucide-play"
+            @click="workOpen = true; focus('record', workTask.id)">{{ t('chat.openWork', { id: workTask.id }) }}</UButton>
+          <span v-else-if="access === 'edits' && !workTask" class="text-xs text-muted">{{ t('chat.noReadyWork') }}</span>
+          <span v-if="mode !== 'ask'" class="text-xs text-muted">{{ t(`chat.mode.${mode}`) }}</span>
           <USelect v-if="mode === 'map'" v-model="map" size="xs" :disabled="busy"
             :items="maps.map((value) => ({ value, label: t(`chat.map.${value}`) }))" :aria-label="t('chat.mode.map')" />
         </div>
@@ -367,6 +385,8 @@ async function send(retry?: Turn) {
           <details class="text-sm text-muted">
             <summary class="cursor-pointer">{{ t('chat.profile') }} · {{ t(`chat.${profile}`) }}</summary>
             <USelect v-model="profile" class="my-2 w-full" :items="Object.keys(templates).map((value) => ({ value, label: t(`chat.${value}`) }))" />
+            <USelect v-model="mode" class="my-2 w-full" :aria-label="t('chat.modeLabel')"
+              :items="(['ask', 'task', 'map'] as const).map((value) => ({ value, label: t(`chat.mode.${value}`) }))" />
             <p>{{ t(mode === 'ask' ? 'chat.fileAccess' : 'chat.writeAccess') }}</p>
           </details>
         </div>
