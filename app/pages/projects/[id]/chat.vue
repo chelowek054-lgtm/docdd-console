@@ -3,6 +3,8 @@ import type { SearchHit } from '~~/server/lib/search';
 import { sortTasks } from '~~/server/lib/work-order';
 import { chatDraft, type ChatDraft, type ChatMode } from '~/utils/chat-draft';
 
+definePageMeta({ fitViewport: true });
+
 type Profile = 'developer' | 'architect' | 'general';
 type Source = { id: string; title: string };
 type Stage = 'searching' | 'reading' | 'waiting' | 'answered' | 'failedStage' | 'cancelled';
@@ -137,7 +139,7 @@ function stop() {
 }
 watch(projectId, () => preparation?.abort());
 onBeforeUnmount(() => preparation?.abort());
-watch(() => [turns.value.length, turns.value.at(-1)?.answer, streamingText.value], async () => {
+watch(() => [turns.value.length, turns.value.at(-1)?.answer, streamingText.value, workOpen.value], async () => {
   await nextTick();
   feed.value?.scrollTo({ top: feed.value.scrollHeight });
 });
@@ -268,13 +270,13 @@ async function send(retry?: Turn) {
 </script>
 
 <template>
-  <section class="mx-auto grid min-w-0 w-full max-w-7xl items-start gap-4 lg:grid-cols-[16rem_minmax(0,1fr)]">
-    <aside class="min-w-0 space-y-3 rounded-xl border border-default p-3">
+  <section class="mx-auto grid h-full min-h-0 w-full min-w-0 max-w-7xl grid-rows-[auto_minmax(0,1fr)] gap-2 lg:grid-cols-[16rem_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] lg:gap-4">
+    <aside class="grid min-h-0 min-w-0 grid-cols-2 items-center gap-2 overflow-hidden rounded-xl border border-default p-2 lg:flex lg:flex-col lg:items-stretch lg:p-3">
       <UButton block icon="i-lucide-plus" :loading="creating" @click="newChat">{{ t('chat.newChat') }}</UButton>
       <UInput v-model="query" class="w-full" icon="i-lucide-search" :placeholder="t('chat.findChats')" :aria-label="t('chat.findChats')" />
       <UCheckbox v-model="archived" :label="t('chat.archived')" />
-      <ul class="max-h-[62vh] space-y-1 overflow-auto">
-        <li v-for="item in visibleChats" :key="item.id">
+      <ul class="flex min-h-0 min-w-0 gap-1 overflow-auto lg:block lg:flex-1 lg:space-y-1">
+        <li v-for="item in visibleChats" :key="item.id" class="max-w-40 shrink-0 lg:max-w-none">
           <NuxtLink :to="{ query: { chat: item.id } }" class="block rounded-lg px-3 py-2 text-sm hover:bg-elevated"
             :class="active?.id === item.id ? 'bg-elevated font-medium' : ''" :aria-current="active?.id === item.id ? 'page' : undefined">
             <span class="block truncate" :title="item.title">{{ item.title }}</span>
@@ -283,8 +285,8 @@ async function send(retry?: Turn) {
         </li>
       </ul>
     </aside>
-    <div class="min-w-0 overflow-hidden rounded-xl border border-default">
-      <header class="flex flex-wrap items-center justify-between gap-2 border-b border-default px-5 py-4">
+    <div class="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-default">
+      <header class="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-default px-3 py-2 sm:px-5 sm:py-3">
         <div class="min-w-0 flex-1">
           <form v-if="naming" class="flex gap-2" @submit.prevent="rename">
             <UInput v-model="title" maxlength="140" class="min-w-0 flex-1" :aria-label="t('chat.rename')" />
@@ -304,6 +306,7 @@ async function send(retry?: Turn) {
           </UDropdownMenu>
         </div>
       </header>
+      <div ref="feed" class="min-h-0 flex-1 space-y-4 overflow-auto overscroll-contain px-3 py-3 sm:px-5 sm:py-4">
       <p v-if="chatError" class="px-4 pt-3 text-sm text-error" role="alert">{{ chatError }}</p>
       <section v-if="active && !active.archived && priority && priority.state !== 'current'" class="border-b border-default p-4">
         <p class="mb-2 text-sm text-muted">{{ t(priority.state === 'stale' ? 'chat.priorityStale' : 'chat.priorityMissing') }}</p>
@@ -314,16 +317,7 @@ async function send(retry?: Turn) {
           </template>
         </PromptPanel>
       </section>
-      <section v-if="active && workTask && workOpen" class="border-b border-default p-4">
-        <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <h2 class="text-sm font-medium">{{ workTask.id }} · {{ workTask.title }}</h2>
-          <UButton size="xs" variant="ghost" @click="workOpen = false">{{ t('chat.hideWork') }}</UButton>
-        </div>
-        <TaskWork :key="workTask.id" :project-id="projectId" :record-id="workTask.id" :status="workTask.status"
-          :chat-access="active.archived ? 'read' : access" :roles="projectIndex?.project.roles ?? []" @changed="refreshProject" />
-      </section>
-      <div ref="feed" class="h-[56vh] min-h-72 space-y-5 overflow-y-auto px-4 py-5 sm:px-6">
-        <div v-if="!turns.length" class="mx-auto flex h-full max-w-md flex-col items-center justify-center text-center">
+        <div v-if="!turns.length && !workOpen" class="mx-auto flex max-w-md flex-col items-center py-7 text-center">
           <UIcon name="i-lucide-search" class="mb-3 size-6 text-primary" />
           <h2 class="font-semibold">{{ t('chat.emptyTitle') }}</h2>
           <p class="mt-2 text-sm text-muted">{{ t('chat.empty') }}</p>
@@ -358,8 +352,16 @@ async function send(retry?: Turn) {
               size="xs" variant="soft" @click="send(turn)">{{ t('chat.retry') }}</UButton>
           </div>
         </article>
+        <section v-if="active && workTask && workOpen" class="min-w-0 border-t border-default pt-3">
+          <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <h2 class="text-sm font-medium">{{ workTask.id }} · {{ workTask.title }}</h2>
+            <UButton size="xs" variant="ghost" @click="workOpen = false">{{ t('chat.hideWork') }}</UButton>
+          </div>
+          <TaskWork :key="workTask.id" :project-id="projectId" :record-id="workTask.id" :status="workTask.status"
+            :chat-access="active.archived ? 'read' : access" :roles="projectIndex?.project.roles ?? []" @changed="refreshProject" />
+        </section>
       </div>
-      <div v-if="active && !active.archived" class="space-y-2 border-t border-default bg-default p-4">
+      <div v-if="active && !active.archived" class="shrink-0 space-y-2 border-t border-default bg-default p-2 sm:p-3">
         <ModelProgress :running="running" :elapsed="elapsed" :outcome="outcome?.kind === 'failure' ? outcome : null" @cancel="stop" />
         <div class="flex flex-wrap items-center gap-2">
           <USelect v-model="access" size="xs" :disabled="busy" :aria-label="t('chat.accessLabel')" :items="[

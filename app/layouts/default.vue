@@ -273,7 +273,7 @@ function isActive(to: string): boolean {
 </script>
 
 <template>
-  <div class="ds-page min-h-screen text-default">
+  <div class="ds-page text-default" :class="route.meta.fitViewport ? 'flex h-dvh min-h-0 flex-col overflow-hidden' : 'min-h-screen'">
     <header class="border-b border-default">
       <!-- Одна строка (docs/04-ui.md, «Шапка — одна строка»): группы не переносятся;
            уже не помещаются — сворачиваются в «Меню». -->
@@ -390,7 +390,7 @@ function isActive(to: string): boolean {
       </div></Transition>
     </nav>
 
-    <main class="ds-container py-6">
+    <main class="ds-container" :class="route.meta.fitViewport ? 'min-h-0 min-w-0 flex-1 py-2 sm:py-3' : 'py-6'">
       <slot />
     </main>
   </div>
