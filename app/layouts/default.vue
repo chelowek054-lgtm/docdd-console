@@ -90,7 +90,6 @@ const allEntries = computed<NavEntry[]>(() => {
         { key: 'maps', label: t('nav.maps'), to: `${base}/maps`, count: unconfirmed('map') }
       ]
     },
-    { kind: 'link', key: 'chat', label: t('nav.chat'), to: `${base}/chat` },
     {
       kind: 'group',
       label: t('nav.documents'),
@@ -142,7 +141,8 @@ const allEntries = computed<NavEntry[]>(() => {
         { key: 'analyst', label: t('nav.analyst'), to: `${base}/analyst` },
         { key: 'practices', label: t('nav.practices'), to: `${base}/shared` }
       ]
-    }
+    },
+    { kind: 'link', key: 'chat', label: t('nav.chat'), to: `${base}/chat` }
   ];
 });
 
