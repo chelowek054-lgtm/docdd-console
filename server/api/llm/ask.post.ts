@@ -9,6 +9,7 @@ import { findProject } from '../../utils/projects';
 import { sharedDenied } from '../../utils/mode';
 import { chatOverview } from '../../lib/project-chat/overview';
 import { loadIndex } from '../../utils/index-service';
+import { chatArchitecture } from '../../lib/project-chat/architecture';
 
 /**
  * Один запрос к модели через Claude Code. Ответ идёт лентой событий: видно, что
@@ -17,7 +18,7 @@ import { loadIndex } from '../../utils/index-service';
  * (docs/adr/0008-llm-through-claude-code.md).
  */
 export default defineEventHandler(async (event) => {
-  const denied = sharedDenied(event, 'Свободный запрос к модели'); if (denied) return denied; const body = await readBody<{ prompt?: unknown; projectId?: unknown; tools?: unknown; contextTokens?: unknown; trace?: unknown; projectChat?: unknown }>(event);
+  const denied = sharedDenied(event, 'Свободный запрос к модели'); if (denied) return denied; const body = await readBody<{ prompt?: unknown; projectId?: unknown; tools?: unknown; contextTokens?: unknown; trace?: unknown; projectChat?: unknown; architecture?: unknown }>(event);
   const prompt = typeof body?.prompt === 'string' ? body.prompt.trim() : '';
   const projectId = typeof body?.projectId === 'string' ? body.projectId : '';
 
@@ -35,7 +36,11 @@ export default defineEventHandler(async (event) => {
   const system = body?.projectChat === true ? await useStorage('assets:prompts').getItem<string>('project-chat.md') : null;
   if (body?.projectChat === true && !system) return fail(event, 500, 'chat_prompt_missing', 'Системная инструкция чата недоступна');
   const input = system && project
-    ? `Сводка локального индекса проекта (порядок задач и фаз из DocDD):\n${JSON.stringify(chatOverview(loadIndex(project.root).records))}\n\n${prompt}`
+    ? [
+        `Сводка локального индекса (порядок задач и фаз DocDD):\n${JSON.stringify(chatOverview(loadIndex(project.root).records))}`,
+        body?.architecture === true ? `Сверка подтверждённых карт System Design и кодовой базы: ${JSON.stringify(chatArchitecture(project.root))}. Статусы стратегии приведены как отдельные сведения карты. Пустой отчёт или отсутствие карты не доказывают соответствие всего кода проекту.` : '',
+        prompt
+      ].filter(Boolean).join('\n\n')
     : prompt;
   const stream = feedStream(event, projectId);
 

@@ -226,7 +226,8 @@ async function send(retry?: Turn) {
     preparation = undefined;
     preparing.value = false;
     void chats.persist(chat, api + '/chat');
-    const ask = (text: string) => stream<Reply>('/api/llm/ask', { projectId: project, prompt: text, tools: false, trace: true, projectChat: true });
+    const architecture = /архитектур|system[ -]design|системн\p{L}* дизайн|свер\p{L}* карт|соответств\p{L}*.*(?:код|стратег)|architecture|compare.*(?:code|map)/iu.test(question);
+    const ask = (text: string) => stream<Reply>('/api/llm/ask', { projectId: project, prompt: text, tools: false, trace: true, projectChat: true, architecture });
     let result = await ask(prompt + '\nДополнительный поиск на этом ходе доступен.');
     const lookup = result?.answer.trim().match(/^DOCDD_CONTEXT:\s*([^\r\n]{1,180})$/)?.[1];
     if (lookup && active.value?.id === session) {
