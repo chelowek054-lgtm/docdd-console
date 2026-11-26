@@ -6,7 +6,8 @@ import { fail } from '../../../utils/http';
 import { apiProvider, probeProvider, syncProviders } from '../../../utils/llm-providers';
 import { claudeCodeProvider } from '../../../utils/llm-claude';
 import { codexProvider, geminiProvider } from '../../../utils/llm-agents';
-import { loadLlmSettings, saveLlmSettings, type ProviderSetting } from '../../../utils/llm-settings';
+import { loadLlmSettings, saveLlmSettings, type LlmSettings, type ProviderSetting } from '../../../utils/llm-settings';
+import { modelRevision } from '../../../lib/project-chat/models';
 
 /**
  * Сохранить список провайдеров. Пришедшее без `apiKey` оставляет прежнее значение
@@ -15,7 +16,7 @@ import { loadLlmSettings, saveLlmSettings, type ProviderSetting } from '../../..
 export default defineEventHandler(async (event) => {
   const user = (event.context as { user?: { admin?: unknown } }).user;
   if (user && user.admin !== true) return fail(event, 403, 'forbidden', 'Модели настраивает только администратор');
-  const body = (await readBody(event)) as { providers?: Array<Partial<ProviderSetting> & { hasKey?: boolean }>; agents?: unknown; routes?: unknown; verifyChat?: boolean } | null;
+  const body = (await readBody(event)) as { providers?: Array<Partial<ProviderSetting> & { hasKey?: boolean }>; agents?: unknown; routes?: unknown; verifyChat?: boolean; verifyProviderId?: unknown; chatHidden?: unknown } | null;
   if (!body || !Array.isArray(body.providers)) return fail(event, 400, 'bad-request', 'Ожидался список providers');
   const current = await loadLlmSettings();
   const providers: ProviderSetting[] = [];
@@ -36,9 +37,15 @@ export default defineEventHandler(async (event) => {
     return fail(event, 400, 'bad-request', 'Неизвестный CLI-агент');
   }
   const routes = parseRoutingTable(body.routes ?? current.routes);
+  const next: LlmSettings = {
+    ...current, providers, ...(body.routes !== undefined ? { routes } : {}),
+    ...(Array.isArray(agents) ? { agents: [...new Set(agents)] } : {}),
+    ...(Array.isArray(body.chatHidden) ? { chatHidden: body.chatHidden.filter((id): id is string => typeof id === 'string') } : {})
+  };
   let verification;
-  if (body.verifyChat === true && routes.ask) {
-    const { providerId, model } = routes.ask;
+  const providerId = typeof body.verifyProviderId === 'string' ? body.verifyProviderId : body.verifyChat === true ? routes.ask?.providerId : undefined;
+  if (providerId) {
+    const model = routes.ask?.providerId === providerId ? routes.ask.model : undefined;
     const setting = providers.find((item) => item.id === providerId && item.enabled !== false);
     const enabledAgents = Array.isArray(agents) ? agents : (Array.isArray(current.agents) ? current.agents : []);
     const cli = providerId === 'claude-code' ? claudeCodeProvider : [
@@ -51,12 +58,9 @@ export default defineEventHandler(async (event) => {
     if (JSON.stringify(await loadLlmSettings()) !== JSON.stringify(current)) {
       return fail(event, 409, 'conflict', 'Настройки моделей изменились во время проверки. Обновите страницу и повторите.');
     }
+    next.chatVerified = { ...(current.chatVerified as Record<string, unknown> | undefined), [providerId]: modelRevision(next, providerId) };
   }
-  await saveLlmSettings({
-    ...current, providers,
-    ...(Array.isArray(agents) ? { agents: [...new Set(agents)] } : {}),
-    ...(body.routes !== undefined ? { routes } : {})
-  });
+  await saveLlmSettings(next);
   await syncProviders();
   return { ok: true, ...(verification ? { verification } : {}) };
 });

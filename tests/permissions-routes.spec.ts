@@ -59,6 +59,7 @@ const EXPECTED: Record<string, Action> = {
   'POST /api/projects/x/map/inventory/rebuild': 'edit_draft',
   'PUT /api/projects/x/map/presentation': 'edit_draft',
   'PUT /api/projects/x/chat': 'read',
+  'POST /api/projects/x/chat/models': 'model',
   'POST /api/projects/x/maps/custom': 'edit_draft',
   'POST /api/projects/x/maps/custom/x/node': 'edit_draft',
   'POST /api/projects/x/notifications/read': 'edit_draft',

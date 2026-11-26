@@ -6,11 +6,12 @@ import type { AgentDef, AgentType } from '~~/server/lib/agents';
  * Создать из типа, изменить промпт, модель и доступ, удалить. Набор по умолчанию —
  * восемь типов одной кнопкой; существующие не перезаписываются.
  */
-const props = defineProps<{ projectId: string }>();
+const props = defineProps<{ projectId: string; createOnly?: boolean }>();
+const emit = defineEmits<{ saved: []; cancel: [] }>();
 const { t } = useT();
 
 interface AgentsResponse { agents: AgentDef[]; problems: { file: string; problem: string }[]; types: AgentType[]; access: string[] }
-const { data, refresh } = useFetch<AgentsResponse>(() => `/api/projects/${props.projectId}/agents`, { key: () => `agents:${props.projectId}`, server: false });
+const { data, refresh, pending, error } = useFetch<AgentsResponse>(() => `/api/projects/${props.projectId}/agents`, { key: () => `agents:${props.projectId}`, server: false });
 
 const editing = ref<AgentDef | null>(null);
 const isNew = ref(false);
@@ -32,6 +33,7 @@ function startEdit(agent: AgentDef) {
   isNew.value = false;
   failure.value = '';
 }
+watch(data, (value) => { if (props.createOnly && value && !editing.value) startNew(); }, { immediate: true });
 /** Смена типа у нового агента подставляет промпт и доступ типа — дальше их правят. */
 function pickType(value: string) {
   const type = data.value?.types.find((item) => item.type === value);
@@ -47,15 +49,21 @@ async function call(run: () => Promise<{ error?: { message: string } } | unknown
     if (response?.error) { failure.value = response.error.message; return false; }
     await refresh();
     return true;
+  } catch {
+    failure.value = t('ag.saveFailed');
+    return false;
   } finally {
     busy.value = false;
   }
 }
 
 async function save() {
-  if (!editing.value) return;
-  const body = editing.value;
-  if (await call(() => $fetch(`/api/projects/${props.projectId}/agents`, { method: 'POST', body, ignoreResponseError: true }))) editing.value = null;
+  if (!editing.value || busy.value) return;
+  const body = { ...editing.value, ...(isNew.value ? { createOnly: true } : {}) };
+  if (await call(() => $fetch(`/api/projects/${props.projectId}/agents`, { method: 'POST', body, ignoreResponseError: true }))) {
+    editing.value = null;
+    emit('saved');
+  }
 }
 const remove = (id: string) => call(() => $fetch(`/api/projects/${props.projectId}/agents/${id}`, { method: 'DELETE', ignoreResponseError: true }));
 const defaults = () => call(() => $fetch(`/api/projects/${props.projectId}/agents/defaults`, { method: 'POST', ignoreResponseError: true }));
@@ -64,12 +72,13 @@ const defaults = () => call(() => $fetch(`/api/projects/${props.projectId}/agent
 <template>
   <div class="min-w-0 space-y-4 text-sm">
     <p class="text-muted">{{ t('ag.hint') }}</p>
-    <div class="flex flex-wrap gap-2">
+    <div v-if="!props.createOnly" class="flex flex-wrap gap-2">
       <UButton icon="i-lucide-plus" size="sm" @click="startNew">{{ t('ag.new') }}</UButton>
       <UButton icon="i-lucide-users" size="sm" variant="soft" :loading="busy" @click="defaults">{{ t('ag.defaults') }}</UButton>
     </div>
     <p v-if="failure" class="text-error">{{ failure }}</p>
 
+    <template v-if="!props.createOnly">
     <ul v-if="data?.agents.length" class="divide-y divide-default rounded-md border border-default">
       <li v-for="agent in data.agents" :key="agent.id" class="flex flex-wrap items-center gap-2 px-3 py-2">
         <UIcon name="i-lucide-bot" class="size-4 text-primary" />
@@ -88,6 +97,9 @@ const defaults = () => call(() => $fetch(`/api/projects/${props.projectId}/agent
     <ul v-if="data?.problems.length" class="text-xs text-warning">
       <li v-for="item in data.problems" :key="item.file">{{ item.file }}: {{ item.problem }}</li>
     </ul>
+    </template>
+    <p v-else-if="pending && !editing" role="status" class="text-muted">{{ t('ref.loading') }}</p>
+    <p v-else-if="error" role="alert" class="text-error">{{ t('ag.loadFailed') }}</p>
 
     <UCard v-if="editing">
       <form class="space-y-3" @submit.prevent="save">
@@ -101,7 +113,7 @@ const defaults = () => call(() => $fetch(`/api/projects/${props.projectId}/agent
         <UFormField :label="t('ag.prompt')"><UTextarea v-model="editing.prompt" :rows="8" class="w-full" /></UFormField>
         <p class="text-xs text-muted">{{ t('ag.limits') }}</p>
         <div class="flex justify-end gap-2">
-          <UButton variant="ghost" color="neutral" @click="editing = null">{{ t('rel.cancel') }}</UButton>
+          <UButton type="button" variant="ghost" color="neutral" :disabled="busy" @click="editing = null; emit('cancel')">{{ t('rel.cancel') }}</UButton>
           <UButton type="submit" :loading="busy" :disabled="!editing.id.trim() || !editing.prompt.trim()">{{ t('ppl.save') }}</UButton>
         </div>
       </form>

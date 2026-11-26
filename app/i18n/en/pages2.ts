@@ -160,6 +160,8 @@ export const pages2: Record<string, string> = {
   'mod.advanced': 'Advanced settings',
   'mod.saveAndUse': 'Save and use for chat',
   'mod.probeOk': 'Connection verified',
+  'mod.showInChat': 'Show in chat',
+  'mod.retryProbe': 'Retry request',
   'mod.pickModel': 'Check the key or choose another model.',
   'mod.pickCli': 'Check your CLI sign-in or choose another connection.',
   'mod.protocol': 'API compatibility',

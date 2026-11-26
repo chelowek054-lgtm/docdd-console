@@ -41,7 +41,9 @@ export async function askRouted(kind: string, ctx: RouteContext, prompt: string,
   const needsTools = (options.access ?? 'read') !== 'none';
   // Нет маршрута — разбор и сверка идут чат-модели, если она подключена (R-0093).
   const chat = listProviders().find((item) => item.kind === 'chat')?.id ?? null;
-  const route = resolveRoute(routes, kind, needsTools, (id) => { const p = getProvider(id); return p ? { tools: p.kind === 'agent' } : undefined; }, defaultRoute(kind, needsTools, chat));
+  const selected = options.providerId;
+  const requestedRoutes = selected && routes[kind]?.providerId !== selected ? { ...routes, [kind]: { providerId: selected } } : routes;
+  const route = resolveRoute(requestedRoutes, kind, needsTools, (id) => { const p = getProvider(id); return p ? { tools: p.kind === 'agent' } : undefined; }, defaultRoute(kind, needsTools, chat));
   const tokenLimit = limits[kind] ?? options.tokenLimit;
   if (!route.ok) return { ok: false, failure: { code: 'unavailable', message: route.reason } };
   const { providerId } = route.target;

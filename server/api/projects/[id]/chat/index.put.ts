@@ -18,6 +18,7 @@ export default defineEventHandler(async (event) => {
     id: body.id, title: body.title.trim().slice(0, 140), updated: '', archived: body.archived === true,
     record: typeof body.record === 'string' ? body.record.slice(0, 100) : '',
     phase: typeof body.phase === 'string' ? body.phase.slice(0, 100) : '',
+    ...(typeof body.providerId === 'string' && /^[\w:.-]{1,100}$/.test(body.providerId) ? { providerId: body.providerId } : {}),
     revision: body.revision!, turns: body.turns
   });
   return saved ?? fail(event, 409, 'chat_changed', 'Чат изменён в другой вкладке. Обновите страницу.');

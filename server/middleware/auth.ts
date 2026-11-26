@@ -36,7 +36,8 @@ export default defineEventHandler(async (event) => {
 
   let team: TeamMember[] | undefined;
   let projectRoot: string | null = null;
-  const projectId = /^\/api\/projects\/([^/]+)\//.exec(path)?.[1];
+  const chatProject = path === '/api/llm/ask' && early?.projectChat === true && typeof early.projectId === 'string' && /^[\w.-]+$/.test(early.projectId) ? early.projectId : undefined;
+  const projectId = /^\/api\/projects\/([^/]+)\//.exec(path)?.[1] ?? chatProject;
   if (projectId) {
     const project = await findProject(decodeURIComponent(projectId));
     if (project) {

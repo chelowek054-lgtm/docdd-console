@@ -22,11 +22,11 @@ export function listAgents(root: string): { agents: AgentDef[]; problems: { file
   return { agents, problems };
 }
 
-export function saveAgent(root: string, agent: AgentDef): string {
+export function saveAgent(root: string, agent: AgentDef, createOnly = false): string {
   const dir = resolveInside(normalizeRoot(root), AGENTS_DIR);
   mkdirSync(dir, { recursive: true });
   const path = join(dir, `${agent.id}.md`);
-  writeFileSync(path, agentText(agent), 'utf8');
+  writeFileSync(path, agentText(agent), { encoding: 'utf8', flag: createOnly ? 'wx' : 'w' });
   return `${AGENTS_DIR}/${agent.id}.md`;
 }
 

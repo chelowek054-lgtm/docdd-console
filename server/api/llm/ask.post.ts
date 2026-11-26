@@ -18,7 +18,7 @@ import { chatArchitecture } from '../../lib/project-chat/architecture';
  * (docs/adr/0008-llm-through-claude-code.md).
  */
 export default defineEventHandler(async (event) => {
-  const denied = sharedDenied(event, 'Свободный запрос к модели'); if (denied) return denied; const body = await readBody<{ prompt?: unknown; projectId?: unknown; tools?: unknown; contextTokens?: unknown; trace?: unknown; projectChat?: unknown; architecture?: unknown }>(event);
+  const denied = sharedDenied(event, 'Свободный запрос к модели'); if (denied) return denied; const body = await readBody<{ prompt?: unknown; projectId?: unknown; tools?: unknown; contextTokens?: unknown; trace?: unknown; projectChat?: unknown; architecture?: unknown; providerId?: unknown }>(event);
   const prompt = typeof body?.prompt === 'string' ? body.prompt.trim() : '';
   const projectId = typeof body?.projectId === 'string' ? body.projectId : '';
 
@@ -52,6 +52,7 @@ export default defineEventHandler(async (event) => {
   const result: Awaited<ReturnType<typeof ask>> = await askRouted('ask', { projectId, user: ((event.context as { user?: { login?: string } }).user?.login) ?? 'local', onJob: (id) => stream.queued(id), onProvider }, input, {
     ...(project ? { cwd: project.root } : {}),
     ...(system ? { system } : {}),
+    ...(body?.projectChat === true && typeof body.providerId === 'string' ? { providerId: body.providerId } : {}),
     // Сигнал соединения не передаём: обновление страницы не отменяет задание (ADR-0034), отмена — DELETE ленты или очереди.
     // Этот запрос спрашивает, а не чинит: до подтверждения человеком в
     // проекте не должно измениться ничего (adr/0010).

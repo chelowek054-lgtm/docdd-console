@@ -151,6 +151,7 @@ function lookupPath(): string | null {
 }
 
 export interface AskOptions {
+  providerId?: string;
   scopeWorkspace?: boolean;
   system?: string;
   /** Сколько ждать ответа. Зависший процесс не должен вешать сервер. */

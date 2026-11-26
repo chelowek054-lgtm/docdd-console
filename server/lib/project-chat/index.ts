@@ -7,6 +7,7 @@ export interface ProjectChat {
   archived: boolean;
   record: string;
   phase: string;
+  providerId?: string;
   revision: number;
   turns: unknown[];
 }

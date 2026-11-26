@@ -2014,7 +2014,7 @@ updated: 2026-10-24
         "evidence": {
           "path": "server/api/llm/models/index.put.ts",
           "line": 9,
-          "fragment": "import { loadLlmSettings, saveLlmSettings, type ProviderSett"
+          "fragment": "import { loadLlmSettings, saveLlmSettings, type LlmSettings"
         }
       },
       {
@@ -8025,7 +8025,7 @@ updated: 2026-10-24
         "to": "server/utils/mode.ts",
         "evidence": {
           "path": "server/utils/llm.ts",
-          "line": 596,
+          "line": 597,
           "fragment": "import { rootAllowed } from './mode';"
         }
       },

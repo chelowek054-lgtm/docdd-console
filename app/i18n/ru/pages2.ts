@@ -160,6 +160,8 @@ export const pages2: Record<string, string> = {
   'mod.advanced': 'Дополнительные параметры',
   'mod.saveAndUse': 'Сохранить и использовать в чате',
   'mod.probeOk': 'Подключение подтверждено',
+  'mod.showInChat': 'Показывать в чате',
+  'mod.retryProbe': 'Повторить запрос',
   'mod.pickModel': 'Проверьте ключ или выберите другую модель.',
   'mod.pickCli': 'Проверьте вход в CLI или выберите другое подключение.',
   'mod.protocol': 'Совместимость API',

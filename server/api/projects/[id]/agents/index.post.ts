@@ -16,5 +16,10 @@ export default defineEventHandler(async (event) => {
   const parsed = parseAgent(agentText({ id: text(body['id']).trim(), type: text(body['type']).trim(), title: text(body['title']).trim(), ...(text(body['model']).trim() ? { model: text(body['model']).trim() } : {}), access: text(body['access']) as never, prompt: text(body['prompt']) }));
   if (!parsed.ok) return fail(event, 400, 'agent_invalid', parsed.problem);
   if (!parsed.agent.prompt) return fail(event, 400, 'agent_prompt_required', 'У агента нет системного промпта');
-  return { agent: parsed.agent, path: saveAgent(project.root, parsed.agent) };
+  try {
+    return { agent: parsed.agent, path: saveAgent(project.root, parsed.agent, body['createOnly'] === true) };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') return fail(event, 409, 'agent_exists', 'Агент с таким ID уже существует');
+    throw error;
+  }
 });

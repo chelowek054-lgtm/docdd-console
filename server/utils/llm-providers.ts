@@ -8,13 +8,13 @@ import { loadLlmSettings, type ProviderSetting } from './llm-settings';
 
 export const apiProvider = (setting: ProviderSetting) => setting.type === 'anthropic' ? anthropicProvider(setting) : openAiProvider(setting);
 
-export async function probeProvider(provider: Provider, model?: string) {
+export async function probeProvider(provider: Provider, model?: string, maxOutputTokens = 512) {
   const result = await provider.ask({
     prompt: 'Ответь одним словом: привет. Не используй инструменты.',
     model,
     access: 'none',
     timeoutMs: 30000,
-    maxOutputTokens: 512
+    maxOutputTokens
   });
   return result.ok ? { ok: true as const, ms: result.ms } : { ok: false as const, failure: { code: result.failure.code } };
 }

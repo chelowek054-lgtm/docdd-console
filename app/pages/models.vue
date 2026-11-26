@@ -2,7 +2,7 @@
 // Экран администратора «Модели»: провайдеры и ключи (T-0022). Значение ключа
 // сюда не приходит — только факт, что он найден; вписанный новый уходит на сервер.
 interface Setting { clearKey?: boolean; id: string; label?: string; type: 'openai' | 'anthropic'; baseUrl?: string; model: string; apiKeyEnv?: string; apiKey?: string; closedData?: boolean; enabled?: boolean; hasKey?: boolean }
-interface Loaded { agents?: string[]; routes?: Record<string, { providerId: string; model?: string }>; providers: Setting[]; registry: Array<{ id: string; label: string; kind: string; available: boolean; reason?: string }> }
+interface Loaded { agents?: string[]; verified?: string[]; chatHidden?: string[]; routes?: Record<string, { providerId: string; model?: string }>; providers: Setting[]; registry: Array<{ id: string; label: string; kind: string; available: boolean; reason?: string }> }
 const { t, locale } = useT();
 const { data, refresh } = await useFetch<Loaded | { error: { message: string } }>('/api/llm/models', { ignoreResponseError: true });
 const error = computed(() => (data.value && 'error' in data.value ? data.value.error.message : ''));
@@ -47,7 +47,7 @@ const chatLabel = computed(() => cliOptions.value.find((item) => item.id === sav
   ?? (data.value && 'providers' in data.value ? data.value.providers.find((item) => item.id === savedChat.value)?.label : undefined)
   ?? savedChat.value);
 
-async function save() {
+async function save(verifyProviderId?: string) {
   if (saving.value) return false;
   saving.value = true;
   saved.value = '';
@@ -56,10 +56,10 @@ async function save() {
   try {
     const result = await $fetch<{ ok?: boolean; error?: { message: string }; verification?: { ok: boolean } }>('/api/llm/models', {
       method: 'PUT',
-      body: { providers: providers.value, routes: outgoingRoutes, agents: agents.value, verifyChat: true },
+      body: { providers: providers.value, routes: outgoingRoutes, agents: agents.value, verifyProviderId, chatHidden: hidden.value },
       ignoreResponseError: true
     } as never).catch(() => null);
-    if (result?.verification && outgoingRoutes.ask) probe.value = { id: outgoingRoutes.ask.providerId, ok: result.verification.ok };
+    if (result?.verification && verifyProviderId) probe.value = { id: verifyProviderId, ok: result.verification.ok };
     saved.value = probe.value ? '' : (result?.ok ? t('mod.saved') : (result?.error?.message ?? t('mod.notSaved')));
     if (result?.ok) await refresh();
     return result?.ok === true;
@@ -93,24 +93,45 @@ async function useInChat(providerId: string) {
   if (saving.value) return;
   const previousRoutes = routes.value.map((route) => ({ ...route }));
   const previousAgents = [...agents.value];
+  const previousHidden = [...hidden.value];
+  hidden.value = hidden.value.filter((id) => id !== providerId);
   if (providerId === 'codex-cli' && !agents.value.includes(providerId)) agents.value.push(providerId);
   const route = routes.value.find((item) => item.kind === 'ask');
   if (route) Object.assign(route, { providerId, model: '' });
   else routes.value.push({ kind: 'ask', providerId, model: '' });
-  if (await save()) return;
+  if (await save(providerId)) return;
   routes.value = previousRoutes;
   agents.value = previousAgents;
+  hidden.value = previousHidden;
 }
+const props = defineProps<{ embedded?: boolean }>();
+const verified = computed(() => data.value && 'providers' in data.value ? (data.value.verified ?? []) : []);
+const hidden = ref<string[]>([]);
+watchEffect(() => { if (data.value && 'providers' in data.value) hidden.value = [...(data.value.chatHidden ?? [])]; });
+
+async function verifyModel(id: string, visible?: boolean) {
+  if (saving.value) return;
+  const previousHidden = [...hidden.value];
+  const previousAgents = [...agents.value];
+  if (visible === true) hidden.value = hidden.value.filter((item) => item !== id);
+  if (visible === false) hidden.value = [...new Set([...hidden.value, id])];
+  if (visible !== false && id === 'codex-cli' && !agents.value.includes(id)) agents.value.push(id);
+  if (await save(visible === false ? undefined : id)) return;
+  hidden.value = previousHidden;
+  agents.value = previousAgents;
+}
+
+const inChat = (id: string) => verified.value.includes(id) && !hidden.value.includes(id);
 </script>
 
 <template>
-  <UContainer class="space-y-4 py-6">
-    <h1 class="text-xl font-semibold">{{ t('mod.title') }}</h1>
+  <UContainer class="space-y-4" :class="props.embedded ? 'px-0' : 'py-6'">
+    <h1 v-if="!props.embedded" class="text-xl font-semibold">{{ t('mod.title') }}</h1>
     <p v-if="error" class="text-error">{{ error }}</p>
     <template v-else>
       <div class="flex flex-wrap items-center gap-3">
         <UTabs v-model="connection" :content="false" :items="[{ label: t('mod.apiTab'), value: 'api' }, { label: t('mod.cliTab'), value: 'cli' }]" />
-        <UBadge variant="soft" color="neutral">{{ t('mod.currentChat', { name: chatLabel }) }}</UBadge>
+        <UBadge v-if="inChat(savedChat)" variant="soft" color="neutral">{{ t('mod.currentChat', { name: chatLabel }) }}</UBadge>
       </div>
       <p v-if="saved" role="status" class="text-sm">{{ saved }}</p>
       <section v-if="connection === 'cli'" class="max-w-3xl space-y-3">
@@ -124,7 +145,11 @@ async function useInChat(providerId: string) {
               {{ t(probe.ok ? 'mod.probeOk' : 'mod.pickCli') }}
             </p>
           </div>
-          <UButton :loading="saving" :disabled="savedChat === item.id || (!!item.status && !item.status.available)" @click="useInChat(item.id)">{{ savedChat === item.id ? t('mod.inChat') : t('mod.useCli') }}</UButton>
+          <div class="flex flex-wrap items-center gap-2">
+            <UCheckbox :model-value="inChat(item.id)" :disabled="saving || item.status?.available === false" :label="t('mod.showInChat')"
+              @update:model-value="verifyModel(item.id, $event === true)" />
+            <UButton size="sm" variant="ghost" color="neutral" :disabled="saving || item.status?.available === false" @click="verifyModel(item.id)">{{ t('mod.retryProbe') }}</UButton>
+          </div>
         </div>
       </section>
       <section v-else class="max-w-3xl space-y-3">
@@ -159,6 +184,9 @@ async function useInChat(providerId: string) {
             </div>
           </details>
           <div class="flex flex-wrap gap-2">
+            <UCheckbox :model-value="inChat(p.id)" :disabled="saving || !p.model.trim()" :label="t('mod.showInChat')"
+              @update:model-value="verifyModel(p.id, $event === true)" />
+            <UButton size="sm" variant="ghost" color="neutral" :disabled="saving || !p.model.trim()" @click="verifyModel(p.id)">{{ t('mod.retryProbe') }}</UButton>
             <UButton type="submit" :loading="saving" :disabled="!p.model.trim()">{{ t('mod.saveAndUse') }}</UButton>
             <UButton variant="ghost" color="error" @click="providers.splice(at, 1); routes = routes.filter((route) => route.providerId !== p.id)">{{ t('mod.remove') }}</UButton>
           </div>
@@ -178,7 +206,8 @@ async function useInChat(providerId: string) {
         </div>
         <UButton variant="ghost" color="neutral" @click="addRoute">{{ t('mod.addRoute') }}</UButton>
       </details>
-      <UButton variant="outline" :loading="saving" @click="save">{{ t('mod.save') }}</UButton>
+      <UButton variant="outline" :loading="saving" @click="save()">{{ t('mod.save') }}</UButton>
+      <template v-if="!props.embedded">
       <h2 class="pt-3 font-medium">{{ t('mod.spend', { month: usage?.month ?? '' }) }}</h2>
       <p v-if="usage" class="text-sm">{{ t('mod.requests') }}: {{ usage.total.requests }}, {{ money(usage.total) }}</p>
       <ul v-if="usage" class="text-sm text-muted">
@@ -199,6 +228,7 @@ async function useInChat(providerId: string) {
           <details v-if="job.answer"><summary>{{ t('t83.m4.md.answer') }}{{ job.ms ? t('t83.m4.md.ms', { ms: job.ms }) : '' }}</summary><pre class="whitespace-pre-wrap">{{ job.answer }}</pre></details>
         </li>
       </ul>
+      </template>
     </template>
   </UContainer>
 </template>
