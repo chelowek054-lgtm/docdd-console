@@ -151,6 +151,7 @@ function lookupPath(): string | null {
 }
 
 export interface AskOptions {
+  system?: string;
   /** Сколько ждать ответа. Зависший процесс не должен вешать сервер. */
   timeoutMs?: number;
   /** Предел размера ответа: карта большого проекта и так велика. */
@@ -323,6 +324,7 @@ export async function ask(prompt: string, options: AskOptions = {}): Promise<Llm
     if (options.resume) args.push('--resume', options.resume);
     if (options.access) args.push(...(process.env.DOCDD_MODE === 'shared' && options.cwd ? scopedAccessArgs(options.access, options.cwd) : ACCESS_ARGS[options.access]));
     if (options.effort) args.push('--effort', options.effort);
+    if (options.system) args.push('--append-system-prompt', options.system.replace(/\r?\n/g, ' '));
 
     const parser = createStreamParser();
     let streamed = '';

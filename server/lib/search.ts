@@ -36,8 +36,9 @@ export function buildSearchIndex(docs: readonly SearchDoc[]): SearchIndex {
 }
 
 /** Все слова запроса должны найтись (приставка слова допустима); заголовок весит больше тела. */
-export function searchIndex(index: SearchIndex, query: string, limit = 50): SearchHit[] {
-  const words = tokenize(query);
+export function searchIndex(index: SearchIndex, query: string, limit = 50, matchAny = false): SearchHit[] {
+  const tokens = tokenize(query);
+  const words = matchAny ? [...new Set(tokens)] : tokens;
   if (words.length === 0) return [];
   let scores = null as Map<number, number> | null;
   for (const word of words) {
@@ -50,7 +51,12 @@ export function searchIndex(index: SearchIndex, query: string, limit = 50): Sear
       if (!key.startsWith(word)) continue;
       for (const doc of set) next.set(doc, (next.get(doc) ?? 0) + 20);
     }
-    scores = scores ? new Map<number, number>([...scores].filter(([doc]) => next.has(doc)).map(([doc, score]): [number, number] => [doc, score + (next.get(doc) ?? 0)])) : next;
+    if (matchAny) {
+      scores ??= new Map<number, number>();
+      for (const [doc, score] of next) scores.set(doc, (scores.get(doc) ?? 0) + score);
+    } else {
+      scores = scores ? new Map<number, number>([...scores].filter(([doc]) => next.has(doc)).map(([doc, score]): [number, number] => [doc, score + (next.get(doc) ?? 0)])) : next;
+    }
   }
   return [...(scores ?? [])]
     .sort((a, b) => b[1] - a[1] || a[0] - b[0])

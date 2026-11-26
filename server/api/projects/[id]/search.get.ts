@@ -33,7 +33,7 @@ export default defineEventHandler(async (event) => {
       entry = { fingerprint, index: buildSearchIndex(docs) };
       cache.set(project.root, entry);
     }
-    return { hits: searchIndex(entry.index, q) };
+    return { hits: searchIndex(entry.index, q, 50, getQuery(event)['match'] === 'any') };
   } catch (error) {
     return fail(event, 500, 'search_failed', 'Поиск не удался', String(error));
   }

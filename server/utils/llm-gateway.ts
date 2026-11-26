@@ -64,7 +64,7 @@ export async function askRouted(kind: string, ctx: RouteContext, prompt: string,
         result = providerId === 'claude-code' && !model
           ? await ask(prompt, { ...options, signal: merged.signal, ...(tokenLimit ? { tokenLimit } : {}) })
           : await provider.ask({
-            prompt, ...(model ? { model } : {}), signal: merged.signal,
+            prompt, ...(options.system ? { system: options.system } : {}), ...(model ? { model } : {}), signal: merged.signal,
             ...(options.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}),
             ...(options.maxBytes !== undefined ? { maxBytes: options.maxBytes } : {}),
             ...(options.cwd ? { cwd: options.cwd } : {}),

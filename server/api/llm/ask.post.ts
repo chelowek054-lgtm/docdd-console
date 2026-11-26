@@ -1,4 +1,5 @@
 import { defineEventHandler, readBody } from 'h3';
+import { useStorage } from 'nitropack/runtime';
 
 import { askRouted } from '../../utils/llm-gateway';
 import { ask } from '../../utils/llm';
@@ -6,6 +7,8 @@ import { feedStream } from '../../utils/job-feeds';
 import { fail } from '../../utils/http';
 import { findProject } from '../../utils/projects';
 import { sharedDenied } from '../../utils/mode';
+import { chatOverview } from '../../lib/project-chat/overview';
+import { loadIndex } from '../../utils/index-service';
 
 /**
  * Один запрос к модели через Claude Code. Ответ идёт лентой событий: видно, что
@@ -14,7 +17,7 @@ import { sharedDenied } from '../../utils/mode';
  * (docs/adr/0008-llm-through-claude-code.md).
  */
 export default defineEventHandler(async (event) => {
-  const denied = sharedDenied(event, 'Свободный запрос к модели'); if (denied) return denied; const body = await readBody<{ prompt?: unknown; projectId?: unknown; tools?: unknown; contextTokens?: unknown; trace?: unknown }>(event);
+  const denied = sharedDenied(event, 'Свободный запрос к модели'); if (denied) return denied; const body = await readBody<{ prompt?: unknown; projectId?: unknown; tools?: unknown; contextTokens?: unknown; trace?: unknown; projectChat?: unknown }>(event);
   const prompt = typeof body?.prompt === 'string' ? body.prompt.trim() : '';
   const projectId = typeof body?.projectId === 'string' ? body.projectId : '';
 
@@ -28,6 +31,12 @@ export default defineEventHandler(async (event) => {
   // Модель работает в корне проекта, а не в папке сервера: иначе она разберёт
   // не тот код. Путь берётся из списка проектов, а не из запроса браузера.
   const project = await findProject(projectId);
+  if (body?.projectChat === true && !project) return fail(event, 404, 'project_not_found', 'Проект не найден');
+  const system = body?.projectChat === true ? await useStorage('assets:prompts').getItem<string>('project-chat.md') : null;
+  if (body?.projectChat === true && !system) return fail(event, 500, 'chat_prompt_missing', 'Системная инструкция чата недоступна');
+  const input = system && project
+    ? `Сводка локального индекса проекта (порядок задач и фаз из DocDD):\n${JSON.stringify(chatOverview(loadIndex(project.root).records))}\n\n${prompt}`
+    : prompt;
   const stream = feedStream(event, projectId);
 
   let provider: string | undefined;
@@ -35,13 +44,14 @@ export default defineEventHandler(async (event) => {
     provider = label;
     stream.send('action', { kind: 'action', text: label });
   } : undefined;
-  const result: Awaited<ReturnType<typeof ask>> = await askRouted('ask', { projectId, user: ((event.context as { user?: { login?: string } }).user?.login) ?? 'local', onJob: (id) => stream.queued(id), onProvider }, prompt, {
+  const result: Awaited<ReturnType<typeof ask>> = await askRouted('ask', { projectId, user: ((event.context as { user?: { login?: string } }).user?.login) ?? 'local', onJob: (id) => stream.queued(id), onProvider }, input, {
     ...(project ? { cwd: project.root } : {}),
+    ...(system ? { system } : {}),
     // Сигнал соединения не передаём: обновление страницы не отменяет задание (ADR-0034), отмена — DELETE ленты или очереди.
     // Этот запрос спрашивает, а не чинит: до подтверждения человеком в
     // проекте не должно измениться ничего (adr/0010).
     // Запрос, которому всё нужное уже подставлено (порядок по важности), идёт без инструментов.
-    access: body?.tools === false ? 'none' : 'read',
+    access: body?.projectChat === true || body?.tools === false ? 'none' : 'read',
     // Там же рассуждать долго незачем: 115 с на запросе в 14 тысяч знаков против 19 с при низком усилии.
     ...(body?.tools === false ? { effort: 'low' as const } : {}),
     onEvent: (modelEvent) => stream.send(modelEvent.kind, modelEvent)

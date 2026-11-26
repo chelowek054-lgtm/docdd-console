@@ -15,9 +15,8 @@ export const claudeCodeProvider: Provider = {
     return found.reason ? { available: found.available, reason: found.reason } : { available: found.available };
   },
   async ask(request: ProviderRequest): Promise<ProviderResult> {
-    // Системная часть у агента — просто начало запроса: отдельного поля у CLI нет.
-    const prompt = request.system ? `${request.system}\n\n${request.prompt}` : request.prompt;
-    return ask(prompt, {
+    return ask(request.prompt, {
+      ...(request.system ? { system: request.system } : {}),
       ...(request.timeoutMs !== undefined ? { timeoutMs: request.timeoutMs } : {}),
       ...(request.maxBytes !== undefined ? { maxBytes: request.maxBytes } : {}),
       ...(request.cwd ? { cwd: request.cwd } : {}),

@@ -34,6 +34,7 @@ describe('R-0016: знания', () => {
     expect(searchIndex(index, '   ')).toEqual([]);
     expect(searchIndex(index, 'отгрузка склад').length).toBe(2);
     expect(searchIndex(index, 'отгрузка нетакого')).toEqual([]);
+    expect(searchIndex(index, 'отгрузка нетакого', 1, true)[0]?.id).toBe('R-2');
   });
   it('глоссарий: форматы строк и попадание терминов в запрос', () => {
     const terms = parseGlossary('- **Заявка** — обращение\n**Партия**: набор\n* **Акт** - документ\nпросто текст\n');

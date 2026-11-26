@@ -1869,7 +1869,7 @@ updated: 2026-10-24
         "to": "server/utils/mode.ts",
         "evidence": {
           "path": "server/api/llm/ask.post.ts",
-          "line": 8,
+          "line": 9,
           "fragment": "import { sharedDenied } from '../../utils/mode';"
         }
       },
@@ -8025,7 +8025,7 @@ updated: 2026-10-24
         "to": "server/utils/mode.ts",
         "evidence": {
           "path": "server/utils/llm.ts",
-          "line": 593,
+          "line": 595,
           "fragment": "import { rootAllowed } from './mode';"
         }
       },
