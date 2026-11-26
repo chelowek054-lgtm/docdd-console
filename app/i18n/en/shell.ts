@@ -54,6 +54,8 @@ export const shell: Record<string, string> = {
   'chat.sessionError': 'Could not load or save the chat.',
   'chat.accessLabel': 'Run access',
   'chat.accessRead': 'Read',
+  'chat.priorityStale': 'Tasks or phases changed. Preview a new order before choosing a task.',
+  'chat.priorityMissing': 'No confirmed priority order yet. You can preview one.',
   'chat.accessEdits': 'Edit task workspace',
   'chat.accessFull': 'Full access (unavailable)',
   'chat.openWork': 'Work on {id}',

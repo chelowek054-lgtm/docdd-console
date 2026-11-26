@@ -53,6 +53,8 @@ export const shell: Record<string, string> = {
   'chat.sessionError': 'Не удалось загрузить или сохранить чат.',
   'chat.accessLabel': 'Права запуска',
   'chat.accessRead': 'Чтение',
+  'chat.priorityStale': 'Данные задач или фаз изменились. Можно проверить новую сортировку перед выбором задачи.',
+  'chat.priorityMissing': 'Подтверждённого порядка по важности ещё нет. Можно подготовить предпросмотр.',
   'chat.accessEdits': 'Правка в рабочей области',
   'chat.accessFull': 'Полный доступ (недоступен)',
   'chat.openWork': 'Работа над {id}',

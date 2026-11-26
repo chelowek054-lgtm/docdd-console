@@ -6,6 +6,7 @@ import { WorkspaceError } from '../../../../lib/workspace';
 import { fail } from '../../../../utils/http';
 import { findProject } from '../../../../utils/projects';
 import { applyPriority } from '../../../../utils/priority-service';
+import { priorityState, rememberPriority } from '../../../../lib/project-chat/priority';
 
 /**
  * «Применить порядок» (docs/04-ui.md, «Порядок по важности»): записывает то, что человек
@@ -19,7 +20,7 @@ export default defineEventHandler(async (event) => {
     return fail(event, 404, 'project_not_found', `Проект \`${id}\` не найден в списке`);
   }
 
-  const body = await readBody<{ phases?: unknown; actor?: unknown; versions?: unknown }>(event);
+  const body = await readBody<{ phases?: unknown; actor?: unknown; versions?: unknown; revision?: unknown }>(event);
   if (!Array.isArray(body?.phases) || body.phases.length === 0) {
     return fail(event, 400, 'phases_required', 'Нечего записывать: порядок пуст');
   }
@@ -39,7 +40,11 @@ export default defineEventHandler(async (event) => {
   const actor = typeof body?.actor === 'string' && body.actor ? body.actor : 'приложение';
 
   try {
+    if (typeof body.revision === 'string' && body.revision !== (await priorityState(project.root)).revision) {
+      return fail(event, 409, 'priority_changed', 'Данные приоритетов изменились. Постройте предпросмотр заново.');
+    }
     const outcome = applyPriority(project.root, plan, actor);
+    if (outcome.ok) await rememberPriority(project.root).catch(() => undefined);
     return outcome.ok ? outcome : fail(event, 422, outcome.code, outcome.message);
   } catch (error) {
     if (error instanceof OutsideRootError) {

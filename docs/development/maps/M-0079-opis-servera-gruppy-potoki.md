@@ -4632,7 +4632,7 @@ updated: 2026-10-24
         "to": "server/utils/record-write.ts",
         "evidence": {
           "path": "server/api/projects/[id]/priority/apply.post.ts",
-          "line": 54,
+          "line": 59,
           "fragment": "import { staleVersions } from '../../../../utils/record-writ"
         }
       },

@@ -7,6 +7,7 @@ import { fail } from '../../../../utils/http';
 import { loadIndex } from '../../../../utils/index-service';
 import { priorityInput } from '../../../../utils/priority-service';
 import { findProject } from '../../../../utils/projects';
+import { priorityState } from '../../../../lib/project-chat/priority';
 
 /**
  * Разбор ответа модели в порядок — до того, как что-то записано (docs/04-ui.md,
@@ -33,7 +34,7 @@ export default defineEventHandler(async (event) => {
     }
     // «Было» — порядок, как он записан сейчас: на нём строится вид «было → станет» (R-0072).
     const before = priorityInput(project.root).phases.map((phase) => ({ id: phase.id, items: phase.tasks.map((task) => task.id) }));
-    return { phases: parsed.plan.phases, problems: parsed.problems, fixed: parsed.fixed, before };
+    return { phases: parsed.plan.phases, problems: parsed.problems, fixed: parsed.fixed, before, ...(await priorityState(project.root)) };
   } catch (error) {
     if (error instanceof OutsideRootError) {
       return fail(event, 403, 'outside_root', error.message, error.requested);

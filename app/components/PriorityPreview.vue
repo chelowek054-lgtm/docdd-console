@@ -9,7 +9,7 @@ const { t } = useT();
  */
 interface PlanTask { id: string; why: string }
 interface PlanPhase { id: string; why: string; tasks: PlanTask[] }
-interface Preview { phases: PlanPhase[]; problems: string[]; fixed: string[]; before?: { id: string; items: string[] }[] }
+interface Preview { phases: PlanPhase[]; problems: string[]; fixed: string[]; revision?: string; before?: { id: string; items: string[] }[] }
 
 const props = defineProps<{ projectId: string; answer: string; titles: Record<string, string>; roles: { id: string; name: string }[] }>();
 const emit = defineEmits<{ applied: [] }>();
@@ -48,7 +48,7 @@ async function apply() {
   try {
     const response = await $fetch<{ changed: string[] } | { error: ApiFailure }>(`/api/projects/${props.projectId}/priority/apply`, {
       method: 'POST',
-      body: { phases: preview.value.phases, actor: actor.value },
+      body: { phases: preview.value.phases, actor: actor.value, revision: preview.value.revision },
       ignoreResponseError: true
     });
     const problem = failureOf(response);

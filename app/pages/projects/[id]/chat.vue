@@ -20,6 +20,8 @@ const route = useRoute();
 const projectId = computed(() => String(route.params.id ?? ''));
 const base = computed(() => `/api/projects/${encodeURIComponent(projectId.value)}`);
 const { records, index: projectIndex, refresh: refreshProject } = useProjectIndex(projectId);
+const { data: priority, refresh: refreshPriority } = useLazyFetch<{ state: 'current' | 'stale' | 'missing' }>(() => `${base.value}/priority`, { server: false });
+const titles = computed(() => Object.fromEntries(records.value.map((record) => [record.id, record.title])));
 const { me } = useMe(projectId);
 const chats = useProjectChats<Turn>(projectId);
 const { active, summaries, error: chatError, loading } = chats;
@@ -290,6 +292,15 @@ async function send(retry?: Turn) {
         </div>
       </header>
       <p v-if="chatError" class="px-4 pt-3 text-sm text-error" role="alert">{{ chatError }}</p>
+      <section v-if="active && !active.archived && priority && priority.state !== 'current'" class="border-b border-default p-4">
+        <p class="mb-2 text-sm text-muted">{{ t(priority.state === 'stale' ? 'chat.priorityStale' : 'chat.priorityMissing') }}</p>
+        <PromptPanel :project-id="projectId" kind="priority" :label="t('work.sort')" :hint="t('work.sortHint')">
+          <template #answer="{ answer }">
+            <PriorityPreview :project-id="projectId" :answer="answer" :titles="titles" :roles="projectIndex?.project.roles ?? []"
+              @applied="refreshProject(); refreshPriority()" />
+          </template>
+        </PromptPanel>
+      </section>
       <section v-if="active && workTask && workOpen" class="border-b border-default p-4">
         <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
           <h2 class="text-sm font-medium">{{ workTask.id }} · {{ workTask.title }}</h2>
